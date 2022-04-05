@@ -1,0 +1,26 @@
+{
+  "chainConfig": {
+    "chainId": 2357,
+    "maxTotalSupply": 1000000000000000000
+  },
+  "feeConfig": {
+    "minGasFee": 1000,
+    "minGasPrice": 1000,
+    "gasRebateRate": 1000,
+    "maxBlockGas": 1000000,
+    "maxTxGas": 100000,
+    "maxBlockMiners": 128,
+    "minMinerStake": 1000000000000
+  },
+  "alloc": {
+    "0xa54701B7b7a8f2E9545b4bB90465a0f45C82A84B": {
+      "balance": 1000000000000000000,
+      "threshold": 1,
+      "guardians": ["0x3Fb2B2BEBf856C523aA36637e823612a2cB3EEa9"]
+    }
+  },
+  "block": {
+    "gasRebateRate": 500,
+    "gasPrice": 1000
+  }
+}
