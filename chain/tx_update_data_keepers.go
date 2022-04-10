@@ -11,7 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 )
 
-type TxDeleteData struct {
+type TxUpdateDataKeepers struct {
 	ld      *ld.Transaction
 	from    *Account
 	signers []ids.ShortID
@@ -19,7 +19,7 @@ type TxDeleteData struct {
 	dm      *ld.DataMeta
 }
 
-func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil {
 		return ld.Null, nil
 	}
@@ -27,7 +27,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		tx.data = &ld.TxUpdater{}
 		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
+			return nil, fmt.Errorf("TxUpdateDataKeepers unmarshal data failed: %v", err)
 		}
 	}
 	d, err := tx.data.MarshalJSON()
@@ -38,19 +38,19 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	return v.MarshalJSON()
 }
 
-func (tx *TxDeleteData) ID() ids.ID {
+func (tx *TxUpdateDataKeepers) ID() ids.ID {
 	return tx.ld.ID()
 }
 
-func (tx *TxDeleteData) Type() ld.TxType {
+func (tx *TxUpdateDataKeepers) Type() ld.TxType {
 	return tx.ld.Type
 }
 
-func (tx *TxDeleteData) Bytes() []byte {
+func (tx *TxUpdateDataKeepers) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
-func (tx *TxDeleteData) SyntacticVerify() error {
+func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	if tx.ld.Gas == 0 ||
 		tx.ld.GasFeeCap == 0 ||
 		tx.ld.Amount != nil ||
@@ -58,7 +58,7 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 		tx.ld.To != ids.ShortEmpty ||
 		len(tx.ld.Signatures) == 0 ||
 		len(tx.ld.ExSignatures) != 0 {
-		return fmt.Errorf("invalid TxDeleteData")
+		return fmt.Errorf("invalid TxUpdateDataKeepers")
 	}
 
 	var err error
@@ -68,20 +68,23 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 	}
 
 	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
+	if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxUpdateDataKeepers unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxDeleteData SyntacticVerify failed: %v", err)
+	if err := tx.data.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxUpdateDataKeepers SyntacticVerify failed: %v", err)
 	}
 	if tx.data.ID == ids.ShortEmpty ||
 		tx.data.Version == 0 {
-		return fmt.Errorf("invalid TxUpdater for TxDeleteData")
+		return fmt.Errorf("TxUpdateDataKeepers invalid txUpdater")
+	}
+	if len(tx.data.Keepers) == 0 {
+		return fmt.Errorf("TxUpdateDataKeepers no keepers")
 	}
 	return nil
 }
 
-func (tx *TxDeleteData) Verify(blk *Block) error {
+func (tx *TxUpdateDataKeepers) Verify(blk *Block) error {
 	var err error
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
@@ -89,10 +92,10 @@ func (tx *TxDeleteData) Verify(blk *Block) error {
 
 	tx.dm, err = blk.State().LoadData(tx.data.ID)
 	if err != nil {
-		return fmt.Errorf("TxDeleteData load data failed: %v", err)
+		return fmt.Errorf("TxUpdateDataKeepers load data failed: %v", err)
 	}
 	if tx.dm.Version != tx.data.Version {
-		return fmt.Errorf("TxDeleteData version mismatch, expected %v, got %v",
+		return fmt.Errorf("TxUpdateDataKeepers version mismatch, expected %v, got %v",
 			tx.dm.Version, tx.data.Version)
 	}
 	if !ld.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
@@ -101,12 +104,15 @@ func (tx *TxDeleteData) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxDeleteData) Accept(blk *Block) error {
-	tx.dm.Version = 0 // mark dropped
+func (tx *TxUpdateDataKeepers) Accept(blk *Block) error {
 	var err error
+	tx.dm.Version++
+	tx.dm.Threshold = tx.data.Threshold
+	tx.dm.Keepers = tx.data.Keepers
 	if err = tx.dm.SyntacticVerify(); err != nil {
 		return err
 	}
+
 	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err
@@ -114,8 +120,6 @@ func (tx *TxDeleteData) Accept(blk *Block) error {
 	return blk.State().SaveData(tx.data.ID, tx.dm)
 }
 
-func (tx *TxDeleteData) Event(ts int64) *Event {
-	e := NewEvent(tx.data.ID, SrcData, ActionDelete)
-	e.Time = ts
-	return e
+func (tx *TxUpdateDataKeepers) Event(ts int64) *Event {
+	return nil
 }

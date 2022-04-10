@@ -14,44 +14,46 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 )
 
-var (
-	BigInt0 = big.NewInt(0)
-)
-
 type Account struct {
-	ld        *ld.Account
-	mu        sync.RWMutex
-	id        ids.ShortID // account address
-	guardians ids.ShortSet
-	vdb       database.Database // account version database
+	ld  *ld.Account
+	mu  sync.RWMutex
+	id  ids.ShortID       // account address
+	vdb database.Database // account version database
 }
 
-func NewAccount() *Account {
+func NewAccount(id ids.ShortID) *Account {
 	return &Account{
+		id: id,
 		ld: &ld.Account{
+			ID:        id,
 			Balance:   big.NewInt(0),
 			Threshold: 1,
-			Guardians: make([]ids.ShortID, 0),
+			Keepers:   []ids.ShortID{id},
 		},
 	}
 }
 
-func ParseAccount(data []byte) (*Account, error) {
-	a := &Account{ld: &ld.Account{}}
+func ParseAccount(id ids.ShortID, data []byte) (*Account, error) {
+	a := &Account{id: id, ld: &ld.Account{Balance: new(big.Int)}}
 	if err := a.ld.Unmarshal(data); err != nil {
 		return nil, err
 	}
 	if err := a.ld.SyntacticVerify(); err != nil {
 		return nil, err
 	}
+	a.ld.ID = id
 	return a, nil
 }
 
-func (a *Account) Init(id ids.ShortID, vdb database.Database) {
-	a.id = id
+func (a *Account) Init(vdb database.Database) {
 	a.vdb = vdb
-	a.guardians = ids.NewShortSet(len(a.ld.Guardians))
-	a.guardians.Add(a.ld.Guardians...)
+}
+
+func (a *Account) Account() *ld.Account {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.ld
 }
 
 func (a *Account) Nonce() uint64 {
@@ -68,90 +70,110 @@ func (a *Account) Balance() *big.Int {
 	return a.ld.Balance
 }
 
-func (a *Account) Add(nonce uint64, amount *big.Int) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (a *Account) Threshold() uint8 {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
-	if a.ld.Nonce != nonce {
-		return fmt.Errorf("invalid nonce %d of account %s", nonce, a.id)
-	}
-	if amount == nil || amount.Cmp(BigInt0) < 1 {
-		return fmt.Errorf("invalid amount %v of account %s", amount, a.id)
-	}
-	amount.Add(a.ld.Balance, amount)
-	// if amount.Cmp(MaxSuply) > 0 {
-	// 	return fmt.Errorf("invalid amount %v of account %s", amount, a.id)
-	// }
-	a.ld.Nonce++
-	a.ld.Balance = amount
-	return nil
+	return a.ld.Threshold
 }
 
-func (a *Account) Sub(nonce uint64, amount *big.Int) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (a *Account) Keepers() []ids.ShortID {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
-	if a.ld.Nonce != nonce {
-		return fmt.Errorf("invalid nonce %d of account %s", nonce, a.id)
-	}
-	if amount == nil || amount.Cmp(BigInt0) < 1 {
-		return fmt.Errorf("invalid amount %v of account %s", amount, a.id)
-	}
-	if amount.Cmp(a.ld.Balance) > 0 {
-		return fmt.Errorf("invalid amount %v of account %s", amount, a.id)
-	}
-	a.ld.Nonce++
-	a.ld.Balance.Sub(a.ld.Balance, amount)
-	return nil
+	return a.ld.Keepers
 }
 
 func (a *Account) SatisfySigning(signers []ids.ShortID) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	if len(signers) < int(a.ld.Threshold) {
-		return false
-	}
-
-	// the first signer should be the sender
-	if a.id != signers[0] {
-		return false
-	}
-
-	t := uint(1)
-	for _, id := range signers[1:] {
-		if a.guardians.Contains(id) {
-			t++
-		}
-	}
-	return t >= uint(a.ld.Threshold)
+	return ld.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
 }
 
-func (a *Account) UpdateGuardians(nonce uint64, fee *big.Int, threshold uint8, guardians []ids.ShortID) error {
+func (a *Account) Add(amount *big.Int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if amount == nil || amount.Sign() < 0 {
+		return fmt.Errorf(
+			"Account(%s).Add invalid amount %v",
+			ld.EthID(a.id), amount)
+	}
+	a.ld.Balance.Add(a.ld.Balance, amount)
+	return nil
+}
+
+func (a *Account) Sub(amount *big.Int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if amount == nil || amount.Sign() < 0 {
+		return fmt.Errorf(
+			"Account(%s).Sub invalid amount %v",
+			ld.EthID(a.id), amount)
+	}
+	if amount.Cmp(a.ld.Balance) > 0 {
+		return fmt.Errorf(
+			"Account(%s).Sub insufficient balance %v",
+			ld.EthID(a.id), amount)
+	}
+	a.ld.Balance.Sub(a.ld.Balance, amount)
+	return nil
+}
+
+func (a *Account) SubByNonce(nonce uint64, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if a.ld.Nonce != nonce {
-		return fmt.Errorf("invalid nonce %d of account %s", nonce, a.id)
+		return fmt.Errorf(
+			"Account(%s).SubByNonce invalid nonce %d",
+			ld.EthID(a.id), nonce)
+	}
+	if amount == nil || amount.Sign() < 0 {
+		return fmt.Errorf(
+			"Account(%s).SubByNonce invalid amount %v",
+			ld.EthID(a.id), amount)
+	}
+	if amount.Cmp(a.ld.Balance) > 0 {
+		return fmt.Errorf(
+			"Account(%s).SubByNonce insufficient balance to spent %v",
+			ld.EthID(a.id), amount)
+	}
+	a.ld.Nonce++
+	a.ld.Balance.Sub(a.ld.Balance, amount)
+	return nil
+}
+
+func (a *Account) UpdateKeepers(nonce uint64, fee *big.Int, threshold uint8, keepers []ids.ShortID) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.ld.Nonce != nonce {
+		return fmt.Errorf(
+			"Account(%s).UpdateKeepers invalid nonce %d",
+			ld.EthID(a.id), nonce)
 	}
 
 	if a.ld.Balance.Cmp(fee) < 0 {
-		return fmt.Errorf("insufficient balance %d of account %s, required %d",
-			a.ld.Balance, a.id, fee)
+		return fmt.Errorf(
+			"Account(%s).UpdateKeepers insufficient balance to spent %v, required %v",
+			ld.EthID(a.id), a.ld.Balance, fee)
 	}
 
 	a.ld.Nonce++
 	a.ld.Balance.Sub(a.ld.Balance, fee)
 	a.ld.Threshold = threshold
-	a.ld.Guardians = guardians
-
-	a.guardians = ids.NewShortSet(len(a.ld.Guardians))
-	a.guardians.Add(a.ld.Guardians...)
+	a.ld.Keepers = keepers
 	return nil
 }
 
-// Commit will be called when stateBlock.SaveBlock
+// Commit will be called when blockState.SaveBlock
 func (a *Account) Commit() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if err := a.ld.SyntacticVerify(); err != nil {
 		return err
 	}

@@ -1,3 +1,9 @@
+// (c) 2022-2022, LDC Labs, Inc. All rights reserved.
+// See the file LICENSE for licensing terms.
+
+package genesis
+
+var LocalGenesisConfigJSON = `
 {
   "chain": {
     "chainID": 2357,
@@ -40,3 +46,4 @@
     }
   }
 }
+`

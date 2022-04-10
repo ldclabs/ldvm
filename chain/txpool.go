@@ -15,21 +15,19 @@ type TxPool interface {
 	Add(txs ...*ld.Transaction) error
 	Has(txID ids.ID) bool
 	Get(txID ids.ID) *ld.Transaction
-
-	AddDecisionTx(txs ...*ld.Transaction)
-	AddProposalTx(txs ...*ld.Transaction)
-
-	HasDecisionTxs() bool
-	HasProposalTx() bool
-
-	RemoveDecisionTxs(...ids.ID)
-	RemoveProposalTx(ids.ID)
-
-	PopDecisionTxs(numTxs int) []*ld.Transaction
-	PopProposalTx() *ld.Transaction
+	Len() int
+	PopBySize(askSize uint64) []*ld.Transaction
 
 	MarkDropped(txID ids.ID)
 	WasDropped(txID ids.ID) bool
+
+	AddNode(nodeID ids.ShortID)
+	HasNode(nodeID ids.ShortID) bool
+
+	PopMiners(blockId ids.ID, height uint64) []ids.ShortID
+	DecisionMintTx(blockId ids.ID) *ld.Transaction // should always return
 }
 
-type txPool struct{}
+type txPool struct {
+	activeNodes ids.ShortSet // TODO: expired
+}

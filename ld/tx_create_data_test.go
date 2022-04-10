@@ -16,7 +16,7 @@ func TestDataMeta(t *testing.T) {
 		ModelID:   ids.ShortID{4, 5, 6, 7, 8},
 		Version:   10,
 		Threshold: 1,
-		Owners:    []ids.ShortID{address},
+		Keepers:   []ids.ShortID{address},
 		Data:      []byte("testdata"),
 	}
 	data, err := dm.Marshal()

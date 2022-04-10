@@ -7,38 +7,93 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/app"
 )
 
 type Genesis struct {
-	ChainConfig ChainConfig `json:"chainConfig"`
-	FeeConfig   FeeConfig   `json:"feeConfig"`
-	Alloc       map[ld.EthID]struct {
-		Balance   *big.Int   `json:"balance"`
-		Threshold uint8      `json:"threshold"`
-		Guardians []ld.EthID `json:"guardians"`
-	} `json:"alloc"`
+	Chain *ChainConfig `json:"chain"`
 	Block struct {
 		GasRebateRate uint64 `json:"gasRebateRate"`
 		GasPrice      uint64 `json:"gasPrice"`
 	} `json:"block"`
+	Alloc map[ld.EthID]struct {
+		Balance   *big.Int   `json:"balance"`
+		Threshold uint8      `json:"threshold"`
+		Keepers   []ld.EthID `json:"keepers"`
+	} `json:"alloc"`
 }
 
 type ChainConfig struct {
-	ChainID        uint64    `json:"chainId"`
-	MaxTotalSupply *big.Int  `json:"maxTotalSupply"`
-	ConfigID       ld.DataID `json:"ConfigID"`
+	mu                   sync.RWMutex
+	ChainID              uint64       `json:"chainID"`
+	MaxTotalSupply       *big.Int     `json:"maxTotalSupply"`
+	Message              string       `json:"message"`
+	FeeConfigThreshold   uint8        `json:"feeConfigThreshold"`
+	FeeConfigKeepers     []ld.EthID   `json:"feeConfigKeepers"`
+	FeeConfigID          ld.DataID    `json:"feeConfigID"`
+	NameServiceThreshold uint8        `json:"nameServiceThreshold"`
+	NameServiceKeepers   []ld.EthID   `json:"nameServiceKeepers"`
+	NameServiceID        ld.ModelID   `json:"nameServiceID"`
+	InfoServiceID        ld.ModelID   `json:"infoServiceID"`
+	FeeConfig            *FeeConfig   `json:"feeConfig"`
+	FeeConfigs           []*FeeConfig `json:"feeConfigs"`
+}
+
+func (c *ChainConfig) IsNameService(id ids.ShortID) bool {
+	return c.NameServiceID == ld.ModelID(id)
+}
+
+func (c *ChainConfig) Fee(height uint64) *FeeConfig {
+	c.mu.RLock()
+	ln := len(c.FeeConfigs)
+	for i := ln - 1; i >= 0; i-- {
+		if c.FeeConfigs[i].StartHeight <= height {
+			if c.FeeConfig == c.FeeConfigs[i] {
+				c.mu.RUnlock()
+				return c.FeeConfig
+			}
+			c.mu.RUnlock()
+
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			c.FeeConfig = c.FeeConfigs[i]
+			feeConfigs := make([]*FeeConfig, 0, ln-i)
+			copy(feeConfigs, c.FeeConfigs[i:])
+			c.FeeConfigs = feeConfigs
+			return c.FeeConfig
+		}
+	}
+
+	return c.FeeConfig
+}
+
+func (c *ChainConfig) AddFeeConfig(fee *FeeConfig) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.FeeConfigs = append(c.FeeConfigs, fee)
+}
+
+func (c *ChainConfig) CheckChainID(chainID uint64) error {
+	if chainID != c.ChainID {
+		return fmt.Errorf("invalid ChainID %d, expected %d", chainID, c.ChainID)
+	}
+	return nil
 }
 
 type FeeConfig struct {
-	MinGasFee      uint64   `json:"minGasFee"`
+	StartHeight    uint64   `json:"startHeight"`
+	ThresholdGas   uint64   `json:"thresholdGas"`
 	MinGasPrice    uint64   `json:"minGasPrice"`
-	GasRebateRate  uint64   `json:"gasRebateRate"`
-	MaxBlockGas    uint64   `json:"maxBlockGas"`
+	MaxGasPrice    uint64   `json:"maxGasPrice"`
 	MaxTxGas       uint64   `json:"maxTxGas"`
+	MaxBlockSize   uint64   `json:"maxBlockSize"`
 	MaxBlockMiners uint64   `json:"maxBlockMiners"`
+	GasRebateRate  *big.Int `json:"gasRebateRate"`
 	MinMinerStake  *big.Int `json:"minMinerStake"`
 }
 
@@ -47,53 +102,137 @@ func FromJSON(data []byte) (*Genesis, error) {
 	if err := json.Unmarshal(data, g); err != nil {
 		return nil, err
 	}
-	g.ChainConfig.ConfigID = ld.DataIDFromData(
-		[]byte("LDVM"), ld.FromUint64(g.ChainConfig.ChainID))
+	g.Chain.FeeConfigs = []*FeeConfig{g.Chain.FeeConfig}
 	return g, nil
 }
 
 func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs := make([]*ld.Transaction, 0)
+	// 道生一，一生二，二生三，三生万物
+	// The first transaction is issued by the Blackhole account, to the Genesis account.
+	// It has included ChainID, MaxTotalSupply and Genesis Message.
+	tx := &ld.Transaction{
+		Type:    ld.TypeMintFee,
+		ChainID: g.Chain.ChainID,
+		From:    constants.BlackholeAddr,
+		To:      constants.GenesisAddr,
+		Amount:  g.Chain.MaxTotalSupply,
+		Data:    []byte(g.Chain.Message),
+	}
+	txs = append(txs, tx)
+
+	// config data tx
+	cfg, err := json.Marshal(g.Chain.FeeConfig)
+	if err != nil {
+		return nil, err
+	}
+	cfgData := &ld.DataMeta{
+		ModelID:   ids.ShortID(constants.JsonModelID),
+		Version:   1,
+		Threshold: g.Chain.FeeConfigThreshold,
+		Keepers:   ld.EthIDsToShort(g.Chain.FeeConfigKeepers...),
+		Data:      cfg,
+	}
 
 	// Alloc Txs
+	if len(g.Alloc) == 0 {
+		return nil, fmt.Errorf("genesis allocation empty")
+	}
+
+	genesisNonce := uint64(0)
 	for k, v := range g.Alloc {
 		tx := &ld.Transaction{
-			Type:         ld.TypeTransfer,
-			ChainID:      g.ChainConfig.ChainID,
-			AccountNonce: uint64(0),
-			Amount:       v.Balance,
-			To:           ids.ShortID(k),
+			Type:    ld.TypeTransfer,
+			ChainID: g.Chain.ChainID,
+			Nonce:   genesisNonce,
+			From:    constants.GenesisAddr,
+			To:      ids.ShortID(k),
+			Amount:  v.Balance,
 		}
+		genesisNonce++
 		txs = append(txs, tx)
 
-		if le := len(v.Guardians); le > 0 {
-			update := &ld.TxUpdateAccountGuardians{
+		if le := len(v.Keepers); le > 0 {
+			update := &ld.TxUpdater{
 				Threshold: v.Threshold,
-				Guardians: make([]ids.ShortID, len(v.Guardians)),
+				Keepers:   make([]ids.ShortID, len(v.Keepers)),
 			}
 
-			for i, id := range v.Guardians {
-				if id == k {
-					return nil, fmt.Errorf("address %s exists", id)
-				}
-				update.Guardians[i] = ids.ShortID(id)
-			}
-
-			if err := update.SyntacticVerify(); err != nil {
-				return nil, err
+			for i, id := range v.Keepers {
+				update.Keepers[i] = ids.ShortID(id)
 			}
 
 			tx := &ld.Transaction{
-				Type:         ld.TypeUpdateAccountGuardians,
-				ChainID:      g.ChainConfig.ChainID,
-				AccountNonce: uint64(1),
-				From:         ids.ShortID(k),
-				Data:         update.Bytes(),
+				Type:    ld.TypeUpdateAccountKeepers,
+				ChainID: g.Chain.ChainID,
+				Nonce:   uint64(0),
+				From:    ids.ShortID(k),
+				Data:    update.Bytes(),
 			}
 			txs = append(txs, tx)
 		}
 	}
-	// Config Txs
+
+	// Config tx
+	if err := cfgData.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	tx = &ld.Transaction{
+		Type:    ld.TypeCreateData,
+		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
+		From:    constants.GenesisAddr,
+		Data:    cfgData.Bytes(),
+	}
+	genesisNonce++
+	if err := tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	// LDBn8nd2dFKNyYzb8c5MPxz1JpY84dm2ysT
+	g.Chain.FeeConfigID = ld.DataID(tx.ShortID())
+	txs = append(txs, tx)
+
+	// name service tx
+	name, sch := app.NameSchema()
+	nameModel := &ld.ModelMeta{
+		Name:      name,
+		Threshold: g.Chain.NameServiceThreshold,
+		Keepers:   ld.EthIDsToShort(g.Chain.NameServiceKeepers...),
+		Data:      sch,
+	}
+	tx = &ld.Transaction{
+		Type:    ld.TypeCreateModel,
+		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
+		From:    constants.GenesisAddr,
+		Data:    nameModel.Bytes(),
+	}
+	genesisNonce++
+	if err := tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	g.Chain.NameServiceID = ld.ModelID(tx.ShortID())
+	txs = append(txs, tx)
+
+	// info service tx
+	name, sch = app.InfoSchema()
+	infoModel := &ld.ModelMeta{
+		Name: name,
+		Data: sch,
+	}
+	tx = &ld.Transaction{
+		Type:    ld.TypeCreateModel,
+		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
+		From:    constants.GenesisAddr,
+		Data:    infoModel.Bytes(),
+	}
+	genesisNonce++
+	if err := tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	g.Chain.InfoServiceID = ld.ModelID(tx.ShortID())
+	txs = append(txs, tx)
 
 	// build genesis block
 	blk := &ld.Block{

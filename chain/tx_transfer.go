@@ -13,8 +13,16 @@ import (
 
 type TxTransfer struct {
 	ld      *ld.Transaction
-	id      ids.ID
+	from    *Account
+	to      *Account
 	signers []ids.ShortID
+}
+
+func (tx *TxTransfer) MarshalJSON() ([]byte, error) {
+	if tx == nil {
+		return ld.Null, nil
+	}
+	return tx.ld.MarshalJSON()
 }
 
 func (tx *TxTransfer) ID() ids.ID {
@@ -23,10 +31,6 @@ func (tx *TxTransfer) ID() ids.ID {
 
 func (tx *TxTransfer) Type() ld.TxType {
 	return tx.ld.Type
-}
-
-func (tx *TxTransfer) Gas() *big.Int {
-	return new(big.Int).SetUint64(tx.ld.Gas)
 }
 
 func (tx *TxTransfer) Bytes() []byte {
@@ -44,65 +48,56 @@ func (tx *TxTransfer) SyntacticVerify() error {
 		return fmt.Errorf("invalid TxTransfer")
 	}
 
-	x := tx.ld.Copy()
-	x.Gas = 0
-	x.Signatures = nil
-	data, err := x.Marshal()
+	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid signatures")
 	}
-	tx.signers, err = ld.DeriveSigners(data, tx.ld.Signatures)
-	if err == nil {
-		if tx.ld.From != tx.signers[0] {
-			return fmt.Errorf("invalid sender %s, expected %s", tx.ld.From, tx.signers[0])
-		}
+	if tx.ld.Amount.Sign() <= 0 {
+		return fmt.Errorf("invalid amount")
 	}
-	return err
+	return nil
 }
 
 func (tx *TxTransfer) Verify(blk *Block) error {
-	chainCfg := blk.State().ChainConfig()
-	if tx.ld.ChainID != chainCfg.ChainID {
-		return fmt.Errorf("invalid ChainID %d, expected %d", tx.ld.ChainID, chainCfg.ChainID)
-	}
-
-	acc, err := blk.State().LoadAccount(tx.ld.From)
+	var err error
+	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
 	}
+	tx.to, err = blk.State().LoadAccount(tx.ld.To)
+	return err
+}
 
-	if tx.ld.AccountNonce != acc.Nonce() { // TODO: nonce changed everywhere!
-		return fmt.Errorf("account nonce not matching")
+func (tx *TxTransfer) VerifyGenesis(blk *Block) error {
+	var err error
+	bs := blk.State()
+	tx.from, err = bs.LoadAccount(tx.ld.From)
+	if err != nil {
+		return err
 	}
-	if !acc.SatisfySigning(tx.signers) {
-		return fmt.Errorf("need more signatures")
-	}
-	cost := new(big.Int).Mul(tx.Gas(), blk.GasPrice())
-	cost = new(big.Int).Add(tx.ld.Amount, cost)
-	if acc.Balance().Cmp(cost) < 0 {
-		return fmt.Errorf("insufficient balance %d of account %s, required %d",
-			acc.Balance(), tx.ld.From, cost)
+	tx.to, err = bs.LoadAccount(tx.ld.To)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 func (tx *TxTransfer) Accept(blk *Block) error {
-	acc, err := blk.State().LoadAccount(tx.ld.From)
-	if err != nil {
-		return err
-	}
-	to, err := blk.State().LoadAccount(tx.ld.To)
-	if err != nil {
-		return err
-	}
-
-	cost := new(big.Int).Mul(new(big.Int).SetUint64(tx.ld.Gas), blk.GasPrice())
+	var err error
+	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
+	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	cost = new(big.Int).Add(tx.ld.Amount, cost)
-	if err := acc.Sub(tx.ld.AccountNonce, cost); err != nil {
+	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err
 	}
-	if err := to.Add(to.Nonce(), tx.ld.Amount); err != nil {
+	if err = tx.to.Add(tx.ld.Amount); err != nil {
 		return err
 	}
+	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
+	return nil
+}
+
+func (tx *TxTransfer) Event(ts int64) *Event {
 	return nil
 }

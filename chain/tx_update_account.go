@@ -11,31 +11,46 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 )
 
-type TxUpdateAccountGuardians struct {
+type TxUpdateAccountKeepers struct {
 	ld      *ld.Transaction
-	id      ids.ID
+	from    *Account
 	signers []ids.ShortID
-	update  *ld.TxUpdateAccountGuardians
+	data    *ld.TxUpdater
 }
 
-func (tx *TxUpdateAccountGuardians) ID() ids.ID {
+func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
+	if tx == nil {
+		return ld.Null, nil
+	}
+	v := tx.ld.Copy()
+	if tx.data == nil {
+		tx.data = &ld.TxUpdater{}
+		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
+			return nil, fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
+		}
+	}
+	d, err := tx.data.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	v.Data = d
+	return v.MarshalJSON()
+}
+
+func (tx *TxUpdateAccountKeepers) ID() ids.ID {
 	return tx.ld.ID()
 }
 
-func (tx *TxUpdateAccountGuardians) Type() ld.TxType {
+func (tx *TxUpdateAccountKeepers) Type() ld.TxType {
 	return tx.ld.Type
 }
 
-func (tx *TxUpdateAccountGuardians) Gas() *big.Int {
-	return new(big.Int).SetUint64(tx.ld.Gas)
-}
-
-func (tx *TxUpdateAccountGuardians) Bytes() []byte {
+func (tx *TxUpdateAccountKeepers) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
-func (tx *TxUpdateAccountGuardians) SyntacticVerify() error {
-	if tx.ld.AccountNonce == 0 ||
+func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
+	if tx.ld.Nonce == 0 ||
 		tx.ld.Gas == 0 ||
 		tx.ld.GasFeeCap == 0 ||
 		tx.ld.Amount != nil ||
@@ -44,68 +59,65 @@ func (tx *TxUpdateAccountGuardians) SyntacticVerify() error {
 		len(tx.ld.Data) == 0 ||
 		len(tx.ld.Signatures) == 0 ||
 		len(tx.ld.ExSignatures) != 0 {
-		return fmt.Errorf("invalid TxMintFee")
+		return fmt.Errorf("invalid TxUpdateAccountKeepers")
 	}
 
-	x := tx.ld.Copy()
-	x.Gas = 0
-	x.Signatures = nil
-	data, err := x.Marshal()
+	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
 	if err != nil {
-		return err
-	}
-	tx.signers, err = ld.DeriveSigners(data, tx.ld.Signatures)
-	if err == nil {
-		if tx.ld.From != tx.signers[0] {
-			return fmt.Errorf("invalid sender %s, expected %s", tx.ld.From, tx.signers[0])
-		}
+		return fmt.Errorf("invalid signatures")
 	}
 
-	tx.update = &ld.TxUpdateAccountGuardians{}
-	if err := tx.update.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateAccountGuardians Unmarshal failed: %v", err)
+	tx.data = &ld.TxUpdater{}
+	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}
-	if err := tx.update.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateAccountGuardians SyntacticVerify failed: %v", err)
+	if err = tx.data.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
+	}
+	if len(tx.data.Keepers) == 0 ||
+		tx.data.Threshold == 0 {
+		return fmt.Errorf("TxUpdateAccountKeepers invalid TxUpdater")
 	}
 	return nil
 }
 
-func (tx *TxUpdateAccountGuardians) Verify(blk *Block) error {
-	chainCfg := blk.State().ChainConfig()
-	if tx.ld.ChainID != chainCfg.ChainID {
-		return fmt.Errorf("invalid ChainID %d, expected %d", tx.ld.ChainID, chainCfg.ChainID)
-	}
-
-	acc, err := blk.State().LoadAccount(tx.ld.From)
-	if err != nil {
+func (tx *TxUpdateAccountKeepers) Verify(blk *Block) error {
+	var err error
+	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
-	}
-
-	if tx.ld.AccountNonce != acc.Nonce() {
-		return fmt.Errorf("account nonce not matching")
-	}
-	if !acc.SatisfySigning(tx.signers) {
-		return fmt.Errorf("need more signatures")
-	}
-	cost := new(big.Int).Mul(tx.Gas(), blk.GasPrice())
-	if acc.Balance().Cmp(cost) < 0 {
-		return fmt.Errorf("insufficient balance %d of account %s, required %d",
-			acc.Balance(), tx.ld.From, cost)
 	}
 	return nil
 }
 
-func (tx *TxUpdateAccountGuardians) Accept(blk *Block) error {
-	acc, err := blk.State().LoadAccount(tx.ld.From)
-	if err != nil {
-		return err
+func (tx *TxUpdateAccountKeepers) VerifyGenesis(blk *Block) error {
+	var err error
+	tx.data = &ld.TxUpdater{}
+	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}
+	if err = tx.data.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
+	}
+	if len(tx.data.Keepers) == 0 ||
+		tx.data.Threshold == 0 {
+		return fmt.Errorf("TxUpdateAccountKeepers invalid TxUpdater")
+	}
+	tx.from, err = blk.State().LoadAccount(tx.ld.From)
+	return err
+}
 
-	cost := new(big.Int).Mul(new(big.Int).SetUint64(tx.ld.Gas), blk.GasPrice())
-	if err := acc.UpdateGuardians(tx.ld.AccountNonce, cost, tx.update.Threshold,
-		tx.update.Guardians); err != nil {
+func (tx *TxUpdateAccountKeepers) Accept(blk *Block) error {
+	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), nil)
+	if err := tx.from.UpdateKeepers(tx.ld.Nonce, cost, tx.data.Threshold,
+		tx.data.Keepers); err != nil {
 		return err
 	}
+	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), nil)
+	return nil
+}
+
+func (tx *TxUpdateAccountKeepers) Event(ts int64) *Event {
 	return nil
 }

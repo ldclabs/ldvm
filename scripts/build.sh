@@ -13,7 +13,7 @@ LDVM_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd )
 
 # Set default binary directory location
 binary_directory="$GOPATH/github.com/ava-labs/avalanchego/build/plugins"
-name="XtPcLjGch9aKMFSoQhG3m4gXR4cvB7LwPaxuDtarTQ4njXoUy"
+name="pjjsfTNAgQnP7zdpKfRcmicXGbk87xXznJmJZtqDAyRaNEhEL"
 
 if [[ $# -eq 1 ]]; then
     binary_directory=$1
@@ -28,4 +28,4 @@ fi
 
 # Build timestampvm, which is run as a subprocess
 echo "Building LDVM in $binary_directory/$name"
-go build -o "$binary_directory/$name" "cmd/ldvm/"*.go
+go build -o "$binary_directory/$name" ./cmd/ldvm

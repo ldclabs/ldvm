@@ -5,20 +5,58 @@ package ld
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ipld/go-ipld-prime/schema"
 )
 
-var modelNameReg = regexp.MustCompile(`^[A-Z][0-9A-Za-z]{1,63}$`)
+var modelNameReg = regexp.MustCompile(`^[A-Z][0-9A-Za-z]{1,127}$`)
 
 type ModelMeta struct {
-	Name      string        // model 中输出的类型名称
-	Threshold uint8         // 使用 model 创建数据时要求的签名阈值. 必须小于等于 Keepers 数量，0 表示无需 keeper 签名，1 表示任何一个 keeper 签名即可
-	Keepers   []ids.ShortID // 当 Keepers 不存在时，任何人都能使用该 model 创建数据，否则需要 keepers 签名确认，不能大于 16 个
-	Data      []byte
-	raw       []byte
+	// model name, should match ^[A-Z][0-9A-Za-z]{1,127}$
+	Name string
+	// MultiSig: m of n, threshold is m, keepers length is n.
+	// The minimum value is 0, means no one can change the data.
+	// the maximum value is len(keepers)
+	Threshold uint8
+	// keepers who owned this model, no more than 255
+	// Creating data using this model requires keepers to sign.
+	// no keepers or threshold is 0 means don't need sign.
+	Keepers []ids.ShortID
+	Data    []byte
+
+	st  schema.Type
+	raw []byte
+	ID  ids.ShortID
+}
+
+type jsonModelMeta struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Threshold uint8           `json:"threshold"`
+	Keepers   []string        `json:"keepers"`
+	Data      json.RawMessage `json:"data"`
+}
+
+func (m *ModelMeta) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return Null, nil
+	}
+	v := &jsonModelMeta{
+		ID:        ModelID(m.ID).String(),
+		Name:      m.Name,
+		Threshold: m.Threshold,
+		Data:      JsonMarshalData(m.Data),
+		Keepers:   make([]string, len(m.Keepers)),
+	}
+	for i := range m.Keepers {
+		v.Keepers[i] = EthID(m.Keepers[i]).String()
+	}
+	return json.Marshal(v)
 }
 
 func (m *ModelMeta) Copy() *ModelMeta {
@@ -33,23 +71,35 @@ func (m *ModelMeta) Copy() *ModelMeta {
 	return x
 }
 
+func (m *ModelMeta) SchemaType() schema.Type {
+	return m.st
+}
+
 // SyntacticVerify verifies that a *ModelMeta is well-formed.
 func (m *ModelMeta) SyntacticVerify() error {
 	if !modelNameReg.MatchString(m.Name) {
-		return fmt.Errorf("invalid model Name")
+		return fmt.Errorf("invalid model name")
 	}
-	if len(m.Keepers) > 16 {
-		return fmt.Errorf("too many model Keepers")
+	if len(m.Keepers) > math.MaxUint8 {
+		return fmt.Errorf("too many model keepers")
 	}
 	if int(m.Threshold) > len(m.Keepers) {
-		return fmt.Errorf("invalid model Threshold")
+		return fmt.Errorf("invalid model threshold")
 	}
 	for _, id := range m.Keepers {
 		if id == ids.ShortEmpty {
-			return fmt.Errorf("invalid model Keeper")
+			return fmt.Errorf("invalid model keeper")
 		}
 	}
-	if _, err := m.Marshal(); err != nil {
+	if len(m.Data) < 10 {
+		return fmt.Errorf("model schema bytes should >= %d", 10)
+	}
+
+	var err error
+	if m.st, err = NewSchemaType(m.Name, m.Data); err != nil {
+		return fmt.Errorf("parse ipld model schema error: %v", err)
+	}
+	if _, err = m.Marshal(); err != nil {
 		return fmt.Errorf("modelmeta marshal error: %v", err)
 	}
 	return nil

@@ -10,11 +10,11 @@ import (
 
 // 0xf810f75a70ca722c41bf08500031b511147a1b3be07b481c30d62cff31fc9939
 // G4uZHWhjfHoMUANsMZhrW7egB4daNUAV6
-const address1 = "0xa54701B7b7a8f2E9545b4bB90465a0f45C82A84B"
+const address1 = "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
 
 // 0xeafebd2e00c325c753cd5d51875fce70bde0db5ae2a0d69f243394b9e0aed488
 // 6ooeFpbHdY1BMsvmxjgGiNLdepVnqzG3h
-const address2 = "0x3Fb2B2BEBf856C523aA36637e823612a2cB3EEa9"
+const address2 = "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
 
 func TestEthID(t *testing.T) {
 	id1, err := EthIDFromString(address1)
@@ -36,7 +36,7 @@ func TestEthID(t *testing.T) {
 	id, _ := EthIDFromString(address2)
 	eids := make([]EthID, 0)
 	err = json.Unmarshal([]byte(`[
-		"0x3Fb2B2BEBf856C523aA36637e823612a2cB3EEa9",
+		"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
 	  "3Fb2B2BEBf856C523aA36637e823612a2cB3EEa9",
 	  "6ooeFpbHdY1BMsvmxjgGiNLdepVnqzG3h",
 		"",
@@ -58,7 +58,7 @@ func TestEthID(t *testing.T) {
 }
 
 func TestModelID(t *testing.T) {
-	mid := "M7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
+	mid := "LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
 	id, err := ModelIDFromString(mid)
 	if err != nil {
 		t.Fatalf("ModelIDFromString(%s) error: %v", mid, err)
@@ -66,7 +66,7 @@ func TestModelID(t *testing.T) {
 
 	mids := make([]ModelID, 0)
 	err = json.Unmarshal([]byte(`[
-		"M7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
 		"",
 		null
 	]`), &mids)
@@ -91,7 +91,7 @@ func TestModelID(t *testing.T) {
 }
 
 func TestDataID(t *testing.T) {
-	mid := "D7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
+	mid := "LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
 	id, err := DataIDFromString(mid)
 	if err != nil {
 		t.Fatalf("DataIDFromString(%s) error: %v", mid, err)
@@ -99,7 +99,7 @@ func TestDataID(t *testing.T) {
 
 	mids := make([]DataID, 0)
 	err = json.Unmarshal([]byte(`[
-		"D7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
 		"",
 		null
 	]`), &mids)

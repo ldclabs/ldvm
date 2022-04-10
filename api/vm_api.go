@@ -7,12 +7,27 @@ import (
 	"net/http"
 
 	"github.com/ipld/go-ipld-prime/datamodel"
+	"github.com/ldclabs/ldvm/genesis"
 )
 
 type VMAPI struct{}
 
 func NewVMAPI() *VMAPI {
 	return &VMAPI{}
+}
+
+type GenesisReply struct {
+	Genesis *genesis.Genesis
+}
+
+// Genesis returns the genesis data
+func (api *VMAPI) Genesis(_ *http.Request, args *EncodeArgs, reply *GenesisReply) error {
+	gs, err := genesis.FromJSON([]byte(genesis.LocalGenesisConfigJSON))
+	if err != nil {
+		return err
+	}
+	reply.Genesis = gs
+	return nil
 }
 
 // EncodeArgs are arguments for Encode

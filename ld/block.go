@@ -5,6 +5,7 @@ package ld
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,7 +18,7 @@ type Block struct {
 	Parent    ids.ID // The genesis block's parent ID is ids.Empty.
 	Height    uint64 // The genesis block is at 0.
 	Timestamp uint64 // The genesis block is at 0.
-	Gas       uint64 // This block's total gas cost.
+	Gas       uint64 // This block's total gas.
 	GasPrice  uint64 // This block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
 	GasRebateRate uint64
@@ -28,7 +29,56 @@ type Block struct {
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
 	Miners []ids.ShortID
 	Txs    []*Transaction
+	RawTxs []json.RawMessage
+	id     ids.ID
 	raw    []byte // the block's raw bytes
+}
+
+type jsonBlock struct {
+	ID            string            `json:"id"`
+	Parent        string            `json:"parent"`
+	Height        uint64            `json:"height"`
+	Timestamp     uint64            `json:"timestamp"`
+	Gas           uint64            `json:"gas"`
+	GasPrice      uint64            `json:"gasPrice"`
+	GasRebateRate uint64            `json:"gasRebateRate"`
+	Miners        []string          `json:"miners"`
+	Txs           []json.RawMessage `json:"txs"`
+}
+
+func (b *Block) MarshalJSON() ([]byte, error) {
+	if b == nil {
+		return Null, nil
+	}
+	v := &jsonBlock{
+		ID:            b.id.String(),
+		Parent:        b.Parent.String(),
+		Height:        b.Height,
+		Timestamp:     b.Timestamp,
+		Gas:           b.Gas,
+		GasPrice:      b.GasPrice,
+		GasRebateRate: b.GasRebateRate,
+		Miners:        make([]string, len(b.Miners)),
+		Txs:           b.RawTxs,
+	}
+	for i := range b.Miners {
+		v.Miners[i] = EthID(b.Miners[i]).String()
+	}
+	if b.RawTxs == nil {
+		v.Txs = make([]json.RawMessage, len(b.Txs))
+		for i := range b.Txs {
+			d, err := b.Txs[i].MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			v.Txs[i] = d
+		}
+	}
+	return json.Marshal(v)
+}
+
+func (b *Block) ID() ids.ID {
+	return b.id
 }
 
 func (b *Block) Copy() *Block {
@@ -48,15 +98,18 @@ func (b *Block) Copy() *Block {
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
 	if b.Timestamp > uint64(time.Now().Add(futureBound).Unix()) {
-		return fmt.Errorf("invalid block Timestamp")
+		return fmt.Errorf("invalid block timestamp")
 	}
 	if b.GasRebateRate > 1000 {
-		return fmt.Errorf("invalid block GasRebateRate")
+		return fmt.Errorf("invalid block gasRebateRate")
 	}
 	for _, a := range b.Miners {
 		if a == ids.ShortEmpty {
 			return fmt.Errorf("invalid block miner address")
 		}
+	}
+	if len(b.Txs) == 0 {
+		return fmt.Errorf("invalid block no txs")
 	}
 	for _, tx := range b.Txs {
 		if tx == nil {
@@ -152,6 +205,7 @@ func (b *Block) Unmarshal(data []byte) error {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		b.raw = data
+		b.id = IDFromBytes(data)
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindBlock")
@@ -180,6 +234,7 @@ func (b *Block) Marshal() ([]byte, error) {
 		return nil, err
 	}
 	b.raw = data
+	b.id = IDFromBytes(data)
 	return data, nil
 }
 
