@@ -74,7 +74,7 @@ func (b *bindName) SyntacticVerify() error {
 	}
 
 	if _, err := b.Marshal(); err != nil {
-		return fmt.Errorf("nameApp marshal error: %v", err)
+		return fmt.Errorf("bindName marshal error: %v", err)
 	}
 	return nil
 }
@@ -120,11 +120,11 @@ func (b *bindName) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*Name); ok {
-		b.Entity = v // TODO: nil point
+		b.Entity = v
 		b.raw = data
 		return nil
 	}
-	return fmt.Errorf("unmarshal error: expected *Account")
+	return fmt.Errorf("unmarshal error: expected *Name")
 }
 
 func (b *bindName) Marshal() ([]byte, error) {

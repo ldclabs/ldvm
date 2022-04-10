@@ -103,10 +103,12 @@ type Transaction struct {
 	Data         []byte
 	Signatures   []Signature
 	ExSignatures []Signature
-	gas          uint64
-	id           ids.ID
-	unsignedRaw  []byte // raw bytes for sign
-	raw          []byte // the transaction's raw bytes, included id and sigs.
+
+	// external assignment
+	gas         uint64
+	id          ids.ID
+	unsignedRaw []byte // raw bytes for sign
+	raw         []byte // the transaction's raw bytes, included id and sigs.
 }
 
 type jsonTransaction struct {
@@ -182,21 +184,25 @@ func (t *Transaction) Copy() *Transaction {
 
 // SyntacticVerify verifies that a *Transaction is well-formed.
 func (t *Transaction) SyntacticVerify() error {
+	if t == nil {
+		return fmt.Errorf("invalid Transaction")
+	}
+
 	if t.Type > TypeDeleteData {
-		return fmt.Errorf("invalid transaction type")
+		return fmt.Errorf("invalid type")
 	}
 	if t.Amount != nil && t.Amount.Sign() < 0 {
-		return fmt.Errorf("invalid transaction amount")
+		return fmt.Errorf("invalid amount")
 	}
 	if len(t.Signatures) > math.MaxUint8 {
-		return fmt.Errorf("too many transaction signatures")
+		return fmt.Errorf("invalid signatures, too many")
 	}
 	if len(t.ExSignatures) > math.MaxUint8 {
-		return fmt.Errorf("too many transaction exSignatures")
+		return fmt.Errorf("invalid exSignatures, too many")
 	}
 
 	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("transaction marshal error: %v", err)
+		return fmt.Errorf("Transaction marshal error: %v", err)
 	}
 	if _, err := t.calcID(); err != nil {
 		return err

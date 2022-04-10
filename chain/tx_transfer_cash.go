@@ -53,26 +53,12 @@ func (tx *TxTransferCash) Bytes() []byte {
 }
 
 func (tx *TxTransferCash) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.Amount == nil ||
-		tx.ld.From == ids.ShortEmpty ||
-		tx.ld.To == ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 ||
-		len(tx.ld.ExSignatures) == 0 {
+	if tx == nil ||
+		len(tx.ld.Data) == 0 {
 		return fmt.Errorf("invalid TxTransferCash")
 	}
 
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
-	tx.exSigners, err = ld.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
-	if err != nil {
-		return fmt.Errorf("invalid exSignatures")
-	}
-
 	tx.data = &ld.TxTransfer{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxTransferCash unmarshal data failed: %v", err)
@@ -100,6 +86,15 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 
 func (tx *TxTransferCash) Verify(blk *Block) error {
 	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures: %v", err)
+	}
+	tx.exSigners, err = ld.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	if err != nil {
+		return fmt.Errorf("invalid exSignatures: %v", err)
+	}
+
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
@@ -124,7 +119,6 @@ func (tx *TxTransferCash) Verify(blk *Block) error {
 
 func (tx *TxTransferCash) Accept(blk *Block) error {
 	var err error
-
 	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err

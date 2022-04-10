@@ -11,6 +11,7 @@ package ld
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -48,6 +49,9 @@ func DerivePublicKey(dh []byte, sig []byte) (*ecdsa.PublicKey, error) {
 }
 
 func DeriveSigners(data []byte, sigs []Signature) ([]ids.ShortID, error) {
+	if len(data) == 0 || len(sigs) == 0 {
+		return nil, fmt.Errorf("no data or signatures to derive")
+	}
 	signers := make([]ids.ShortID, len(sigs))
 	dh := sha3.Sum256(data)
 	for i, sig := range sigs {

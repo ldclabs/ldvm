@@ -31,7 +31,9 @@ type TxUpdater struct {
 	Amount    *big.Int    // transfer amount
 	Expire    uint64
 	Data      []byte
-	raw       []byte
+
+	// external assignment
+	raw []byte
 }
 
 type jsonTxUpdater struct {
@@ -87,16 +89,20 @@ func (d *TxUpdater) Copy() *TxUpdater {
 	return x
 }
 
-// SyntacticVerify verifies that a *DataMeta is well-formed.
+// SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (d *TxUpdater) SyntacticVerify() error {
+	if d == nil {
+		return fmt.Errorf("invalid TxUpdater")
+	}
+
 	if d.Amount != nil && d.Amount.Sign() < 0 {
-		return fmt.Errorf("invalid transaction amount")
+		return fmt.Errorf("invalid amount")
 	}
 	if len(d.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("too many data keepers")
+		return fmt.Errorf("invalid keepers, too many")
 	}
 	if int(d.Threshold) > len(d.Keepers) {
-		return fmt.Errorf("invalid data threshold")
+		return fmt.Errorf("invalid threshold")
 	}
 	if d.Expire > 0 && d.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("invalid expire")

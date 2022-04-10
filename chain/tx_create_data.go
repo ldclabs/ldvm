@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -32,7 +33,7 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		tx.data = &ld.DataMeta{}
 		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
+			return nil, fmt.Errorf("TxCreateData unmarshal failed: %v", err)
 		}
 	}
 
@@ -57,25 +58,12 @@ func (tx *TxCreateData) Bytes() []byte {
 }
 
 func (tx *TxCreateData) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.From == ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 {
+	if tx == nil ||
+		len(tx.ld.Data) == 0 {
 		return fmt.Errorf("invalid TxCreateData")
 	}
 
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
-	if len(tx.ld.ExSignatures) > 0 {
-		tx.exSigners, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
-		if err != nil {
-			return fmt.Errorf("invalid exSignatures")
-		}
-	}
-
 	tx.data = &ld.DataMeta{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
@@ -84,16 +72,27 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		return fmt.Errorf("TxCreateData SyntacticVerify failed: %v", err)
 	}
 	if tx.data.Version != 1 {
-		return fmt.Errorf("TxCreateData' version must be 1")
+		return fmt.Errorf("TxCreateData version must be 1")
 	}
 	if len(tx.data.Keepers) == 0 {
-		return fmt.Errorf("TxCreateData' should have at least one keeper")
+		return fmt.Errorf("TxCreateData should have at least one keeper")
 	}
 	return nil
 }
 
 func (tx *TxCreateData) Verify(blk *Block) error {
 	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures: %v", err)
+	}
+	if len(tx.ld.ExSignatures) > 0 {
+		tx.exSigners, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
+		if err != nil {
+			return fmt.Errorf("invalid exSignatures: %v", err)
+		}
+	}
+
 	bs := blk.State()
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
@@ -131,28 +130,17 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 		}
 		_, err = bs.ResolveNameID(bn.Entity.Name)
 		if err == nil {
-			return fmt.Errorf("TxCreateData validate error: name %s conflict", bn.Entity.Name)
+			return fmt.Errorf("TxCreateData validate error: name %s conflict",
+				strconv.Quote(bn.Entity.Name))
 		}
 		tx.name = bn.Entity
 	}
 	return nil
 }
 
+// VerifyGenesis skipping signature verification
 func (tx *TxCreateData) VerifyGenesis(blk *Block) error {
 	var err error
-	tx.data = &ld.DataMeta{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
-	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateData SyntacticVerify failed: %v", err)
-	}
-	if tx.data.Version != 1 {
-		return fmt.Errorf("TxCreateData' version must be 1")
-	}
-	if len(tx.data.Keepers) == 0 {
-		return fmt.Errorf("TxCreateData' should have at least one keeper")
-	}
 	tx.from, err = blk.State().LoadAccount(tx.ld.From)
 	return err
 }
@@ -166,7 +154,6 @@ func (tx *TxCreateData) Accept(blk *Block) error {
 	}
 	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	cost = new(big.Int).Add(amount, cost)
-	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), nil)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err
 	}
@@ -176,7 +163,6 @@ func (tx *TxCreateData) Accept(blk *Block) error {
 			return err
 		}
 	}
-	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), nil)
 
 	id := tx.ld.ShortID()
 	if tx.name != nil {

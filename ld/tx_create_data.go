@@ -24,10 +24,11 @@ type DataMeta struct {
 	Threshold uint8
 	// keepers who owned this data, no more than 255
 	Keepers []ids.ShortID
+	Data    []byte
 
-	Data []byte
-	raw  []byte
-	ID   ids.ShortID
+	// external assignment
+	raw []byte
+	ID  ids.ShortID
 }
 
 type jsonDataMeta struct {
@@ -71,19 +72,23 @@ func (d *DataMeta) Copy() *DataMeta {
 
 // SyntacticVerify verifies that a *DataMeta is well-formed.
 func (d *DataMeta) SyntacticVerify() error {
+	if d == nil {
+		return fmt.Errorf("invalid DataMeta")
+	}
+
 	if len(d.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("too many data keepers: %d", len(d.Keepers))
+		return fmt.Errorf("invalid keepers, too many")
 	}
 	if int(d.Threshold) > len(d.Keepers) {
-		return fmt.Errorf("invalid data threshold: %d", d.Threshold)
+		return fmt.Errorf("invalid threshold")
 	}
 	for _, id := range d.Keepers {
 		if id == ids.ShortEmpty {
-			return fmt.Errorf("invalid data keeper")
+			return fmt.Errorf("invalid keeper")
 		}
 	}
 	if _, err := d.Marshal(); err != nil {
-		return fmt.Errorf("datameta marshal error: %v", err)
+		return fmt.Errorf("DataMeta marshal error: %v", err)
 	}
 	return nil
 }
