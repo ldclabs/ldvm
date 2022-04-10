@@ -27,8 +27,10 @@ const (
 // P-Chain Address 1 Key: PrivateKey-ewoqjP7PxY4yr3iLTpLisriqt94hdyDFNgchSxGGztUrTXtNN
 // P-Chain Address 2: P-custom16045mxr3s2cjycqe2xfluk304xv3ezhkhsvkpr
 // P-Chain Address 2 Key: PrivateKey-2fzYBh3bbWemKxQmMfX6DSuL2BFmDSLQWTvma57xwjQjtf8gFq
-// C-Chain Address: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
-// C-Chain Address Key: 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// C-Chain Address 1: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC
+// C-Chain Address 1 Key: 56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027
+// C-Chain Address 2: 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641
+// C-Chain Address 2 Key: dc3b75ce8741f4ae37b21c8659c28d0842cbd453b00d6b69adc8c34dae3a7644
 //
 // The following nodes are validators:
 // * NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
@@ -85,13 +87,16 @@ func main() {
 	}
 }
 
+// NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
+// NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
+
 func run(log logging.Logger, binaryPath, dbPath string) error {
 	// Create the network
 	cfg := local.NewDefaultConfig(binaryPath)
 	if cfg.Flags == nil {
 		cfg.Flags = make(map[string]interface{})
 	}
-	cfg.Flags["whitelisted-subnets"] = "k2N2VSSafGrN39VtDgMBdeson8mixzKk2k1ECBdfA3QezRe7G"
+	cfg.Flags["whitelisted-subnets"] = "T8e9XMvDtUS8VQmHzdwHtE1XHvz4H1BbfynoF1vPPqo4ZZutc"
 
 	nw, err := local.NewNetwork(log, cfg, dbPath)
 	if err != nil {

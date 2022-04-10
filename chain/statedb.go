@@ -12,8 +12,10 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/utils/logging"
 
 	"github.com/ldclabs/ldvm/config"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 )
@@ -26,13 +28,13 @@ var (
 )
 
 var (
-	lastAcceptedKeyDBPrefix = []byte{'K'}
-	heightDBPrefix          = []byte{'H'}
-	blockDBPrefix           = []byte{'B'}
-	accountDBPrefix         = []byte{'A'}
-	modelDBPrefix           = []byte{'M'}
-	dataDBPrefix            = []byte{'D'}
-	nameDBPrefix            = []byte{'N'} // inverted index
+	lastAcceptedDBPrefix = []byte{'K'}
+	heightDBPrefix       = []byte{'H'}
+	blockDBPrefix        = []byte{'B'}
+	accountDBPrefix      = []byte{'A'}
+	modelDBPrefix        = []byte{'M'}
+	dataDBPrefix         = []byte{'D'}
+	nameDBPrefix         = []byte{'N'} // inverted index
 
 	lastAcceptedKey = []byte("last_accepted_key")
 )
@@ -41,7 +43,9 @@ var (
 type StateDB interface {
 	Bootstrap() error
 	SetState(snow.State) error
+	HealthCheck() (interface{}, error)
 
+	BuildBlock() (*Block, error)
 	GetBlock(ids.ID) (*Block, error)
 	ParseBlock([]byte) (*Block, error)
 	LastAcceptedBlock() (*Block, error)
@@ -51,8 +55,15 @@ type StateDB interface {
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 
 	ChainConfig() *genesis.ChainConfig
-	FeeConfig() *genesis.FeeConfig
+	FeeConfig(uint64) *genesis.FeeConfig
+
+	PopBySize(askSize uint64) []*ld.Transaction
+	ProposeTx(*ld.Transaction)
 	AddTxs(...*ld.Transaction)
+
+	RecentEvents() []*Event
+	AddEvents(evs ...*Event)
+	Log() logging.Logger
 }
 
 func NewState(
@@ -60,15 +71,19 @@ func NewState(
 	db database.Database,
 	gs *genesis.Genesis,
 	cfg *config.Config,
+	log logging.Logger,
 ) *stateDB {
 	s := &stateDB{
-		ctx:               ctx,
-		db:                db,
-		blockDB:           prefixdb.New(blockDBPrefix, db),
-		heightDB:          prefixdb.New(heightDBPrefix, db),
-		lastAcceptedKeyDB: prefixdb.New(lastAcceptedKey, db),
-		genesis:           gs,
-		config:            cfg,
+		ctx:              ctx,
+		log:              log,
+		db:               db,
+		blockDB:          prefixdb.New(blockDBPrefix, db),
+		heightDB:         prefixdb.New(heightDBPrefix, db),
+		lastAcceptedDB:   prefixdb.New(lastAcceptedKey, db),
+		genesis:          gs,
+		config:           cfg,
+		recentEventsSize: cfg.RecentEventsSize,
+		acceptedBlocks:   make(map[ids.ID]*Block),
 	}
 	return s
 }
@@ -79,57 +94,87 @@ type stateDB struct {
 	genesis *genesis.Genesis
 	config  *config.Config
 	state   snow.State
+	log     logging.Logger
 
-	db                database.Database
-	blockDB           database.Database
-	heightDB          database.Database
-	lastAcceptedKeyDB database.Database
+	db             database.Database
+	blockDB        database.Database
+	heightDB       database.Database
+	lastAcceptedDB database.Database
 
 	// Proposed transactions that haven't been put into a block yet
 	txPool TxPool
 
+	genesisBlock *Block
+	// committed block, lastAcceptedKey's id is the preferred block
+	preferred *Block
 	// prevents reorgs past this height,
 	// should be preferred block or preferred block' child
 	// accepted but may be not committed
 	lastAcceptedBlock *Block
-	// committed block, lastAcceptedKey's id is the preferred block
-	preferred *Block
+
+	recentEventsSize int
+	recentEvents     []*Event
 
 	// multiple accepted blocks may exist befoce SetPreference
 	acceptedBlocks map[ids.ID]*Block
 }
 
-func (s *stateDB) Bootstrap() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *stateDB) Log() logging.Logger {
+	return s.log
+}
 
+// TeENEaqAPwwqDep5o1gNZ9MSPrv5Zs6QkatGn3bcN8oUyf1bd
+func (s *stateDB) Bootstrap() error {
 	genesisLdBlock, err := s.genesis.ToBlock()
 	if err != nil {
+		s.log.Error("Bootstrap genesis.ToBlock error: %v", err)
 		return err
 	}
-	genesisBlock, err := NewBlock(genesisLdBlock)
+
+	genesisBlock, err := newGenesisBlock(genesisLdBlock)
 	if err != nil {
+		s.log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err
 	}
 	if genesisBlock.Parent() != ids.Empty ||
 		genesisBlock.ID() == ids.Empty ||
 		genesisBlock.Height() != 0 ||
 		genesisBlock.Timestamp().Unix() != 0 {
-		return fmt.Errorf("invalid genesis block")
+		return fmt.Errorf("Bootstrap invalid genesis block")
 	}
 
-	sb := newStateBlock(s, s.db)
-	lastAcceptedID, err := database.GetID(s.lastAcceptedKeyDB, lastAcceptedKey)
+	s.genesisBlock = genesisBlock
+	lastAcceptedID, err := database.GetID(s.lastAcceptedDB, lastAcceptedKey)
 	// create genesis block
 	if err == database.ErrNotFound {
-		genesisBlock.InitState(sb, nil)
-		if err := genesisBlock.Verify(); err != nil {
-			return fmt.Errorf("verify genesis block error: %v", err)
+		s.log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
+		genesisBlock.InitState(s, s.db, nil)
+		// the metaverse is born out of blackhole
+		blackhole := NewAccount(constants.BlackholeAddr)
+		accountVDB := genesisBlock.bs.(*blockState).accountVDB
+		blackhole.Init(accountVDB)
+		blackhole.Add(s.genesis.Chain.MaxTotalSupply)
+		accountCache := genesisBlock.bs.(*blockState).accountCache
+		accountCache[constants.BlackholeAddr] = blackhole
+		data, _ := genesisBlock.MarshalJSON()
+		s.log.Info("genesisBlock:\n%s", string(data))
+		if err := genesisBlock.VerifyGenesis(); err != nil {
+			s.log.Error("VerifyGenesis block error: %v", err)
+			return fmt.Errorf("VerifyGenesis block error: %v", err)
 		}
 		if err := genesisBlock.Accept(); err != nil {
-			return fmt.Errorf("accept genesis block error: %v", err)
+			s.log.Error("Accept genesis block: %v", err)
+			return fmt.Errorf("Accept genesis block error: %v", err)
 		}
-		s.lastAcceptedBlock = genesisBlock // TODO
+		s.log.Info("Bootstrap commit Genesis Block")
+		// remove the blackhole account, it's life is over,
+		// and should not be wrote into blockchain, as if it never existed.
+		delete(accountCache, constants.BlackholeAddr)
+		accountVDB.Delete(constants.BlackholeAddr[:])
+
+		// commit the genesis block
+		s.lastAcceptedBlock = genesisBlock
+		defer s.log.Info("defer Create Genesis Block: %s", genesisBlock.ID())
 		return s.commitPreference(genesisBlock)
 	}
 
@@ -137,21 +182,23 @@ func (s *stateDB) Bootstrap() error {
 		return fmt.Errorf("load last_accepted failed: %v", err)
 	}
 
-	// genesis block is the last accepted block.
-	if lastAcceptedID == genesisBlock.ID() {
-		genesisBlock.InitState(sb, genesisBlock)
-		s.lastAcceptedBlock = genesisBlock
-		s.preferred = genesisBlock
-		return nil
-	}
-
 	// verify genesis data
 	genesisID, err := s.GetBlockIDAtHeight(0)
 	if err != nil {
 		return fmt.Errorf("load genesis id failed: %v", err)
 	}
+	// not the one on blockchain, means that the genesis data changed
 	if genesisID != genesisBlock.ID() {
 		return fmt.Errorf("invalid genesis data, expected genesis id %s", genesisID)
+	}
+
+	// genesis block is the last accepted block.
+	if lastAcceptedID == genesisBlock.ID() {
+		s.log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
+		genesisBlock.InitState(s, s.db, genesisBlock)
+		s.lastAcceptedBlock = genesisBlock
+		s.preferred = genesisBlock
+		return nil
 	}
 
 	// load the last accepted block
@@ -160,9 +207,14 @@ func (s *stateDB) Bootstrap() error {
 		return fmt.Errorf("load last accepted block failed: %v", err)
 	}
 
-	s.lastAcceptedBlock.InitState(sb, s.lastAcceptedBlock)
+	s.lastAcceptedBlock.InitState(s, s.db, s.lastAcceptedBlock)
 	s.preferred = s.lastAcceptedBlock
+	s.log.Info("Bootstrap finished at the block %s", lastAcceptedID)
 	return nil
+}
+
+func (s *stateDB) HealthCheck() (interface{}, error) {
+	return database.GetID(s.lastAcceptedDB, lastAcceptedKey)
 }
 
 func (s *stateDB) SetState(state snow.State) error {
@@ -210,10 +262,10 @@ func (s *stateDB) LastAcceptedBlock() (*Block, error) {
 }
 
 func (s *stateDB) SetLastAccepted(blk *Block) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	if blk.Parent() != s.preferred.ID() {
+	if s.preferred != nil && blk.Parent() != s.preferred.ID() {
 		return fmt.Errorf("invalid last accepted block parent: expected %v, got %v",
 			s.preferred.ID(), blk.Parent())
 	}
@@ -276,9 +328,26 @@ func (s *stateDB) SetPreference(id ids.ID) error {
 	return err
 }
 
+func (s *stateDB) BuildBlock() (*Block, error) {
+	b, err := BuildBlock(s.txPool, s.preferred)
+	if err != nil {
+		return nil, err
+	}
+	blk, err := NewBlock(b)
+	if err != nil {
+		return nil, err
+	}
+	blk.InitState(s, s.db, s.preferred)
+	return blk, nil
+}
+
 func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.genesisBlock.ID() == id {
+		return s.genesisBlock, nil
+	}
 
 	if blk, ok := s.acceptedBlocks[id]; ok && blk != nil {
 		return blk, nil
@@ -297,7 +366,7 @@ func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	blk.InitState(newStateBlock(s, s.db), s.preferred)
+	blk.InitState(s, s.db, s.preferred)
 	return blk, nil
 }
 
@@ -306,15 +375,46 @@ func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 }
 
 func (s *stateDB) ChainConfig() *genesis.ChainConfig {
-	return &s.genesis.ChainConfig
+	return s.genesis.Chain
 }
 
-func (s *stateDB) FeeConfig() *genesis.FeeConfig {
-	return &s.genesis.FeeConfig
+func (s *stateDB) FeeConfig(height uint64) *genesis.FeeConfig {
+	return s.genesis.Chain.Fee(height)
 }
+
+func (s *stateDB) Config() *config.Config {
+	return s.config
+}
+
+func (s *stateDB) PopBySize(askSize uint64) []*ld.Transaction {
+	return s.txPool.PopBySize(askSize)
+}
+
+func (s *stateDB) ProposeTx(*ld.Transaction) {}
 
 func (s *stateDB) AddTxs(txs ...*ld.Transaction) {
 	s.txPool.Add(txs...)
+}
+
+func (s *stateDB) RecentEvents() []*Event {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	events := make([]*Event, len(s.recentEvents))
+	copy(events, s.recentEvents)
+	return events
+}
+
+func (s *stateDB) AddEvents(events ...*Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if ln := len(s.recentEvents) + len(events); ln > s.recentEventsSize {
+		copy(s.recentEvents, s.recentEvents[ln-s.recentEventsSize:])
+		copy(s.recentEvents[s.recentEventsSize-len(events):], events)
+	} else {
+		s.recentEvents = append(s.recentEvents, events...)
+	}
 }
 
 func (s *stateDB) commitPreference(blk *Block) error {
@@ -333,7 +433,7 @@ func (s *stateDB) commitPreference(blk *Block) error {
 	if err := blk.State().Commit(); err != nil {
 		return fmt.Errorf("commitPreference block %s error: %v", blk.ID(), err)
 	}
-	if err := database.PutID(s.lastAcceptedKeyDB, lastAcceptedKey, blk.ID()); err != nil {
+	if err := database.PutID(s.lastAcceptedDB, lastAcceptedKey, blk.ID()); err != nil {
 		return err
 	}
 	s.preferred = blk
@@ -343,5 +443,7 @@ func (s *stateDB) commitPreference(blk *Block) error {
 			delete(s.acceptedBlocks, id)
 		}
 	}
+
+	s.AddEvents(blk.State().Events()...)
 	return nil
 }

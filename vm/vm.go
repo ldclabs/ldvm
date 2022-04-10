@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package ldvm
+package vm
 
 import (
 	"fmt"
@@ -23,6 +23,7 @@ import (
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/ld"
 )
 
 const (
@@ -69,7 +70,7 @@ type VM struct {
 //                 transaction would be in the genesis block.
 // [toEngine]: The channel used to send messages to the consensus engine.
 // [fxs]: Feature extensions that attach to this VM.
-func (vm *VM) Initialize(
+func (v *VM) Initialize(
 	ctx *snow.Context,
 	dbManager manager.Manager,
 	genesisData []byte,
@@ -78,52 +79,73 @@ func (vm *VM) Initialize(
 	toEngine chan<- common.Message,
 	_ []*common.Fx,
 	appSender common.AppSender,
-) error {
-	vm.ctx = ctx
-	vm.dbManager = dbManager
-	vm.toEngine = toEngine
-	vm.appSender = appSender
+) (err error) {
+	v.ctx = ctx
+	v.dbManager = dbManager
+	v.toEngine = toEngine
+	v.appSender = appSender
 
-	logCfg := logging.DefaultConfig
-	logFactory := logging.NewFactory(logCfg)
-	log, err := logFactory.MakeChain(fmt.Sprintf("LDVM-%d", ctx.NetworkID))
+	var cfg *config.Config
+	cfg, err = config.New(configData)
 	if err != nil {
-		return fmt.Errorf("failed to create logger factory: %s", err)
-	}
-	vm.Log = log
-	gs, err := genesis.FromJSON(genesisData)
-	if err != nil {
-		return err
+		return fmt.Errorf("LDVM Initialize failed to get config: %s", err)
 	}
 
-	cfg, err := config.New(configData)
+	cfg.Logger.MsgPrefix = fmt.Sprintf("%s@%s", Name, Version)
+	logFactory := logging.NewFactory(cfg.Logger)
+	v.Log, err = logFactory.Make("ldvm-" + ctx.NodeID.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("LDVM Initialize failed to create logger: %s", err)
 	}
 
-	vm.state = chain.NewState(ctx, dbManager.Current().Database, gs, cfg)
-	if err := vm.state.Bootstrap(); err != nil {
-		return err
+	v.Log.Info("LDVM Initialize with genesisData: <%s>", string(genesisData))
+	v.Log.Info("LDVM Initialize with upgradeData: <%s>", string(upgradeData))
+	v.Log.Info("LDVM Initialize with configData: <%s>", string(configData))
+
+	err = ld.Recover("LDVM Initialize", func() error {
+		return v.initialize(cfg, genesisData)
+	})
+	if err != nil {
+		v.Log.Error(err.Error())
+	}
+	return err
+}
+
+func (v *VM) initialize(cfg *config.Config, genesisData []byte) (err error) {
+	var gs *genesis.Genesis
+	if len(genesisData) == 0 {
+		genesisData = []byte(genesis.LocalGenesisConfigJSON)
+	}
+
+	gs, err = genesis.FromJSON(genesisData)
+	if err != nil {
+		return fmt.Errorf("parse genesis data error: %v", err)
+	}
+	v.state = chain.NewState(v.ctx, v.dbManager.Current().Database, gs, cfg, v.Log)
+	if err = v.state.Bootstrap(); err != nil {
+		return fmt.Errorf("bootstrap error: %v", err)
 	}
 	return nil
 }
 
 // SetState implements the common.VM SetState interface
 // SetState communicates to VM its next state it starts
-func (vm *VM) SetState(state snow.State) error {
-	return vm.state.SetState(state)
+func (v *VM) SetState(state snow.State) error {
+	v.Log.Info("SetState %v", state)
+	return v.state.SetState(state)
 }
 
 // Shutdown implements the common.VM Shutdown interface
 // Shutdown is called when the node is shutting down.
-func (vm *VM) Shutdown() error {
-	vm.dbManager.Close()
+func (v *VM) Shutdown() error {
+	v.Log.Info("Shutdown")
+	v.dbManager.Close()
 	return nil
 }
 
 // Version implements the common.VM Version interface
 // Version returns the version of the VM this node is running.
-func (vm *VM) Version() (string, error) {
+func (v *VM) Version() (string, error) {
 	return Version.String(), nil
 }
 
@@ -133,7 +155,7 @@ func (vm *VM) Version() (string, error) {
 // This exposes handlers that the outside world can use to communicate with
 // a static reference to the VM. Each handler has the path:
 // [Address of node]/ext/vm/[VM ID]/[extension]
-func (vm *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
+func (v *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
 	server := rpc.NewServer()
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
@@ -155,17 +177,20 @@ func (vm *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
 // This exposes handlers that the outside world can use to communicate with
 // the chain. Each handler has the path:
 // [Address of node]/ext/bc/[chain ID]/[extension]
-func (vm *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
+func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 	server := rpc.NewServer()
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
-	if err := server.RegisterService(api.NewBlockChainAPI(nil), Name); err != nil {
+	if err := server.RegisterService(api.NewBlockChainAPI(v.state), Name); err != nil {
+		v.Log.Error("CreateHandlers error: %v", err)
 		return nil, err
 	}
 
+	v.Log.Error("CreateHandlers ok")
 	return map[string]*common.HTTPHandler{
-		"": {
-			Handler: server,
+		"/rpc": {
+			LockOptions: common.WriteLock,
+			Handler:     server,
 		},
 	}, nil
 }
@@ -173,17 +198,21 @@ func (vm *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 // HealthCheck implements the common.VM health.Checker HealthCheck interface
 // Returns nil if the VM is healthy.
 // Periodically called and reported via the node's Health API.
-func (vm *VM) HealthCheck() (interface{}, error) { return nil, nil }
+func (v *VM) HealthCheck() (interface{}, error) {
+	return v.state.HealthCheck()
+}
 
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
-func (vm *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
+func (v *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
+	v.Log.Info("Connected %s, %v", id, nodeVersion)
 	return nil // noop
 }
 
 // Disconnected implements the common.VM Disconnected interface
 // Connector represents a handler that is called when a connection is marked as disconnected
-func (vm *VM) Disconnected(id ids.ShortID) error {
+func (v *VM) Disconnected(id ids.ShortID) error {
+	v.Log.Info("Disconnected %s", id)
 	return nil // noop
 }
 
@@ -200,7 +229,8 @@ func (vm *VM) Disconnected(id ids.ShortID) error {
 //
 // A node may gossip the same message multiple times. That is,
 // AppGossip([nodeID], [msg]) may be called multiple times.
-func (vm *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
+func (v *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
+	v.Log.Info("AppGossip %s, %d bytes", nodeID, len(msg))
 	return nil
 }
 
@@ -218,7 +248,8 @@ func (vm *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
 // This node should typically send an AppResponse to [nodeID] in response to
 // a valid message using the same request ID before the deadline. However,
 // the VM may arbitrarily choose to not send a response to this request.
-func (vm *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, request []byte) error {
+func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, request []byte) error {
+	v.Log.Info("AppRequest %s, %d, %d bytes", nodeID, requestID, len(request))
 	return nil
 }
 
@@ -242,7 +273,8 @@ func (vm *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, r
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another AppRequest, or it may give
 // up trying to get the requested information.
-func (vm *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) error {
+func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) error {
+	v.Log.Info("AppResponse %s, %d, %d bytes", nodeID, requestID, len(response))
 	return nil
 }
 
@@ -259,7 +291,8 @@ func (vm *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte)
 // * This engine sent a request to [nodeID] with ID [requestID].
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
-func (vm *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
+func (v *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
+	v.Log.Info("AppRequestFailed %s, %d", nodeID, requestID)
 	return nil
 }
 
@@ -267,31 +300,59 @@ func (vm *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
 //
 // GetBlock attempt to fetch a block by it's ID
 // If the block does not exist, an error should be returned.
-func (vm *VM) GetBlock(id ids.ID) (snowman.Block, error) {
-	return vm.state.GetBlock(id)
+func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
+	blk, err = v.state.GetBlock(id)
+	if err != nil {
+		v.Log.Error("GetBlock %s error: %v", id, err)
+	} else {
+		v.Log.Info("GetBlock %s", blk.ID())
+	}
+	return
 }
 
 // ParseBlock implements the block.ChainVM ParseBlock interface
 //
 // ParseBlock attempt to fetch a block by its bytes.
-func (vm *VM) ParseBlock(data []byte) (snowman.Block, error) {
-	return vm.state.ParseBlock(data)
+func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
+	err = ld.Recover("", func() error {
+		blk, err = v.state.ParseBlock(data)
+		return err
+	})
+
+	if err != nil {
+		v.Log.Error("ParseBlock %v", err)
+	} else {
+		v.Log.Info("ParseBlock %s", blk.ID())
+	}
+	return
 }
 
 // BuildBlock implements the block.ChainVM BuildBlock interface
 //
 // BuildBlock attempt to create a new block from data contained in the VM.
 // If the VM doesn't want to issue a new block, an error should be returned.
-func (vm *VM) BuildBlock() (snowman.Block, error) {
-	return nil, nil
+func (v *VM) BuildBlock() (blk snowman.Block, err error) {
+	blk, err = v.state.BuildBlock()
+	if err != nil {
+		v.Log.Error("BuildBlock %v", err)
+	} else {
+		v.Log.Info("BuildBlock %s", blk.ID())
+	}
+	return
 }
 
 // SetPreference implements the block.ChainVM SetPreference interface
 //
 // SetPreference notify the VM of the currently preferred block.
 // This should always be a block that has no children known to consensus.
-func (vm *VM) SetPreference(id ids.ID) error {
-	return vm.state.SetPreference(id)
+func (v *VM) SetPreference(id ids.ID) error {
+	err := v.state.SetPreference(id)
+	if err != nil {
+		v.Log.Error("SetPreference %s error %v", id, err)
+	} else {
+		v.Log.Info("SetPreference %s", id)
+	}
+	return err
 }
 
 // LastAccepted implements the block.ChainVM LastAccepted interface
@@ -300,11 +361,15 @@ func (vm *VM) SetPreference(id ids.ID) error {
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (vm *VM) LastAccepted() (ids.ID, error) {
-	block, err := vm.state.LastAcceptedBlock()
+func (v *VM) LastAccepted() (ids.ID, error) {
+	block, err := v.state.LastAcceptedBlock()
+
 	if err != nil {
+		v.Log.Error("LastAccepted %v", err)
 		return ids.Empty, err
 	}
+
+	v.Log.Info("LastAccepted %s", block.ID())
 	return block.ID(), nil
 }
 
@@ -314,12 +379,18 @@ func (vm *VM) LastAccepted() (ids.ID, error) {
 // - ErrHeightIndexedVMNotImplemented if the height index is not supported.
 // - ErrIndexIncomplete if the height index is not currently available.
 // - Any other non-standard error that may have occurred when verifying the index.
-func (vm *VM) VerifyHeightIndex() error {
+func (v *VM) VerifyHeightIndex() error {
 	return nil
 }
 
 // GetBlockIDAtHeight implements the block.HeightIndexedChainVM GetBlockIDAtHeight interface
 // GetBlockIDAtHeight returns the ID of the block that was accepted with [height].
-func (vm *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	return vm.state.GetBlockIDAtHeight(height)
+func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
+	id, err := v.state.GetBlockIDAtHeight(height)
+	if err != nil {
+		v.Log.Error("GetBlockIDAtHeight %d error %v", height, err)
+	} else {
+		v.Log.Info("GetBlockIDAtHeight %d: %s", height, id)
+	}
+	return id, err
 }

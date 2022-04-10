@@ -5,25 +5,63 @@ package ld
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ipld/go-ipld-prime/schema"
 )
 
 type DataMeta struct {
-	ModelID   ids.ShortID   // model id
-	Version   uint64        // data version，数据更新状态号，初始值为 0，每次更新 +1, -1 表示该数据作废，如删除、被屏蔽
-	Threshold uint8         // 修改、删除数据时要求的签名阈值. 必须小于等于 Owners 数量，0 表示不可修改，1 表示任何一个 owner 签名即可修改。
-	Owners    []ids.ShortID // 数据拥有者，为空时则数据没有拥有者，不能大于 16 个
-	Data      []byte
-	raw       []byte
+	ModelID ids.ShortID // model id
+	// data version，the initial value is 1, should increase 1 when updating,
+	// 0 indicates that the data is invalid, for example, deleted or punished.
+	Version uint64
+	// MultiSig: m of n, threshold is m, keepers length is n.
+	// The minimum value is 0, means no one can change the data.
+	// the maximum value is len(keepers)
+	Threshold uint8
+	// keepers who owned this data, no more than 255
+	Keepers []ids.ShortID
+
+	Data []byte
+	raw  []byte
+	ID   ids.ShortID
+}
+
+type jsonDataMeta struct {
+	ID        string          `json:"id"`
+	ModelID   string          `json:"modelID"`
+	Version   uint64          `json:"version"`
+	Threshold uint8           `json:"threshold"`
+	Keepers   []string        `json:"keepers"`
+	Data      json.RawMessage `json:"data"`
+}
+
+func (d *DataMeta) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return Null, nil
+	}
+	v := &jsonDataMeta{
+		ID:        DataID(d.ID).String(),
+		ModelID:   ModelID(d.ModelID).String(),
+		Version:   d.Version,
+		Threshold: d.Threshold,
+		Data:      JsonMarshalData(d.Data),
+		Keepers:   make([]string, len(d.Keepers)),
+	}
+	for i := range d.Keepers {
+		v.Keepers[i] = EthID(d.Keepers[i]).String()
+	}
+	return json.Marshal(v)
 }
 
 func (d *DataMeta) Copy() *DataMeta {
 	x := new(DataMeta)
 	*x = *d
-	x.Owners = make([]ids.ShortID, len(d.Owners))
-	copy(x.Owners, d.Owners)
+	x.Keepers = make([]ids.ShortID, len(d.Keepers))
+	copy(x.Keepers, d.Keepers)
 	x.Data = make([]byte, len(d.Data))
 	copy(x.Data, d.Data)
 	x.raw = make([]byte, len(d.raw))
@@ -33,23 +71,25 @@ func (d *DataMeta) Copy() *DataMeta {
 
 // SyntacticVerify verifies that a *DataMeta is well-formed.
 func (d *DataMeta) SyntacticVerify() error {
-	if d.ModelID == ids.ShortEmpty {
-		return fmt.Errorf("invalid data ModelID")
+	if len(d.Keepers) > math.MaxUint8 {
+		return fmt.Errorf("too many data keepers: %d", len(d.Keepers))
 	}
-	if len(d.Owners) > 16 {
-		return fmt.Errorf("too many data Owners")
+	if int(d.Threshold) > len(d.Keepers) {
+		return fmt.Errorf("invalid data threshold: %d", d.Threshold)
 	}
-	if int(d.Threshold) > len(d.Owners) {
-		return fmt.Errorf("invalid data Threshold")
-	}
-	for _, id := range d.Owners {
+	for _, id := range d.Keepers {
 		if id == ids.ShortEmpty {
-			return fmt.Errorf("invalid data Owner")
+			return fmt.Errorf("invalid data keeper")
 		}
 	}
 	if _, err := d.Marshal(); err != nil {
 		return fmt.Errorf("datameta marshal error: %v", err)
 	}
+	return nil
+}
+
+func (d *DataMeta) Validate(st schema.Type) error {
+	// TODO: validate data with schema.Type
 	return nil
 }
 
@@ -69,11 +109,11 @@ func (d *DataMeta) Equal(o *DataMeta) bool {
 	if o.Threshold != d.Threshold {
 		return false
 	}
-	if len(o.Owners) != len(d.Owners) {
+	if len(o.Keepers) != len(d.Keepers) {
 		return false
 	}
-	for i := range d.Owners {
-		if o.Owners[i] != d.Owners[i] {
+	for i := range d.Keepers {
+		if o.Keepers[i] != d.Keepers[i] {
 			return false
 		}
 	}
@@ -102,13 +142,13 @@ func (d *DataMeta) Unmarshal(data []byte) error {
 		if d.ModelID, err = ToShortID(v.ModelID); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if d.Owners, err = ToShortIDs(v.Owners); err != nil {
+		if d.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		d.raw = data
 		return nil
 	}
-	return fmt.Errorf("unmarshal error: expected *bindModelMeta")
+	return fmt.Errorf("unmarshal error: expected *bindDataMeta")
 }
 
 func (d *DataMeta) Marshal() ([]byte, error) {
@@ -116,7 +156,7 @@ func (d *DataMeta) Marshal() ([]byte, error) {
 		ModelID:   FromShortID(d.ModelID),
 		Version:   FromUint64(d.Version),
 		Threshold: FromUint8(d.Threshold),
-		Owners:    FromShortIDs(d.Owners),
+		Keepers:   FromShortIDs(d.Keepers),
 		Data:      d.Data,
 	}
 	data, err := dataMetaLDBuilder.Marshal(v)
@@ -131,7 +171,7 @@ type bindDataMeta struct {
 	ModelID   []byte
 	Version   Uint64
 	Threshold Uint8
-	Owners    [][]byte
+	Keepers   [][]byte
 	Data      []byte
 }
 
@@ -143,10 +183,10 @@ func init() {
 	type Uint64 bytes
 	type ID20 bytes
 	type DataMeta struct {
-		ModelID   ID20   (rename "m")
+		ModelID   ID20   (rename "mid")
 		Version   Uint64 (rename "v")
 		Threshold Uint8  (rename "th")
-		Owners    [ID20] (rename "os")
+		Keepers   [ID20] (rename "ks")
 		Data      Bytes  (rename "d")
 	}
 `

@@ -5,31 +5,61 @@ package ld
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-var (
-	LDC  = big.NewInt(1_000_000_000)
-	Gwei = big.NewInt(1)
-)
-
 type Account struct {
-	Nonce     uint64
-	Balance   *big.Int      // 最小单位 gwei, decimals 9
-	Threshold uint8         // account 消费时要求的签名阈值，account 自身必须签名，最小值为 1，最大值为 len(guardians) + 1
-	Guardians []ids.ShortID // 本账号之外的其它监护账号，不能大于 15
-	raw       []byte
+	// Nonce should increase 1 when sender issuing tx, but not increase when receiving
+	Nonce uint64
+	// the decimals is 9, the smallest unit "NanoLDC" equal to gwei.
+	Balance *big.Int
+	// MultiSig: m of n, threshold is m, keepers length is n.
+	// The minimum value is 1, the maximum value is len(keepers)
+	Threshold uint8
+	// keepers who can use this account, no more than 255
+	// the account id must be one of them.
+	Keepers []ids.ShortID
+
+	raw []byte
+	ID  ids.ShortID
+}
+
+type jsonAccount struct {
+	Address   string   `json:"address"`
+	Nonce     uint64   `json:"nonce"`
+	Balance   *big.Int `json:"balance"`
+	Threshold uint8    `json:"threshold"`
+	Keepers   []string `json:"keepers"`
+}
+
+func (a *Account) MarshalJSON() ([]byte, error) {
+	if a == nil {
+		return Null, nil
+	}
+	v := &jsonAccount{
+		Address:   EthID(a.ID).String(),
+		Nonce:     a.Nonce,
+		Balance:   a.Balance,
+		Threshold: a.Threshold,
+		Keepers:   make([]string, len(a.Keepers)),
+	}
+	for i := range a.Keepers {
+		v.Keepers[i] = EthID(a.Keepers[i]).String()
+	}
+	return json.Marshal(v)
 }
 
 func (a *Account) Copy() *Account {
 	x := new(Account)
 	*x = *a
 	x.Balance = new(big.Int).Set(a.Balance)
-	x.Guardians = make([]ids.ShortID, len(a.Guardians))
-	copy(x.Guardians, a.Guardians)
+	x.Keepers = make([]ids.ShortID, len(a.Keepers))
+	copy(x.Keepers, a.Keepers)
 	x.raw = make([]byte, len(a.raw))
 	copy(x.raw, a.raw)
 	return x
@@ -38,18 +68,13 @@ func (a *Account) Copy() *Account {
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
 	if a.Balance == nil || a.Balance.Sign() < 0 {
-		return fmt.Errorf("invalid account Balance")
+		return fmt.Errorf("invalid account balance")
 	}
-	if len(a.Guardians) > 15 {
-		return fmt.Errorf("too many account Guardians")
+	if len(a.Keepers) > math.MaxUint8 {
+		return fmt.Errorf("too many account keepers")
 	}
-	if a.Threshold < 1 || int(a.Threshold) > len(a.Guardians)+1 {
-		return fmt.Errorf("invalid account Threshold")
-	}
-	for _, id := range a.Guardians {
-		if id == ids.ShortEmpty {
-			return fmt.Errorf("invalid account Guardian")
-		}
+	if a.Threshold < 1 || int(a.Threshold) > len(a.Keepers) {
+		return fmt.Errorf("invalid account threshold")
 	}
 	if _, err := a.Marshal(); err != nil {
 		return fmt.Errorf("account marshal error: %v", err)
@@ -78,11 +103,11 @@ func (a *Account) Equal(o *Account) bool {
 	if o.Threshold != a.Threshold {
 		return false
 	}
-	if len(o.Guardians) != len(a.Guardians) {
+	if len(o.Keepers) != len(a.Keepers) {
 		return false
 	}
-	for i := range a.Guardians {
-		if o.Guardians[i] != a.Guardians[i] {
+	for i := range a.Keepers {
+		if o.Keepers[i] != a.Keepers[i] {
 			return false
 		}
 	}
@@ -108,7 +133,7 @@ func (a *Account) Unmarshal(data []byte) error {
 		a.Nonce = v.Nonce.Value()
 		a.Balance = ToBigInt(v.Balance)
 		a.Threshold = v.Threshold.Value()
-		if a.Guardians, err = ToShortIDs(v.Guardians); err != nil {
+		if a.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		a.raw = data
@@ -122,7 +147,7 @@ func (a *Account) Marshal() ([]byte, error) {
 		Nonce:     FromUint64(a.Nonce),
 		Balance:   FromBigInt(a.Balance),
 		Threshold: FromUint8(a.Threshold),
-		Guardians: FromShortIDs(a.Guardians),
+		Keepers:   FromShortIDs(a.Keepers),
 	}
 	data, err := accountLDBuilder.Marshal(v)
 	if err != nil {
@@ -136,7 +161,7 @@ type bindAccount struct {
 	Nonce     Uint64
 	Balance   []byte
 	Threshold Uint8
-	Guardians [][]byte
+	Keepers   [][]byte
 }
 
 var accountLDBuilder *LDBuilder
@@ -151,7 +176,7 @@ func init() {
 		Nonce     Uint64 (rename "n")
 		Balance   BigInt (rename "b")
 		Threshold Uint8  (rename "th")
-		Guardians [ID20] (rename "gs")
+		Keepers   [ID20] (rename "ks")
 	}
 `
 	builder, err := NewLDBuilder("Account", []byte(sch), (*bindAccount)(nil))

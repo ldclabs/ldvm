@@ -17,7 +17,7 @@ func TestAccount(t *testing.T) {
 		Nonce:     1,
 		Balance:   big.NewInt(0),
 		Threshold: 1,
-		Guardians: []ids.ShortID{address},
+		Keepers:   []ids.ShortID{address},
 	}
 	data, err := ac.Marshal()
 	if err != nil {

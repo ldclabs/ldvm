@@ -13,15 +13,21 @@ import (
 	"github.com/ava-labs/avalanchego/vms/rpcchainvm"
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/ldclabs/ldvm/ldvm"
+	"github.com/ldclabs/ldvm/vm"
 )
 
 var version = flag.Bool("version", false, "show LDVM version")
 
 func main() {
 	// Print VM ID and exit
-	if *version {
-		fmt.Printf("%s@%s\n", ldvm.Name, ldvm.Version)
+	version, err := PrintVersion()
+	if err != nil {
+		fmt.Printf("couldn't get config: %s", err)
+		os.Exit(1)
+	}
+	// Print VM ID and exit
+	if version {
+		fmt.Printf("%s@%s\n", vm.Name, vm.Version)
 		os.Exit(0)
 	}
 
@@ -33,7 +39,7 @@ func main() {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: rpcchainvm.Handshake,
 		Plugins: map[string]plugin.Plugin{
-			"vm": rpcchainvm.New(&ldvm.VM{}),
+			"vm": rpcchainvm.New(&vm.VM{}),
 		},
 
 		// A non-nil value here enables gRPC serving for this plugin...

@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/formatting"
 )
 
 var pool10Bytes = sync.Pool{
@@ -40,6 +41,14 @@ func (u Uint8) GoString() string {
 
 func FromUint8(x uint8) Uint8 {
 	return []byte{x}
+}
+
+func PtrFromUint8(x uint8) *Uint8 {
+	if x == 0 {
+		return nil
+	}
+	v := FromUint8(x)
+	return &v
 }
 
 type Uint64 []byte
@@ -78,6 +87,14 @@ func PtrFromUint64(x uint64) *Uint64 {
 }
 
 type Signature [crypto.SECP256K1RSigLen]byte
+
+func (s Signature) MarshalJSON() ([]byte, error) {
+	str, err := formatting.EncodeWithChecksum(formatting.CB58, s[:])
+	if err != nil {
+		return nil, err
+	}
+	return []byte("\"" + str + "\""), nil
+}
 
 func PtrToSignatures(d *[][]byte) ([]Signature, error) {
 	var data [][]byte
@@ -126,6 +143,24 @@ func PtrToShortID(data *[]byte) (ids.ShortID, error) {
 	}
 }
 
+func PtrToShortIDs(d *[][]byte) ([]ids.ShortID, error) {
+	var data [][]byte
+	if d != nil {
+		data = *d
+	}
+	ss := make([]ids.ShortID, len(data))
+	for i := range data {
+		switch len(data[i]) {
+		case 20:
+			ss[i] = ids.ShortID{}
+			copy(ss[i][:], data[i])
+		default:
+			return ss, fmt.Errorf("expected 20 bytes but got %d", len(data[i]))
+		}
+	}
+	return ss, nil
+}
+
 func FromShortID(id ids.ShortID) []byte {
 	if id != ids.ShortEmpty {
 		return id[:]
@@ -159,6 +194,17 @@ func FromShortIDs(list []ids.ShortID) [][]byte {
 		data[i] = list[i][:]
 	}
 	return data
+}
+
+func PtrFromShortIDs(list []ids.ShortID) *[][]byte {
+	if len(list) == 0 {
+		return nil
+	}
+	v := make([][]byte, len(list))
+	for i := range list {
+		v[i] = list[i][:]
+	}
+	return &v
 }
 
 func ToID(data []byte) (ids.ID, error) {
