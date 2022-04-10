@@ -131,7 +131,7 @@ func (s *stateDB) Bootstrap() error {
 		return err
 	}
 
-	genesisBlock, err := newGenesisBlock(genesisLdBlock)
+	genesisBlock, err := NewBlock(genesisLdBlock)
 	if err != nil {
 		s.log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err

@@ -25,6 +25,7 @@ type Account struct {
 	// the account id must be one of them.
 	Keepers []ids.ShortID
 
+	// external assignment
 	raw []byte
 	ID  ids.ShortID
 }
@@ -67,17 +68,21 @@ func (a *Account) Copy() *Account {
 
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
+	if a == nil {
+		return fmt.Errorf("invalid Account")
+	}
+
 	if a.Balance == nil || a.Balance.Sign() < 0 {
-		return fmt.Errorf("invalid account balance")
+		return fmt.Errorf("invalid balance")
 	}
 	if len(a.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("too many account keepers")
+		return fmt.Errorf("invalid keepers, too many")
 	}
 	if a.Threshold < 1 || int(a.Threshold) > len(a.Keepers) {
-		return fmt.Errorf("invalid account threshold")
+		return fmt.Errorf("invalid threshold")
 	}
 	if _, err := a.Marshal(); err != nil {
-		return fmt.Errorf("account marshal error: %v", err)
+		return fmt.Errorf("Account marshal error: %v", err)
 	}
 	return nil
 }

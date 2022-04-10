@@ -50,22 +50,12 @@ func (tx *TxCreateModel) Bytes() []byte {
 }
 
 func (tx *TxCreateModel) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.Amount != nil ||
-		tx.ld.From == ids.ShortEmpty ||
-		tx.ld.To != ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 ||
-		len(tx.ld.ExSignatures) != 0 {
+	if tx == nil ||
+		len(tx.ld.Data) == 0 {
 		return fmt.Errorf("invalid TxCreateModel")
 	}
 
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
-
 	tx.data = &ld.ModelMeta{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
@@ -78,30 +68,26 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 
 func (tx *TxCreateModel) Verify(blk *Block) error {
 	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures: %v", err)
+	}
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	return err
 }
 
+// VerifyGenesis skipping signature verification
 func (tx *TxCreateModel) VerifyGenesis(blk *Block) error {
 	var err error
-	tx.data = &ld.ModelMeta{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
-	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateModel SyntacticVerify failed: %v", err)
-	}
 	tx.from, err = blk.State().LoadAccount(tx.ld.From)
 	return err
 }
 
 func (tx *TxCreateModel) Accept(blk *Block) error {
-	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), nil)
 	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	if err := tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err
 	}
-	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), nil)
 	return blk.State().SaveModel(tx.ld.ShortID(), tx.data)
 }
 

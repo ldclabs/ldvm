@@ -12,7 +12,6 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 )
 
-// https://schema.org/Thing
 // https://schema.org/Person
 type Info struct {
 	Name     string           `json:"name"`
@@ -83,7 +82,7 @@ func (b *bindInfo) SyntacticVerify() error {
 		}
 	}
 	if _, err := b.Marshal(); err != nil {
-		return fmt.Errorf("AccountApp marshal error: %v", err)
+		return fmt.Errorf("bindInfo marshal error: %v", err)
 	}
 	return nil
 }
@@ -152,7 +151,7 @@ func (b *bindInfo) Unmarshal(data []byte) error {
 		b.raw = data
 		return nil
 	}
-	return fmt.Errorf("unmarshal error: expected *Account")
+	return fmt.Errorf("unmarshal error: expected *Info")
 }
 
 func (b *bindInfo) Marshal() ([]byte, error) {

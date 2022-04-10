@@ -38,21 +38,10 @@ func (tx *TxTransfer) Bytes() []byte {
 }
 
 func (tx *TxTransfer) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.Amount == nil ||
-		tx.ld.From == ids.ShortEmpty ||
-		tx.ld.To == ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 ||
-		len(tx.ld.ExSignatures) != 0 {
+	if tx == nil {
 		return fmt.Errorf("invalid TxTransfer")
 	}
 
-	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
 	if tx.ld.Amount.Sign() <= 0 {
 		return fmt.Errorf("invalid amount")
 	}
@@ -61,6 +50,10 @@ func (tx *TxTransfer) SyntacticVerify() error {
 
 func (tx *TxTransfer) Verify(blk *Block) error {
 	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures: %v", err)
+	}
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
@@ -69,6 +62,7 @@ func (tx *TxTransfer) Verify(blk *Block) error {
 	return err
 }
 
+// VerifyGenesis skipping signature verification
 func (tx *TxTransfer) VerifyGenesis(blk *Block) error {
 	var err error
 	bs := blk.State()
@@ -85,7 +79,6 @@ func (tx *TxTransfer) VerifyGenesis(blk *Block) error {
 
 func (tx *TxTransfer) Accept(blk *Block) error {
 	var err error
-	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
 	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
 	cost = new(big.Int).Add(tx.ld.Amount, cost)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
@@ -94,7 +87,6 @@ func (tx *TxTransfer) Accept(blk *Block) error {
 	if err = tx.to.Add(tx.ld.Amount); err != nil {
 		return err
 	}
-	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
 	return nil
 }
 

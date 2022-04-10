@@ -97,7 +97,7 @@ func (a *Account) Add(amount *big.Int) error {
 
 	if amount == nil || amount.Sign() < 0 {
 		return fmt.Errorf(
-			"Account(%s).Add invalid amount %v",
+			"Account.Add %s invalid amount %v",
 			ld.EthID(a.id), amount)
 	}
 	a.ld.Balance.Add(a.ld.Balance, amount)
@@ -110,12 +110,12 @@ func (a *Account) Sub(amount *big.Int) error {
 
 	if amount == nil || amount.Sign() < 0 {
 		return fmt.Errorf(
-			"Account(%s).Sub invalid amount %v",
+			"Account.Sub %s invalid amount %v",
 			ld.EthID(a.id), amount)
 	}
 	if amount.Cmp(a.ld.Balance) > 0 {
 		return fmt.Errorf(
-			"Account(%s).Sub insufficient balance %v",
+			"Account.Sub %s insufficient balance %v",
 			ld.EthID(a.id), amount)
 	}
 	a.ld.Balance.Sub(a.ld.Balance, amount)
@@ -128,17 +128,17 @@ func (a *Account) SubByNonce(nonce uint64, amount *big.Int) error {
 
 	if a.ld.Nonce != nonce {
 		return fmt.Errorf(
-			"Account(%s).SubByNonce invalid nonce %d",
+			"Account.SubByNonce %s invalid nonce %d",
 			ld.EthID(a.id), nonce)
 	}
 	if amount == nil || amount.Sign() < 0 {
 		return fmt.Errorf(
-			"Account(%s).SubByNonce invalid amount %v",
+			"Account.SubByNonce %s invalid amount %v",
 			ld.EthID(a.id), amount)
 	}
 	if amount.Cmp(a.ld.Balance) > 0 {
 		return fmt.Errorf(
-			"Account(%s).SubByNonce insufficient balance to spent %v",
+			"Account.SubByNonce %s insufficient balance to spent %v",
 			ld.EthID(a.id), amount)
 	}
 	a.ld.Nonce++
@@ -152,13 +152,13 @@ func (a *Account) UpdateKeepers(nonce uint64, fee *big.Int, threshold uint8, kee
 
 	if a.ld.Nonce != nonce {
 		return fmt.Errorf(
-			"Account(%s).UpdateKeepers invalid nonce %d",
+			"Account.UpdateKeepers %s invalid nonce %d",
 			ld.EthID(a.id), nonce)
 	}
 
 	if a.ld.Balance.Cmp(fee) < 0 {
 		return fmt.Errorf(
-			"Account(%s).UpdateKeepers insufficient balance to spent %v, required %v",
+			"Account.UpdateKeepers %s insufficient balance to spent %v, required %v",
 			ld.EthID(a.id), a.ld.Balance, fee)
 	}
 

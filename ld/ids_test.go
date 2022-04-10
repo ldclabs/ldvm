@@ -8,12 +8,10 @@ import (
 	"testing"
 )
 
-// 0xf810f75a70ca722c41bf08500031b511147a1b3be07b481c30d62cff31fc9939
-// G4uZHWhjfHoMUANsMZhrW7egB4daNUAV6
+// DvNUrvtQgPynDZN7kFckpjZgmTvW8FX5i
 const address1 = "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
 
-// 0xeafebd2e00c325c753cd5d51875fce70bde0db5ae2a0d69f243394b9e0aed488
-// 6ooeFpbHdY1BMsvmxjgGiNLdepVnqzG3h
+// 7D2dmjrr9Fzg7D6tUQAbPKVdhho4uTmo6
 const address2 = "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
 
 func TestEthID(t *testing.T) {
@@ -21,14 +19,15 @@ func TestEthID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EthIDFromString(%s) error: %v", address1, err)
 	}
-	id2, err := EthIDFromString("a54701B7b7a8f2E9545b4bB90465a0f45C82A84B")
+	id2, err := EthIDFromString("8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 	if err != nil {
 		t.Fatalf("EthIDFromString(%s) error: %v", address1, err)
 	}
-	id3, err := EthIDFromString("G4uZHWhjfHoMUANsMZhrW7egB4daNUAV6")
+	id3, err := EthIDFromString("DvNUrvtQgPynDZN7kFckpjZgmTvW8FX5i")
 	if err != nil {
 		t.Fatalf("EthIDFromString(%s) error: %v", address1, err)
 	}
+
 	if id1 != id2 || id1 != id3 {
 		t.Fatalf("EthIDFromString error")
 	}
@@ -37,8 +36,8 @@ func TestEthID(t *testing.T) {
 	eids := make([]EthID, 0)
 	err = json.Unmarshal([]byte(`[
 		"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
-	  "3Fb2B2BEBf856C523aA36637e823612a2cB3EEa9",
-	  "6ooeFpbHdY1BMsvmxjgGiNLdepVnqzG3h",
+	  "44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
+	  "7D2dmjrr9Fzg7D6tUQAbPKVdhho4uTmo6",
 		"",
 		null
 	]`), &eids)

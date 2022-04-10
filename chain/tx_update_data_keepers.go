@@ -51,27 +51,17 @@ func (tx *TxUpdateDataKeepers) Bytes() []byte {
 }
 
 func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.Amount != nil ||
-		tx.ld.From == ids.ShortEmpty ||
-		tx.ld.To != ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 ||
-		len(tx.ld.ExSignatures) != 0 {
+	if tx == nil ||
+		len(tx.ld.Data) == 0 {
 		return fmt.Errorf("invalid TxUpdateDataKeepers")
 	}
 
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
-
 	tx.data = &ld.TxUpdater{}
-	if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers unmarshal data failed: %v", err)
 	}
-	if err := tx.data.SyntacticVerify(); err != nil {
+	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers SyntacticVerify failed: %v", err)
 	}
 	if tx.data.ID == ids.ShortEmpty ||
@@ -86,6 +76,10 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 
 func (tx *TxUpdateDataKeepers) Verify(blk *Block) error {
 	var err error
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures: %v", err)
+	}
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}

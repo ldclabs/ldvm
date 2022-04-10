@@ -8,7 +8,6 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
@@ -41,23 +40,6 @@ func (tx *TxMintFee) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
-func (tx *TxMintFee) SyntacticVerify() error {
-	if tx.ld.Nonce != 0 ||
-		tx.ld.Gas != 0 ||
-		tx.ld.GasTip != 0 ||
-		tx.ld.GasFeeCap != 0 ||
-		tx.ld.Amount == nil ||
-		tx.ld.From != constants.GenesisAddr ||
-		tx.ld.To == constants.BlackholeAddr ||
-		tx.ld.To == constants.GenesisAddr ||
-		len(tx.ld.Data) == 0 ||
-		len(tx.ld.Signatures) != 0 ||
-		len(tx.ld.ExSignatures) != 0 {
-		return fmt.Errorf("invalid TxMintFee")
-	}
-	return nil
-}
-
 func (tx *TxMintFee) NodeID() (id ids.ShortID, err error) {
 	switch {
 	case len(tx.ld.Data) != 52:
@@ -76,6 +58,13 @@ func (tx *TxMintFee) BlockID() (id ids.ID, err error) {
 		copy(id[:], tx.ld.Data[20:])
 	}
 	return
+}
+
+func (tx *TxMintFee) SyntacticVerify() error {
+	if tx == nil {
+		return fmt.Errorf("invalid TxMintFee")
+	}
+	return nil
 }
 
 func (tx *TxMintFee) Verify(blk *Block) error {
@@ -120,12 +109,13 @@ func (tx *TxMintFee) Verify(blk *Block) error {
 	}
 	tx.mintFee = blk.GasRebate20()
 	if tx.from.Balance().Cmp(tx.mintFee) < 0 {
-		return fmt.Errorf("TxMintFee insufficient genesis account balance, expected %v, got %v",
+		return fmt.Errorf("TxMintFee insufficient balance, expected %v, got %v",
 			tx.mintFee, tx.from.Balance())
 	}
 	return nil
 }
 
+// VerifyGenesis skipping signature verification
 func (tx *TxMintFee) VerifyGenesis(blk *Block) error {
 	var err error
 	bs := blk.State()
@@ -142,12 +132,6 @@ func (tx *TxMintFee) VerifyGenesis(blk *Block) error {
 }
 
 func (tx *TxMintFee) Accept(blk *Block) error {
-	if tx.mintFee == nil || tx.mintFee.Sign() <= 0 {
-		return nil
-	}
-
-	blk.State().Log().Info("before from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
-
 	var err error
 	if err = tx.from.Sub(tx.mintFee); err != nil {
 		return err
@@ -155,7 +139,6 @@ func (tx *TxMintFee) Accept(blk *Block) error {
 	if err = tx.to.Add(tx.mintFee); err != nil {
 		return err
 	}
-	blk.State().Log().Info("after from: %v\nto: %v", tx.from.Balance(), tx.to.Balance())
 	return nil
 }
 

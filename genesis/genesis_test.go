@@ -43,6 +43,5 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Marshal failed: %v", err)
 	}
 	fmt.Printf("\n%s\n", string(data))
-	fmt.Println("LLLL", len(blk.Txs[0].Bytes()), len(blk.Txs[1].Bytes()), len(blk.Bytes()))
-	t.Fatalf("finish")
+	// t.Fatalf("finish")
 }

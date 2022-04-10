@@ -64,22 +64,6 @@ func NewBlock(b *ld.Block) (*Block, error) {
 	return blk, nil
 }
 
-func newGenesisBlock(b *ld.Block) (*Block, error) {
-	blk := &Block{ld: b, status: choices.Processing}
-	if err := blk.ld.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-	blk.txs = make([]Transaction, len(b.Txs))
-	for i := range b.Txs {
-		tx, err := newGenesisTx(b.Txs[i])
-		if err != nil {
-			return nil, err
-		}
-		blk.txs[i] = tx
-	}
-	return blk, nil
-}
-
 func (b *Block) MarshalJSON() ([]byte, error) {
 	txs := make([]json.RawMessage, len(b.txs))
 	for i := range b.txs {
@@ -87,7 +71,6 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		b.bs.Log().Info("Tx: %s", string(d))
 		txs[i] = d
 	}
 	b.ld.RawTxs = txs
@@ -126,7 +109,7 @@ func (b *Block) VerifyGenesis() error {
 func (b *Block) Verify() error {
 	err := b.verify()
 	if err != nil {
-		b.bs.Log().Warn("Block.Verify error: %v", err)
+		b.bs.Log().Warn("Block.Verify %d error: %v", b.ID(), err)
 	}
 	return err
 }
@@ -188,37 +171,32 @@ func (b *Block) verify() error {
 func (b *Block) Accept() error {
 	err := b.accept()
 	if err != nil {
-		b.bs.Log().Warn("Block.Accept error: %v", err)
+		b.bs.Log().Warn("Block.Accept %s error: %v", b.ID(), err)
 	}
 	return err
 }
 
 func (b *Block) accept() error {
-	log := b.bs.Log()
 	ts := b.Timestamp().Unix()
 	for i := range b.txs {
-		log.Info("Accept Block txs %d, %s", i, b.txs[i].ID())
 		if err := b.txs[i].Accept(b); err != nil {
 			return err
 		}
 		b.bs.AddEvent(b.txs[i].Event(ts))
 	}
-	log.Info("Accept Block mintFee")
 
 	if err := b.mintFee(); err != nil {
 		return fmt.Errorf("set mint fee failed: %v", err)
 	}
-	log.Info("Accept Block SaveBlock")
+
 	if err := b.bs.SaveBlock(b); err != nil {
 		return fmt.Errorf("save block failed: %v", err)
 	}
 
-	log.Info("Accept Block SetLastAccepted")
 	b.status = choices.Accepted
 	if err := b.bs.SetLastAccepted(b); err != nil {
 		return fmt.Errorf("set last accepted failed: %v", err)
 	}
-	log.Info("Accept Block ProposeMintFeeTx")
 	b.bs.ProposeMintFeeTx(b.Height(), b.ID(), b.Gas())
 	return nil
 }
@@ -257,6 +235,7 @@ func (b *Block) mintFee() error {
 // Reject implements the snowman.Block choices.Decidable Reject interface
 // This element will not be accepted by any correct node in the network.
 func (b *Block) Reject() error {
+	b.bs.Log().Info("Block.Reject %s", b.ID())
 	b.status = choices.Rejected
 	b.bs.GivebackTxs(b.ld.Txs...)
 	b.clear()

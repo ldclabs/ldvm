@@ -29,6 +29,8 @@ type Block struct {
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
 	Miners []ids.ShortID
 	Txs    []*Transaction
+
+	// external assignment
 	RawTxs []json.RawMessage
 	id     ids.ID
 	raw    []byte // the block's raw bytes
@@ -97,30 +99,34 @@ func (b *Block) Copy() *Block {
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
+	if b == nil {
+		return fmt.Errorf("invalid Block")
+	}
+
 	if b.Timestamp > uint64(time.Now().Add(futureBound).Unix()) {
-		return fmt.Errorf("invalid block timestamp")
+		return fmt.Errorf("invalid timestamp")
 	}
 	if b.GasRebateRate > 1000 {
-		return fmt.Errorf("invalid block gasRebateRate")
+		return fmt.Errorf("invalid gasRebateRate")
 	}
 	for _, a := range b.Miners {
 		if a == ids.ShortEmpty {
-			return fmt.Errorf("invalid block miner address")
+			return fmt.Errorf("invalid miner address")
 		}
 	}
 	if len(b.Txs) == 0 {
-		return fmt.Errorf("invalid block no txs")
+		return fmt.Errorf("invalid block, no txs")
 	}
 	for _, tx := range b.Txs {
 		if tx == nil {
-			return fmt.Errorf("invalid block transaction")
+			return fmt.Errorf("invalid transaction")
 		}
 		if err := tx.SyntacticVerify(); err != nil {
-			return fmt.Errorf("invalid block transaction: %v", err)
+			return fmt.Errorf("invalid transaction, SyntacticVerify error: %v", err)
 		}
 	}
 	if _, err := b.Marshal(); err != nil {
-		return fmt.Errorf("block marshal error: %v", err)
+		return fmt.Errorf("Block marshal error: %v", err)
 	}
 	return nil
 }

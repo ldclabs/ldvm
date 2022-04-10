@@ -54,28 +54,12 @@ func (tx *TxUpdateData) Bytes() []byte {
 }
 
 func (tx *TxUpdateData) SyntacticVerify() error {
-	if tx.ld.Gas == 0 ||
-		tx.ld.GasFeeCap == 0 ||
-		tx.ld.Amount != nil ||
-		tx.ld.From == ids.ShortEmpty ||
-		tx.ld.To != ids.ShortEmpty ||
-		len(tx.ld.Signatures) == 0 ||
-		len(tx.ld.ExSignatures) != 0 {
-		return fmt.Errorf("invalid TxDeleteData")
+	if tx == nil ||
+		len(tx.ld.Data) == 0 {
+		return fmt.Errorf("invalid TxUpdateData")
 	}
 
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures")
-	}
-	if len(tx.ld.ExSignatures) > 0 {
-		tx.exSigners, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
-		if err != nil {
-			return fmt.Errorf("invalid exSignatures")
-		}
-	}
-
 	tx.data = &ld.TxUpdater{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateData unmarshal data failed: %v", err)
@@ -92,11 +76,21 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 
 func (tx *TxUpdateData) Verify(blk *Block) error {
 	var err error
-	bs := blk.State()
+	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	if err != nil {
+		return fmt.Errorf("invalid signatures")
+	}
+	if len(tx.ld.ExSignatures) > 0 {
+		tx.exSigners, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
+		if err != nil {
+			return fmt.Errorf("invalid exSignatures")
+		}
+	}
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
 
+	bs := blk.State()
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data failed: %v", err)

@@ -29,6 +29,7 @@ type ModelMeta struct {
 	Keepers []ids.ShortID
 	Data    []byte
 
+	// external assignment
 	st  schema.Type
 	raw []byte
 	ID  ids.ShortID
@@ -77,14 +78,18 @@ func (m *ModelMeta) SchemaType() schema.Type {
 
 // SyntacticVerify verifies that a *ModelMeta is well-formed.
 func (m *ModelMeta) SyntacticVerify() error {
+	if m == nil {
+		return fmt.Errorf("invalid ModelMeta")
+	}
+
 	if !modelNameReg.MatchString(m.Name) {
-		return fmt.Errorf("invalid model name")
+		return fmt.Errorf("invalid name")
 	}
 	if len(m.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("too many model keepers")
+		return fmt.Errorf("invalid keepers, too many")
 	}
 	if int(m.Threshold) > len(m.Keepers) {
-		return fmt.Errorf("invalid model threshold")
+		return fmt.Errorf("invalid threshold")
 	}
 	for _, id := range m.Keepers {
 		if id == ids.ShortEmpty {
@@ -92,15 +97,15 @@ func (m *ModelMeta) SyntacticVerify() error {
 		}
 	}
 	if len(m.Data) < 10 {
-		return fmt.Errorf("model schema bytes should >= %d", 10)
+		return fmt.Errorf("invalid data, bytes should >= %d", 10)
 	}
 
 	var err error
 	if m.st, err = NewSchemaType(m.Name, m.Data); err != nil {
-		return fmt.Errorf("parse ipld model schema error: %v", err)
+		return fmt.Errorf("parse ipld schema error: %v", err)
 	}
 	if _, err = m.Marshal(); err != nil {
-		return fmt.Errorf("modelmeta marshal error: %v", err)
+		return fmt.Errorf("ModelMeta marshal error: %v", err)
 	}
 	return nil
 }

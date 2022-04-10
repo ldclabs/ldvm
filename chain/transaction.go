@@ -68,25 +68,6 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	return tt, nil
 }
 
-func newGenesisTx(tx *ld.Transaction) (Transaction, error) {
-	var tt Transaction
-	switch tx.Type {
-	case ld.TypeMintFee:
-		tt = &TxMintFee{ld: tx}
-	case ld.TypeTransfer:
-		tt = &TxTransfer{ld: tx}
-	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{ld: tx}
-	case ld.TypeCreateModel:
-		tt = &TxCreateModel{ld: tx}
-	case ld.TypeCreateData:
-		tt = &TxCreateData{ld: tx}
-	default:
-		return nil, fmt.Errorf("unknown tx type: %d", tx.Type)
-	}
-	return tt, nil
-}
-
 func verifyBase(blk *Block, tx *ld.Transaction, signers []ids.ShortID) (*Account, error) {
 	bs := blk.State()
 	if err := bs.ChainConfig().CheckChainID(tx.ChainID); err != nil {

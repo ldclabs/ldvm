@@ -24,7 +24,9 @@ type TxTransfer struct {
 	Amount *big.Int    // transfer amount
 	Expire uint64
 	Data   []byte
-	raw    []byte
+
+	// external assignment
+	raw []byte
 }
 
 type jsonTxTransfer struct {
@@ -69,16 +71,20 @@ func (d *TxTransfer) Copy() *TxTransfer {
 	return x
 }
 
-// SyntacticVerify verifies that a *DataMeta is well-formed.
+// SyntacticVerify verifies that a *TxTransfer is well-formed.
 func (d *TxTransfer) SyntacticVerify() error {
+	if d == nil {
+		return fmt.Errorf("invalid TxTransfer")
+	}
+
 	if d.Nonce == 0 {
-		return fmt.Errorf("invalid transaction nonce")
+		return fmt.Errorf("invalid nonce")
 	}
 	if d.From == ids.ShortEmpty {
-		return fmt.Errorf("invalid transaction from")
+		return fmt.Errorf("invalid from")
 	}
 	if d.Amount != nil && d.Amount.Sign() < 1 {
-		return fmt.Errorf("invalid transaction amount")
+		return fmt.Errorf("invalid amount")
 	}
 	if d.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("invalid expire")
