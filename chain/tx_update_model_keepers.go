@@ -8,15 +8,18 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxUpdateModelKeepers struct {
-	ld      *ld.Transaction
-	from    *Account
-	signers []ids.ShortID
-	data    *ld.TxUpdater
-	mm      *ld.ModelMeta
+	ld          *ld.Transaction
+	from        *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	data        *ld.TxUpdater
+	mm          *ld.ModelMeta
 }
 
 func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
@@ -50,6 +53,14 @@ func (tx *TxUpdateModelKeepers) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
+func (tx *TxUpdateModelKeepers) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxUpdateModelKeepers) SetStatus(s choices.Status) {
+	tx.ld.Status = s
+}
+
 func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 	if tx == nil ||
 		len(tx.ld.Data) == 0 {
@@ -79,11 +90,15 @@ func (tx *TxUpdateModelKeepers) Verify(blk *Block) error {
 	if err != nil {
 		return fmt.Errorf("invalid signatures: %v", err)
 	}
+	bs := blk.State()
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
 
-	tx.mm, err = blk.State().LoadModel(tx.data.ID)
+	tx.mm, err = bs.LoadModel(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateModelKeepers load model failed: %v", err)
 	}
@@ -102,8 +117,11 @@ func (tx *TxUpdateModelKeepers) Accept(blk *Block) error {
 		return err
 	}
 
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	return blk.State().SaveModel(tx.data.ID, tx.mm)

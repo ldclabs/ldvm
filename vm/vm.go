@@ -5,6 +5,7 @@ package vm
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gorilla/rpc/v2"
@@ -16,7 +17,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/engine/common"
 	"github.com/ava-labs/avalanchego/snow/engine/snowman/block"
 	"github.com/ava-labs/avalanchego/utils/json"
-	"github.com/ava-labs/avalanchego/utils/logging"
+	avalogging "github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/version"
 
 	"github.com/ldclabs/ldvm/api"
@@ -24,6 +25,7 @@ import (
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/logging"
 )
 
 const (
@@ -39,16 +41,16 @@ var (
 
 // VM implements the snowman.VM interface
 type VM struct {
+	mu        sync.RWMutex
 	ctx       *snow.Context
 	dbManager manager.Manager
-	Log       logging.Logger
-
-	// State of this VM
-	state chain.StateDB
-
-	// channel to send messages to the consensus engine
+	Log       avalogging.Logger
 	toEngine  chan<- common.Message
 	appSender common.AppSender
+
+	// State of this VM
+	state   chain.StateDB
+	network *PushNetwork
 }
 
 // Initialize implements the common.VM Initialize interface
@@ -82,8 +84,9 @@ func (v *VM) Initialize(
 ) (err error) {
 	v.ctx = ctx
 	v.dbManager = dbManager
-	v.toEngine = toEngine
 	v.appSender = appSender
+	v.toEngine = toEngine
+	v.NewPushNetwork()
 
 	var cfg *config.Config
 	cfg, err = config.New(configData)
@@ -92,18 +95,21 @@ func (v *VM) Initialize(
 	}
 
 	cfg.Logger.MsgPrefix = fmt.Sprintf("%s@%s", Name, Version)
-	logFactory := logging.NewFactory(cfg.Logger)
+	logFactory := avalogging.NewFactory(cfg.Logger)
 	v.Log, err = logFactory.Make("ldvm-" + ctx.NodeID.String())
 	if err != nil {
 		return fmt.Errorf("LDVM Initialize failed to create logger: %s", err)
 	}
 
+	logging.SetLogger(v.Log)
+	v.Log.Info("LDVM Initialize NetworkID %v, SubnetID %v, ChainID %v",
+		ctx.NetworkID, ctx.SubnetID, ctx.ChainID)
 	v.Log.Info("LDVM Initialize with genesisData: <%s>", string(genesisData))
 	v.Log.Info("LDVM Initialize with upgradeData: <%s>", string(upgradeData))
 	v.Log.Info("LDVM Initialize with configData: <%s>", string(configData))
 
 	err = ld.Recover("LDVM Initialize", func() error {
-		return v.initialize(cfg, genesisData)
+		return v.initialize(cfg, genesisData, toEngine)
 	})
 	if err != nil {
 		v.Log.Error(err.Error())
@@ -111,7 +117,11 @@ func (v *VM) Initialize(
 	return err
 }
 
-func (v *VM) initialize(cfg *config.Config, genesisData []byte) (err error) {
+func (v *VM) initialize(
+	cfg *config.Config,
+	genesisData []byte,
+	toEngine chan<- common.Message,
+) (err error) {
 	var gs *genesis.Genesis
 	if len(genesisData) == 0 {
 		genesisData = []byte(genesis.LocalGenesisConfigJSON)
@@ -121,16 +131,23 @@ func (v *VM) initialize(cfg *config.Config, genesisData []byte) (err error) {
 	if err != nil {
 		return fmt.Errorf("parse genesis data error: %v", err)
 	}
-	v.state = chain.NewState(v.ctx, v.dbManager.Current().Database, gs, cfg, v.Log)
+
+	chaindb := v.dbManager.Current().Database
+	v.state = chain.NewState(v.ctx, cfg, gs, chaindb, v.notifyBuild, v.network.GossipTx)
 	if err = v.state.Bootstrap(); err != nil {
-		return fmt.Errorf("bootstrap error: %v", err)
+		return err
 	}
+
+	go v.network.Start(time.Millisecond * 1000)
 	return nil
 }
 
 // SetState implements the common.VM SetState interface
 // SetState communicates to VM its next state it starts
 func (v *VM) SetState(state snow.State) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	v.Log.Info("SetState %v", state)
 	return v.state.SetState(state)
 }
@@ -139,6 +156,8 @@ func (v *VM) SetState(state snow.State) error {
 // Shutdown is called when the node is shutting down.
 func (v *VM) Shutdown() error {
 	v.Log.Info("Shutdown")
+	// TODO graceful shutdown
+	v.network.Close()
 	v.dbManager.Close()
 	return nil
 }
@@ -164,7 +183,7 @@ func (v *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
 	}
 
 	return map[string]*common.HTTPHandler{
-		"": {
+		"rpc": {
 			LockOptions: common.NoLock,
 			Handler:     server,
 		},
@@ -186,7 +205,7 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 		return nil, err
 	}
 
-	v.Log.Error("CreateHandlers ok")
+	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
 			LockOptions: common.WriteLock,
@@ -206,6 +225,7 @@ func (v *VM) HealthCheck() (interface{}, error) {
 // Connector represents a handler that is called when a connection is marked as connected
 func (v *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
 	v.Log.Info("Connected %s, %v", id, nodeVersion)
+	v.state.SeeNode(id)
 	return nil // noop
 }
 
@@ -214,24 +234,6 @@ func (v *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
 func (v *VM) Disconnected(id ids.ShortID) error {
 	v.Log.Info("Disconnected %s", id)
 	return nil // noop
-}
-
-// AppGossip implements the common.VM AppHandler AppGossip interface
-// This VM doesn't (currently) have any app-specific messages
-//
-// Notify this engine of a gossip message from [nodeID].
-//
-// The meaning of [msg] is application (VM) specific, and the VM defines how
-// to react to this message.
-//
-// This message is not expected in response to any event, and it does not
-// need to be responded to.
-//
-// A node may gossip the same message multiple times. That is,
-// AppGossip([nodeID], [msg]) may be called multiple times.
-func (v *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
-	v.Log.Info("AppGossip %s, %d bytes", nodeID, len(msg))
-	return nil
 }
 
 // AppRequest implements the common.VM AppRequest interface
@@ -250,6 +252,7 @@ func (v *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
 // the VM may arbitrarily choose to not send a response to this request.
 func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, request []byte) error {
 	v.Log.Info("AppRequest %s, %d, %d bytes", nodeID, requestID, len(request))
+	v.state.SeeNode(nodeID)
 	return nil
 }
 
@@ -275,6 +278,7 @@ func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, re
 // up trying to get the requested information.
 func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) error {
 	v.Log.Info("AppResponse %s, %d, %d bytes", nodeID, requestID, len(response))
+	v.state.SeeNode(nodeID)
 	return nil
 }
 
@@ -292,7 +296,7 @@ func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) 
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
 func (v *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
-	v.Log.Info("AppRequestFailed %s, %d", nodeID, requestID)
+	v.Log.Warn("AppRequestFailed %s, %d", nodeID, requestID)
 	return nil
 }
 
@@ -301,11 +305,14 @@ func (v *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
 // GetBlock attempt to fetch a block by it's ID
 // If the block does not exist, an error should be returned.
 func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+
 	blk, err = v.state.GetBlock(id)
 	if err != nil {
-		v.Log.Error("GetBlock %s error: %v", id, err)
+		v.Log.Error("VM GetBlock %s error: %v", id, err)
 	} else {
-		v.Log.Info("GetBlock %s", blk.ID())
+		v.Log.Info("VM GetBlock %s at %d", id, blk.Height())
 	}
 	return
 }
@@ -314,15 +321,18 @@ func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
 //
 // ParseBlock attempt to fetch a block by its bytes.
 func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	err = ld.Recover("", func() error {
 		blk, err = v.state.ParseBlock(data)
 		return err
 	})
 
 	if err != nil {
-		v.Log.Error("ParseBlock %v", err)
+		v.Log.Error("VM ParseBlock %v", err)
 	} else {
-		v.Log.Info("ParseBlock %s", blk.ID())
+		v.Log.Info("VM ParseBlock %s at %d", blk.ID(), blk.Height())
 	}
 	return
 }
@@ -332,13 +342,25 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 // BuildBlock attempt to create a new block from data contained in the VM.
 // If the VM doesn't want to issue a new block, an error should be returned.
 func (v *VM) BuildBlock() (blk snowman.Block, err error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	blk, err = v.state.BuildBlock()
 	if err != nil {
-		v.Log.Error("BuildBlock %v", err)
+		v.Log.Warn("VM BuildBlock %v", err)
 	} else {
-		v.Log.Info("BuildBlock %s", blk.ID())
+		v.Log.Info("VM BuildBlock %s at %d", blk.ID(), blk.Height())
 	}
 	return
+}
+
+// signal the avalanchego engine to build a block from pending transactions
+func (v *VM) notifyBuild() {
+	select {
+	case v.toEngine <- common.PendingTxs:
+	default:
+		v.Log.Debug("dropping message to consensus engine")
+	}
 }
 
 // SetPreference implements the block.ChainVM SetPreference interface
@@ -346,11 +368,13 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 // SetPreference notify the VM of the currently preferred block.
 // This should always be a block that has no children known to consensus.
 func (v *VM) SetPreference(id ids.ID) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	v.Log.Info("VM SetPreference %s", id)
 	err := v.state.SetPreference(id)
 	if err != nil {
-		v.Log.Error("SetPreference %s error %v", id, err)
-	} else {
-		v.Log.Info("SetPreference %s", id)
+		v.Log.Error("VM SetPreference %s error %v", id, err)
 	}
 	return err
 }
@@ -362,15 +386,9 @@ func (v *VM) SetPreference(id ids.ID) error {
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
 func (v *VM) LastAccepted() (ids.ID, error) {
-	block, err := v.state.LastAcceptedBlock()
-
-	if err != nil {
-		v.Log.Error("LastAccepted %v", err)
-		return ids.Empty, err
-	}
-
-	v.Log.Info("LastAccepted %s", block.ID())
-	return block.ID(), nil
+	blk := v.state.LastAcceptedBlock()
+	v.Log.Info("VM LastAccepted %s at %d", blk.ID(), blk.Height)
+	return blk.ID(), nil
 }
 
 // VerifyHeightIndex implements the block.HeightIndexedChainVM VerifyHeightIndex interface
@@ -388,9 +406,9 @@ func (v *VM) VerifyHeightIndex() error {
 func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 	id, err := v.state.GetBlockIDAtHeight(height)
 	if err != nil {
-		v.Log.Error("GetBlockIDAtHeight %d error %v", height, err)
+		v.Log.Error("VM GetBlockIDAtHeight %d error %v", height, err)
 	} else {
-		v.Log.Info("GetBlockIDAtHeight %d: %s", height, id)
+		v.Log.Info("VM GetBlockIDAtHeight %d: %s", height, id)
 	}
 	return id, err
 }

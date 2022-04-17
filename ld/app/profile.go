@@ -13,7 +13,7 @@ import (
 )
 
 // https://schema.org/Person
-type Info struct {
+type Profile struct {
 	Name     string           `json:"name"`
 	Image    string           `json:"image"`
 	Url      string           `json:"url"`
@@ -24,21 +24,21 @@ type Info struct {
 	Extra    *MapStringAny    `json:"extra"`
 }
 
-func InfoSchema() (string, []byte) {
-	return bindInfoLDBuilder.Name(), bindInfoLDBuilder.Schema()
+func ProfileSchema() (string, []byte) {
+	return bindProfileLDBuilder.Name(), bindProfileLDBuilder.Schema()
 }
 
 // entity
-type bindInfo struct {
-	Entity *Info
+type bindProfile struct {
+	Entity *Profile
 	raw    []byte
 }
 
-func NewInfo(info *Info) *bindInfo {
-	b := new(bindInfo)
-	b.Entity = info
-	if info == nil {
-		b.Entity = new(Info)
+func NewProfile(profile *Profile) *bindProfile {
+	b := new(bindProfile)
+	b.Entity = profile
+	if profile == nil {
+		b.Entity = new(Profile)
 	}
 	if b.Entity.Addrs == nil {
 		b.Entity.Addrs = new(MapStringString)
@@ -49,17 +49,17 @@ func NewInfo(info *Info) *bindInfo {
 	return b
 }
 
-func (b *bindInfo) MarshalJSON() ([]byte, error) {
+func (b *bindProfile) MarshalJSON() ([]byte, error) {
 	if b == nil {
 		return ld.Null, nil
 	}
 	return json.Marshal(b.Entity)
 }
 
-// SyntacticVerify verifies that a *Info is well-formed.
-func (b *bindInfo) SyntacticVerify() error {
+// SyntacticVerify verifies that a *Profile is well-formed.
+func (b *bindProfile) SyntacticVerify() error {
 	if b == nil || b.Entity == nil {
-		return fmt.Errorf("invalid bindInfo")
+		return fmt.Errorf("invalid bindProfile")
 	}
 	if !ValidName(b.Entity.Name) {
 		return fmt.Errorf("invalid name string %s", strconv.Quote(b.Entity.Name))
@@ -82,12 +82,12 @@ func (b *bindInfo) SyntacticVerify() error {
 		}
 	}
 	if _, err := b.Marshal(); err != nil {
-		return fmt.Errorf("bindInfo marshal error: %v", err)
+		return fmt.Errorf("bindProfile marshal error: %v", err)
 	}
 	return nil
 }
 
-func (b *bindInfo) Equal(o *bindInfo) bool {
+func (b *bindProfile) Equal(o *bindProfile) bool {
 	if o == nil {
 		return b == nil
 	}
@@ -131,7 +131,7 @@ func (b *bindInfo) Equal(o *bindInfo) bool {
 	return true
 }
 
-func (b *bindInfo) Bytes() []byte {
+func (b *bindProfile) Bytes() []byte {
 	if len(b.raw) == 0 {
 		if _, err := b.Marshal(); err != nil {
 			panic(err)
@@ -141,21 +141,21 @@ func (b *bindInfo) Bytes() []byte {
 	return b.raw
 }
 
-func (b *bindInfo) Unmarshal(data []byte) error {
-	p, err := bindInfoLDBuilder.Unmarshal(data)
+func (b *bindProfile) Unmarshal(data []byte) error {
+	p, err := bindProfileLDBuilder.Unmarshal(data)
 	if err != nil {
 		return err
 	}
-	if v, ok := p.(*Info); ok {
-		b.Entity = v // TODO: nil point
+	if v, ok := p.(*Profile); ok {
+		b.Entity = v
 		b.raw = data
 		return nil
 	}
-	return fmt.Errorf("unmarshal error: expected *Info")
+	return fmt.Errorf("unmarshal error: expected *Profile")
 }
 
-func (b *bindInfo) Marshal() ([]byte, error) {
-	data, err := bindInfoLDBuilder.Marshal(b.Entity)
+func (b *bindProfile) Marshal() ([]byte, error) {
+	data, err := bindProfileLDBuilder.Marshal(b.Entity)
 	if err != nil {
 		return nil, err
 	}
@@ -163,15 +163,15 @@ func (b *bindInfo) Marshal() ([]byte, error) {
 	return data, nil
 }
 
-func (b *bindInfo) ToJSON() ([]byte, error) {
-	return bindInfoLDBuilder.ToJSON(b.Entity)
+func (b *bindProfile) ToJSON() ([]byte, error) {
+	return bindProfileLDBuilder.ToJSON(b.Entity)
 }
 
-var bindInfoLDBuilder *ld.LDBuilder
+var bindProfileLDBuilder *ld.LDBuilder
 
 func init() {
 	sch := `
-	type Info struct {
+	type ProfileApp struct {
 		name     String
 		image    String
 		url      String
@@ -182,9 +182,9 @@ func init() {
 		extra    {String:Any}
 	}
 `
-	builder, err := ld.NewLDBuilder("Info", []byte(sch), (*Info)(nil))
+	builder, err := ld.NewLDBuilder("ProfileApp", []byte(sch), (*Profile)(nil))
 	if err != nil {
 		panic(err)
 	}
-	bindInfoLDBuilder = builder
+	bindProfileLDBuilder = builder
 }

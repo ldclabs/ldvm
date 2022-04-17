@@ -13,7 +13,7 @@ import (
 )
 
 type Name struct {
-	Name     string        `json:"name"`
+	Name     string        `json:"name"` // case insensitive
 	Linked   string        `json:"linked"`
 	ExtraMID string        `json:"extraMID"`
 	Extra    *MapStringAny `json:"extra"`
@@ -145,14 +145,14 @@ var bindNameLDBuilder *ld.LDBuilder
 func init() {
 	sch := `
 	type ID20 bytes
-	type NameService struct {
+	type NameApp struct {
 		name     String
 		linked   String
 		extraMID String
 		extra    {String:Any}
 	}
 `
-	builder, err := ld.NewLDBuilder("NameService", []byte(sch), (*Name)(nil))
+	builder, err := ld.NewLDBuilder("NameApp", []byte(sch), (*Name)(nil))
 	if err != nil {
 		panic(err)
 	}

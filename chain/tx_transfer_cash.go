@@ -9,16 +9,19 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxTransferCash struct {
-	ld        *ld.Transaction
-	from      *Account
-	issuer    *Account
-	signers   []ids.ShortID
-	exSigners []ids.ShortID
-	data      *ld.TxTransfer
+	ld          *ld.Transaction
+	from        *Account
+	issuer      *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	exSigners   []ids.ShortID
+	data        *ld.TxTransfer
 }
 
 func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
@@ -50,6 +53,14 @@ func (tx *TxTransferCash) Type() ld.TxType {
 
 func (tx *TxTransferCash) Bytes() []byte {
 	return tx.ld.Bytes()
+}
+
+func (tx *TxTransferCash) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxTransferCash) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxTransferCash) SyntacticVerify() error {
@@ -95,11 +106,15 @@ func (tx *TxTransferCash) Verify(blk *Block) error {
 		return fmt.Errorf("invalid exSignatures: %v", err)
 	}
 
+	bs := blk.State()
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
 	}
-	tx.issuer, err = blk.State().LoadAccount(tx.data.From)
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.issuer, err = bs.LoadAccount(tx.data.From)
 	if err != nil {
 		return err
 	}
@@ -119,11 +134,14 @@ func (tx *TxTransferCash) Verify(blk *Block) error {
 
 func (tx *TxTransferCash) Accept(blk *Block) error {
 	var err error
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
 		return err
 	}
 	if err = tx.issuer.SubByNonce(tx.data.Nonce, tx.ld.Amount); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	if err = tx.from.Add(tx.ld.Amount); err != nil {

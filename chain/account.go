@@ -8,17 +8,17 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/ids"
 
+	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type Account struct {
 	ld  *ld.Account
 	mu  sync.RWMutex
-	id  ids.ShortID       // account address
-	vdb database.Database // account version database
+	id  ids.ShortID  // account address
+	vdb *db.PrefixDB // account version database
 }
 
 func NewAccount(id ids.ShortID) *Account {
@@ -45,7 +45,7 @@ func ParseAccount(id ids.ShortID, data []byte) (*Account, error) {
 	return a, nil
 }
 
-func (a *Account) Init(vdb database.Database) {
+func (a *Account) Init(vdb *db.PrefixDB) {
 	a.vdb = vdb
 }
 
@@ -100,6 +100,9 @@ func (a *Account) Add(amount *big.Int) error {
 			"Account.Add %s invalid amount %v",
 			ld.EthID(a.id), amount)
 	}
+	if amount.Sign() == 0 {
+		return nil
+	}
 	a.ld.Balance.Add(a.ld.Balance, amount)
 	return nil
 }
@@ -118,6 +121,9 @@ func (a *Account) Sub(amount *big.Int) error {
 			"Account.Sub %s insufficient balance %v",
 			ld.EthID(a.id), amount)
 	}
+	if amount.Sign() == 0 {
+		return nil
+	}
 	a.ld.Balance.Sub(a.ld.Balance, amount)
 	return nil
 }
@@ -128,8 +134,8 @@ func (a *Account) SubByNonce(nonce uint64, amount *big.Int) error {
 
 	if a.ld.Nonce != nonce {
 		return fmt.Errorf(
-			"Account.SubByNonce %s invalid nonce %d",
-			ld.EthID(a.id), nonce)
+			"Account.SubByNonce %s invalid nonce, expected %v, got %v",
+			ld.EthID(a.id), a.ld.Nonce, nonce)
 	}
 	if amount == nil || amount.Sign() < 0 {
 		return fmt.Errorf(
@@ -140,6 +146,9 @@ func (a *Account) SubByNonce(nonce uint64, amount *big.Int) error {
 		return fmt.Errorf(
 			"Account.SubByNonce %s insufficient balance to spent %v",
 			ld.EthID(a.id), amount)
+	}
+	if amount.Sign() == 0 {
+		return nil
 	}
 	a.ld.Nonce++
 	a.ld.Balance.Sub(a.ld.Balance, amount)

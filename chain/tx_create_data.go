@@ -10,19 +10,21 @@ import (
 	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/app"
 )
 
 type TxCreateData struct {
-	ld        *ld.Transaction
-	from      *Account
-	to        *Account
-	signers   []ids.ShortID
-	exSigners []ids.ShortID
-	data      *ld.DataMeta
-	name      *app.Name
+	ld          *ld.Transaction
+	from        *Account
+	to          *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	exSigners   []ids.ShortID
+	data        *ld.DataMeta
+	name        *app.Name
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
@@ -55,6 +57,14 @@ func (tx *TxCreateData) Type() ld.TxType {
 
 func (tx *TxCreateData) Bytes() []byte {
 	return tx.ld.Bytes()
+}
+
+func (tx *TxCreateData) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxCreateData) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxCreateData) SyntacticVerify() error {
@@ -97,6 +107,9 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
 	if tx.ld.To != ids.ShortEmpty {
 		if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
 			return err
@@ -123,7 +136,7 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 		return fmt.Errorf("need more model keepers signatures")
 	}
 
-	if bs.ChainConfig().IsNameService(tx.data.ModelID) {
+	if blk.ctx.Chain().IsNameApp(tx.data.ModelID) {
 		bn, err := app.NameFrom(tx.data.Data)
 		if err != nil {
 			return err
@@ -141,7 +154,11 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateData) VerifyGenesis(blk *Block) error {
 	var err error
-	tx.from, err = blk.State().LoadAccount(tx.ld.From)
+	bs := blk.State()
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.from, err = bs.LoadAccount(tx.ld.From)
 	return err
 }
 
@@ -152,9 +169,13 @@ func (tx *TxCreateData) Accept(blk *Block) error {
 	if tx.ld.Amount != nil {
 		amount.Set(tx.ld.Amount)
 	}
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost = new(big.Int).Add(amount, cost)
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	cost := new(big.Int).Add(amount, fee)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+		return err
+	}
+
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 
@@ -182,6 +203,5 @@ func (tx *TxCreateData) Event(ts int64) *Event {
 		e = NewEvent(tx.ld.ShortID(), SrcData, ActionAdd)
 	}
 	e.Time = ts
-	e.Data = tx.data.Data
 	return e
 }

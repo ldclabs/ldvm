@@ -46,7 +46,7 @@ func (d *TxTransfer) MarshalJSON() ([]byte, error) {
 		Nonce:  d.Nonce,
 		Amount: d.Amount,
 		Expire: d.Expire,
-		Data:   JsonMarshalData(d.Data),
+		Data:   JSONMarshalData(d.Data),
 	}
 
 	if d.From != ids.ShortEmpty {
@@ -66,8 +66,7 @@ func (d *TxTransfer) Copy() *TxTransfer {
 	}
 	x.Data = make([]byte, len(d.Data))
 	copy(x.Data, d.Data)
-	x.raw = make([]byte, len(d.raw))
-	copy(x.raw, d.raw)
+	x.raw = nil
 	return x
 }
 

@@ -8,14 +8,17 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxUpdateAccountKeepers struct {
-	ld      *ld.Transaction
-	from    *Account
-	signers []ids.ShortID
-	data    *ld.TxUpdater
+	ld          *ld.Transaction
+	from        *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	data        *ld.TxUpdater
 }
 
 func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
@@ -49,6 +52,14 @@ func (tx *TxUpdateAccountKeepers) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
+func (tx *TxUpdateAccountKeepers) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxUpdateAccountKeepers) SetStatus(s choices.Status) {
+	tx.ld.Status = s
+}
+
 // VerifyGenesis skipping signature verification
 func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	if tx == nil ||
@@ -80,19 +91,30 @@ func (tx *TxUpdateAccountKeepers) Verify(blk *Block) error {
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
+	if tx.genesisAddr, err = blk.State().LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (tx *TxUpdateAccountKeepers) VerifyGenesis(blk *Block) error {
 	var err error
-	tx.from, err = blk.State().LoadAccount(tx.ld.From)
+	bs := blk.State()
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.from, err = bs.LoadAccount(tx.ld.From)
 	return err
 }
 
 func (tx *TxUpdateAccountKeepers) Accept(blk *Block) error {
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err := tx.from.UpdateKeepers(tx.ld.Nonce, cost, tx.data.Threshold,
+	var err error
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.UpdateKeepers(tx.ld.Nonce, fee, tx.data.Threshold,
 		tx.data.Keepers); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	return nil

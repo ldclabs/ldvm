@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"sync"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -29,53 +28,41 @@ type Genesis struct {
 }
 
 type ChainConfig struct {
-	mu                   sync.RWMutex
-	ChainID              uint64       `json:"chainID"`
-	MaxTotalSupply       *big.Int     `json:"maxTotalSupply"`
-	Message              string       `json:"message"`
-	FeeConfigThreshold   uint8        `json:"feeConfigThreshold"`
-	FeeConfigKeepers     []ld.EthID   `json:"feeConfigKeepers"`
-	FeeConfigID          ld.DataID    `json:"feeConfigID"`
-	NameServiceThreshold uint8        `json:"nameServiceThreshold"`
-	NameServiceKeepers   []ld.EthID   `json:"nameServiceKeepers"`
-	NameServiceID        ld.ModelID   `json:"nameServiceID"`
-	InfoServiceID        ld.ModelID   `json:"infoServiceID"`
-	FeeConfig            *FeeConfig   `json:"feeConfig"`
-	FeeConfigs           []*FeeConfig `json:"feeConfigs"`
+	ChainID            uint64       `json:"chainID"`
+	MaxTotalSupply     *big.Int     `json:"maxTotalSupply"`
+	Message            string       `json:"message"`
+	FeeConfigThreshold uint8        `json:"feeConfigThreshold"`
+	FeeConfigKeepers   []ld.EthID   `json:"feeConfigKeepers"`
+	FeeConfigID        ld.DataID    `json:"feeConfigID"`
+	NameAppThreshold   uint8        `json:"nameAppThreshold"`
+	NameAppKeepers     []ld.EthID   `json:"nameAppKeepers"`
+	NameAppID          ld.ModelID   `json:"nameAppID"`
+	ProfileAppID       ld.ModelID   `json:"profileAppID"`
+	FeeConfig          *FeeConfig   `json:"feeConfig"`
+	FeeConfigs         []*FeeConfig `json:"feeConfigs"`
 }
 
-func (c *ChainConfig) IsNameService(id ids.ShortID) bool {
-	return c.NameServiceID == ld.ModelID(id)
+func (c *ChainConfig) IsNameApp(id ids.ShortID) bool {
+	return c.NameAppID == ld.ModelID(id)
 }
 
 func (c *ChainConfig) Fee(height uint64) *FeeConfig {
-	c.mu.RLock()
-	ln := len(c.FeeConfigs)
-	for i := ln - 1; i >= 0; i-- {
-		if c.FeeConfigs[i].StartHeight <= height {
-			if c.FeeConfig == c.FeeConfigs[i] {
-				c.mu.RUnlock()
-				return c.FeeConfig
-			}
-			c.mu.RUnlock()
-
-			c.mu.Lock()
-			defer c.mu.Unlock()
-			c.FeeConfig = c.FeeConfigs[i]
-			feeConfigs := make([]*FeeConfig, 0, ln-i)
-			copy(feeConfigs, c.FeeConfigs[i:])
-			c.FeeConfigs = feeConfigs
-			return c.FeeConfig
+	for i, cfg := range c.FeeConfigs {
+		if cfg.StartHeight <= height {
+			return c.FeeConfigs[i]
 		}
 	}
 
 	return c.FeeConfig
 }
 
-func (c *ChainConfig) AddFeeConfig(fee *FeeConfig) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *ChainConfig) AddFeeConfig(data []byte) (*FeeConfig, error) {
+	fee := &FeeConfig{}
+	if err := json.Unmarshal(data, fee); err != nil {
+		return nil, err
+	}
 	c.FeeConfigs = append(c.FeeConfigs, fee)
+	return fee, nil
 }
 
 func (c *ChainConfig) CheckChainID(chainID uint64) error {
@@ -86,15 +73,15 @@ func (c *ChainConfig) CheckChainID(chainID uint64) error {
 }
 
 type FeeConfig struct {
-	StartHeight    uint64   `json:"startHeight"`
-	ThresholdGas   uint64   `json:"thresholdGas"`
-	MinGasPrice    uint64   `json:"minGasPrice"`
-	MaxGasPrice    uint64   `json:"maxGasPrice"`
-	MaxTxGas       uint64   `json:"maxTxGas"`
-	MaxBlockSize   uint64   `json:"maxBlockSize"`
-	MaxBlockMiners uint64   `json:"maxBlockMiners"`
-	GasRebateRate  *big.Int `json:"gasRebateRate"`
-	MinMinerStake  *big.Int `json:"minMinerStake"`
+	StartHeight     uint64 `json:"startHeight"`
+	ThresholdGas    uint64 `json:"thresholdGas"`
+	MinGasPrice     uint64 `json:"minGasPrice"`
+	MaxGasPrice     uint64 `json:"maxGasPrice"`
+	MaxTxGas        uint64 `json:"maxTxGas"`
+	MaxBlockTxsSize uint64 `json:"maxBlockTxsSize"`
+	MaxBlockMiners  uint64 `json:"maxBlockMiners"`
+	GasRebateRate   uint64 `json:"gasRebateRate"`
+	MinMinerStake   uint64 `json:"minMinerStake"`
 }
 
 func FromJSON(data []byte) (*Genesis, error) {
@@ -184,20 +171,19 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAddr,
 		Data:    cfgData.Bytes(),
 	}
-	genesisNonce++
 	if err := tx.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	// LDBn8nd2dFKNyYzb8c5MPxz1JpY84dm2ysT
+
 	g.Chain.FeeConfigID = ld.DataID(tx.ShortID())
 	txs = append(txs, tx)
 
-	// name service tx
+	// name app tx
 	name, sch := app.NameSchema()
 	nameModel := &ld.ModelMeta{
 		Name:      name,
-		Threshold: g.Chain.NameServiceThreshold,
-		Keepers:   ld.EthIDsToShort(g.Chain.NameServiceKeepers...),
+		Threshold: g.Chain.NameAppThreshold,
+		Keepers:   ld.EthIDsToShort(g.Chain.NameAppKeepers...),
 		Data:      sch,
 	}
 	tx = &ld.Transaction{
@@ -207,16 +193,15 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAddr,
 		Data:    nameModel.Bytes(),
 	}
-	genesisNonce++
 	if err := tx.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	g.Chain.NameServiceID = ld.ModelID(tx.ShortID())
+	g.Chain.NameAppID = ld.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
-	// info service tx
-	name, sch = app.InfoSchema()
-	infoModel := &ld.ModelMeta{
+	// Profile app tx
+	name, sch = app.ProfileSchema()
+	profileModel := &ld.ModelMeta{
 		Name: name,
 		Data: sch,
 	}
@@ -225,13 +210,12 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    constants.GenesisAddr,
-		Data:    infoModel.Bytes(),
+		Data:    profileModel.Bytes(),
 	}
-	genesisNonce++
 	if err := tx.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	g.Chain.InfoServiceID = ld.ModelID(tx.ShortID())
+	g.Chain.ProfileAppID = ld.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// build genesis block

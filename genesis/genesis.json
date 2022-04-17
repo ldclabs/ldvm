@@ -10,7 +10,7 @@
       "maxGasPrice": 100000,
       "gasRebateRate": 1000,
       "maxTxGas": 42000000,
-      "maxBlockSize": 4200000,
+      "maxBlockTxsSize": 4200000,
       "maxBlockMiners": 128,
       "minMinerStake": 1000000000000
     },
@@ -19,8 +19,8 @@
       "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
       "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
     ],
-    "nameServiceThreshold": 2,
-    "nameServiceKeepers": [
+    "nameAppThreshold": 2,
+    "nameAppKeepers": [
       "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
       "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
     ]

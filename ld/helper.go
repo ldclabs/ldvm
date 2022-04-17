@@ -4,12 +4,13 @@
 package ld
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"runtime"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/ava-labs/avalanchego/utils/formatting"
 )
 
 var Null = []byte("null")
@@ -22,20 +23,37 @@ func Recover(errfmt string, fn func() error) (err error) {
 			err = fmt.Errorf("%s panic: %v, stack: %s", errfmt, re, string(buf))
 		}
 	}()
-	return fn()
+
+	if err = fn(); err != nil {
+		return fmt.Errorf("%s error: %v", errfmt, err)
+	}
+	return nil
 }
 
-func JsonMarshalData(data []byte) json.RawMessage {
+func JSONMarshalData(data []byte) json.RawMessage {
 	switch {
 	case len(data) == 0 || json.Valid(data):
 		return data
 	case utf8.Valid(data):
 		return []byte(strconv.Quote(string(data)))
 	default:
-		buf := make([]byte, base64.StdEncoding.EncodedLen(len(data))+2)
+		s, err := formatting.EncodeWithChecksum(formatting.CB58, data)
+		if err != nil {
+			return data
+		}
+		buf := make([]byte, len(s)+2)
 		buf[0] = '"'
-		base64.StdEncoding.Encode(buf[1:], data)
+		copy(buf[1:], []byte(s))
 		buf[len(buf)-1] = '"'
 		return buf
 	}
+}
+
+func JSONUnmarshalData(data json.RawMessage) []byte {
+	if last := len(data) - 1; last > 10 && data[0] == '"' && data[last] == '"' {
+		if d, err := formatting.Decode(formatting.CB58, string(data[1:last])); err == nil {
+			return d
+		}
+	}
+	return data
 }

@@ -9,16 +9,19 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxTransferReply struct {
-	ld        *ld.Transaction
-	from      *Account
-	to        *Account
-	signers   []ids.ShortID
-	exSigners []ids.ShortID
-	data      *ld.TxTransfer
+	ld          *ld.Transaction
+	from        *Account
+	to          *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	exSigners   []ids.ShortID
+	data        *ld.TxTransfer
 }
 
 func (tx *TxTransferReply) MarshalJSON() ([]byte, error) {
@@ -50,6 +53,14 @@ func (tx *TxTransferReply) Type() ld.TxType {
 
 func (tx *TxTransferReply) Bytes() []byte {
 	return tx.ld.Bytes()
+}
+
+func (tx *TxTransferReply) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxTransferReply) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxTransferReply) SyntacticVerify() error {
@@ -93,19 +104,27 @@ func (tx *TxTransferReply) Verify(blk *Block) error {
 	if !set.Contains(tx.ld.To) {
 		return fmt.Errorf("invalid recipient")
 	}
+
+	bs := blk.State()
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
 	}
-	tx.to, err = blk.State().LoadAccount(tx.ld.To)
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.to, err = bs.LoadAccount(tx.ld.To)
 	return err
 }
 
 func (tx *TxTransferReply) Accept(blk *Block) error {
 	var err error
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost = new(big.Int).Add(tx.ld.Amount, cost)
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	cost := new(big.Int).Add(tx.ld.Amount, fee)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	if err = tx.to.Add(tx.ld.Amount); err != nil {

@@ -61,8 +61,7 @@ func (a *Account) Copy() *Account {
 	x.Balance = new(big.Int).Set(a.Balance)
 	x.Keepers = make([]ids.ShortID, len(a.Keepers))
 	copy(x.Keepers, a.Keepers)
-	x.raw = make([]byte, len(a.raw))
-	copy(x.raw, a.raw)
+	x.raw = nil
 	return x
 }
 

@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
 )
 
@@ -15,6 +16,8 @@ type Transaction interface {
 	ID() ids.ID
 	Type() ld.TxType
 	Bytes() []byte
+	Status() string
+	SetStatus(choices.Status)
 	SyntacticVerify() error
 	Verify(blk *Block) error
 	Accept(blk *Block) error
@@ -69,16 +72,17 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 }
 
 func verifyBase(blk *Block, tx *ld.Transaction, signers []ids.ShortID) (*Account, error) {
-	bs := blk.State()
-	if err := bs.ChainConfig().CheckChainID(tx.ChainID); err != nil {
+	if err := blk.ctx.Chain().CheckChainID(tx.ChainID); err != nil {
 		return nil, err
 	}
 
-	requireGas := tx.RequireGas(blk.bs.FeeConfig().ThresholdGas)
-	if tx.Gas < requireGas || requireGas > tx.GasFeeCap {
+	feeCfg := blk.FeeConfig()
+	requireGas := tx.RequireGas(feeCfg.ThresholdGas)
+	if tx.Gas < requireGas && tx.Gas != feeCfg.MaxTxGas {
 		return nil, fmt.Errorf("tx gas not matching, require %d", requireGas)
 	}
 
+	bs := blk.State()
 	from, err := bs.LoadAccount(tx.From)
 	if err != nil {
 		return nil, err
