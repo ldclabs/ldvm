@@ -6,19 +6,17 @@ package chain
 import (
 	"bytes"
 	"fmt"
-	"math/big"
 	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/database/prefixdb"
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow"
-	"github.com/ava-labs/avalanchego/utils/logging"
+
 	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/logging"
 )
 
 var (
@@ -33,34 +31,28 @@ var poolAccountCache = sync.Pool{
 }
 
 type blockState struct {
-	ctx       *snow.Context
-	state     *stateDB
-	committed bool
-	height    uint64
+	ctx   *Context
+	id    ids.ID
+	state StateDB
 
-	vdb        *versiondb.Database
-	heightVDB  *prefixdb.Database
-	blockVDB   *prefixdb.Database
-	accountVDB *prefixdb.Database
-	modelVDB   *prefixdb.Database
-	dataVDB    *prefixdb.Database
-	nameVDB    *prefixdb.Database
+	vdb            *versiondb.Database
+	blockDB        *db.PrefixDB
+	heightDB       *db.PrefixDB
+	lastAcceptedDB *db.PrefixDB
+	accountDB      *db.PrefixDB
+	modelDB        *db.PrefixDB
+	dataDB         *db.PrefixDB
+	prevDataDB     *db.PrefixDB
+	nameDB         *db.PrefixDB
 
 	accountCache map[ids.ShortID]*Account
 	events       []*Event
 }
 
 type BlockState interface {
-	ChainConfig() *genesis.ChainConfig
-	FeeConfig() *genesis.FeeConfig
+	VersionDB() *versiondb.Database
 
-	PreferredBlock() *Block
-	SetLastAccepted(blk *Block) error
-	SaveBlock(*Block) error
-
-	TotalSupply() *big.Int
 	LoadAccount(ids.ShortID) (*Account, error)
-
 	ResolveNameID(name string) (ids.ShortID, error)
 	ResolveName(name string) (*ld.DataMeta, error)
 	SetName(name string, id ids.ShortID) error
@@ -68,60 +60,39 @@ type BlockState interface {
 	SaveModel(ids.ShortID, *ld.ModelMeta) error
 	LoadData(ids.ShortID) (*ld.DataMeta, error)
 	SaveData(ids.ShortID, *ld.DataMeta) error
-
-	ProposeMintFeeTx(uint64, ids.ID, *big.Int)
-	PopBySize(askSize uint64) []*ld.Transaction
-	GivebackTxs(txs ...*ld.Transaction)
+	SavePrevData(ids.ShortID, *ld.DataMeta) error
 
 	AddEvent(*Event)
 	Events() []*Event
 
+	SaveBlock(*Block) error
 	Commit() error
-	Log() logging.Logger
 }
 
-func newBlockState(s *stateDB, db database.Database, height uint64) *blockState {
-	vdb := versiondb.New(db)
+func newBlockState(ctx *Context, id ids.ID, baseVDB database.Database) *blockState {
+	vdb := versiondb.New(baseVDB)
 	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
 
+	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
-		ctx:          s.ctx,
-		height:       height,
-		state:        s,
-		vdb:          vdb,
-		heightVDB:    prefixdb.New(heightDBPrefix, vdb),
-		blockVDB:     prefixdb.New(blockDBPrefix, vdb),
-		accountVDB:   prefixdb.New(accountDBPrefix, vdb),
-		modelVDB:     prefixdb.New(modelDBPrefix, vdb),
-		dataVDB:      prefixdb.New(dataDBPrefix, vdb),
-		nameVDB:      prefixdb.New(nameDBPrefix, vdb),
-		accountCache: *accountCache,
+		ctx:            ctx,
+		id:             id,
+		state:          ctx.StateDB(),
+		vdb:            vdb,
+		blockDB:        pdb.With(blockDBPrefix),
+		heightDB:       pdb.With(heightDBPrefix),
+		lastAcceptedDB: pdb.With(lastAcceptedKey),
+		accountDB:      pdb.With(accountDBPrefix),
+		modelDB:        pdb.With(modelDBPrefix),
+		dataDB:         pdb.With(dataDBPrefix),
+		prevDataDB:     pdb.With(prevDataDBPrefix),
+		nameDB:         pdb.With(nameDBPrefix),
+		accountCache:   *accountCache,
 	}
 }
 
-func (bs *blockState) Log() logging.Logger {
-	return bs.state.Log()
-}
-
-func (bs *blockState) ChainConfig() *genesis.ChainConfig {
-	return bs.state.ChainConfig()
-}
-
-func (bs *blockState) FeeConfig() *genesis.FeeConfig {
-	return bs.state.FeeConfig(bs.height)
-}
-
-func (bs *blockState) PreferredBlock() *Block {
-	return bs.state.PreferredBlock()
-}
-
-func (bs *blockState) TotalSupply() *big.Int {
-	s := new(big.Int)
-	if acc, err := bs.LoadAccount(constants.GenesisAddr); err == nil {
-		max := bs.ChainConfig().MaxTotalSupply
-		s.Sub(max, acc.Balance())
-	}
-	return s
+func (bs *blockState) VersionDB() *versiondb.Database {
+	return bs.vdb
 }
 
 func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
@@ -135,7 +106,7 @@ func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 	}
 
 	if bs.accountCache[id] == nil {
-		data, err := bs.accountVDB.Get(id[:])
+		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
 			a, err = ParseAccount(id, data)
@@ -148,7 +119,7 @@ func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 			return nil, err
 		}
 
-		a.Init(bs.accountVDB)
+		a.Init(bs.accountDB)
 		bs.accountCache[id] = a
 	}
 
@@ -157,21 +128,21 @@ func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 
 func (bs *blockState) SetName(name string, id ids.ShortID) error {
 	key := []byte(strings.ToLower(name))
-	data, err := bs.nameVDB.Get(key)
+	data, err := bs.nameDB.Get(key)
 	switch err {
 	case nil:
 		if !bytes.Equal(data, id[:]) {
 			return fmt.Errorf("name conflict")
 		}
 	case database.ErrNotFound:
-		err = bs.nameVDB.Put(key, id[:])
+		err = bs.nameDB.Put(key, id[:])
 	}
 
 	return err
 }
 
 func (bs *blockState) ResolveNameID(name string) (ids.ShortID, error) {
-	data, err := bs.nameVDB.Get([]byte(strings.ToLower(name)))
+	data, err := bs.nameDB.Get([]byte(strings.ToLower(name)))
 	if err != nil {
 		return ids.ShortEmpty, err
 	}
@@ -187,7 +158,7 @@ func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
 }
 
 func (bs *blockState) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
-	data, err := bs.modelVDB.Get(id[:])
+	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
@@ -209,11 +180,11 @@ func (bs *blockState) SaveModel(id ids.ShortID, mm *ld.ModelMeta) error {
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
-	return bs.modelVDB.Put(id[:], mm.Bytes())
+	return bs.modelDB.Put(id[:], mm.Bytes())
 }
 
 func (bs *blockState) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
-	data, err := bs.dataVDB.Get(id[:])
+	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +206,22 @@ func (bs *blockState) SaveData(id ids.ShortID, dm *ld.DataMeta) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
-	return bs.dataVDB.Put(id[:], dm.Bytes())
+	return bs.dataDB.Put(id[:], dm.Bytes())
+}
+
+func (bs *blockState) SavePrevData(id ids.ShortID, dm *ld.DataMeta) error {
+	if dm == nil {
+		return fmt.Errorf("SavePrevData with nil DataMeta")
+	}
+	if err := dm.SyntacticVerify(); err != nil {
+		return err
+	}
+
+	v := database.PackUInt64(dm.Version)
+	key := make([]byte, 20+len(v))
+	copy(key, id[:])
+	copy(key[20:], v)
+	return bs.prevDataDB.Put(key, dm.Bytes())
 }
 
 func (bs *blockState) AddEvent(e *Event) {
@@ -248,10 +234,6 @@ func (bs *blockState) Events() []*Event {
 	return bs.events
 }
 
-func (bs *blockState) SetLastAccepted(blk *Block) error {
-	return bs.state.SetLastAccepted(blk)
-}
-
 func (bs *blockState) SaveBlock(blk *Block) error {
 	for _, a := range bs.accountCache {
 		if err := a.Commit(); err != nil {
@@ -259,58 +241,23 @@ func (bs *blockState) SaveBlock(blk *Block) error {
 		}
 	}
 	id := blk.ID()
-	if err := bs.blockVDB.Put(id[:], blk.Bytes()); err != nil {
+	if err := bs.blockDB.Put(id[:], blk.Bytes()); err != nil {
 		return err
 	}
-	return bs.heightVDB.Put(database.PackUInt64(blk.Height()), id[:])
+	return bs.heightDB.Put(database.PackUInt64(blk.Height()), id[:])
 }
 
-// Commit when preferred
+// Commit when accept
 func (bs *blockState) Commit() error {
-	if bs.committed {
-		return nil
-	}
-	defer bs.clear()
-
-	if err := bs.vdb.Commit(); err != nil {
+	defer bs.free()
+	if err := bs.vdb.SetDatabase(bs.state.DB()); err != nil {
 		return err
 	}
-
-	bs.committed = true
-	return nil
+	return bs.vdb.Commit()
 }
 
-func (bs *blockState) PopBySize(askSize uint64) []*ld.Transaction {
-	return bs.state.PopBySize(askSize)
-}
-
-func (bs *blockState) mintTxData(blkID ids.ID) []byte {
-	data := make([]byte, 20+32)
-	copy(data, bs.ctx.NodeID[:])
-	copy(data[20:], blkID[:])
-	return data
-}
-
-func (bs *blockState) ProposeMintFeeTx(blkHeight uint64, blkID ids.ID, blkCost *big.Int) {
-	if recipient := bs.state.Config().FeeRecipient.ShortID(); recipient != ids.ShortEmpty {
-		mintFeeTx := &ld.Transaction{
-			Type:    ld.TypeMintFee,
-			ChainID: bs.ChainConfig().ChainID,
-			From:    constants.GenesisAddr,
-			To:      recipient,
-			Nonce:   blkHeight,
-			Amount:  blkCost,
-			Data:    bs.mintTxData(blkID),
-		}
-		bs.state.ProposeTx(mintFeeTx)
-	}
-}
-
-func (bs *blockState) GivebackTxs(txs ...*ld.Transaction) {
-	bs.state.AddTxs(txs...)
-}
-
-func (bs *blockState) clear() {
+func (bs *blockState) free() {
+	logging.Log.Info("free blockState %s", bs.id)
 	for k := range bs.accountCache {
 		delete(bs.accountCache, k)
 	}

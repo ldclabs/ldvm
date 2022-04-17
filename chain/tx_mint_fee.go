@@ -8,16 +8,19 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 // TxMintFee can't be issued from external environment
 // There is only one TxMintFee in a block
 type TxMintFee struct {
-	ld      *ld.Transaction
-	from    *Account
-	to      *Account
-	mintFee *big.Int
+	ld          *ld.Transaction
+	addTime     int64
+	from        *Account
+	to          *Account
+	genesisAddr *Account
+	mintFee     *big.Int
 }
 
 func (tx *TxMintFee) MarshalJSON() ([]byte, error) {
@@ -40,24 +43,12 @@ func (tx *TxMintFee) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
-func (tx *TxMintFee) NodeID() (id ids.ShortID, err error) {
-	switch {
-	case len(tx.ld.Data) != 52:
-		err = fmt.Errorf("TxMintFee invalid data")
-	default:
-		copy(id[:], tx.ld.Data)
-	}
-	return
+func (tx *TxMintFee) Status() string {
+	return tx.ld.Status.String()
 }
 
-func (tx *TxMintFee) BlockID() (id ids.ID, err error) {
-	switch {
-	case len(tx.ld.Data) != 52:
-		err = fmt.Errorf("TxMintFee invalid data")
-	default:
-		copy(id[:], tx.ld.Data[20:])
-	}
-	return
+func (tx *TxMintFee) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxMintFee) SyntacticVerify() error {
@@ -68,9 +59,9 @@ func (tx *TxMintFee) SyntacticVerify() error {
 }
 
 func (tx *TxMintFee) Verify(blk *Block) error {
-	bs := blk.State()
+
 	var err error
-	if err = bs.ChainConfig().CheckChainID(tx.ld.ChainID); err != nil {
+	if err = blk.ctx.Chain().CheckChainID(tx.ld.ChainID); err != nil {
 		return err
 	}
 
@@ -79,15 +70,19 @@ func (tx *TxMintFee) Verify(blk *Block) error {
 			blk.txs[0].ID(), tx.ID())
 	}
 
-	parent := blk.State().PreferredBlock()
-	parentID, err := tx.BlockID()
+	bs := blk.State()
+	parent, err := blk.ParentBlock()
+	if err != nil {
+		return err
+	}
+	_, parentID, err := unwrapMintTxData(tx.ld.Data)
 	if err != nil || parentID != parent.ID() {
 		return fmt.Errorf("TxMintFee invalid data, expected %s, got %s",
 			parent.ID(), parentID)
 	}
-	if tx.ld.Nonce != parent.Height() {
+	if tx.ld.Nonce != parent.Height {
 		return fmt.Errorf("TxMintFee invalid nonce, expected %d, got %d",
-			parent.Height(), tx.ld.Nonce)
+			parent.Height, tx.ld.Nonce)
 	}
 	if tx.ld.Amount.Cmp(parent.FeeCost()) != 0 {
 		return fmt.Errorf("TxMintFee invalid amount, expected %v, got %v",
@@ -98,8 +93,8 @@ func (tx *TxMintFee) Verify(blk *Block) error {
 	if err != nil {
 		return err
 	}
-	feeCfg := bs.FeeConfig()
-	if tx.to.Balance().Cmp(feeCfg.MinMinerStake) < 0 {
+	feeCfg := blk.FeeConfig()
+	if tx.to.Balance().Cmp(new(big.Int).SetUint64(feeCfg.MinMinerStake)) < 0 {
 		return fmt.Errorf("miner should stake more than %d", feeCfg.MinMinerStake)
 	}
 

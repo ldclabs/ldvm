@@ -56,7 +56,7 @@ func (d *TxUpdater) MarshalJSON() ([]byte, error) {
 		Threshold: d.Threshold,
 		Amount:    d.Amount,
 		Expire:    d.Expire,
-		Data:      JsonMarshalData(d.Data),
+		Data:      JSONMarshalData(d.Data),
 	}
 
 	if d.ID != ids.ShortEmpty {
@@ -84,8 +84,7 @@ func (d *TxUpdater) Copy() *TxUpdater {
 	copy(x.Keepers, d.Keepers)
 	x.Data = make([]byte, len(d.Data))
 	copy(x.Data, d.Data)
-	x.raw = make([]byte, len(d.raw))
-	copy(x.raw, d.raw)
+	x.raw = nil
 	return x
 }
 

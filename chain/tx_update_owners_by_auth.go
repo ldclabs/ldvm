@@ -8,16 +8,20 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxUpdateDataKeepersByAuth struct {
-	ld        *ld.Transaction
-	from      *Account
-	signers   []ids.ShortID
-	exSigners []ids.ShortID
-	data      *ld.TxUpdater
-	dm        *ld.DataMeta
+	ld          *ld.Transaction
+	from        *Account
+	to          *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	exSigners   []ids.ShortID
+	data        *ld.TxUpdater
+	dm          *ld.DataMeta
 }
 
 func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
@@ -49,6 +53,14 @@ func (tx *TxUpdateDataKeepersByAuth) Type() ld.TxType {
 
 func (tx *TxUpdateDataKeepersByAuth) Bytes() []byte {
 	return tx.ld.Bytes()
+}
+
+func (tx *TxUpdateDataKeepersByAuth) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxUpdateDataKeepersByAuth) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
@@ -87,11 +99,18 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block) error {
 		return fmt.Errorf("invalid exSignatures: %v", err)
 	}
 
+	bs := blk.State()
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
+		return err
+	}
 
-	tx.dm, err = blk.State().LoadData(tx.data.ID)
+	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
 	}
@@ -121,17 +140,15 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block) error {
 		return err
 	}
 
-	var to *Account
-	if to, err = bs.LoadAccount(tx.ld.To); err != nil {
-		return err
-	}
-
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost = new(big.Int).Add(tx.ld.Amount, cost)
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	cost := new(big.Int).Add(tx.ld.Amount, fee)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
 		return err
 	}
-	if err = to.Add(tx.ld.Amount); err != nil {
+	if err = tx.genesisAddr.Add(fee); err != nil {
+		return err
+	}
+	if err = tx.to.Add(tx.ld.Amount); err != nil {
 		return err
 	}
 	return bs.SaveData(tx.data.ID, tx.dm)

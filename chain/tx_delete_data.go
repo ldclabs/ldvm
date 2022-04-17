@@ -8,15 +8,18 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxDeleteData struct {
-	ld      *ld.Transaction
-	from    *Account
-	signers []ids.ShortID
-	data    *ld.TxUpdater
-	dm      *ld.DataMeta
+	ld          *ld.Transaction
+	from        *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	data        *ld.TxUpdater
+	dm          *ld.DataMeta
 }
 
 func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
@@ -50,6 +53,14 @@ func (tx *TxDeleteData) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
+func (tx *TxDeleteData) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxDeleteData) SetStatus(s choices.Status) {
+	tx.ld.Status = s
+}
+
 func (tx *TxDeleteData) SyntacticVerify() error {
 	if tx == nil ||
 		len(tx.ld.Data) == 0 {
@@ -77,12 +88,15 @@ func (tx *TxDeleteData) Verify(blk *Block) error {
 	if err != nil {
 		return fmt.Errorf("invalid signatures")
 	}
-
+	bs := blk.State()
 	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
 		return err
 	}
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
 
-	tx.dm, err = blk.State().LoadData(tx.data.ID)
+	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxDeleteData load data failed: %v", err)
 	}
@@ -102,8 +116,11 @@ func (tx *TxDeleteData) Accept(blk *Block) error {
 	if err = tx.dm.SyntacticVerify(); err != nil {
 		return err
 	}
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	return blk.State().SaveData(tx.data.ID, tx.dm)

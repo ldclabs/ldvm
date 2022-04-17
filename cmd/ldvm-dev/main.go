@@ -87,16 +87,13 @@ func main() {
 	}
 }
 
-// NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg
-// NodeID-MFrZFVCXPv5iCn6M9K6XduxGTYp891xXZ
-
 func run(log logging.Logger, binaryPath, dbPath string) error {
 	// Create the network
 	cfg := local.NewDefaultConfig(binaryPath)
 	if cfg.Flags == nil {
 		cfg.Flags = make(map[string]interface{})
 	}
-	cfg.Flags["whitelisted-subnets"] = "T8e9XMvDtUS8VQmHzdwHtE1XHvz4H1BbfynoF1vPPqo4ZZutc"
+	cfg.Flags["whitelisted-subnets"] = "k2N2VSSafGrN39VtDgMBdeson8mixzKk2k1ECBdfA3QezRe7G"
 
 	nw, err := local.NewNetwork(log, cfg, dbPath)
 	if err != nil {

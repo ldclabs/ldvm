@@ -7,12 +7,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-const futureBound = 10 * time.Second
+const (
+	futureBound = 10 * time.Second
+
+	MaxMiners = math.MaxUint8
+)
 
 type Block struct {
 	Parent    ids.ID // The genesis block's parent ID is ids.Empty.
@@ -25,7 +31,7 @@ type Block struct {
 	// The address of miners awarded in this block.
 	// Miners can issue a TxMintFee transaction to apply for mining awards
 	// after the completion and consensus of the parent block.
-	// The first miners to reach new block can be entered, up to 128, sorted by ID.
+	// The first miners to reach new block can be entered, up to 255, sorted by ID.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
 	Miners []ids.ShortID
 	Txs    []*Transaction
@@ -92,8 +98,8 @@ func (b *Block) Copy() *Block {
 	for i := range b.Txs {
 		x.Txs[i] = b.Txs[i].Copy()
 	}
-	x.raw = make([]byte, len(b.raw))
-	copy(x.raw, b.raw)
+	x.raw = nil
+	x.RawTxs = nil
 	return x
 }
 
@@ -108,6 +114,9 @@ func (b *Block) SyntacticVerify() error {
 	}
 	if b.GasRebateRate > 1000 {
 		return fmt.Errorf("invalid gasRebateRate")
+	}
+	if len(b.Miners) > MaxMiners {
+		return fmt.Errorf("invalid miners, too many")
 	}
 	for _, a := range b.Miners {
 		if a == ids.ShortEmpty {
@@ -183,6 +192,10 @@ func (b *Block) Bytes() []byte {
 	}
 
 	return b.raw
+}
+
+func (b *Block) FeeCost() *big.Int {
+	return new(big.Int).Mul(new(big.Int).SetUint64(b.Gas), new(big.Int).SetUint64(b.GasPrice))
 }
 
 func (b *Block) Unmarshal(data []byte) error {

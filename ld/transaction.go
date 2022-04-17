@@ -11,6 +11,10 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ipld/go-ipld-prime/codec/dagcbor"
+	"github.com/ipld/go-ipld-prime/datamodel"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 )
 
 const (
@@ -109,11 +113,15 @@ type Transaction struct {
 	id          ids.ID
 	unsignedRaw []byte // raw bytes for sign
 	raw         []byte // the transaction's raw bytes, included id and sigs.
+	AddTime     uint64
+	Priority    uint64
+	Status      choices.Status
 }
 
 type jsonTransaction struct {
 	ID           ids.ID          `json:"id"`
-	Type         string          `json:"type"`
+	Type         TxType          `json:"type"`
+	TypeStr      string          `json:"typeString"`
 	ChainID      uint64          `json:"chainID"`
 	Nonce        uint64          `json:"Nonce"`
 	Gas          uint64          `json:"gas"` // calculate when build block.
@@ -127,13 +135,85 @@ type jsonTransaction struct {
 	ExSignatures []Signature     `json:"exSignatures"`
 }
 
+type Txs []*Transaction
+
+func MarshalTxs(txs []*Transaction) ([]byte, error) {
+	if len(txs) == 0 {
+		return nil, nil
+	}
+	var buf bytes.Buffer
+	err := Recover("MarshalTxs", func() error {
+		nb := basicnode.Prototype.List.NewBuilder()
+		la, er := nb.BeginList(int64(len(txs)))
+		if er != nil {
+			return er
+		}
+		for i := range txs {
+			la.AssembleValue().AssignBytes(txs[i].Bytes())
+		}
+		if er = la.Finish(); er != nil {
+			return er
+		}
+		return dagcbor.Encode(nb.Build(), &buf)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func UnmarshalTxs(data []byte) ([]*Transaction, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var rt *[]*Transaction
+	err := Recover("UnmarshalTxs", func() error {
+		var er error
+		nb := basicnode.Prototype.List.NewBuilder()
+		if er = dagcbor.Decode(nb, bytes.NewReader(data)); er != nil {
+			return er
+		}
+		list := nb.Build()
+		le := int(list.Length())
+		txs := make([]*Transaction, le)
+
+		var node datamodel.Node
+		var d []byte
+		for i := 0; i < le; i++ {
+			if node, er = list.LookupByIndex(int64(i)); er != nil {
+				return er
+			}
+			if d, er = node.AsBytes(); er != nil {
+				return er
+			}
+
+			txs[i] = &Transaction{}
+			if er = txs[i].Unmarshal(d); er != nil {
+				return er
+			}
+			if er = txs[i].SyntacticVerify(); er != nil {
+				return er
+			}
+		}
+		rt = &txs
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return *rt, nil
+}
+
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	if t == nil {
 		return Null, nil
 	}
 	v := &jsonTransaction{
 		ID:           t.ID(),
-		Type:         TxTypeString(t.Type),
+		Type:         t.Type,
+		TypeStr:      TxTypeString(t.Type),
 		ChainID:      t.ChainID,
 		Nonce:        t.Nonce,
 		Gas:          t.Gas,
@@ -141,7 +221,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		GasFeeCap:    t.GasFeeCap,
 		From:         EthID(t.From).String(),
 		To:           EthID(t.To).String(),
-		Data:         JsonMarshalData(t.Data),
+		Data:         JSONMarshalData(t.Data),
 		Amount:       t.Amount,
 		Signatures:   t.Signatures,
 		ExSignatures: t.ExSignatures,
@@ -173,12 +253,12 @@ func (t *Transaction) Copy() *Transaction {
 	}
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
-	x.raw = make([]byte, len(t.raw))
-	copy(x.raw, t.raw)
 	x.Signatures = make([]Signature, len(t.Signatures))
 	copy(x.Signatures, t.Signatures)
 	x.ExSignatures = make([]Signature, len(t.ExSignatures))
 	copy(x.ExSignatures, t.ExSignatures)
+	x.unsignedRaw = nil
+	x.raw = nil
 	return x
 }
 
@@ -213,11 +293,26 @@ func (t *Transaction) SyntacticVerify() error {
 	return nil
 }
 
+func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
+	priority := t.GasFeeCap * 10
+	gas := t.RequireGas(threshold)
+	if v := gas + t.GasFeeCap; v > priority {
+		priority = v
+	}
+	// Consider gossip network overhead, ignoring small time differences
+	// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
+	if du := nowSeconds - t.AddTime; du > 3 && du <= 120 {
+		// A delay of 10 seconds is equivalent to a threshold priority
+		priority += du * threshold / 10
+	}
+	t.Priority = priority
+}
+
 func (t *Transaction) RequireGas(threshold uint64) uint64 {
 	if threshold < MinThresholdGas {
 		threshold = MinThresholdGas
 	}
-	gas := uint64(len(t.Bytes()))
+	gas := uint64(len(t.UnsignedBytes()))
 	switch t.Type {
 	case TypeMintFee:
 		return uint64(0)

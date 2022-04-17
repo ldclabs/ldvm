@@ -8,14 +8,17 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxTransfer struct {
-	ld      *ld.Transaction
-	from    *Account
-	to      *Account
-	signers []ids.ShortID
+	ld          *ld.Transaction
+	from        *Account
+	to          *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
 }
 
 func (tx *TxTransfer) MarshalJSON() ([]byte, error) {
@@ -37,6 +40,14 @@ func (tx *TxTransfer) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
+func (tx *TxTransfer) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxTransfer) SetStatus(s choices.Status) {
+	tx.ld.Status = s
+}
+
 func (tx *TxTransfer) SyntacticVerify() error {
 	if tx == nil {
 		return fmt.Errorf("invalid TxTransfer")
@@ -54,11 +65,15 @@ func (tx *TxTransfer) Verify(blk *Block) error {
 	if err != nil {
 		return fmt.Errorf("invalid signatures: %v", err)
 	}
+	bs := blk.State()
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	if err != nil {
 		return err
 	}
-	tx.to, err = blk.State().LoadAccount(tx.ld.To)
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.to, err = bs.LoadAccount(tx.ld.To)
 	return err
 }
 
@@ -70,18 +85,21 @@ func (tx *TxTransfer) VerifyGenesis(blk *Block) error {
 	if err != nil {
 		return err
 	}
-	tx.to, err = bs.LoadAccount(tx.ld.To)
-	if err != nil {
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
 		return err
 	}
-	return nil
+	tx.to, err = bs.LoadAccount(tx.ld.To)
+	return err
 }
 
 func (tx *TxTransfer) Accept(blk *Block) error {
 	var err error
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost = new(big.Int).Add(tx.ld.Amount, cost)
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	cost := new(big.Int).Add(tx.ld.Amount, fee)
 	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	if err = tx.to.Add(tx.ld.Amount); err != nil {

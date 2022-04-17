@@ -5,6 +5,7 @@ package app
 
 import (
 	"encoding/json"
+	"sort"
 
 	"github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
@@ -63,7 +64,8 @@ func (m *MapStringString) Set(key, value string) {
 	}
 	m.Values[key] = value
 	if !ok {
-		m.Keys = append(m.Keys, key) // TODO: sort?
+		m.Keys = append(m.Keys, key)
+		sort.Stable(sort.StringSlice(m.Keys))
 	}
 }
 
@@ -141,7 +143,8 @@ func (m *MapStringAny) Set(key string, value datamodel.Node) {
 	}
 	m.Values[key] = value
 	if !ok {
-		m.Keys = append(m.Keys, key) // TODO: sort?
+		m.Keys = append(m.Keys, key)
+		sort.Stable(sort.StringSlice(m.Keys))
 	}
 }
 

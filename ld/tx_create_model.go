@@ -51,7 +51,7 @@ func (m *ModelMeta) MarshalJSON() ([]byte, error) {
 		ID:        ModelID(m.ID).String(),
 		Name:      m.Name,
 		Threshold: m.Threshold,
-		Data:      JsonMarshalData(m.Data),
+		Data:      JSONMarshalData(m.Data),
 		Keepers:   make([]string, len(m.Keepers)),
 	}
 	for i := range m.Keepers {
@@ -67,8 +67,7 @@ func (m *ModelMeta) Copy() *ModelMeta {
 	copy(x.Keepers, m.Keepers)
 	x.Data = make([]byte, len(m.Data))
 	copy(x.Data, m.Data)
-	x.raw = make([]byte, len(m.raw))
-	copy(x.raw, m.raw)
+	x.raw = nil
 	return x
 }
 

@@ -5,19 +5,23 @@ package chain
 
 import (
 	"fmt"
+	"math/big"
+	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/database/prefixdb"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
-	"github.com/ava-labs/avalanchego/utils/logging"
 
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/logging"
 )
 
 var _ StateDB = &stateDB{}
@@ -28,12 +32,14 @@ var (
 )
 
 var (
+	dbPrefix             = []byte("LDVM")
 	lastAcceptedDBPrefix = []byte{'K'}
 	heightDBPrefix       = []byte{'H'}
 	blockDBPrefix        = []byte{'B'}
 	accountDBPrefix      = []byte{'A'}
 	modelDBPrefix        = []byte{'M'}
 	dataDBPrefix         = []byte{'D'}
+	prevDataDBPrefix     = []byte{'P'}
 	nameDBPrefix         = []byte{'N'} // inverted index
 
 	lastAcceptedKey = []byte("last_accepted_key")
@@ -41,99 +47,197 @@ var (
 
 // StateDB defines methods to manage state with Blocks and LastAcceptedIDs.
 type StateDB interface {
-	Bootstrap() error
-	SetState(snow.State) error
-	HealthCheck() (interface{}, error)
+	// global context
+	Context() *Context
+	DB() database.Database
 
+	// global state
+	HealthCheck() (interface{}, error)
+	Bootstrap() error
+	IsBootstrapped() bool
+	SetState(snow.State) error
+	TotalSupply() *big.Int
+
+	// blocks state
 	BuildBlock() (*Block, error)
-	GetBlock(ids.ID) (*Block, error)
 	ParseBlock([]byte) (*Block, error)
-	LastAcceptedBlock() (*Block, error)
+	GetBlockIDAtHeight(uint64) (ids.ID, error)
+	GetBlock(ids.ID) (*Block, error)
+	LastAcceptedBlock() *ld.Block
 	SetLastAccepted(*Block) error
 	PreferredBlock() *Block
 	SetPreference(ids.ID) error
-	GetBlockIDAtHeight(uint64) (ids.ID, error)
+	AddVerifiedBlock(*Block)
 
-	ChainConfig() *genesis.ChainConfig
-	FeeConfig(uint64) *genesis.FeeConfig
+	// txs state
+	SubmitTx(*ld.Transaction) error
+	ProposeMintFeeTx(*ld.Transaction) error
+	AddTxs(isNew bool, txs ...*ld.Transaction)
+	GetTx(ids.ID) Transaction
+	RemoveTx(ids.ID)
+	SeeNode(ids.ShortID)
 
-	PopBySize(askSize uint64) []*ld.Transaction
-	ProposeTx(*ld.Transaction)
-	AddTxs(...*ld.Transaction)
+	LoadAccount(ids.ShortID) (*ld.Account, error)
+	ResolveName(name string) (*ld.DataMeta, error)
+	LoadModel(ids.ShortID) (*ld.ModelMeta, error)
+	LoadData(ids.ShortID) (*ld.DataMeta, error)
+	LoadPrevData(ids.ShortID, uint64) (*ld.DataMeta, error)
 
-	RecentEvents() []*Event
-	AddEvents(evs ...*Event)
-	Log() logging.Logger
+	// events
+	QueryEvents() []*Event
+}
+
+type atomicBlock atomic.Value
+
+func (a *atomicBlock) LoadV() *Block {
+	return (*atomic.Value)(a).Load().(*Block)
+}
+
+func (a *atomicBlock) StoreV(v *Block) {
+	(*atomic.Value)(a).Store(v)
+}
+
+type atomicLDBlock atomic.Value
+
+func (a *atomicLDBlock) LoadV() *ld.Block {
+	return (*atomic.Value)(a).Load().(*ld.Block)
+}
+
+func (a *atomicLDBlock) StoreV(v *ld.Block) {
+	(*atomic.Value)(a).Store(v)
+}
+
+type atomicState atomic.Value
+
+func (a *atomicState) LoadV() snow.State {
+	v := (*atomic.Value)(a).Load().(*snow.State)
+	return *v
+}
+
+func (a *atomicState) StoreV(v snow.State) {
+	(*atomic.Value)(a).Store(&v)
+}
+
+type stateDB struct {
+	ctx          *Context
+	config       *config.Config
+	genesis      *genesis.Genesis
+	genesisBlock *Block
+
+	db             database.Database
+	blockDB        *db.PrefixDB
+	heightDB       *db.PrefixDB
+	lastAcceptedDB *db.PrefixDB
+	accountDB      *db.PrefixDB
+	modelDB        *db.PrefixDB
+	dataDB         *db.PrefixDB
+	prevDataDB     *db.PrefixDB
+	nameDB         *db.PrefixDB
+
+	preferred         *atomicBlock
+	lastAcceptedBlock *atomicLDBlock
+	state             *atomicState
+
+	verifiedBlocks  *sync.Map
+	eventsCache     *EventsCache
+	currentBlocks   *db.Cacher
+	currentModels   *db.Cacher
+	currentDatas    *db.Cacher
+	currentAccounts *db.Cacher
+	currentNames    *db.Cacher
+	currentHeights  *db.Cacher
+	currentTxs      *db.Cacher
+
+	bb          *BlockBuilder
+	txPool      TxPool // Proposed transactions that haven't been put into a block yet
+	gossipTx    func(tx *ld.Transaction)
+	notifyBuild func()
 }
 
 func NewState(
 	ctx *snow.Context,
-	db database.Database,
-	gs *genesis.Genesis,
 	cfg *config.Config,
-	log logging.Logger,
+	gs *genesis.Genesis,
+	baseDB database.Database,
+	notifyBuild func(),
+	gossipTx func(tx *ld.Transaction),
 ) *stateDB {
+	pdb := db.NewPrefixDB(baseDB, dbPrefix, 512)
 	s := &stateDB{
-		ctx:              ctx,
-		log:              log,
-		db:               db,
-		blockDB:          prefixdb.New(blockDBPrefix, db),
-		heightDB:         prefixdb.New(heightDBPrefix, db),
-		lastAcceptedDB:   prefixdb.New(lastAcceptedKey, db),
-		genesis:          gs,
-		config:           cfg,
-		recentEventsSize: cfg.RecentEventsSize,
-		acceptedBlocks:   make(map[ids.ID]*Block),
+		config:            cfg,
+		genesis:           gs,
+		db:                baseDB,
+		notifyBuild:       notifyBuild,
+		gossipTx:          gossipTx,
+		txPool:            NewTxPool(),
+		preferred:         new(atomicBlock),
+		lastAcceptedBlock: new(atomicLDBlock),
+		state:             new(atomicState),
+		eventsCache:       NewEventsCache(cfg.EventCacheSize),
+		verifiedBlocks:    new(sync.Map),
+		blockDB:           pdb.With(blockDBPrefix),
+		heightDB:          pdb.With(heightDBPrefix),
+		lastAcceptedDB:    pdb.With(lastAcceptedKey),
+		accountDB:         pdb.With(accountDBPrefix),
+		modelDB:           pdb.With(modelDBPrefix),
+		dataDB:            pdb.With(dataDBPrefix),
+		prevDataDB:        pdb.With(prevDataDBPrefix),
+		nameDB:            pdb.With(nameDBPrefix),
 	}
+	s.ctx = NewContext(ctx, s, cfg, gs)
+	s.bb = NewBlockBuilder(ctx.NodeID, s.txPool, s.notifyBuild)
+
+	s.preferred.StoreV(emptyBlock)
+	s.lastAcceptedBlock.StoreV(emptyBlock.ld)
+	s.state.StoreV(0)
+
+	s.currentBlocks = db.NewCacher(10_000, 1024*1024*1024*4, time.Minute*10, func() db.Unmarshaler {
+		return new(Block)
+	})
+	s.currentHeights = db.NewCacher(10_000, 1024*1024*256, time.Minute*10, func() db.Unmarshaler {
+		return new(db.RawObject)
+	})
+	s.currentModels = db.NewCacher(10_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+		return new(ld.ModelMeta)
+	})
+	s.currentDatas = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+		return new(ld.DataMeta)
+	})
+	s.currentAccounts = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+		return new(ld.Account)
+	})
+	s.currentNames = db.NewCacher(100_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+		return new(db.RawObject)
+	})
+	s.currentTxs = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, nil)
 	return s
 }
 
-type stateDB struct {
-	mu      sync.RWMutex
-	ctx     *snow.Context
-	genesis *genesis.Genesis
-	config  *config.Config
-	state   snow.State
-	log     logging.Logger
-
-	db             database.Database
-	blockDB        database.Database
-	heightDB       database.Database
-	lastAcceptedDB database.Database
-
-	// Proposed transactions that haven't been put into a block yet
-	txPool TxPool
-
-	genesisBlock *Block
-	// committed block, lastAcceptedKey's id is the preferred block
-	preferred *Block
-	// prevents reorgs past this height,
-	// should be preferred block or preferred block' child
-	// accepted but may be not committed
-	lastAcceptedBlock *Block
-
-	recentEventsSize int
-	recentEvents     []*Event
-
-	// multiple accepted blocks may exist befoce SetPreference
-	acceptedBlocks map[ids.ID]*Block
+func (s *stateDB) DB() database.Database {
+	return s.db
 }
 
-func (s *stateDB) Log() logging.Logger {
-	return s.log
+func (s *stateDB) Context() *Context {
+	return s.ctx
 }
 
-// TeENEaqAPwwqDep5o1gNZ9MSPrv5Zs6QkatGn3bcN8oUyf1bd
 func (s *stateDB) Bootstrap() error {
+	if s.config.FeeRecipient == ld.EthIDEmpty {
+		for k := range s.genesis.Alloc {
+			s.config.FeeRecipient = k
+			break
+		}
+	}
+
 	genesisLdBlock, err := s.genesis.ToBlock()
 	if err != nil {
-		s.log.Error("Bootstrap genesis.ToBlock error: %v", err)
+		logging.Log.Error("Bootstrap genesis.ToBlock error: %v", err)
 		return err
 	}
 
-	genesisBlock, err := NewBlock(genesisLdBlock)
+	genesisBlock, err := NewBlock(genesisLdBlock, s.ctx)
 	if err != nil {
-		s.log.Error("Bootstrap newGenesisBlock error: %v", err)
+		logging.Log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err
 	}
 	if genesisBlock.Parent() != ids.Empty ||
@@ -147,35 +251,34 @@ func (s *stateDB) Bootstrap() error {
 	lastAcceptedID, err := database.GetID(s.lastAcceptedDB, lastAcceptedKey)
 	// create genesis block
 	if err == database.ErrNotFound {
-		s.log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
-		genesisBlock.InitState(s, s.db, nil)
+		logging.Log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
+		genesisBlock.InitState(s.db, false)
 		// the metaverse is born out of blackhole
 		blackhole := NewAccount(constants.BlackholeAddr)
-		accountVDB := genesisBlock.bs.(*blockState).accountVDB
-		blackhole.Init(accountVDB)
-		blackhole.Add(s.genesis.Chain.MaxTotalSupply)
+		accountDB := genesisBlock.bs.(*blockState).accountDB
 		accountCache := genesisBlock.bs.(*blockState).accountCache
+		blackhole.Init(accountDB)
+		blackhole.Add(s.genesis.Chain.MaxTotalSupply)
 		accountCache[constants.BlackholeAddr] = blackhole
 		data, _ := genesisBlock.MarshalJSON()
-		s.log.Info("genesisBlock:\n%s", string(data))
+		logging.Log.Info("genesisBlock:\n%s", string(data))
 		if err := genesisBlock.VerifyGenesis(); err != nil {
-			s.log.Error("VerifyGenesis block error: %v", err)
+			logging.Log.Error("VerifyGenesis block error: %v", err)
 			return fmt.Errorf("VerifyGenesis block error: %v", err)
 		}
-		if err := genesisBlock.Accept(); err != nil {
-			s.log.Error("Accept genesis block: %v", err)
-			return fmt.Errorf("Accept genesis block error: %v", err)
-		}
-		s.log.Info("Bootstrap commit Genesis Block")
 		// remove the blackhole account, it's life is over,
 		// and should not be wrote into blockchain, as if it never existed.
 		delete(accountCache, constants.BlackholeAddr)
-		accountVDB.Delete(constants.BlackholeAddr[:])
+		accountDB.Delete(constants.BlackholeAddr[:])
 
-		// commit the genesis block
-		s.lastAcceptedBlock = genesisBlock
-		defer s.log.Info("defer Create Genesis Block: %s", genesisBlock.ID())
-		return s.commitPreference(genesisBlock)
+		logging.Log.Info("Bootstrap commit Genesis Block")
+		if err := genesisBlock.Accept(); err != nil {
+			logging.Log.Error("Accept genesis block: %v", err)
+			return fmt.Errorf("Accept genesis block error: %v", err)
+		}
+
+		time.AfterFunc(time.Second*3, func() { genesisBlock.ProposeMintFeeTx() })
+		return nil
 	}
 
 	if err != nil {
@@ -194,256 +297,394 @@ func (s *stateDB) Bootstrap() error {
 
 	// genesis block is the last accepted block.
 	if lastAcceptedID == genesisBlock.ID() {
-		s.log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
-		genesisBlock.InitState(s, s.db, genesisBlock)
-		s.lastAcceptedBlock = genesisBlock
-		s.preferred = genesisBlock
+		logging.Log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
+		genesisBlock.InitState(s.db, true)
+		s.preferred.StoreV(genesisBlock)
+		s.lastAcceptedBlock.StoreV(genesisBlock.ld)
+		time.AfterFunc(time.Second*3, func() { genesisBlock.ProposeMintFeeTx() })
 		return nil
 	}
 
 	// load the last accepted block
-	s.lastAcceptedBlock, err = s.GetBlock(lastAcceptedID)
+	lastAcceptedBlock, err := s.GetBlock(lastAcceptedID)
 	if err != nil {
 		return fmt.Errorf("load last accepted block failed: %v", err)
 	}
 
-	s.lastAcceptedBlock.InitState(s, s.db, s.lastAcceptedBlock)
-	s.preferred = s.lastAcceptedBlock
-	s.log.Info("Bootstrap finished at the block %s", lastAcceptedID)
+	lastAcceptedBlock.InitState(s.db, true)
+	s.preferred.StoreV(lastAcceptedBlock)
+	s.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
+
+	// load latest fee config from chain.
+	var dm *ld.DataMeta
+	feeConfigID := ids.ShortID(s.genesis.Chain.FeeConfigID)
+	dm, err = s.LoadData(feeConfigID)
+	if err != nil {
+		return fmt.Errorf("load last fee config failed: %v", err)
+	}
+	cfg, err := s.genesis.Chain.AddFeeConfig(dm.Data)
+	if err != nil {
+		return fmt.Errorf("unmarshal fee config failed: %v", err)
+	}
+
+	for dm.Version > 1 && cfg.StartHeight > lastAcceptedBlock.ld.Height {
+		dm, err = s.LoadPrevData(feeConfigID, dm.Version-1)
+		if err != nil {
+			return fmt.Errorf("load previous fee config failed: %v", err)
+		}
+		cfg, err = s.genesis.Chain.AddFeeConfig(dm.Data)
+		if err != nil {
+			return fmt.Errorf("unmarshal fee config failed: %v", err)
+		}
+	}
+
+	logging.Log.Info("Bootstrap load %d versions fee configs", len(s.genesis.Chain.FeeConfigs))
+	logging.Log.Info("Bootstrap finished at the block %s, %d", lastAcceptedBlock.ID(), lastAcceptedBlock.ld.Height)
+	logging.Log.Info("Bootstrap finished with miner %s", s.config.FeeRecipient)
+	time.AfterFunc(time.Second*3, func() { lastAcceptedBlock.ProposeMintFeeTx() })
 	return nil
 }
 
 func (s *stateDB) HealthCheck() (interface{}, error) {
-	return database.GetID(s.lastAcceptedDB, lastAcceptedKey)
+	id, err := database.GetID(s.lastAcceptedDB, lastAcceptedKey)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{
+		"LastAccepted": id.String(),
+	}, nil
+}
+
+func (s *stateDB) TotalSupply() *big.Int {
+	t := new(big.Int)
+	if acc, err := s.LoadAccount(constants.GenesisAddr); err == nil {
+		max := s.genesis.Chain.MaxTotalSupply
+		t.Sub(max, acc.Balance)
+	}
+	return t
 }
 
 func (s *stateDB) SetState(state snow.State) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	switch state {
 	case snow.Bootstrapping:
-		s.state = state
+		s.state.StoreV(state)
 		return nil
 	case snow.NormalOp:
-		if err := s.verifyBootstrapped(nil); err != nil {
-			return err
+		if s.preferred.LoadV() == emptyBlock {
+			return fmt.Errorf("Verify bootstrap failed")
 		}
-		s.state = state
+		s.state.StoreV(state)
 		return nil
 	default:
 		return snow.ErrUnknownState
 	}
 }
 
-func (s *stateDB) verifyBootstrapped(prefer *Block) error {
-	return nil
-}
-
 func (s *stateDB) IsBootstrapped() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.state == snow.NormalOp
+	return s.state.LoadV() == snow.NormalOp
 }
 
 // LastAccepted returns the ID of the last accepted block.
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (s *stateDB) LastAcceptedBlock() (*Block, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (s *stateDB) LastAcceptedBlock() *ld.Block {
+	return s.lastAcceptedBlock.LoadV()
+}
 
-	if s.lastAcceptedBlock == nil {
-		return nil, fmt.Errorf("stateDB not bootstrapped, no LastAcceptedBlock")
-	}
-	return s.lastAcceptedBlock, nil
+func (s *stateDB) AddVerifiedBlock(blk *Block) {
+	s.verifiedBlocks.Store(blk.ID(), blk)
 }
 
 func (s *stateDB) SetLastAccepted(blk *Block) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.preferred != nil && blk.Parent() != s.preferred.ID() {
-		return fmt.Errorf("invalid last accepted block parent: expected %v, got %v",
-			s.preferred.ID(), blk.Parent())
-	}
-	if blk.Status() != choices.Accepted {
-		return fmt.Errorf("invalid last accepted block status: expected %v, got %v",
-			choices.Accepted, blk.Status())
+	id := blk.ID()
+	if err := database.PutID(s.lastAcceptedDB, lastAcceptedKey, id); err != nil {
+		return err
 	}
 
-	s.acceptedBlocks[blk.ID()] = blk
-	s.lastAcceptedBlock = blk
+	s.lastAcceptedBlock.StoreV(blk.ld)
+	height := blk.Height()
+	if p := s.preferred.LoadV(); height > 0 && p.ID() != blk.ID() {
+		switch {
+		case p.Height() < height:
+			s.preferred.StoreV(blk)
+		case p.Height() == height:
+			p.Reject()
+			s.preferred.StoreV(blk)
+		default:
+			ancestors, err := p.AncestorBlocks(height)
+			switch {
+			case err != nil || len(ancestors) == 0:
+				p.Reject()
+				s.preferred.StoreV(blk)
+			case ancestors[len(ancestors)-1].ID() != id:
+				p.Reject()
+				for _, v := range ancestors {
+					v.Reject()
+				}
+				s.preferred.StoreV(blk)
+			}
+		}
+	}
+
+	s.currentBlocks.Set(id[:], blk.ld, int64(len(blk.Bytes())))
+	for i := range blk.txs {
+		tx := blk.txs[i]
+		id := tx.ID()
+		s.currentTxs.Set(id[:], tx, int64(len(tx.Bytes())))
+	}
+
+	go func() {
+		s.verifiedBlocks.Range(func(key, value any) bool {
+			if b, ok := value.(*Block); ok {
+				if b.Height() < height {
+					s.verifiedBlocks.Delete(key)
+				}
+			}
+			return true
+		})
+		s.eventsCache.Add(blk.State().Events()...)
+	}()
 	return nil
 }
 
 func (s *stateDB) PreferredBlock() *Block {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.preferred == nil {
-		panic(errPreferredBlock)
-	}
-	return s.preferred
+	return s.preferred.LoadV()
 }
 
 // SetPreference persists the VM of the currently preferred block into database.
 // This should always be a block that has no children known to consensus.
 func (s *stateDB) SetPreference(id ids.ID) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.preferred.ID() == id {
+	pid := s.preferred.LoadV().ID()
+	if pid == id {
 		return nil
 	}
 
-	if s.lastAcceptedBlock.ID() == id {
-		return s.commitPreference(s.lastAcceptedBlock)
+	v, ok := s.verifiedBlocks.Load(id)
+	if !ok {
+		return fmt.Errorf("SetPreference block %s not verified", id)
+	}
+	blk := v.(*Block)
+
+	if blk.Parent() != pid {
+		if lid := s.lastAcceptedBlock.LoadV().ID(); blk.Parent() != lid {
+			return fmt.Errorf("SetPreference block %s parent error: expected %s, got %s",
+				id, lid, blk.Parent())
+		}
 	}
 
-	blk, err := s.GetBlock(id)
-	if err != nil {
-		return fmt.Errorf("SetPreference block %s error: %v", id, err)
-	}
-
-	if blk.Height() < s.preferred.Height() {
-		// TODO: revert?
-		// Should never happen
-		return fmt.Errorf("SetPreference block %s error: can't revert block to %d", id, blk.Height())
-	}
-
-	if blk.Parent() == s.preferred.Parent() {
-		// TODO: another preferred block?
-		// Should never happen
-		return fmt.Errorf("SetPreference block %s error: can't replace current preferred %d", id, s.preferred.ID())
-	}
-
-	if err := s.commitPreference(blk); err != nil {
-		return err
-	}
-
-	s.lastAcceptedBlock = blk
-	return err
+	s.preferred.StoreV(blk)
+	logging.Log.Info("SetPreference OK %s", id)
+	return nil
 }
 
 func (s *stateDB) BuildBlock() (*Block, error) {
-	b, err := BuildBlock(s.txPool, s.preferred)
+	if !s.bb.NeedBuild() {
+		return nil, fmt.Errorf("wait to build block")
+	}
+
+	blk, err := s.bb.Build(s.ctx, s.preferred.LoadV())
 	if err != nil {
 		return nil, err
 	}
-	blk, err := NewBlock(b)
-	if err != nil {
+	id := blk.ID()
+	s.currentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
+	return blk, nil
+}
+
+func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
+	blk := new(Block)
+	if err := blk.Unmarshal(data); err != nil {
 		return nil, err
 	}
-	blk.InitState(s, s.db, s.preferred)
+	id := blk.ID()
+	if blk2, err := s.GetBlock(id); err == nil {
+		return blk2, nil
+	}
+
+	if blk.Context() == nil {
+		blk.SetContext(s.ctx)
+	}
+	s.currentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
 	return blk, nil
 }
 
 func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	if s.genesisBlock.ID() == id {
 		return s.genesisBlock, nil
 	}
 
-	if blk, ok := s.acceptedBlocks[id]; ok && blk != nil {
-		return blk, nil
+	if blk, ok := s.verifiedBlocks.Load(id); ok {
+		return blk.(*Block), nil
 	}
 
-	data, err := s.blockDB.Get(id[:])
+	obj, err := s.blockDB.Load(id[:], s.currentBlocks)
 	if err != nil {
 		return nil, err
 	}
+	blk := obj.(*Block)
 
-	return s.ParseBlock(data)
-}
-
-func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
-	blk, err := ParseBlock(data)
-	if err != nil {
-		return nil, err
+	if blk.Context() == nil {
+		blk.SetContext(s.ctx)
 	}
-	blk.InitState(s, s.db, s.preferred)
+	if blk.Status() != choices.Accepted && blk.Height() <= s.lastAcceptedBlock.LoadV().Height {
+		blk.SetStatus(choices.Accepted)
+	}
 	return blk, nil
 }
 
 func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	return database.GetID(s.heightDB, database.PackUInt64(height))
+	obj, err := s.heightDB.Load(database.PackUInt64(height), s.currentHeights)
+	if err != nil {
+		return ids.Empty, err
+	}
+
+	data := obj.(*db.RawObject)
+	return ids.ToID(*data)
 }
 
-func (s *stateDB) ChainConfig() *genesis.ChainConfig {
-	return s.genesis.Chain
+// SubmitTx processes a transaction from API server
+func (s *stateDB) SubmitTx(tx *ld.Transaction) error {
+	var err error
+	logging.Log.Info("SubmitTx: %#v", tx)
+	if tx.Type == ld.TypeMintFee {
+		return fmt.Errorf("SubmitTx error, TypeMintFee not support")
+	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return err
+	}
+
+	preferred := s.preferred.LoadV()
+	feeCfg := s.ctx.Chain().Fee(preferred.Height())
+	gas := tx.RequireGas(feeCfg.ThresholdGas)
+	if gas > tx.GasFeeCap {
+		return fmt.Errorf("SubmitTx error, gasFeeCap exceeded, expected %v, got %v",
+			gas, tx.GasFeeCap)
+	}
+	tx.Gas = gas + tx.GasTip
+	ntx, err := NewTx(tx, true)
+	if err != nil {
+		return err
+	}
+	if err = ntx.SyntacticVerify(); err != nil {
+		return err
+	}
+	if err = ntx.Verify(preferred); err != nil {
+		return err
+	}
+	s.AddTxs(true, tx)
+	go s.notifyBuild()
+	return nil
 }
 
-func (s *stateDB) FeeConfig(height uint64) *genesis.FeeConfig {
-	return s.genesis.Chain.Fee(height)
+func (s *stateDB) ProposeMintFeeTx(tx *ld.Transaction) error {
+	var err error
+	d, _ := tx.MarshalJSON()
+	logging.Log.Info("ProposeMintFeeTx: %s", string(d))
+	if tx.Type != ld.TypeMintFee {
+		return fmt.Errorf("ProposeMintFeeTx error, required TypeMintFee")
+	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return err
+	}
+	s.AddTxs(true, tx)
+	s.gossipTx(tx)
+	return nil
 }
 
-func (s *stateDB) Config() *config.Config {
-	return s.config
-}
-
-func (s *stateDB) PopBySize(askSize uint64) []*ld.Transaction {
-	return s.txPool.PopBySize(askSize)
-}
-
-func (s *stateDB) ProposeTx(*ld.Transaction) {}
-
-func (s *stateDB) AddTxs(txs ...*ld.Transaction) {
+func (s *stateDB) AddTxs(isNew bool, txs ...*ld.Transaction) {
+	if isNew {
+		addTime := uint64(time.Now().Unix())
+		for i := range txs {
+			txs[i].AddTime = addTime
+		}
+	}
 	s.txPool.Add(txs...)
 }
 
-func (s *stateDB) RecentEvents() []*Event {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	events := make([]*Event, len(s.recentEvents))
-	copy(events, s.recentEvents)
-	return events
-}
-
-func (s *stateDB) AddEvents(events ...*Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if ln := len(s.recentEvents) + len(events); ln > s.recentEventsSize {
-		copy(s.recentEvents, s.recentEvents[ln-s.recentEventsSize:])
-		copy(s.recentEvents[s.recentEventsSize-len(events):], events)
-	} else {
-		s.recentEvents = append(s.recentEvents, events...)
-	}
-}
-
-func (s *stateDB) commitPreference(blk *Block) error {
-	parentId := ids.Empty
-	if s.preferred != nil {
-		parentId = s.preferred.ID()
-	}
-
-	if blk.Parent() != parentId {
-		return fmt.Errorf("commitPreference parent error: expected %v, got %v",
-			parentId, blk.Parent())
-	}
-	if blk.Status() != choices.Accepted {
-		return fmt.Errorf("commitPreference block %s error: block not accepted", blk.ID())
-	}
-	if err := blk.State().Commit(); err != nil {
-		return fmt.Errorf("commitPreference block %s error: %v", blk.ID(), err)
-	}
-	if err := database.PutID(s.lastAcceptedDB, lastAcceptedKey, blk.ID()); err != nil {
-		return err
-	}
-	s.preferred = blk
-
-	for id, b := range s.acceptedBlocks {
-		if b.Height() <= blk.Height() {
-			delete(s.acceptedBlocks, id)
+func (s *stateDB) GetTx(id ids.ID) Transaction {
+	if tx := s.txPool.Get(id); tx != nil {
+		if ntx, err := NewTx(tx, false); err == nil {
+			return ntx
 		}
 	}
-
-	s.AddEvents(blk.State().Events()...)
+	if tx, ok := s.currentTxs.Get(id[:]); ok {
+		return tx.(Transaction)
+	}
 	return nil
+}
+
+func (s *stateDB) RemoveTx(id ids.ID) {
+	s.txPool.Remove(id)
+}
+
+func (s *stateDB) SeeNode(id ids.ShortID) {
+	s.txPool.SeeNode(id)
+}
+
+func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
+	obj, err := s.accountDB.Load(id[:], s.currentAccounts)
+	if err != nil {
+		return nil, err
+	}
+	rt := obj.(*ld.Account)
+	rt.ID = id
+	return rt, nil
+}
+
+func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
+	obj, err := s.nameDB.Load([]byte(strings.ToLower(name)), s.currentNames)
+	if err != nil {
+		return nil, err
+	}
+
+	data := obj.(*db.RawObject)
+	id, err := ids.ToShortID(*data)
+	if err != nil {
+		return nil, err
+	}
+	return s.LoadData(id)
+}
+
+func (s *stateDB) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
+	obj, err := s.modelDB.Load(id[:], s.currentModels)
+	if err != nil {
+		return nil, err
+	}
+	rt := obj.(*ld.ModelMeta)
+	rt.ID = id
+	return rt, nil
+}
+
+func (s *stateDB) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
+	obj, err := s.dataDB.Load(id[:], s.currentDatas)
+	if err != nil {
+		return nil, err
+	}
+	rt := obj.(*ld.DataMeta)
+	rt.ID = id
+	return rt, nil
+}
+
+func (s *stateDB) LoadPrevData(id ids.ShortID, version uint64) (*ld.DataMeta, error) {
+	if version == 0 {
+		return nil, fmt.Errorf("data not found")
+	}
+
+	v := database.PackUInt64(version)
+	key := make([]byte, 20+len(v))
+	copy(key, id[:])
+	copy(key[20:], v)
+
+	obj, err := s.prevDataDB.Load(key, s.currentDatas)
+	if err != nil {
+		return nil, err
+	}
+	rt := obj.(*ld.DataMeta)
+	rt.ID = id
+	return rt, nil
+}
+
+func (s *stateDB) QueryEvents() []*Event {
+	return s.eventsCache.Query()
 }

@@ -93,7 +93,27 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte("\"" + str + "\""), nil
+	buf := make([]byte, len(str)+2)
+	buf[0] = '"'
+	copy(buf[1:], []byte(str))
+	buf[len(buf)-1] = '"'
+	return buf, nil
+}
+
+func SignaturesFromStrings(ss []string) ([]Signature, error) {
+	sigs := make([]Signature, len(ss))
+	for i, s := range ss {
+		d, err := formatting.Decode(formatting.CB58, s)
+		if err != nil {
+			return nil, fmt.Errorf("invalid signature %s, decode failed: %v", strconv.Quote(s), err)
+		}
+		if len(d) != crypto.SECP256K1RSigLen {
+			return nil, fmt.Errorf("invalid signature %s", strconv.Quote(s))
+		}
+		sigs[i] = Signature{}
+		copy(sigs[i][:], d)
+	}
+	return sigs, nil
 }
 
 func PtrToSignatures(d *[][]byte) ([]Signature, error) {

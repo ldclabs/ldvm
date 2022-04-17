@@ -4,22 +4,27 @@
 package chain
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	jsonpatch "github.com/evanphx/json-patch/v5"
+
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxUpdateData struct {
-	ld        *ld.Transaction
-	from      *Account
-	signers   []ids.ShortID
-	exSigners []ids.ShortID
-	data      *ld.TxUpdater
-	dm        *ld.DataMeta
+	ld          *ld.Transaction
+	from        *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	exSigners   []ids.ShortID
+	data        *ld.TxUpdater
+	dm          *ld.DataMeta
+	prevDM      *ld.DataMeta
+	jsonPatch   jsonpatch.Patch
 }
 
 func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
@@ -51,6 +56,14 @@ func (tx *TxUpdateData) Type() ld.TxType {
 
 func (tx *TxUpdateData) Bytes() []byte {
 	return tx.ld.Bytes()
+}
+
+func (tx *TxUpdateData) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxUpdateData) SetStatus(s choices.Status) {
+	tx.ld.Status = s
 }
 
 func (tx *TxUpdateData) SyntacticVerify() error {
@@ -91,6 +104,10 @@ func (tx *TxUpdateData) Verify(blk *Block) error {
 	}
 
 	bs := blk.State()
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data failed: %v", err)
@@ -103,43 +120,53 @@ func (tx *TxUpdateData) Verify(blk *Block) error {
 		return fmt.Errorf("need more signatures")
 	}
 
+	tx.prevDM = tx.dm.Copy()
 	switch ld.ModelID(tx.dm.ModelID) {
 	case constants.RawModelID:
+		tx.dm.Version++
+		tx.dm.Data = tx.data.Data
+		return nil
 	case constants.JsonModelID:
-		if !json.Valid(tx.data.Data) {
-			return fmt.Errorf("invalid JSON encoding")
-		}
-		// apply json patch operations
-	default:
-		mm, err := bs.LoadModel(tx.dm.ModelID)
+		tx.jsonPatch, err = jsonpatch.DecodePatch(tx.data.Data)
 		if err != nil {
-			return fmt.Errorf("TxUpdateData load data model failed: %v", err)
+			return fmt.Errorf("invalid JSON patch: %v", err)
 		}
 
-		if !ld.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
-			return fmt.Errorf("need more exSignatures")
+		tx.dm.Data, err = tx.jsonPatch.Apply(tx.dm.Data)
+		if err != nil {
+			return fmt.Errorf("apply patch failed: %v", err)
 		}
-		// TODO: apply patch operations
-		// tx.data.Validate(mm.SchemaType)
+		tx.dm.Version++
+		return tx.dm.SyntacticVerify()
 	}
-	if bs.ChainConfig().IsNameService(tx.dm.ModelID) {
+
+	mm, err := bs.LoadModel(tx.dm.ModelID)
+	if err != nil {
+		return fmt.Errorf("TxUpdateData load data model failed: %v", err)
+	}
+
+	if !ld.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
+		return fmt.Errorf("need more exSignatures")
+	}
+	// TODO: apply patch operations
+	// tx.data.Validate(mm.SchemaType)
+	if blk.ctx.Chain().IsNameApp(tx.dm.ModelID) {
 		// TODO: should not update name
 	}
 	return nil
 }
 
 func (tx *TxUpdateData) Accept(blk *Block) error {
-	bs := blk.State()
-
 	var err error
-	tx.dm.Version++
-	// TODO: apply patch operations
-	if err = tx.dm.SyntacticVerify(); err != nil {
+	bs := blk.State()
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
 		return err
 	}
-
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	if err = tx.genesisAddr.Add(fee); err != nil {
+		return err
+	}
+	if err = bs.SavePrevData(tx.data.ID, tx.prevDM); err != nil {
 		return err
 	}
 	return bs.SaveData(tx.data.ID, tx.dm)

@@ -8,14 +8,17 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 type TxCreateModel struct {
-	ld      *ld.Transaction
-	from    *Account
-	signers []ids.ShortID
-	data    *ld.ModelMeta
+	ld          *ld.Transaction
+	from        *Account
+	genesisAddr *Account
+	signers     []ids.ShortID
+	data        *ld.ModelMeta
 }
 
 func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
@@ -49,6 +52,14 @@ func (tx *TxCreateModel) Bytes() []byte {
 	return tx.ld.Bytes()
 }
 
+func (tx *TxCreateModel) Status() string {
+	return tx.ld.Status.String()
+}
+
+func (tx *TxCreateModel) SetStatus(s choices.Status) {
+	tx.ld.Status = s
+}
+
 func (tx *TxCreateModel) SyntacticVerify() error {
 	if tx == nil ||
 		len(tx.ld.Data) == 0 {
@@ -72,6 +83,9 @@ func (tx *TxCreateModel) Verify(blk *Block) error {
 	if err != nil {
 		return fmt.Errorf("invalid signatures: %v", err)
 	}
+	if tx.genesisAddr, err = blk.State().LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
 	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
 	return err
 }
@@ -79,13 +93,21 @@ func (tx *TxCreateModel) Verify(blk *Block) error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateModel) VerifyGenesis(blk *Block) error {
 	var err error
-	tx.from, err = blk.State().LoadAccount(tx.ld.From)
+	bs := blk.State()
+	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+		return err
+	}
+	tx.from, err = bs.LoadAccount(tx.ld.From)
 	return err
 }
 
 func (tx *TxCreateModel) Accept(blk *Block) error {
-	cost := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err := tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	var err error
+	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
+	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
+		return err
+	}
+	if err = tx.genesisAddr.Add(fee); err != nil {
 		return err
 	}
 	return blk.State().SaveModel(tx.ld.ShortID(), tx.data)
@@ -94,6 +116,5 @@ func (tx *TxCreateModel) Accept(blk *Block) error {
 func (tx *TxCreateModel) Event(ts int64) *Event {
 	e := NewEvent(tx.ld.ShortID(), SrcModel, ActionAdd)
 	e.Time = ts
-	e.Data = tx.data.Data
 	return e
 }
