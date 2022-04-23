@@ -101,6 +101,15 @@ func (v *VM) Initialize(
 		return fmt.Errorf("LDVM Initialize failed to create logger: %s", err)
 	}
 
+	// mh, err := ctx.ValidatorState.GetMinimumHeight()
+	// v.Log.Info("ValidatorState MH, %d, %v", mh, err)
+	// ch, err := ctx.ValidatorState.GetCurrentHeight()
+	// v.Log.Info("ValidatorState CH %d, %v", ch, err)
+	// if err == nil {
+	// 	nodes, err := ctx.ValidatorState.GetValidatorSet(ch, ctx.SubnetID)
+	// 	v.Log.Info("ValidatorState Nodes %v, %v", nodes, err)
+	// }
+
 	logging.SetLogger(v.Log)
 	v.Log.Info("LDVM Initialize NetworkID %v, SubnetID %v, ChainID %v",
 		ctx.NetworkID, ctx.SubnetID, ctx.ChainID)
@@ -131,6 +140,9 @@ func (v *VM) initialize(
 	if err != nil {
 		return fmt.Errorf("parse genesis data error: %v", err)
 	}
+
+	// update the ChainID
+	ld.SetChainID(gs.Chain.ChainID)
 
 	chaindb := v.dbManager.Current().Database
 	v.state = chain.NewState(v.ctx, cfg, gs, chaindb, v.notifyBuild, v.network.GossipTx)
@@ -225,7 +237,6 @@ func (v *VM) HealthCheck() (interface{}, error) {
 // Connector represents a handler that is called when a connection is marked as connected
 func (v *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
 	v.Log.Info("Connected %s, %v", id, nodeVersion)
-	v.state.SeeNode(id)
 	return nil // noop
 }
 
@@ -252,7 +263,6 @@ func (v *VM) Disconnected(id ids.ShortID) error {
 // the VM may arbitrarily choose to not send a response to this request.
 func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, request []byte) error {
 	v.Log.Info("AppRequest %s, %d, %d bytes", nodeID, requestID, len(request))
-	v.state.SeeNode(nodeID)
 	return nil
 }
 
@@ -278,7 +288,6 @@ func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, re
 // up trying to get the requested information.
 func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) error {
 	v.Log.Info("AppResponse %s, %d, %d bytes", nodeID, requestID, len(response))
-	v.state.SeeNode(nodeID)
 	return nil
 }
 

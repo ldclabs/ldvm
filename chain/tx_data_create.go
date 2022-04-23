@@ -10,26 +10,22 @@ import (
 	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/app"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxCreateData struct {
-	ld          *ld.Transaction
-	from        *Account
-	to          *Account
-	genesisAddr *Account
-	signers     []ids.ShortID
-	exSigners   []ids.ShortID
-	data        *ld.DataMeta
-	name        *app.Name
+	*TxBase
+	exSigners []ids.ShortID
+	data      *ld.DataMeta
+	name      *app.Name
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
-	if tx == nil {
-		return ld.Null, nil
+	if tx == nil || tx.ld == nil {
+		return util.Null, nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -47,33 +43,23 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	return v.MarshalJSON()
 }
 
-func (tx *TxCreateData) ID() ids.ID {
-	return tx.ld.ID()
-}
-
-func (tx *TxCreateData) Type() ld.TxType {
-	return tx.ld.Type
-}
-
-func (tx *TxCreateData) Bytes() []byte {
-	return tx.ld.Bytes()
-}
-
-func (tx *TxCreateData) Status() string {
-	return tx.ld.Status.String()
-}
-
-func (tx *TxCreateData) SetStatus(s choices.Status) {
-	tx.ld.Status = s
-}
-
 func (tx *TxCreateData) SyntacticVerify() error {
-	if tx == nil ||
-		len(tx.ld.Data) == 0 {
-		return fmt.Errorf("invalid TxCreateData")
+	var err error
+	if err = tx.TxBase.SyntacticVerify(); err != nil {
+		return err
 	}
 
-	var err error
+	if len(tx.ld.Data) == 0 {
+		return fmt.Errorf("TxCreateData invalid")
+	}
+
+	if len(tx.ld.ExSignatures) > 0 {
+		tx.exSigners, err = util.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
+		if err != nil {
+			return fmt.Errorf("TxCreateData invalid exSignatures: %v", err)
+		}
+	}
+
 	tx.data = &ld.DataMeta{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
@@ -92,39 +78,24 @@ func (tx *TxCreateData) SyntacticVerify() error {
 
 func (tx *TxCreateData) Verify(blk *Block) error {
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures: %v", err)
-	}
-	if len(tx.ld.ExSignatures) > 0 {
-		tx.exSigners, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
-		if err != nil {
-			return fmt.Errorf("invalid exSignatures: %v", err)
-		}
+	if err = tx.TxBase.Verify(blk); err != nil {
+		return err
 	}
 
-	bs := blk.State()
-	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
-		return err
+	if tx.ld.Token != constants.LDCAccount {
+		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
 	}
-	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
-		return err
-	}
-	if tx.ld.To != ids.ShortEmpty {
-		if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
-			return err
-		}
-	}
-	switch ld.ModelID(tx.data.ModelID) {
+	switch util.ModelID(tx.data.ModelID) {
 	case constants.RawModelID:
 		return nil
 	case constants.JsonModelID:
 		if !json.Valid(tx.data.Data) {
-			return fmt.Errorf("invalid JSON encoding data")
+			return fmt.Errorf("TxCreateData invalid JSON encoding data")
 		}
 		return nil
 	}
 
+	bs := blk.State()
 	mm, err := bs.LoadModel(tx.data.ModelID)
 	if err != nil {
 		return fmt.Errorf("TxCreateData load data model failed: %v", err)
@@ -132,8 +103,8 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 	if err := tx.data.Validate(mm.SchemaType()); err != nil {
 		return fmt.Errorf("TxCreateData validate error: %v", err)
 	}
-	if !ld.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
-		return fmt.Errorf("need more model keepers signatures")
+	if !util.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
+		return fmt.Errorf("TxCreateData need more model keepers signatures")
 	}
 
 	if blk.ctx.Chain().IsNameApp(tx.data.ModelID) {
@@ -154,8 +125,15 @@ func (tx *TxCreateData) Verify(blk *Block) error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateData) VerifyGenesis(blk *Block) error {
 	var err error
+	tx.tip = new(big.Int)
+	tx.fee = new(big.Int)
+	tx.cost = new(big.Int)
+
 	bs := blk.State()
-	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
+	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
+		return err
+	}
+	if tx.miner, err = blk.Miner(); err != nil {
 		return err
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
@@ -164,34 +142,18 @@ func (tx *TxCreateData) VerifyGenesis(blk *Block) error {
 
 func (tx *TxCreateData) Accept(blk *Block) error {
 	var err error
+
 	bs := blk.State()
-	amount := new(big.Int)
-	if tx.ld.Amount != nil {
-		amount.Set(tx.ld.Amount)
-	}
-	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost := new(big.Int).Add(amount, fee)
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
-		return err
-	}
-
-	if err = tx.genesisAddr.Add(fee); err != nil {
-		return err
-	}
-
-	if tx.to != nil {
-		if err = tx.to.Add(amount); err != nil {
-			return err
-		}
-	}
-
 	id := tx.ld.ShortID()
 	if tx.name != nil {
 		if err = bs.SetName(tx.name.Name, id); err != nil {
 			return err
 		}
 	}
-	return bs.SaveData(id, tx.data)
+	if err = bs.SaveData(id, tx.data); err != nil {
+		return err
+	}
+	return tx.TxBase.Accept(blk)
 }
 
 func (tx *TxCreateData) Event(ts int64) *Event {

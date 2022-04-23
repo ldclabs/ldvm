@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package ld
+package util
 
 import (
 	"encoding/hex"
@@ -11,12 +11,44 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ethereum/go-ethereum/common"
-
-	"golang.org/x/crypto/sha3"
 )
 
-func IDFromBytes(data []byte) ids.ID {
-	return ids.ID(sha3.Sum256(data))
+var NativeToken = TokenSymbol(ids.ShortEmpty)
+
+type TokenSymbol ids.ShortID
+
+func NewSymbol(s string) (TokenSymbol, error) {
+	if l := len(s); l > 10 || l < 2 {
+		return TokenSymbol{}, fmt.Errorf("invalid token symbol")
+	}
+	symbol := TokenSymbol{}
+	copy(symbol[20-len(s):], []byte(s))
+	if symbol.String() == "" {
+		return TokenSymbol{}, fmt.Errorf("invalid token symbol")
+	}
+	return symbol, nil
+}
+
+func (s TokenSymbol) String() string {
+	start := 0
+	for i, r := range s[:] {
+		switch {
+		case r == 0:
+			if start > 0 || i == 18 {
+				return ""
+			}
+		case r >= 65 && r <= 90:
+			if i < 10 {
+				return ""
+			}
+			if start == 0 {
+				start = i
+			}
+		default:
+			return ""
+		}
+	}
+	return string(s[start:])
 }
 
 // EthID ==========

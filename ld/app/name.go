@@ -10,13 +10,14 @@ import (
 	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type Name struct {
-	Name     string        `json:"name"` // case insensitive
-	Linked   string        `json:"linked"`
-	ExtraMID string        `json:"extraMID"`
-	Extra    *MapStringAny `json:"extra"`
+	Name     string           `json:"name"` // case insensitive
+	Linked   string           `json:"linked"`
+	ExtraMID string           `json:"extraMID"`
+	Extra    *ld.MapStringAny `json:"extra"`
 }
 
 type bindName struct {
@@ -46,14 +47,14 @@ func NewName(n *Name) *bindName {
 		b.Entity = new(Name)
 	}
 	if b.Entity.Extra == nil {
-		b.Entity.Extra = new(MapStringAny)
+		b.Entity.Extra = new(ld.MapStringAny)
 	}
 	return b
 }
 
 func (b *bindName) MarshalJSON() ([]byte, error) {
 	if b == nil {
-		return ld.Null, nil
+		return util.Null, nil
 	}
 	return json.Marshal(b.Entity)
 }
@@ -63,13 +64,13 @@ func (b *bindName) SyntacticVerify() error {
 	if b == nil || b.Entity == nil {
 		return fmt.Errorf("invalid bindName")
 	}
-	if !ValidDomainName(b.Entity.Name) {
+	if !util.ValidDomainName(b.Entity.Name) {
 		return fmt.Errorf("invalid name string %s", strconv.Quote(b.Entity.Name))
 	}
-	if !ValidLink(b.Entity.Linked) {
+	if !util.ValidLink(b.Entity.Linked) {
 		return fmt.Errorf("invalid linked string %s", strconv.Quote(b.Entity.Linked))
 	}
-	if !ValidMID(b.Entity.ExtraMID) {
+	if !util.ValidMID(b.Entity.ExtraMID) {
 		return fmt.Errorf("invalid model id %s", strconv.Quote(b.Entity.ExtraMID))
 	}
 

@@ -7,33 +7,32 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/util"
 )
 
 const (
 	futureBound = 10 * time.Second
-
-	MaxMiners = math.MaxUint8
 )
 
 type Block struct {
 	Parent    ids.ID // The genesis block's parent ID is ids.Empty.
 	Height    uint64 // The genesis block is at 0.
 	Timestamp uint64 // The genesis block is at 0.
-	Gas       uint64 // This block's total gas.
+	Gas       uint64 // This block's total gas units.
 	GasPrice  uint64 // This block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
 	GasRebateRate uint64
-	// The address of miners awarded in this block.
-	// Miners can issue a TxMintFee transaction to apply for mining awards
-	// after the completion and consensus of the parent block.
-	// The first miners to reach new block can be entered, up to 255, sorted by ID.
+	// The address of validator (convert to valid StakeAccount) who build this block.
+	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Miners []ids.ShortID
+	Miner ids.ShortID
+	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
+	// 80% of total gas rebate are distributed to these stakeAccounts
+	Shares []ids.ShortID
 	Txs    []*Transaction
 
 	// external assignment
@@ -50,13 +49,14 @@ type jsonBlock struct {
 	Gas           uint64            `json:"gas"`
 	GasPrice      uint64            `json:"gasPrice"`
 	GasRebateRate uint64            `json:"gasRebateRate"`
-	Miners        []string          `json:"miners"`
+	Miner         string            `json:"miner"`
+	Shares        []string          `json:"shares"`
 	Txs           []json.RawMessage `json:"txs"`
 }
 
 func (b *Block) MarshalJSON() ([]byte, error) {
 	if b == nil {
-		return Null, nil
+		return util.Null, nil
 	}
 	v := &jsonBlock{
 		ID:            b.id.String(),
@@ -66,11 +66,12 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 		Gas:           b.Gas,
 		GasPrice:      b.GasPrice,
 		GasRebateRate: b.GasRebateRate,
-		Miners:        make([]string, len(b.Miners)),
+		Miner:         util.EthID(b.Miner).String(),
+		Shares:        make([]string, len(b.Shares)),
 		Txs:           b.RawTxs,
 	}
-	for i := range b.Miners {
-		v.Miners[i] = EthID(b.Miners[i]).String()
+	for i := range b.Shares {
+		v.Shares[i] = util.EthID(b.Shares[i]).String()
 	}
 	if b.RawTxs == nil {
 		v.Txs = make([]json.RawMessage, len(b.Txs))
@@ -92,8 +93,8 @@ func (b *Block) ID() ids.ID {
 func (b *Block) Copy() *Block {
 	x := new(Block)
 	*x = *b
-	x.Miners = make([]ids.ShortID, len(b.Miners))
-	copy(x.Miners, x.Miners)
+	x.Shares = make([]ids.ShortID, len(b.Shares))
+	copy(x.Shares, x.Shares)
 	x.Txs = make([]*Transaction, len(b.Txs))
 	for i := range b.Txs {
 		x.Txs[i] = b.Txs[i].Copy()
@@ -115,10 +116,7 @@ func (b *Block) SyntacticVerify() error {
 	if b.GasRebateRate > 1000 {
 		return fmt.Errorf("invalid gasRebateRate")
 	}
-	if len(b.Miners) > MaxMiners {
-		return fmt.Errorf("invalid miners, too many")
-	}
-	for _, a := range b.Miners {
+	for _, a := range b.Shares {
 		if a == ids.ShortEmpty {
 			return fmt.Errorf("invalid miner address")
 		}
@@ -165,11 +163,14 @@ func (b *Block) Equal(o *Block) bool {
 	if o.GasRebateRate != b.GasRebateRate {
 		return false
 	}
-	if len(o.Miners) != len(b.Miners) {
+	if o.Miner != b.Miner {
 		return false
 	}
-	for i := range b.Miners {
-		if o.Miners[i] != b.Miners[i] {
+	if len(o.Shares) != len(b.Shares) {
+		return false
+	}
+	for i := range b.Shares {
+		if o.Shares[i] != b.Shares[i] {
 			return false
 		}
 	}
@@ -217,14 +218,17 @@ func (b *Block) Unmarshal(data []byte) error {
 			}
 			b.Txs[i] = tx
 		}
+		if b.Miner, err = ToShortID(v.Miner); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
 		if b.Parent, err = ToID(v.Parent); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if b.Miners, err = ToShortIDs(v.Miners); err != nil {
+		if b.Shares, err = ToShortIDs(v.Shares); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		b.raw = data
-		b.id = IDFromBytes(data)
+		b.id = util.IDFromBytes(data)
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindBlock")
@@ -238,7 +242,8 @@ func (b *Block) Marshal() ([]byte, error) {
 		Gas:           FromUint64(b.Gas),
 		GasPrice:      FromUint64(b.GasPrice),
 		GasRebateRate: FromUint64(b.GasRebateRate),
-		Miners:        FromShortIDs(b.Miners),
+		Miner:         FromShortID(b.Miner),
+		Shares:        FromShortIDs(b.Shares),
 		Txs:           make([][]byte, len(b.Txs)),
 	}
 	for i := range b.Txs {
@@ -253,7 +258,7 @@ func (b *Block) Marshal() ([]byte, error) {
 		return nil, err
 	}
 	b.raw = data
-	b.id = IDFromBytes(data)
+	b.id = util.IDFromBytes(data)
 	return data, nil
 }
 
@@ -264,7 +269,8 @@ type bindBlock struct {
 	Gas           Uint64
 	GasPrice      Uint64
 	GasRebateRate Uint64
-	Miners        [][]byte
+	Miner         []byte
+	Shares        [][]byte
 	Txs           [][]byte
 }
 
@@ -283,7 +289,8 @@ func init() {
 		Gas           Uint64  (rename "g")
 		GasPrice      Uint64  (rename "gp")
 		GasRebateRate Uint64  (rename "gr")
-		Miners        [ID20]  (rename "ms")
+		Miner         ID20    (rename "mi")
+		Shares        [ID20]  (rename "sh")
 		Txs           [Bytes] (rename "txs")
 	}
 `

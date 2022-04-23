@@ -5,28 +5,23 @@ package chain
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTransferCash struct {
-	ld          *ld.Transaction
-	from        *Account
-	issuer      *Account
-	genesisAddr *Account
-	signers     []ids.ShortID
-	exSigners   []ids.ShortID
-	data        *ld.TxTransfer
+	*TxBase
+	issuer    *Account
+	exSigners []ids.ShortID
+	data      *ld.TxTransfer
 }
 
 func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
-	if tx == nil {
-		return ld.Null, nil
+	if tx == nil || tx.ld == nil {
+		return util.Null, nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -43,33 +38,21 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	return v.MarshalJSON()
 }
 
-func (tx *TxTransferCash) ID() ids.ID {
-	return tx.ld.ID()
-}
-
-func (tx *TxTransferCash) Type() ld.TxType {
-	return tx.ld.Type
-}
-
-func (tx *TxTransferCash) Bytes() []byte {
-	return tx.ld.Bytes()
-}
-
-func (tx *TxTransferCash) Status() string {
-	return tx.ld.Status.String()
-}
-
-func (tx *TxTransferCash) SetStatus(s choices.Status) {
-	tx.ld.Status = s
-}
-
 func (tx *TxTransferCash) SyntacticVerify() error {
-	if tx == nil ||
-		len(tx.ld.Data) == 0 {
-		return fmt.Errorf("invalid TxTransferCash")
+	var err error
+	if err = tx.TxBase.SyntacticVerify(); err != nil {
+		return err
 	}
 
-	var err error
+	if len(tx.ld.Data) == 0 {
+		return fmt.Errorf("TxTransferCash invalid")
+	}
+
+	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	if err != nil {
+		return fmt.Errorf("TxTransferCash invalid exSignatures: %v", err)
+	}
+
 	tx.data = &ld.TxTransfer{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxTransferCash unmarshal data failed: %v", err)
@@ -80,6 +63,9 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if tx.data.Nonce == 0 {
 		return fmt.Errorf("TxTransferCash invalid nonce")
 	}
+	if tx.data.Token != tx.ld.Token {
+		return fmt.Errorf("TxTransferCash invalid token")
+	}
 	if tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferCash invalid recipient")
 	}
@@ -89,7 +75,9 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if tx.data.Expire > 0 && tx.data.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("TxTransferCash expired")
 	}
-	if tx.data.Amount != nil && tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
+
+	// tx.ld.Amount can be less than tx.data.Amount
+	if tx.data.Amount == nil || tx.ld.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) < 0 {
 		return fmt.Errorf("TxTransferCash invalid amount")
 	}
 	return nil
@@ -97,59 +85,35 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 
 func (tx *TxTransferCash) Verify(blk *Block) error {
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures: %v", err)
-	}
-	tx.exSigners, err = ld.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
-	if err != nil {
-		return fmt.Errorf("invalid exSignatures: %v", err)
+	if err = tx.TxBase.Verify(blk); err != nil {
+		return err
 	}
 
-	bs := blk.State()
-	tx.from, err = verifyBase(blk, tx.ld, tx.signers)
-	if err != nil {
-		return err
-	}
-	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
-		return err
-	}
-	tx.issuer, err = bs.LoadAccount(tx.data.From)
-	if err != nil {
+	if tx.issuer, err = blk.State().LoadAccount(tx.data.From); err != nil {
 		return err
 	}
 	if tx.issuer.Nonce() != tx.data.Nonce {
 		return fmt.Errorf("TxTransferCash invalid issuer nonce")
 	}
 	// verify issuer's signatures
-	if !ld.SatisfySigning(tx.issuer.Threshold(), tx.issuer.Keepers(), tx.exSigners, false) {
-		return fmt.Errorf("TxTransferCash need more exSignatures")
+	if !tx.issuer.SatisfySigning(tx.exSigners) {
+		return fmt.Errorf("TxTransferCash account issuer need more signers")
 	}
-	if tx.ld.Amount.Cmp(tx.issuer.Balance()) > 0 {
-		return fmt.Errorf("insufficient balance %d of issuer %s, required %d",
-			tx.issuer.Balance(), tx.data.From, tx.ld.Amount)
+	tokenB := tx.issuer.BalanceOf(tx.ld.Token)
+	if tx.data.Amount.Cmp(tokenB) > 0 {
+		return fmt.Errorf("TxTransferCash issuer %s insufficient balance, expected %v, got %v",
+			tx.data.From, tx.data.Amount, tokenB)
 	}
 	return err
 }
 
 func (tx *TxTransferCash) Accept(blk *Block) error {
 	var err error
-	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	if err = tx.from.SubByNonce(tx.ld.Nonce, fee); err != nil {
+	if err = tx.issuer.SubByNonce(tx.ld.Token, tx.data.Nonce, tx.ld.Amount); err != nil {
 		return err
 	}
-	if err = tx.issuer.SubByNonce(tx.data.Nonce, tx.ld.Amount); err != nil {
+	if err = tx.to.Add(tx.ld.Token, tx.ld.Amount); err != nil {
 		return err
 	}
-	if err = tx.genesisAddr.Add(fee); err != nil {
-		return err
-	}
-	if err = tx.from.Add(tx.ld.Amount); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (tx *TxTransferCash) Event(ts int64) *Event {
-	return nil
+	return tx.TxBase.Accept(blk)
 }

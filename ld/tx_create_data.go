@@ -11,6 +11,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ipld/go-ipld-prime/schema"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type DataMeta struct {
@@ -40,134 +41,134 @@ type jsonDataMeta struct {
 	Data      json.RawMessage `json:"data"`
 }
 
-func (d *DataMeta) MarshalJSON() ([]byte, error) {
-	if d == nil {
-		return Null, nil
+func (t *DataMeta) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return util.Null, nil
 	}
 	v := &jsonDataMeta{
-		ID:        DataID(d.ID).String(),
-		ModelID:   ModelID(d.ModelID).String(),
-		Version:   d.Version,
-		Threshold: d.Threshold,
-		Data:      JSONMarshalData(d.Data),
-		Keepers:   make([]string, len(d.Keepers)),
+		ID:        util.DataID(t.ID).String(),
+		ModelID:   util.ModelID(t.ModelID).String(),
+		Version:   t.Version,
+		Threshold: t.Threshold,
+		Data:      util.JSONMarshalData(t.Data),
+		Keepers:   make([]string, len(t.Keepers)),
 	}
-	for i := range d.Keepers {
-		v.Keepers[i] = EthID(d.Keepers[i]).String()
+	for i := range t.Keepers {
+		v.Keepers[i] = util.EthID(t.Keepers[i]).String()
 	}
 	return json.Marshal(v)
 }
 
-func (d *DataMeta) Copy() *DataMeta {
+func (t *DataMeta) Copy() *DataMeta {
 	x := new(DataMeta)
-	*x = *d
-	x.Keepers = make([]ids.ShortID, len(d.Keepers))
-	copy(x.Keepers, d.Keepers)
-	x.Data = make([]byte, len(d.Data))
-	copy(x.Data, d.Data)
+	*x = *t
+	x.Keepers = make([]ids.ShortID, len(t.Keepers))
+	copy(x.Keepers, t.Keepers)
+	x.Data = make([]byte, len(t.Data))
+	copy(x.Data, t.Data)
 	x.raw = nil
 	return x
 }
 
 // SyntacticVerify verifies that a *DataMeta is well-formed.
-func (d *DataMeta) SyntacticVerify() error {
-	if d == nil {
+func (t *DataMeta) SyntacticVerify() error {
+	if t == nil {
 		return fmt.Errorf("invalid DataMeta")
 	}
 
-	if len(d.Keepers) > math.MaxUint8 {
+	if len(t.Keepers) > math.MaxUint8 {
 		return fmt.Errorf("invalid keepers, too many")
 	}
-	if int(d.Threshold) > len(d.Keepers) {
+	if int(t.Threshold) > len(t.Keepers) {
 		return fmt.Errorf("invalid threshold")
 	}
-	for _, id := range d.Keepers {
+	for _, id := range t.Keepers {
 		if id == ids.ShortEmpty {
 			return fmt.Errorf("invalid keeper")
 		}
 	}
-	if _, err := d.Marshal(); err != nil {
+	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("DataMeta marshal error: %v", err)
 	}
 	return nil
 }
 
-func (d *DataMeta) Validate(st schema.Type) error {
+func (t *DataMeta) Validate(st schema.Type) error {
 	// TODO: validate data with schema.Type
 	return nil
 }
 
-func (d *DataMeta) Equal(o *DataMeta) bool {
+func (t *DataMeta) Equal(o *DataMeta) bool {
 	if o == nil {
 		return false
 	}
-	if len(o.raw) > 0 && len(d.raw) > 0 {
-		return bytes.Equal(o.raw, d.raw)
+	if len(o.raw) > 0 && len(t.raw) > 0 {
+		return bytes.Equal(o.raw, t.raw)
 	}
-	if o.ModelID != d.ModelID {
+	if o.ModelID != t.ModelID {
 		return false
 	}
-	if o.Version != d.Version {
+	if o.Version != t.Version {
 		return false
 	}
-	if o.Threshold != d.Threshold {
+	if o.Threshold != t.Threshold {
 		return false
 	}
-	if len(o.Keepers) != len(d.Keepers) {
+	if len(o.Keepers) != len(t.Keepers) {
 		return false
 	}
-	for i := range d.Keepers {
-		if o.Keepers[i] != d.Keepers[i] {
+	for i := range t.Keepers {
+		if o.Keepers[i] != t.Keepers[i] {
 			return false
 		}
 	}
-	return bytes.Equal(o.Data, d.Data)
+	return bytes.Equal(o.Data, t.Data)
 }
 
-func (d *DataMeta) Bytes() []byte {
-	if len(d.raw) == 0 {
-		if _, err := d.Marshal(); err != nil {
+func (t *DataMeta) Bytes() []byte {
+	if len(t.raw) == 0 {
+		if _, err := t.Marshal(); err != nil {
 			panic(err)
 		}
 	}
 
-	return d.raw
+	return t.raw
 }
 
-func (d *DataMeta) Unmarshal(data []byte) error {
+func (t *DataMeta) Unmarshal(data []byte) error {
 	p, err := dataMetaLDBuilder.Unmarshal(data)
 	if err != nil {
 		return err
 	}
 	if v, ok := p.(*bindDataMeta); ok {
-		d.Version = v.Version.Value()
-		d.Threshold = v.Threshold.Value()
-		d.Data = v.Data
-		if d.ModelID, err = ToShortID(v.ModelID); err != nil {
+		t.Version = v.Version.Value()
+		t.Threshold = v.Threshold.Value()
+		t.Data = v.Data
+		if t.ModelID, err = ToShortID(v.ModelID); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if d.Keepers, err = ToShortIDs(v.Keepers); err != nil {
+		if t.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		d.raw = data
+		t.raw = data
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindDataMeta")
 }
 
-func (d *DataMeta) Marshal() ([]byte, error) {
+func (t *DataMeta) Marshal() ([]byte, error) {
 	v := &bindDataMeta{
-		ModelID:   FromShortID(d.ModelID),
-		Version:   FromUint64(d.Version),
-		Threshold: FromUint8(d.Threshold),
-		Keepers:   FromShortIDs(d.Keepers),
-		Data:      d.Data,
+		ModelID:   FromShortID(t.ModelID),
+		Version:   FromUint64(t.Version),
+		Threshold: FromUint8(t.Threshold),
+		Keepers:   FromShortIDs(t.Keepers),
+		Data:      t.Data,
 	}
 	data, err := dataMetaLDBuilder.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	d.raw = data
+	t.raw = data
 	return data, nil
 }
 

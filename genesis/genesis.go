@@ -12,19 +12,18 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/app"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type Genesis struct {
-	Chain *ChainConfig `json:"chain"`
-	Block struct {
-		GasRebateRate uint64 `json:"gasRebateRate"`
-		GasPrice      uint64 `json:"gasPrice"`
-	} `json:"block"`
-	Alloc map[ld.EthID]struct {
-		Balance   *big.Int   `json:"balance"`
-		Threshold uint8      `json:"threshold"`
-		Keepers   []ld.EthID `json:"keepers"`
-	} `json:"alloc"`
+	Chain *ChainConfig               `json:"chain"`
+	Alloc map[util.EthID]*Allocation `json:"alloc"`
+}
+
+type Allocation struct {
+	Balance   *big.Int     `json:"balance"`
+	Threshold uint8        `json:"threshold"`
+	Keepers   []util.EthID `json:"keepers"`
 }
 
 type ChainConfig struct {
@@ -32,18 +31,18 @@ type ChainConfig struct {
 	MaxTotalSupply     *big.Int     `json:"maxTotalSupply"`
 	Message            string       `json:"message"`
 	FeeConfigThreshold uint8        `json:"feeConfigThreshold"`
-	FeeConfigKeepers   []ld.EthID   `json:"feeConfigKeepers"`
-	FeeConfigID        ld.DataID    `json:"feeConfigID"`
+	FeeConfigKeepers   []util.EthID `json:"feeConfigKeepers"`
+	FeeConfigID        util.DataID  `json:"feeConfigID"`
 	NameAppThreshold   uint8        `json:"nameAppThreshold"`
-	NameAppKeepers     []ld.EthID   `json:"nameAppKeepers"`
-	NameAppID          ld.ModelID   `json:"nameAppID"`
-	ProfileAppID       ld.ModelID   `json:"profileAppID"`
+	NameAppKeepers     []util.EthID `json:"nameAppKeepers"`
+	NameAppID          util.ModelID `json:"nameAppID"`
+	ProfileAppID       util.ModelID `json:"profileAppID"`
 	FeeConfig          *FeeConfig   `json:"feeConfig"`
 	FeeConfigs         []*FeeConfig `json:"feeConfigs"`
 }
 
 func (c *ChainConfig) IsNameApp(id ids.ShortID) bool {
-	return c.NameAppID == ld.ModelID(id)
+	return c.NameAppID == util.ModelID(id)
 }
 
 func (c *ChainConfig) Fee(height uint64) *FeeConfig {
@@ -65,23 +64,19 @@ func (c *ChainConfig) AddFeeConfig(data []byte) (*FeeConfig, error) {
 	return fee, nil
 }
 
-func (c *ChainConfig) CheckChainID(chainID uint64) error {
-	if chainID != c.ChainID {
-		return fmt.Errorf("invalid ChainID %d, expected %d", chainID, c.ChainID)
-	}
-	return nil
-}
-
 type FeeConfig struct {
-	StartHeight     uint64 `json:"startHeight"`
-	ThresholdGas    uint64 `json:"thresholdGas"`
-	MinGasPrice     uint64 `json:"minGasPrice"`
-	MaxGasPrice     uint64 `json:"maxGasPrice"`
-	MaxTxGas        uint64 `json:"maxTxGas"`
-	MaxBlockTxsSize uint64 `json:"maxBlockTxsSize"`
-	MaxBlockMiners  uint64 `json:"maxBlockMiners"`
-	GasRebateRate   uint64 `json:"gasRebateRate"`
-	MinMinerStake   uint64 `json:"minMinerStake"`
+	StartHeight       uint64   `json:"startHeight"`
+	ThresholdGas      uint64   `json:"thresholdGas"`
+	MinGasPrice       uint64   `json:"minGasPrice"`
+	MaxGasPrice       uint64   `json:"maxGasPrice"`
+	MaxTxGas          uint64   `json:"maxTxGas"`
+	MaxBlockTxsSize   uint64   `json:"maxBlockTxsSize"`
+	GasRebateRate     uint64   `json:"gasRebateRate"`
+	MinTokenPledge    *big.Int `json:"minTokenPledge"`
+	MinValidatorStake *big.Int `json:"minValidatorStake"`
+	MaxValidatorStake *big.Int `json:"maxValidatorStake"`
+	MinDelegatorStake *big.Int `json:"minDelegatorStake"`
+	MinDelegationFee  uint64   `json:"minDelegationFee"` // 1_000 == 100%, should be in [1, 500]
 }
 
 func FromJSON(data []byte) (*Genesis, error) {
@@ -95,16 +90,20 @@ func FromJSON(data []byte) (*Genesis, error) {
 
 func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs := make([]*ld.Transaction, 0)
-	// 道生一，一生二，二生三，三生万物
-	// The first transaction is issued by the Blackhole account, to the Genesis account.
+	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
-	tx := &ld.Transaction{
-		Type:    ld.TypeMintFee,
-		ChainID: g.Chain.ChainID,
-		From:    constants.BlackholeAddr,
-		To:      constants.GenesisAddr,
+	minter := &ld.TxMinter{
 		Amount:  g.Chain.MaxTotalSupply,
-		Data:    []byte(g.Chain.Message),
+		Name:    "Linked Data Chain",
+		Message: g.Chain.Message,
+	}
+	tx := &ld.Transaction{
+		Type:    ld.TypeCreateTokenAccount,
+		ChainID: g.Chain.ChainID,
+		From:    constants.GenesisAccount,
+		To:      ids.ShortID(constants.LDCAccount),
+		Amount:  g.Chain.MaxTotalSupply,
+		Data:    minter.Bytes(),
 	}
 	txs = append(txs, tx)
 
@@ -117,43 +116,44 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		ModelID:   ids.ShortID(constants.JsonModelID),
 		Version:   1,
 		Threshold: g.Chain.FeeConfigThreshold,
-		Keepers:   ld.EthIDsToShort(g.Chain.FeeConfigKeepers...),
+		Keepers:   util.EthIDsToShort(g.Chain.FeeConfigKeepers...),
 		Data:      cfg,
 	}
 
 	// Alloc Txs
-	if len(g.Alloc) == 0 {
+	if _, ok := g.Alloc[util.EthID(constants.GenesisAccount)]; !ok {
 		return nil, fmt.Errorf("genesis allocation empty")
 	}
 
-	genesisNonce := uint64(0)
-	for k, v := range g.Alloc {
+	nonce := uint64(0)
+	list := make([]ids.ShortID, 0, len(g.Alloc))
+	for id := range g.Alloc {
+		list = append(list, ids.ShortID(id))
+	}
+	ids.SortShortIDs(list)
+	for _, id := range list {
+		v := g.Alloc[util.EthID(id)]
 		tx := &ld.Transaction{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
-			Nonce:   genesisNonce,
-			From:    constants.GenesisAddr,
-			To:      ids.ShortID(k),
+			Nonce:   nonce,
+			From:    constants.LDCAccount,
+			To:      id,
 			Amount:  v.Balance,
 		}
-		genesisNonce++
+		nonce++
 		txs = append(txs, tx)
 
 		if le := len(v.Keepers); le > 0 {
 			update := &ld.TxUpdater{
 				Threshold: v.Threshold,
-				Keepers:   make([]ids.ShortID, len(v.Keepers)),
-			}
-
-			for i, id := range v.Keepers {
-				update.Keepers[i] = ids.ShortID(id)
+				Keepers:   util.EthIDsToShort(v.Keepers...),
 			}
 
 			tx := &ld.Transaction{
 				Type:    ld.TypeUpdateAccountKeepers,
 				ChainID: g.Chain.ChainID,
-				Nonce:   uint64(0),
-				From:    ids.ShortID(k),
+				From:    id,
 				Data:    update.Bytes(),
 			}
 			txs = append(txs, tx)
@@ -161,21 +161,13 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	}
 
 	// Config tx
-	if err := cfgData.SyntacticVerify(); err != nil {
-		return nil, err
-	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
-		Nonce:   genesisNonce,
-		From:    constants.GenesisAddr,
+		From:    constants.GenesisAccount,
 		Data:    cfgData.Bytes(),
 	}
-	if err := tx.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-
-	g.Chain.FeeConfigID = ld.DataID(tx.ShortID())
+	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// name app tx
@@ -183,20 +175,16 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	nameModel := &ld.ModelMeta{
 		Name:      name,
 		Threshold: g.Chain.NameAppThreshold,
-		Keepers:   ld.EthIDsToShort(g.Chain.NameAppKeepers...),
+		Keepers:   util.EthIDsToShort(g.Chain.NameAppKeepers...),
 		Data:      sch,
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
-		Nonce:   genesisNonce,
-		From:    constants.GenesisAddr,
+		From:    constants.GenesisAccount,
 		Data:    nameModel.Bytes(),
 	}
-	if err := tx.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-	g.Chain.NameAppID = ld.ModelID(tx.ShortID())
+	g.Chain.NameAppID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// Profile app tx
@@ -208,28 +196,16 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
-		Nonce:   genesisNonce,
-		From:    constants.GenesisAddr,
+		From:    constants.GenesisAccount,
 		Data:    profileModel.Bytes(),
 	}
-	if err := tx.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-	g.Chain.ProfileAppID = ld.ModelID(tx.ShortID())
+	g.Chain.ProfileAppID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// build genesis block
-	blk := &ld.Block{
-		Parent:        ids.Empty,
-		Height:        0,
-		Timestamp:     0,
-		Gas:           0,
-		GasPrice:      g.Block.GasPrice,
-		GasRebateRate: g.Block.GasRebateRate,
+	return &ld.Block{
+		GasPrice:      g.Chain.FeeConfig.MinGasPrice,
+		GasRebateRate: g.Chain.FeeConfig.GasRebateRate,
 		Txs:           txs,
-	}
-	if err := blk.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-	return blk, nil
+	}, nil
 }

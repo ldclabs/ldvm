@@ -5,9 +5,42 @@ package ld
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
+func TestUint8(t *testing.T) {
+	assert := assert.New(t)
+	type Case struct {
+		val uint8
+		str string
+	}
+
+	var cases = []Case{
+		{val: uint8(0), str: "0"},
+		{val: uint8(255), str: "255"},
+		{val: uint8(2), str: "2"},
+		{val: uint8(1), str: "1"},
+	}
+
+	for _, ca := range cases {
+		rt := FromUint8(ca.val)
+		assert.Equal(rt.Value(), ca.val)
+		assert.Equal(rt.String(), ca.str)
+
+		ptr := PtrFromUint8(ca.val)
+		switch ca.val {
+		case 0:
+			assert.Nil(ptr)
+		default:
+			assert.Equal(ptr.Value(), ca.val)
+		}
+	}
+}
+
 func TestUint64(t *testing.T) {
+	assert := assert.New(t)
+
 	type Case struct {
 		val uint64
 		str string
@@ -26,18 +59,15 @@ func TestUint64(t *testing.T) {
 
 	for _, ca := range cases {
 		rt := FromUint64(ca.val)
-		if rt.Value() != ca.val {
-			t.Fatalf("Expected Equal(%v, %v)", rt.Value(), ca.val)
-		}
-		if rt.String() != ca.str {
-			t.Fatalf("Expected Equal(%v, %v)", rt.String(), ca.str)
-		}
+		assert.Equal(rt.Value(), ca.val)
+		assert.Equal(rt.String(), ca.str)
+
 		ptr := PtrFromUint64(ca.val)
-		if ca.val == 0 && ptr != nil {
-			t.Fatalf("Expected Equal(%v, %v)", ptr, nil)
-		}
-		if ptr.Value() != ca.val {
-			t.Fatalf("Expected Equal(%v, %v)", ptr.Value(), ca.val)
+		switch ca.val {
+		case 0:
+			assert.Nil(ptr)
+		default:
+			assert.Equal(ptr.Value(), ca.val)
 		}
 	}
 }
@@ -57,16 +87,17 @@ func FuzzUint64(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, in uint64) {
+		assert := assert.New(t)
+
 		rt := FromUint64(in)
-		if rt.Value() != in {
-			t.Fatalf("Expected Equal(%v, %v)", rt.Value(), in)
-		}
+		assert.Equal(rt.Value(), in)
+
 		ptr := PtrFromUint64(in)
-		if in == 0 && ptr != nil {
-			t.Fatalf("Expected Equal(%v, %v)", ptr, nil)
-		}
-		if ptr.Value() != in {
-			t.Fatalf("Expected Equal(%v, %v)", ptr.Value(), in)
+		switch in {
+		case 0:
+			assert.Nil(ptr)
+		default:
+			assert.Equal(ptr.Value(), in)
 		}
 	})
 }

@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type EventSource string
@@ -42,11 +42,11 @@ func NewEvent(id ids.ShortID, src EventSource, ac EventAction) *Event {
 	sid := ""
 	switch src {
 	case SrcAccount:
-		sid = ld.EthID(id).String()
+		sid = util.EthID(id).String()
 	case SrcModel:
-		sid = ld.ModelID(id).String()
+		sid = util.ModelID(id).String()
 	case SrcData:
-		sid = ld.DataID(id).String()
+		sid = util.DataID(id).String()
 	default:
 		sid = id.String()
 	}

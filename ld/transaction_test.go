@@ -13,8 +13,9 @@ import (
 func TestTransaction(t *testing.T) {
 	address := ids.ShortID{1, 2, 3, 4}
 	tx := &Transaction{
-		Type: TypeMintFee,
-		To:   address,
+		Type:    TypeTransfer,
+		ChainID: gChainID,
+		To:      address,
 	}
 
 	if err := tx.SyntacticVerify(); err != nil {

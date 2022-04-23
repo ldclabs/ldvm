@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 // {tx} or {unsignedTx, signatures[, exSignatures]}
@@ -23,26 +25,26 @@ type IssueTxArgs struct {
 func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *GetReply) error {
 	tx := &ld.Transaction{}
 	if len(args.Tx) > 0 {
-		data, err := formatting.Decode(formatting.CB58, args.Tx)
+		data, err := formatting.Decode(formatting.Hex, args.Tx)
 		if err != nil {
-			return fmt.Errorf("invalid tx, CB58 decode failed: %v", err)
+			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
 		}
 		if err = tx.Unmarshal(data); err != nil {
 			return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
 		}
 	} else {
-		data, err := formatting.Decode(formatting.CB58, args.UnsignedTx)
+		data, err := formatting.Decode(formatting.Hex, args.UnsignedTx)
 		if err != nil {
-			return fmt.Errorf("invalid tx, CB58 decode failed: %v", err)
+			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
 		}
 		if err = tx.Unmarshal(data); err != nil {
 			return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
 		}
-		tx.Signatures, err = ld.SignaturesFromStrings(args.Signatures)
+		tx.Signatures, err = util.SignaturesFromStrings(args.Signatures)
 		if err != nil {
 			return fmt.Errorf("invalid tx signatures: %v", err)
 		}
-		tx.ExSignatures, err = ld.SignaturesFromStrings(args.ExSignatures)
+		tx.ExSignatures, err = util.SignaturesFromStrings(args.ExSignatures)
 		if err != nil {
 			return fmt.Errorf("invalid tx signatures: %v", err)
 		}
@@ -52,6 +54,6 @@ func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *Get
 		return err
 	}
 	reply.ID = tx.ID().String()
-	reply.Status = tx.Status.String()
+	reply.Status = choices.Unknown.String()
 	return nil
 }

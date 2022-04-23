@@ -13,7 +13,6 @@ import (
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
@@ -97,15 +96,7 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 
 func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 	a := bs.accountCache[id]
-	if a != nil {
-		return a, nil
-	}
-
-	if id == constants.BlackholeAddr {
-		return nil, fmt.Errorf("blackhole address should not be used")
-	}
-
-	if bs.accountCache[id] == nil {
+	if a == nil {
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:

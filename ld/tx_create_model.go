@@ -12,6 +12,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ipld/go-ipld-prime/schema"
+	"github.com/ldclabs/ldvm/util"
 )
 
 var modelNameReg = regexp.MustCompile(`^[A-Z][0-9A-Za-z]{1,127}$`)
@@ -43,136 +44,136 @@ type jsonModelMeta struct {
 	Data      json.RawMessage `json:"data"`
 }
 
-func (m *ModelMeta) MarshalJSON() ([]byte, error) {
-	if m == nil {
-		return Null, nil
+func (t *ModelMeta) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return util.Null, nil
 	}
 	v := &jsonModelMeta{
-		ID:        ModelID(m.ID).String(),
-		Name:      m.Name,
-		Threshold: m.Threshold,
-		Data:      JSONMarshalData(m.Data),
-		Keepers:   make([]string, len(m.Keepers)),
+		ID:        util.ModelID(t.ID).String(),
+		Name:      t.Name,
+		Threshold: t.Threshold,
+		Data:      util.JSONMarshalData(t.Data),
+		Keepers:   make([]string, len(t.Keepers)),
 	}
-	for i := range m.Keepers {
-		v.Keepers[i] = EthID(m.Keepers[i]).String()
+	for i := range t.Keepers {
+		v.Keepers[i] = util.EthID(t.Keepers[i]).String()
 	}
 	return json.Marshal(v)
 }
 
-func (m *ModelMeta) Copy() *ModelMeta {
+func (t *ModelMeta) Copy() *ModelMeta {
 	x := new(ModelMeta)
-	*x = *m
-	x.Keepers = make([]ids.ShortID, len(m.Keepers))
-	copy(x.Keepers, m.Keepers)
-	x.Data = make([]byte, len(m.Data))
-	copy(x.Data, m.Data)
+	*x = *t
+	x.Keepers = make([]ids.ShortID, len(t.Keepers))
+	copy(x.Keepers, t.Keepers)
+	x.Data = make([]byte, len(t.Data))
+	copy(x.Data, t.Data)
 	x.raw = nil
 	return x
 }
 
-func (m *ModelMeta) SchemaType() schema.Type {
-	return m.st
+func (t *ModelMeta) SchemaType() schema.Type {
+	return t.st
 }
 
 // SyntacticVerify verifies that a *ModelMeta is well-formed.
-func (m *ModelMeta) SyntacticVerify() error {
-	if m == nil {
+func (t *ModelMeta) SyntacticVerify() error {
+	if t == nil {
 		return fmt.Errorf("invalid ModelMeta")
 	}
 
-	if !modelNameReg.MatchString(m.Name) {
+	if !modelNameReg.MatchString(t.Name) {
 		return fmt.Errorf("invalid name")
 	}
-	if len(m.Keepers) > math.MaxUint8 {
+	if len(t.Keepers) > math.MaxUint8 {
 		return fmt.Errorf("invalid keepers, too many")
 	}
-	if int(m.Threshold) > len(m.Keepers) {
+	if int(t.Threshold) > len(t.Keepers) {
 		return fmt.Errorf("invalid threshold")
 	}
-	for _, id := range m.Keepers {
+	for _, id := range t.Keepers {
 		if id == ids.ShortEmpty {
 			return fmt.Errorf("invalid model keeper")
 		}
 	}
-	if len(m.Data) < 10 {
+	if len(t.Data) < 10 {
 		return fmt.Errorf("invalid data, bytes should >= %d", 10)
 	}
 
 	var err error
-	if m.st, err = NewSchemaType(m.Name, m.Data); err != nil {
+	if t.st, err = NewSchemaType(t.Name, t.Data); err != nil {
 		return fmt.Errorf("parse ipld schema error: %v", err)
 	}
-	if _, err = m.Marshal(); err != nil {
+	if _, err = t.Marshal(); err != nil {
 		return fmt.Errorf("ModelMeta marshal error: %v", err)
 	}
 	return nil
 }
 
-func (m *ModelMeta) Equal(o *ModelMeta) bool {
+func (t *ModelMeta) Equal(o *ModelMeta) bool {
 	if o == nil {
 		return false
 	}
-	if len(o.raw) > 0 && len(m.raw) > 0 {
-		return bytes.Equal(o.raw, m.raw)
+	if len(o.raw) > 0 && len(t.raw) > 0 {
+		return bytes.Equal(o.raw, t.raw)
 	}
-	if o.Name != m.Name {
+	if o.Name != t.Name {
 		return false
 	}
-	if o.Threshold != m.Threshold {
+	if o.Threshold != t.Threshold {
 		return false
 	}
-	if len(o.Keepers) != len(m.Keepers) {
+	if len(o.Keepers) != len(t.Keepers) {
 		return false
 	}
-	for i := range m.Keepers {
-		if o.Keepers[i] != m.Keepers[i] {
+	for i := range t.Keepers {
+		if o.Keepers[i] != t.Keepers[i] {
 			return false
 		}
 	}
-	return bytes.Equal(o.Data, m.Data)
+	return bytes.Equal(o.Data, t.Data)
 }
 
-func (m *ModelMeta) Bytes() []byte {
-	if len(m.raw) == 0 {
-		if _, err := m.Marshal(); err != nil {
+func (t *ModelMeta) Bytes() []byte {
+	if len(t.raw) == 0 {
+		if _, err := t.Marshal(); err != nil {
 			panic(err)
 		}
 	}
 
-	return m.raw
+	return t.raw
 }
 
-func (m *ModelMeta) Unmarshal(data []byte) error {
+func (t *ModelMeta) Unmarshal(data []byte) error {
 	p, err := modelMetaLDBuilder.Unmarshal(data)
 	if err != nil {
 		return err
 	}
 	if v, ok := p.(*bindModelMeta); ok {
-		m.Name = v.Name
-		m.Threshold = v.Threshold.Value()
-		m.Data = v.Data
-		if m.Keepers, err = ToShortIDs(v.Keepers); err != nil {
+		t.Name = v.Name
+		t.Threshold = v.Threshold.Value()
+		t.Data = v.Data
+		if t.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		m.raw = data
+		t.raw = data
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindModelMeta")
 }
 
-func (m *ModelMeta) Marshal() ([]byte, error) {
+func (t *ModelMeta) Marshal() ([]byte, error) {
 	v := &bindModelMeta{
-		Name:      m.Name,
-		Threshold: FromUint8(m.Threshold),
-		Keepers:   FromShortIDs(m.Keepers),
-		Data:      m.Data,
+		Name:      t.Name,
+		Threshold: FromUint8(t.Threshold),
+		Keepers:   FromShortIDs(t.Keepers),
+		Data:      t.Data,
 	}
 	data, err := modelMetaLDBuilder.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	m.raw = data
+	t.raw = data
 	return data, nil
 }
 

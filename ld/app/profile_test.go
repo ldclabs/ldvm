@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestProfile(t *testing.T) {
@@ -19,9 +20,9 @@ func TestProfile(t *testing.T) {
 	address := ids.ShortID{1, 2, 3, 4}
 	i := &Profile{
 		Name:    "lvdm",
-		Follows: []string{ld.EthID(address).String()},
-		Addrs:   new(MapStringString),
-		Extra:   new(MapStringAny),
+		Follows: []string{util.EthID(address).String()},
+		Addrs:   new(ld.MapStringString),
+		Extra:   new(ld.MapStringAny),
 	}
 
 	i.Addrs.Set("eth", "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
@@ -42,7 +43,7 @@ func TestProfile(t *testing.T) {
 	assert.Nil(err)
 	assert.True(profile2.Equal(profile))
 
-	profile.Entity.Addrs.Set("eth", ld.EthID(address).String())
+	profile.Entity.Addrs.Set("eth", util.EthID(address).String())
 	profile.Entity.Url = "http://127.0.0.1"
 	data2, err := profile.Marshal()
 	assert.Nil(err)

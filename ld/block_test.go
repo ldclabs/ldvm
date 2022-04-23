@@ -8,13 +8,14 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/constants"
 )
 
 func TestBlock(t *testing.T) {
 	address := ids.ShortID{1, 2, 3, 4}
 
 	tx := &Transaction{
-		Type: TypeMintFee,
+		Type: TypeTransfer,
 		To:   address,
 	}
 
@@ -30,7 +31,8 @@ func TestBlock(t *testing.T) {
 		Gas:           1000,
 		GasPrice:      1000,
 		GasRebateRate: 100,
-		Miners:        []ids.ShortID{address},
+		Miner:         constants.GenesisAccount,
+		Shares:        []ids.ShortID{address},
 		Txs:           []*Transaction{tx},
 	}
 	data, err := blk.Marshal()

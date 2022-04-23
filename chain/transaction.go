@@ -5,7 +5,6 @@ package chain
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
@@ -25,10 +24,6 @@ type Transaction interface {
 	MarshalJSON() ([]byte, error)
 }
 
-type GenesisTx interface {
-	VerifyGenesis(blk *Block) error
-}
-
 func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	if syntacticVerifyLD {
 		if err := tx.SyntacticVerify(); err != nil {
@@ -37,30 +32,44 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	}
 	var tt Transaction
 	switch tx.Type {
-	case ld.TypeMintFee:
-		tt = &TxMintFee{ld: tx}
+	case ld.TypeEth:
+		tt = &TxEth{TxBase: &TxBase{ld: tx}}
 	case ld.TypeTransfer:
-		tt = &TxTransfer{ld: tx}
-	case ld.TypeTransferReply:
-		tt = &TxTransferReply{ld: tx}
+		tt = &TxTransfer{TxBase: &TxBase{ld: tx}}
+	case ld.TypeTransferPay:
+		tt = &TxTransferPay{TxBase: &TxBase{ld: tx}}
 	case ld.TypeTransferCash:
-		tt = &TxTransferCash{ld: tx}
+		tt = &TxTransferCash{TxBase: &TxBase{ld: tx}}
+	case ld.TypeExchange:
+		tt = &TxTransferExchange{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{ld: tx}
+		tt = &TxAccountUpdateKeepers{TxBase: &TxBase{ld: tx}}
+	case ld.TypeCreateTokenAccount:
+		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
+	case ld.TypeDestroyTokenAccount:
+		tt = &TxDestroyTokenAccount{TxBase: &TxBase{ld: tx}}
+	case ld.TypeCreateStakeAccount:
+		tt = &TxCreateStakeAccount{TxBase: &TxBase{ld: tx}}
+	case ld.TypeTakeStake:
+		tt = &TxTakeStake{TxBase: &TxBase{ld: tx}}
+	case ld.TypeWithdrawStake:
+		tt = &TxWithdrawStake{TxBase: &TxBase{ld: tx}}
+	case ld.TypeResetStakeAccount:
+		tt = &TxResetStakeAccount{TxBase: &TxBase{ld: tx}}
 	case ld.TypeCreateModel:
-		tt = &TxCreateModel{ld: tx}
+		tt = &TxCreateModel{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateModelKeepers:
-		tt = &TxUpdateModelKeepers{ld: tx}
+		tt = &TxUpdateModelKeepers{TxBase: &TxBase{ld: tx}}
 	case ld.TypeCreateData:
-		tt = &TxCreateData{ld: tx}
+		tt = &TxCreateData{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateData:
-		tt = &TxUpdateData{ld: tx}
+		tt = &TxUpdateData{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateDataKeepers:
-		tt = &TxUpdateDataKeepers{ld: tx}
+		tt = &TxUpdateDataKeepers{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateDataKeepersByAuth:
-		tt = &TxUpdateDataKeepersByAuth{ld: tx}
+		tt = &TxUpdateDataKeepersByAuth{TxBase: &TxBase{ld: tx}}
 	case ld.TypeDeleteData:
-		tt = &TxDeleteData{ld: tx}
+		tt = &TxDeleteData{TxBase: &TxBase{ld: tx}}
 	default:
 		return nil, fmt.Errorf("unknown tx type: %d", tx.Type)
 	}
@@ -71,43 +80,25 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	return tt, nil
 }
 
-func verifyBase(blk *Block, tx *ld.Transaction, signers []ids.ShortID) (*Account, error) {
-	if err := blk.ctx.Chain().CheckChainID(tx.ChainID); err != nil {
-		return nil, err
-	}
+type GenesisTx interface {
+	VerifyGenesis(blk *Block) error
+}
 
-	feeCfg := blk.FeeConfig()
-	requireGas := tx.RequireGas(feeCfg.ThresholdGas)
-	if tx.Gas < requireGas && tx.Gas != feeCfg.MaxTxGas {
-		return nil, fmt.Errorf("tx gas not matching, require %d", requireGas)
+func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
+	var tt Transaction
+	switch tx.Type {
+	case ld.TypeTransfer:
+		tt = &TxTransfer{TxBase: &TxBase{ld: tx}}
+	case ld.TypeUpdateAccountKeepers:
+		tt = &TxAccountUpdateKeepers{TxBase: &TxBase{ld: tx}}
+	case ld.TypeCreateTokenAccount:
+		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
+	case ld.TypeCreateModel:
+		tt = &TxCreateModel{TxBase: &TxBase{ld: tx}}
+	case ld.TypeCreateData:
+		tt = &TxCreateData{TxBase: &TxBase{ld: tx}}
+	default:
+		return nil, fmt.Errorf("not support genesis tx type: %d", tx.Type)
 	}
-
-	bs := blk.State()
-	from, err := bs.LoadAccount(tx.From)
-	if err != nil {
-		return nil, err
-	}
-
-	if tx.Nonce != from.Nonce() {
-		return nil, fmt.Errorf("account nonce not matching")
-	}
-	if !from.SatisfySigning(signers) {
-		return nil, fmt.Errorf("need more account signatures")
-	}
-
-	cost := new(big.Int).Mul(tx.BigIntGas(), blk.GasPrice())
-	if tx.Amount != nil {
-		if tx.Amount.Sign() < 0 {
-			return nil, fmt.Errorf("invalid amount %d", tx.Amount)
-		} else if tx.Amount.Sign() > 0 && tx.To == ids.ShortEmpty {
-			return nil, fmt.Errorf("required recipient to recive %d", tx.Amount)
-		}
-
-		cost = cost.Add(cost, tx.Amount)
-	}
-	if from.Balance().Cmp(cost) < 0 {
-		return nil, fmt.Errorf("insufficient balance %d of account %s, required %d",
-			from.Balance(), tx.From, cost)
-	}
-	return from, nil
+	return tt, nil
 }

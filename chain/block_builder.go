@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/util"
 )
 
 const maxBuildInterval = 10 * time.Second
@@ -77,49 +77,24 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	}
 
 	feeCfg := ctx.Chain().Fee(parentHeight + 1)
-	b.txPool.ClearMintTxs(parentHeight)
-	mintTx, miners := b.txPool.SelectMiners(b.nodeID, preferred.ID(), parentHeight)
+	shares := make([]ids.ShortID, 0)
+	if ctx.ValidatorState != nil {
+		// TODO, get validators
+	}
 	blk := &ld.Block{
 		Parent:        preferred.ID(),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasRebateRate: feeCfg.GasRebateRate,
-		Miners:        miners,
+		Miner:         util.NodeIDToStakeAddress(ctx.NodeID)[0],
+		Shares:        shares,
 		Txs:           make([]*ld.Transaction, 0, 16),
-	}
-
-	if mintTx != nil {
-		blk.Txs = append(blk.Txs, mintTx)
 	}
 
 	gas := uint64(0)
 	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize), feeCfg.ThresholdGas)
-	for i := range txs {
-		txs[i].Status = choices.Processing
-		requireGas := txs[i].RequireGas(feeCfg.ThresholdGas)
-		if requireGas > txs[i].GasFeeCap || requireGas > feeCfg.MaxTxGas {
-			b.txPool.Rejecte(txs[i])
-			continue
-		}
-		txs[i].Gas = requireGas + txs[i].GasTip
-		if txs[i].Gas > feeCfg.MaxTxGas {
-			txs[i].Gas = feeCfg.MaxTxGas
-		}
-		if err := txs[i].SyntacticVerify(); err != nil {
-			b.txPool.Rejecte(txs[i])
-			continue
-		}
-		gas += txs[i].Gas
-		blk.Txs = append(blk.Txs, txs[i])
-	}
-
-	if len(blk.Txs) == 0 {
-		return nil, fmt.Errorf("no txs to build")
-	}
-
-	blk.Gas = gas
 	blk.GasPrice = preferred.GasPrice().Uint64()
-	if b.txPool.Len() > len(blk.Txs) {
+	if b.txPool.Len() > len(txs) {
 		blk.GasPrice = uint64(float64(blk.GasPrice) * math.SqrtPhi)
 		if blk.GasPrice > feeCfg.MaxGasPrice {
 			blk.GasPrice = feeCfg.MaxGasPrice
@@ -131,6 +106,32 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		}
 	}
 
+	for i := range txs {
+		tx := txs[i]
+		if tx.GasFeeCap < blk.GasPrice {
+			b.txPool.Add(tx)
+			continue
+		}
+		tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
+		if tx.Gas > feeCfg.MaxTxGas {
+			b.txPool.Rejecte(tx)
+			continue
+		}
+
+		// verify again after gas calculation
+		if err := tx.SyntacticVerify(); err != nil {
+			b.txPool.Rejecte(tx)
+			continue
+		}
+		gas += tx.Gas
+		blk.Txs = append(blk.Txs, tx)
+	}
+
+	if len(blk.Txs) == 0 {
+		return nil, fmt.Errorf("no txs to build")
+	}
+
+	blk.Gas = gas
 	nblk, err := NewBlock(blk, preferred.Context())
 	if err != nil {
 		return nil, err
@@ -139,5 +140,6 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	nblk.InitState(preferred.State().VersionDB(), false)
 	b.lastBuildHeight = blk.Height
 	logging.Log.Info("Build block %s at %d", blk.ID(), blk.Height)
+	// TODO: pre-verify, rejecte invalid transactions
 	return nblk, nil
 }
