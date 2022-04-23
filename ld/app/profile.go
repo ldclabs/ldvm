@@ -10,18 +10,19 @@ import (
 	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 // https://schema.org/Person
 type Profile struct {
-	Name     string           `json:"name"`
-	Image    string           `json:"image"`
-	Url      string           `json:"url"`
-	Kyc      string           `json:"kyc"`
-	Follows  []string         `json:"follows"`
-	Addrs    *MapStringString `json:"addrs"`
-	ExtraMID string           `json:"extraMID"`
-	Extra    *MapStringAny    `json:"extra"`
+	Name     string              `json:"name"`
+	Image    string              `json:"image"`
+	Url      string              `json:"url"`
+	Kyc      string              `json:"kyc"`
+	Follows  []string            `json:"follows"`
+	Addrs    *ld.MapStringString `json:"addrs"`
+	ExtraMID string              `json:"extraMID"`
+	Extra    *ld.MapStringAny    `json:"extra"`
 }
 
 func ProfileSchema() (string, []byte) {
@@ -41,17 +42,17 @@ func NewProfile(profile *Profile) *bindProfile {
 		b.Entity = new(Profile)
 	}
 	if b.Entity.Addrs == nil {
-		b.Entity.Addrs = new(MapStringString)
+		b.Entity.Addrs = new(ld.MapStringString)
 	}
 	if b.Entity.Extra == nil {
-		b.Entity.Extra = new(MapStringAny)
+		b.Entity.Extra = new(ld.MapStringAny)
 	}
 	return b
 }
 
 func (b *bindProfile) MarshalJSON() ([]byte, error) {
 	if b == nil {
-		return ld.Null, nil
+		return util.Null, nil
 	}
 	return json.Marshal(b.Entity)
 }
@@ -61,23 +62,23 @@ func (b *bindProfile) SyntacticVerify() error {
 	if b == nil || b.Entity == nil {
 		return fmt.Errorf("invalid bindProfile")
 	}
-	if !ValidName(b.Entity.Name) {
+	if !util.ValidName(b.Entity.Name) {
 		return fmt.Errorf("invalid name string %s", strconv.Quote(b.Entity.Name))
 	}
-	if !ValidLink(b.Entity.Image) {
+	if !util.ValidLink(b.Entity.Image) {
 		return fmt.Errorf("invalid image string %s", strconv.Quote(b.Entity.Image))
 	}
-	if !ValidLink(b.Entity.Url) {
+	if !util.ValidLink(b.Entity.Url) {
 		return fmt.Errorf("invalid url string %s", strconv.Quote(b.Entity.Url))
 	}
-	if !ValidLink(b.Entity.Kyc) {
+	if !util.ValidLink(b.Entity.Kyc) {
 		return fmt.Errorf("invalid KYC string %s", strconv.Quote(b.Entity.Kyc))
 	}
-	if !ValidMID(b.Entity.ExtraMID) {
+	if !util.ValidMID(b.Entity.ExtraMID) {
 		return fmt.Errorf("invalid model id %s", strconv.Quote(b.Entity.ExtraMID))
 	}
 	for _, id := range b.Entity.Follows {
-		if id == ld.EthIDEmpty.String() {
+		if id == util.EthIDEmpty.String() {
 			return fmt.Errorf("invalid follow address")
 		}
 	}

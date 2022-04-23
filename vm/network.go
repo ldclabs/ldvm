@@ -119,8 +119,6 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 // A node may gossip the same message multiple times. That is,
 // AppGossip([nodeID], [msg]) may be called multiple times.
 func (v *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
-	v.state.SeeNode(nodeID)
-
 	txs, err := ld.UnmarshalTxs(msg)
 	if len(txs) > 0 {
 		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))

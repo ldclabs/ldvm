@@ -8,12 +8,11 @@ import (
 
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/units"
-
-	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type Config struct {
-	FeeRecipient   ld.EthID       `json:"feeRecipient"`
+	FeeRecipient   util.EthID     `json:"feeRecipient"`
 	EventCacheSize int            `json:"eventCacheSize"`
 	Logger         logging.Config `json:"logger"`
 }

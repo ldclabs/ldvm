@@ -11,86 +11,117 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ipld/go-ipld-prime/codec/dagcbor"
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipld/go-ipld-prime/node/basicnode"
+	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/util"
 )
 
 const (
-	// 0: mint tx fee, issued by validators
-	TypeMintFee TxType = iota
-	// 1: send given amount of NanoLDC to a address
-	TypeTransfer
-	// 2: send given amount of NanoLDC to the address who request payment
-	TypeTransferReply
-	// 3: cash given amount of NanoLDC to sender, like cash a check.
-	TypeTransferCash
-	// 4. update account's Keepers and Threshold
-	TypeUpdateAccountKeepers
-	// 5. create a data model
-	TypeCreateModel
-	// 6. update data model's Keepers and Threshold
-	TypeUpdateModelKeepers
-	// 7. create a data from the model
-	TypeCreateData
-	// 8. update the data's Data
-	TypeUpdateData
-	// 9. update data's Keepers and Threshold
-	TypeUpdateDataKeepers
-	// 10. update data's Keepers and Threshold by authorization
-	TypeUpdateDataKeepersByAuth
-	// 11. delete the data
-	TypeDeleteData
+	// Transfer
+	TypeEth          TxType = iota // send given amount of NanoLDC to a address in ETH transaction
+	TypeTransfer                   // send given amount of NanoLDC to a address
+	TypeTransferPay                // send given amount of NanoLDC to the address who request payment
+	TypeTransferCash               // cash given amount of NanoLDC to sender, like cash a check.
+	TypeExchange                   // exchange tokens
+
+	// Account
+	TypeUpdateAccountKeepers // update account's Keepers and Threshold
+	TypeCreateTokenAccount   // create a token account
+	TypeDestroyTokenAccount  // destroy a token account
+	TypeCreateStakeAccount   // create a stake account
+	TypeTakeStake            // take a stake in
+	TypeWithdrawStake        // withdraw stake
+	TypeResetStakeAccount    // reset or destroy a stake account
+
+	// Model
+	TypeCreateModel        // create a data model
+	TypeUpdateModelKeepers // update data model's Keepers and Threshold
+
+	// Data
+	TypeCreateData              // create a data from the model
+	TypeUpdateData              // update the data's Data
+	TypeUpdateDataKeepers       // update data's Keepers and Threshold
+	TypeUpdateDataKeepersByAuth // update data's Keepers and Threshold by authorization
+	TypeDeleteData              // delete the data
 )
 
 const (
-	// the meaning of life, the universe, and everything
-	TxTransferReply              = uint64(42)
-	TxTransferGas                = uint64(100)
-	TxTransferCash               = uint64(100)
-	TxUpdateDataGas              = uint64(200)
+	TxEthGas          = uint64(42)
+	TxTransferGas     = uint64(42)
+	TxTransferPayGas  = uint64(42)
+	TxTransferCashGas = uint64(42)
+	TxExchangeGas     = uint64(42)
+
+	TxAccountUpdateKeepersGas = uint64(1000)
+	TxCreateTokenAccountGas   = uint64(1000)
+	TxDestroyTokenAccountGas  = uint64(1000)
+	TxCreateStakeAccountGas   = uint64(1000)
+	TxTakeStakeGas            = uint64(1000)
+	TxWithdrawStakeGas        = uint64(1000)
+	TxResetStakeAccountGas    = uint64(1000)
+
+	TxCreateModelGas        = uint64(500)
+	TxUpdateModelKeepersGas = uint64(500)
+
+	TxCreateDataGas              = uint64(100)
+	TxUpdateDataGas              = uint64(100)
+	TxUpdateDataKeepersGas       = uint64(100)
+	TxUpdateDataKeepersByAuthGas = uint64(200)
 	TxDeleteDataGas              = uint64(200)
-	TxCreateDataGas              = uint64(500)
-	TxCreateModelGas             = uint64(500)
-	TxUpdateAccountKeepersGas    = uint64(1000)
-	TxUpdateDataKeepersGas       = uint64(1000)
-	TxUpdateModelKeepersGas      = uint64(1000)
-	TxUpdateDataKeepersByAuthGas = uint64(1000)
-	MinThresholdGas              = uint64(1000)
+
+	MinThresholdGas = uint64(1000)
 )
+
+// gChainID will be updated by SetChainID when VM.Initialize
+var gChainID = uint64(2357)
 
 // TxType is an uint8 representing the type of the tx
 type TxType uint8
 
 func TxTypeString(t TxType) string {
 	switch t {
-	case TypeMintFee:
-		return "TypeMintFee"
+	case TypeEth:
+		return "EthTx"
 	case TypeTransfer:
-		return "TypeTransfer"
-	case TypeTransferReply:
-		return "TypeTransferReply"
+		return "TransferTx"
+	case TypeTransferPay:
+		return "TransferPayTx"
 	case TypeTransferCash:
-		return "TypeTransferCash"
+		return "TransferCashTx"
+	case TypeExchange:
+		return "ExchangeTx"
 	case TypeUpdateAccountKeepers:
-		return "TypeUpdateAccountKeepers"
+		return "UpdateAccountKeepersTx"
+	case TypeCreateTokenAccount:
+		return "CreateTokenAccountTx"
+	case TypeDestroyTokenAccount:
+		return "DestroyTokenAccountTx"
+	case TypeCreateStakeAccount:
+		return "CreateStakeAccountTx"
+	case TypeTakeStake:
+		return "TakeStakeTx"
+	case TypeWithdrawStake:
+		return "WithdrawStakeTx"
+	case TypeResetStakeAccount:
+		return "ResetStakeAccountTx"
 	case TypeCreateModel:
-		return "TypeCreateModel"
+		return "CreateModelTx"
 	case TypeUpdateModelKeepers:
-		return "TypeUpdateModelKeepers"
+		return "UpdateModelKeepersTx"
 	case TypeCreateData:
-		return "TypeCreateData"
+		return "CreateDataTx"
 	case TypeUpdateData:
-		return "TypeUpdateData"
+		return "UpdateDataTx"
 	case TypeUpdateDataKeepers:
-		return "TypeUpdateDataKeepers"
+		return "UpdateDataKeepersTx"
 	case TypeUpdateDataKeepersByAuth:
-		return "TypeUpdateDataKeepersByAuth"
+		return "UpdateDataKeepersByAuthTx"
 	case TypeDeleteData:
-		return "TypeDeleteData"
+		return "DeleteDataTx"
 	default:
-		return "TypeUnknown"
+		return "UnknownTx"
 	}
 }
 
@@ -101,12 +132,13 @@ type Transaction struct {
 	Gas          uint64 // calculate when build block.
 	GasTip       uint64
 	GasFeeCap    uint64
+	Token        ids.ShortID
 	From         ids.ShortID
 	To           ids.ShortID
 	Amount       *big.Int
 	Data         []byte
-	Signatures   []Signature
-	ExSignatures []Signature
+	Signatures   []util.Signature
+	ExSignatures []util.Signature
 
 	// external assignment
 	gas         uint64
@@ -115,24 +147,24 @@ type Transaction struct {
 	raw         []byte // the transaction's raw bytes, included id and sigs.
 	AddTime     uint64
 	Priority    uint64
-	Status      choices.Status
 }
 
 type jsonTransaction struct {
-	ID           ids.ID          `json:"id"`
-	Type         TxType          `json:"type"`
-	TypeStr      string          `json:"typeString"`
-	ChainID      uint64          `json:"chainID"`
-	Nonce        uint64          `json:"Nonce"`
-	Gas          uint64          `json:"gas"` // calculate when build block.
-	GasTip       uint64          `json:"gasTip"`
-	GasFeeCap    uint64          `json:"gasFeeCap"`
-	From         string          `json:"from"`
-	To           string          `json:"to"`
-	Amount       *big.Int        `json:"amount"`
-	Data         json.RawMessage `json:"data"`
-	Signatures   []Signature     `json:"signatures"`
-	ExSignatures []Signature     `json:"exSignatures"`
+	ID           ids.ID           `json:"id"`
+	Type         TxType           `json:"type"`
+	TypeStr      string           `json:"typeString"`
+	ChainID      uint64           `json:"chainID"`
+	Nonce        uint64           `json:"nonce"`
+	Gas          uint64           `json:"gas"` // calculate when build block.
+	GasTip       uint64           `json:"gasTip"`
+	GasFeeCap    uint64           `json:"gasFeeCap"`
+	Token        string           `json:"token,omitempty"`
+	From         string           `json:"from"`
+	To           string           `json:"to"`
+	Amount       *big.Int         `json:"amount"`
+	Data         json.RawMessage  `json:"data"`
+	Signatures   []util.Signature `json:"signatures"`
+	ExSignatures []util.Signature `json:"exSignatures"`
 }
 
 type Txs []*Transaction
@@ -208,7 +240,7 @@ func UnmarshalTxs(data []byte) ([]*Transaction, error) {
 
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	if t == nil {
-		return Null, nil
+		return util.Null, nil
 	}
 	v := &jsonTransaction{
 		ID:           t.ID(),
@@ -219,9 +251,10 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Gas:          t.Gas,
 		GasTip:       t.GasTip,
 		GasFeeCap:    t.GasFeeCap,
-		From:         EthID(t.From).String(),
-		To:           EthID(t.To).String(),
-		Data:         JSONMarshalData(t.Data),
+		Token:        util.TokenSymbol(t.Token).String(),
+		From:         util.EthID(t.From).String(),
+		To:           util.EthID(t.To).String(),
+		Data:         util.JSONMarshalData(t.Data),
 		Amount:       t.Amount,
 		Signatures:   t.Signatures,
 		ExSignatures: t.ExSignatures,
@@ -253,9 +286,9 @@ func (t *Transaction) Copy() *Transaction {
 	}
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
-	x.Signatures = make([]Signature, len(t.Signatures))
+	x.Signatures = make([]util.Signature, len(t.Signatures))
 	copy(x.Signatures, t.Signatures)
-	x.ExSignatures = make([]Signature, len(t.ExSignatures))
+	x.ExSignatures = make([]util.Signature, len(t.ExSignatures))
 	copy(x.ExSignatures, t.ExSignatures)
 	x.unsignedRaw = nil
 	x.raw = nil
@@ -268,8 +301,15 @@ func (t *Transaction) SyntacticVerify() error {
 		return fmt.Errorf("invalid Transaction")
 	}
 
+	if t.ChainID != gChainID {
+		return fmt.Errorf("invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
+	}
+
 	if t.Type > TypeDeleteData {
 		return fmt.Errorf("invalid type")
+	}
+	if t.Token != constants.LDCAccount && util.TokenSymbol(t.Token).String() == "" {
+		return fmt.Errorf("invalid token symbol")
 	}
 	if t.Amount != nil && t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
@@ -294,16 +334,16 @@ func (t *Transaction) SyntacticVerify() error {
 }
 
 func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
-	priority := t.GasFeeCap * 10
+	priority := t.GasTip * threshold
 	gas := t.RequireGas(threshold)
-	if v := gas + t.GasFeeCap; v > priority {
+	if v := t.GasTip * gas; v > priority {
 		priority = v
 	}
 	// Consider gossip network overhead, ignoring small time differences
 	// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
 	if du := nowSeconds - t.AddTime; du > 3 && du <= 120 {
-		// A delay of 10 seconds is equivalent to a threshold priority
-		priority += du * threshold / 10
+		// A delay of 1 seconds is equivalent to 100 gasTip
+		priority += du * 100 * threshold
 	}
 	t.Priority = priority
 }
@@ -314,20 +354,37 @@ func (t *Transaction) RequireGas(threshold uint64) uint64 {
 	}
 	gas := uint64(len(t.UnsignedBytes()))
 	switch t.Type {
-	case TypeMintFee:
-		return uint64(0)
+	case TypeEth:
+		return requireGas(threshold, gas+TxEthGas)
 	case TypeTransfer:
 		return requireGas(threshold, gas+TxTransferGas)
-	case TypeTransferReply:
-		return requireGas(threshold, gas+TxTransferReply)
+	case TypeTransferPay:
+		return requireGas(threshold, gas+TxTransferPayGas)
 	case TypeTransferCash:
-		return requireGas(threshold, gas+TxTransferCash)
+		return requireGas(threshold, gas+TxTransferCashGas)
+	case TypeExchange:
+		return requireGas(threshold, gas+TxExchangeGas)
+
 	case TypeUpdateAccountKeepers:
-		return requireGas(threshold, gas+TxUpdateAccountKeepersGas)
+		return requireGas(threshold, gas+TxAccountUpdateKeepersGas)
+	case TypeCreateTokenAccount:
+		return requireGas(threshold, gas+TxCreateTokenAccountGas)
+	case TypeDestroyTokenAccount:
+		return requireGas(threshold, gas+TxDestroyTokenAccountGas)
+	case TypeCreateStakeAccount:
+		return requireGas(threshold, gas+TxCreateStakeAccountGas)
+	case TypeTakeStake:
+		return requireGas(threshold, gas+TxTakeStakeGas)
+	case TypeWithdrawStake:
+		return requireGas(threshold, gas+TxWithdrawStakeGas)
+	case TypeResetStakeAccount:
+		return requireGas(threshold, gas+TxResetStakeAccountGas)
+
 	case TypeCreateModel:
 		return requireGas(threshold, gas+TxCreateModelGas)
 	case TypeUpdateModelKeepers:
 		return requireGas(threshold, gas+TxUpdateModelKeepersGas)
+
 	case TypeCreateData:
 		return requireGas(threshold, gas+TxCreateDataGas)
 	case TypeUpdateData:
@@ -338,6 +395,7 @@ func (t *Transaction) RequireGas(threshold uint64) uint64 {
 		return requireGas(threshold, gas+TxUpdateDataKeepersByAuthGas)
 	case TypeDeleteData:
 		return requireGas(threshold, gas+TxDeleteDataGas)
+
 	default:
 		return requireGas(threshold, gas)
 	}
@@ -350,7 +408,7 @@ func requireGas(threshold, gas uint64) uint64 {
 	return threshold + uint64(math.Pow(float64(gas-threshold), math.SqrtPhi))
 }
 
-func (t *Transaction) BigIntGas() *big.Int {
+func (t *Transaction) GasUnits() *big.Int {
 	return new(big.Int).SetUint64(t.Gas)
 }
 
@@ -377,6 +435,9 @@ func (t *Transaction) Equal(o *Transaction) bool {
 		return false
 	}
 	if o.GasFeeCap != t.GasFeeCap {
+		return false
+	}
+	if o.Token != t.Token {
 		return false
 	}
 	if o.From != t.From {
@@ -444,7 +505,7 @@ func (t *Transaction) calcID() (ids.ID, error) {
 		if err != nil {
 			return ids.Empty, err
 		}
-		t.id = IDFromBytes(b)
+		t.id = util.IDFromBytes(b)
 	}
 	return t.id, nil
 }
@@ -491,16 +552,19 @@ func (t *Transaction) Unmarshal(data []byte) error {
 		t.Gas = v.Gas.Value()
 		t.Amount = PtrToBigInt(v.Amount)
 		t.Data = PtrToBytes(v.Data)
+		if t.Token, err = PtrToShortID(v.Token); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
 		if t.From, err = PtrToShortID(v.From); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		if t.To, err = PtrToShortID(v.To); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if t.Signatures, err = PtrToSignatures(v.Signatures); err != nil {
+		if t.Signatures, err = util.PtrToSignatures(v.Signatures); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if t.ExSignatures, err = PtrToSignatures(v.ExSignatures); err != nil {
+		if t.ExSignatures, err = util.PtrToSignatures(v.ExSignatures); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		if t.id, err = PtrToID(v.ID); err != nil {
@@ -521,12 +585,13 @@ func (t *Transaction) Marshal() ([]byte, error) {
 		Gas:          PtrFromUint64(t.Gas),
 		GasTip:       PtrFromUint64(t.GasTip),
 		GasFeeCap:    PtrFromUint64(t.GasFeeCap),
+		Token:        PtrFromShortID(ids.ShortID(t.Token)),
 		From:         PtrFromShortID(t.From),
 		To:           PtrFromShortID(t.To),
 		Amount:       PtrFromBigInt(t.Amount),
 		Data:         PtrFromBytes(t.Data),
-		Signatures:   PtrFromSignatures(t.Signatures),
-		ExSignatures: PtrFromSignatures(t.ExSignatures),
+		Signatures:   util.PtrFromSignatures(t.Signatures),
+		ExSignatures: util.PtrFromSignatures(t.ExSignatures),
 		ID:           PtrFromID(t.id),
 	}
 	data, err := transactionLDBuilder.Marshal(v)
@@ -545,6 +610,7 @@ type bindTransaction struct {
 	Gas          *Uint64
 	GasTip       *Uint64
 	GasFeeCap    *Uint64
+	Token        *[]byte
 	From         *[]byte
 	To           *[]byte
 	Amount       *[]byte
@@ -571,6 +637,7 @@ func init() {
 		Gas          nullable Uint64  (rename "g")
 		GasTip       nullable Uint64  (rename "gt")
 		GasFeeCap    nullable Uint64  (rename "gf")
+		Token        nullable ID20    (rename "tk")
 		From         nullable ID20    (rename "fr")
 		To           nullable ID20    (rename "to")
 		Amount       nullable BigInt  (rename "a")

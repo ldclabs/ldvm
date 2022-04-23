@@ -10,14 +10,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestGenesis(t *testing.T) {
-	address1, _ := ld.EthIDFromString("0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
-	address2, _ := ld.EthIDFromString("0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+	address1, _ := util.EthIDFromString("0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+	address2, _ := util.EthIDFromString("0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
 
-	file := "./genesis.json"
+	file := "./genesis_sample.json"
 	data, err := os.ReadFile(file)
 	if err != nil {
 		t.Fatalf("Read %s failed: %v", file, err)
@@ -43,5 +43,5 @@ func TestGenesis(t *testing.T) {
 		t.Fatalf("Marshal failed: %v", err)
 	}
 	fmt.Printf("\n%s\n", string(data))
-	// t.Fatalf("finish")
+	t.Fatalf("finish")
 }

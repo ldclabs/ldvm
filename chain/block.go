@@ -43,7 +43,25 @@ type Block struct {
 	bs       BlockState
 	status   choices.Status
 	txs      []Transaction
+	miner    *Account
 	verified bool
+}
+
+func NewGenesisBlock(b *ld.Block, ctx *Context) (*Block, error) {
+	blk := &Block{ld: b, ctx: ctx}
+	if err := b.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	blk.status = choices.Processing
+	blk.txs = make([]Transaction, len(b.Txs))
+	for i := range b.Txs {
+		tx, err := NewGenesisTx(b.Txs[i])
+		if err != nil {
+			return nil, err
+		}
+		blk.txs[i] = tx
+	}
+	return blk, nil
 }
 
 // tx gas, block gas, block miners should be set up !!!
@@ -117,6 +135,22 @@ func (b *Block) State() BlockState { return b.bs }
 // ID returns a unique ID for this element.
 func (b *Block) ID() ids.ID { return b.ld.ID() }
 
+func (b *Block) Miner() (*Account, error) {
+	var err error
+	if b.miner == nil {
+		feeCfg := b.FeeConfig()
+		b.miner, err = b.bs.LoadAccount(b.ld.Miner)
+		if err != nil {
+			return nil, err
+		}
+		if !b.miner.ValidStake(feeCfg.MinValidatorStake) {
+			logging.Log.Warn("Block.Miner %s not valid, used genesis account", b.ld.Miner)
+			b.miner, err = b.bs.LoadAccount(constants.GenesisAccount)
+		}
+	}
+	return b.miner, err
+}
+
 func (b *Block) VerifyGenesis() error {
 	ts := b.Timestamp().Unix()
 	for i := range b.ld.Txs {
@@ -127,11 +161,10 @@ func (b *Block) VerifyGenesis() error {
 		if err := tx.VerifyGenesis(b); err != nil {
 			return err
 		}
-		// d, _ := b.txs[i].MarshalJSON()
-		// logging.Log.Info("Block.Accept %s %d, %v", b.ID(), i, string(d))
 		if err := b.txs[i].Accept(b); err != nil {
 			return err
 		}
+		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Processing)
 		b.bs.AddEvent(b.txs[i].Event(ts))
 	}
 
@@ -196,9 +229,6 @@ func (b *Block) verify() error {
 	ts := b.Timestamp().Unix()
 	for i := range b.ld.Txs {
 		tx := b.txs[i]
-		if i > 1 && tx.Type() == ld.TypeMintFee {
-			return fmt.Errorf("invalid TypeMintFee tx: can only appear in the first place")
-		}
 		if err := tx.Verify(b); err != nil {
 			return err
 		}
@@ -210,6 +240,8 @@ func (b *Block) verify() error {
 		b.ctx.StateDB().RemoveTx(tx.ID())
 		gas += b.ld.Txs[i].Gas
 		txsSize += len(b.ld.Txs[i].Bytes())
+
+		b.ctx.StateDB().AddRecentTx(tx, choices.Processing)
 		b.bs.AddEvent(tx.Event(ts))
 	}
 
@@ -243,17 +275,15 @@ func (b *Block) Accept() error {
 		return err
 	}
 
-	for _, tx := range b.txs {
-		tx.SetStatus(choices.Accepted)
-	}
 	if err := b.ctx.StateDB().SetLastAccepted(b); err != nil {
 		b.reject()
 		return fmt.Errorf("Block.Accept set last accepted failed: %v", err)
 	}
-	b.status = choices.Accepted
-	if b.Height() > 0 {
-		go b.ProposeMintFeeTx()
+
+	for i := range b.txs {
+		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Accepted)
 	}
+	b.status = choices.Accepted
 	return nil
 }
 
@@ -284,71 +314,57 @@ func (b *Block) reject() {
 	}
 }
 
-func unwrapMintTxData(data []byte) (nodeID ids.ShortID, blockID ids.ID, err error) {
-	switch {
-	case len(data) != 52:
-		err = fmt.Errorf("TxMintFee invalid data")
-	default:
-		copy(nodeID[:], data)
-		copy(blockID[:], data[20:])
-	}
-	return
-}
-
-func (b *Block) ProposeMintFeeTx() error {
-	if recipient := b.ctx.FeeRecipient(); recipient != ids.ShortEmpty {
-		id := b.ld.ID()
-		data := make([]byte, 52)
-		copy(data, b.ctx.NodeID[:])
-		copy(data[20:], id[:])
-		mintFeeTx := &ld.Transaction{
-			Type:    ld.TypeMintFee,
-			ChainID: b.ctx.Chain().ChainID,
-			From:    constants.GenesisAddr,
-			To:      recipient,
-			Nonce:   b.Height(),
-			Amount:  b.Gas(),
-			Data:    data,
-		}
-		return b.ctx.StateDB().ProposeMintFeeTx(mintFeeTx)
-	}
-	return nil
-}
-
 func (b *Block) FeeConfig() *genesis.FeeConfig {
 	return b.ctx.Chain().Fee(b.ld.Height)
 }
 
 func (b *Block) mintFee() error {
-	num := len(b.ld.Miners)
-	if num == 0 {
-		return nil
-	}
-	bnum := big.NewInt(int64(num))
-	// 80%: 20% * 4
-	mintFee := new(big.Int).Mul(b.GasRebate20(), big.NewInt(4))
-	mintFee = mintFee.Div(mintFee, bnum)
-	if mintFee.Sign() <= 0 {
-		return nil
-	}
-	genesisAcc, err := b.State().LoadAccount(constants.GenesisAddr)
+	miner, err := b.Miner()
 	if err != nil {
 		return err
 	}
-	total := new(big.Int).Mul(mintFee, bnum)
-	if err := genesisAcc.Sub(total); err != nil {
-		return fmt.Errorf("Block mintFee failed: %v", err)
+	ldc, err := b.bs.LoadAccount(constants.LDCAccount)
+	if err != nil {
+		return err
 	}
-	for _, miner := range b.ld.Miners {
-		acc, err := b.State().LoadAccount(miner)
+
+	shares := make([]*Account, 0, len(b.ld.Shares))
+	feeCfg := b.FeeConfig()
+	for _, id := range b.ld.Shares {
+		sc, err := b.bs.LoadAccount(id)
 		if err != nil {
 			return err
 		}
-		if err := acc.Add(mintFee); err != nil {
+		if sc.ValidStake(feeCfg.MinValidatorStake) {
+			shares = append(shares, sc)
+		} else {
+			logging.Log.Warn("Block.mintFee stake account %s not valid, skipped", id)
+		}
+	}
+	if len(shares) == 0 {
+		shares = append(shares, miner)
+	}
+
+	num := big.NewInt(int64(len(shares)))
+	// 80%: 20% * 4
+	fee := new(big.Int).Mul(b.GasRebate20(), big.NewInt(4))
+	fee = fee.Quo(fee, num)
+	if fee.Sign() <= 0 {
+		return nil
+	}
+
+	total := new(big.Int).Mul(fee, num)
+	total = total.Add(total, b.GasRebate20())
+	if err := ldc.Sub(constants.LDCAccount, total); err != nil {
+		return fmt.Errorf("Block.mintFee failed: %v", err)
+	}
+
+	for _, share := range shares {
+		if err = share.Add(constants.LDCAccount, fee); err != nil {
 			return err
 		}
 	}
-	return nil
+	return miner.Add(constants.LDCAccount, b.GasRebate20())
 }
 
 // Status implements the snowman.Block choices.Decidable Status interface
@@ -417,10 +433,10 @@ func (b *Block) GasPrice() *big.Int {
 }
 
 // Regard to pareto 80/20 Rule
-// 20% to block builder, 80% to blocker miners,
+// 20% to block builder, 80% to blocker shares,
 // GasRebate20 = Gas * GasPrice * (GasRebateRate / 100) * 20%
 func (b *Block) GasRebate20() *big.Int {
 	gasRebate := new(big.Int).SetUint64(b.ld.GasRebateRate)
 	gasRebate = gasRebate.Mul(gasRebate, b.ld.FeeCost())
-	return gasRebate.Div(gasRebate, big.NewInt(500))
+	return gasRebate.Quo(gasRebate, big.NewInt(500))
 }

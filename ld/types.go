@@ -5,14 +5,16 @@ package ld
 
 import (
 	"encoding/binary"
-	"fmt"
-	"math/big"
+	"encoding/json"
+	"sort"
 	"strconv"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/crypto"
-	"github.com/ava-labs/avalanchego/utils/formatting"
+	ipld "github.com/ipld/go-ipld-prime"
+	"github.com/ipld/go-ipld-prime/codec/dagjson"
+	"github.com/ipld/go-ipld-prime/datamodel"
+
+	"github.com/ldclabs/ldvm/util"
 )
 
 var pool10Bytes = sync.Pool{
@@ -24,18 +26,21 @@ var pool10Bytes = sync.Pool{
 
 type Uint8 []byte
 
-func (u Uint8) Value() uint8 {
-	if len(u) == 1 {
-		return uint8(u[0])
+func (u *Uint8) Value() uint8 {
+	if u == nil {
+		return 0
+	}
+	if len(*u) == 1 {
+		return uint8((*u)[0])
 	}
 	return 0
 }
 
-func (u Uint8) String() string {
+func (u *Uint8) String() string {
 	return strconv.FormatUint(uint64(u.Value()), 10)
 }
 
-func (u Uint8) GoString() string {
+func (u *Uint8) GoString() string {
 	return u.String()
 }
 
@@ -86,218 +91,170 @@ func PtrFromUint64(x uint64) *Uint64 {
 	return &v
 }
 
-type Signature [crypto.SECP256K1RSigLen]byte
-
-func (s Signature) MarshalJSON() ([]byte, error) {
-	str, err := formatting.EncodeWithChecksum(formatting.CB58, s[:])
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, len(str)+2)
-	buf[0] = '"'
-	copy(buf[1:], []byte(str))
-	buf[len(buf)-1] = '"'
-	return buf, nil
+type MapStringString struct {
+	Keys   []string
+	Values map[string]string
 }
 
-func SignaturesFromStrings(ss []string) ([]Signature, error) {
-	sigs := make([]Signature, len(ss))
-	for i, s := range ss {
-		d, err := formatting.Decode(formatting.CB58, s)
-		if err != nil {
-			return nil, fmt.Errorf("invalid signature %s, decode failed: %v", strconv.Quote(s), err)
-		}
-		if len(d) != crypto.SECP256K1RSigLen {
-			return nil, fmt.Errorf("invalid signature %s", strconv.Quote(s))
-		}
-		sigs[i] = Signature{}
-		copy(sigs[i][:], d)
+func NewMapStringString(size int) *MapStringString {
+	return &MapStringString{
+		Keys:   make([]string, 0, size),
+		Values: make(map[string]string, size),
 	}
-	return sigs, nil
 }
 
-func PtrToSignatures(d *[][]byte) ([]Signature, error) {
-	var data [][]byte
-	if d != nil {
-		data = *d
+func (m *MapStringString) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return util.Null, nil
 	}
-	ss := make([]Signature, len(data))
-	for i := range data {
-		switch len(data[i]) {
-		case crypto.SECP256K1RSigLen:
-			ss[i] = Signature{}
-			copy(ss[i][:], data[i])
-		default:
-			return ss, fmt.Errorf("expected 65 bytes but got %d", len(data[i]))
+	return json.Marshal(m.Values)
+}
+
+func (m *MapStringString) Equal(o *MapStringString) bool {
+	if o == nil {
+		return m == nil
+	}
+	if len(m.Keys) != len(o.Keys) {
+		return false
+	}
+	for _, k := range m.Keys {
+		if m.Values[k] != o.Values[k] {
+			return false
 		}
 	}
-	return ss, nil
+	return true
 }
 
-func PtrFromSignatures(ss []Signature) *[][]byte {
-	if len(ss) == 0 {
-		return nil
+func (m *MapStringString) Has(key string) bool {
+	if m.Values == nil {
+		return false
 	}
-	v := make([][]byte, len(ss))
-	for i := range ss {
-		v[i] = ss[i][:]
-	}
-	return &v
+	_, ok := m.Values[key]
+	return ok
 }
 
-func ToShortID(data []byte) (ids.ShortID, error) {
-	switch {
-	case len(data) == 0:
-		return ids.ShortEmpty, nil
-	default:
-		return ids.ToShortID(data)
+func (m *MapStringString) Get(key string) string {
+	if m.Values == nil {
+		return ""
+	}
+	return m.Values[key]
+}
+
+func (m *MapStringString) Set(key, value string) {
+	ok := false
+	if m.Values == nil {
+		m.Values = make(map[string]string)
+	} else {
+		_, ok = m.Values[key]
+	}
+	m.Values[key] = value
+	if !ok {
+		m.Keys = append(m.Keys, key)
+		sort.Stable(sort.StringSlice(m.Keys))
 	}
 }
 
-func PtrToShortID(data *[]byte) (ids.ShortID, error) {
-	switch {
-	case data == nil || len(*data) == 0:
-		return ids.ShortEmpty, nil
-	default:
-		return ids.ToShortID(*data)
+func (m *MapStringString) Delete(key string) {
+	if m.Values == nil {
+		return
 	}
-}
 
-func PtrToShortIDs(d *[][]byte) ([]ids.ShortID, error) {
-	var data [][]byte
-	if d != nil {
-		data = *d
-	}
-	ss := make([]ids.ShortID, len(data))
-	for i := range data {
-		switch len(data[i]) {
-		case 20:
-			ss[i] = ids.ShortID{}
-			copy(ss[i][:], data[i])
-		default:
-			return ss, fmt.Errorf("expected 20 bytes but got %d", len(data[i]))
+	if _, ok := m.Values[key]; ok {
+		delete(m.Values, key)
+		for i, k := range m.Keys {
+			if k == key {
+				n := copy(m.Keys[i:], m.Keys[i+1:])
+				m.Keys = m.Keys[:i+n]
+				break
+			}
 		}
 	}
-	return ss, nil
 }
 
-func FromShortID(id ids.ShortID) []byte {
-	if id != ids.ShortEmpty {
-		return id[:]
+type MapStringAny struct {
+	Keys   []string
+	Values map[string]datamodel.Node
+}
+
+func NewMapStringAny(size int) *MapStringAny {
+	return &MapStringAny{
+		Keys:   make([]string, 0, size),
+		Values: make(map[string]datamodel.Node, size),
 	}
-	return nil
 }
 
-func PtrFromShortID(id ids.ShortID) *[]byte {
-	if id != ids.ShortEmpty {
-		b := id[:]
-		return &b
+func (m *MapStringAny) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return util.Null, nil
 	}
-	return nil
-}
 
-func ToShortIDs(data [][]byte) ([]ids.ShortID, error) {
-	list := make([]ids.ShortID, len(data))
-	for i := range data {
-		id, err := ToShortID(data[i])
+	v := make(map[string]json.RawMessage, len(m.Keys))
+	for _, k := range m.Keys {
+		raw, err := ipld.Encode(m.Values[k], dagjson.Encode)
 		if err != nil {
 			return nil, err
 		}
-		list[i] = id
+		v[k] = raw
 	}
-	return list, nil
+	return json.Marshal(v)
 }
 
-func FromShortIDs(list []ids.ShortID) [][]byte {
-	data := make([][]byte, len(list))
-	for i := range list {
-		data[i] = list[i][:]
+func (m *MapStringAny) Equal(o *MapStringAny) bool {
+	if o == nil {
+		return m == nil
 	}
-	return data
+	if len(m.Keys) != len(o.Keys) {
+		return false
+	}
+	for _, k := range m.Keys {
+		if !datamodel.DeepEqual(m.Values[k], o.Values[k]) {
+			return false
+		}
+	}
+	return true
 }
 
-func PtrFromShortIDs(list []ids.ShortID) *[][]byte {
-	if len(list) == 0 {
+func (m *MapStringAny) Has(key string) bool {
+	if m.Values == nil {
+		return false
+	}
+	_, ok := m.Values[key]
+	return ok
+}
+
+func (m *MapStringAny) Get(key string) datamodel.Node {
+	if m.Values == nil {
 		return nil
 	}
-	v := make([][]byte, len(list))
-	for i := range list {
-		v[i] = list[i][:]
-	}
-	return &v
+	return m.Values[key]
 }
 
-func ToID(data []byte) (ids.ID, error) {
-	switch {
-	case len(data) == 0:
-		return ids.Empty, nil
-	default:
-		return ids.ToID(data)
+func (m *MapStringAny) Set(key string, value datamodel.Node) {
+	ok := false
+	if m.Values == nil {
+		m.Values = make(map[string]datamodel.Node)
+	} else {
+		_, ok = m.Values[key]
 	}
-}
-
-func PtrToID(data *[]byte) (ids.ID, error) {
-	switch {
-	case data == nil || len(*data) == 0:
-		return ids.Empty, nil
-	default:
-		return ids.ToID(*data)
+	m.Values[key] = value
+	if !ok {
+		m.Keys = append(m.Keys, key)
+		sort.Stable(sort.StringSlice(m.Keys))
 	}
 }
 
-func FromID(id ids.ID) []byte {
-	if id != ids.Empty {
-		return id[:]
+func (m *MapStringAny) Delete(key string) {
+	if m.Values == nil {
+		return
 	}
-	return nil
-}
-
-func PtrFromID(id ids.ID) *[]byte {
-	if id != ids.Empty {
-		b := id[:]
-		return &b
+	if _, ok := m.Values[key]; ok {
+		delete(m.Values, key)
+		for i, k := range m.Keys {
+			if k == key {
+				n := copy(m.Keys[i:], m.Keys[i+1:])
+				m.Keys = m.Keys[:i+n]
+				break
+			}
+		}
 	}
-	return nil
-}
-
-func ToBigInt(data []byte) *big.Int {
-	i := &big.Int{}
-	return i.SetBytes(data)
-}
-
-func PtrToBigInt(data *[]byte) *big.Int {
-	if data == nil {
-		return nil
-	}
-	i := &big.Int{}
-	return i.SetBytes(*data)
-}
-
-func FromBigInt(i *big.Int) []byte {
-	if i == nil {
-		return nil
-	}
-	return i.Bytes()
-}
-
-func PtrFromBigInt(i *big.Int) *[]byte {
-	if i == nil {
-		return nil
-	}
-	b := i.Bytes()
-	return &b
-}
-
-func PtrToBytes(data *[]byte) []byte {
-	if data == nil {
-		return nil
-	}
-	return *data
-}
-
-func PtrFromBytes(data []byte) *[]byte {
-	if len(data) == 0 {
-		return nil
-	}
-	return &data
 }

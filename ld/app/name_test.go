@@ -9,14 +9,14 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ipld/go-ipld-prime/node/basicnode"
-	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestName(t *testing.T) {
 	address := ids.ShortID{1, 2, 3, 4}
 	name := NewName(&Name{
 		Name:   "lvdm",
-		Linked: ld.EthID(address).String(),
+		Linked: util.EthID(address).String(),
 	})
 	data, err := name.Marshal()
 	if err != nil {

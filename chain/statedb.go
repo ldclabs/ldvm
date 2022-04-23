@@ -22,6 +22,7 @@ import (
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/util"
 )
 
 var _ StateDB = &stateDB{}
@@ -71,11 +72,10 @@ type StateDB interface {
 
 	// txs state
 	SubmitTx(*ld.Transaction) error
-	ProposeMintFeeTx(*ld.Transaction) error
 	AddTxs(isNew bool, txs ...*ld.Transaction)
+	AddRecentTx(Transaction, choices.Status)
 	GetTx(ids.ID) Transaction
 	RemoveTx(ids.ID)
-	SeeNode(ids.ShortID)
 
 	LoadAccount(ids.ShortID) (*ld.Account, error)
 	ResolveName(name string) (*ld.DataMeta, error)
@@ -138,15 +138,15 @@ type stateDB struct {
 	lastAcceptedBlock *atomicLDBlock
 	state             *atomicState
 
-	verifiedBlocks  *sync.Map
-	eventsCache     *EventsCache
-	currentBlocks   *db.Cacher
-	currentModels   *db.Cacher
-	currentDatas    *db.Cacher
-	currentAccounts *db.Cacher
-	currentNames    *db.Cacher
-	currentHeights  *db.Cacher
-	currentTxs      *db.Cacher
+	verifiedBlocks *sync.Map
+	eventsCache    *EventsCache
+	recentBlocks   *db.Cacher
+	recentModels   *db.Cacher
+	recentData     *db.Cacher
+	recentAccounts *db.Cacher
+	recentNames    *db.Cacher
+	recentHeights  *db.Cacher
+	recentTxs      *db.Cacher
 
 	bb          *BlockBuilder
 	txPool      TxPool // Proposed transactions that haven't been put into a block yet
@@ -191,25 +191,25 @@ func NewState(
 	s.lastAcceptedBlock.StoreV(emptyBlock.ld)
 	s.state.StoreV(0)
 
-	s.currentBlocks = db.NewCacher(10_000, 1024*1024*1024*4, time.Minute*10, func() db.Unmarshaler {
+	s.recentBlocks = db.NewCacher(10_000, 1024*1024*1024*4, time.Minute*10, func() db.Unmarshaler {
 		return new(Block)
 	})
-	s.currentHeights = db.NewCacher(10_000, 1024*1024*256, time.Minute*10, func() db.Unmarshaler {
+	s.recentHeights = db.NewCacher(10_000, 1024*1024*256, time.Minute*10, func() db.Unmarshaler {
 		return new(db.RawObject)
 	})
-	s.currentModels = db.NewCacher(10_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+	s.recentModels = db.NewCacher(10_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
 		return new(ld.ModelMeta)
 	})
-	s.currentDatas = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+	s.recentData = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
 		return new(ld.DataMeta)
 	})
-	s.currentAccounts = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+	s.recentAccounts = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
 		return new(ld.Account)
 	})
-	s.currentNames = db.NewCacher(100_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+	s.recentNames = db.NewCacher(100_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
 		return new(db.RawObject)
 	})
-	s.currentTxs = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, nil)
+	s.recentTxs = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, nil)
 	return s
 }
 
@@ -222,7 +222,7 @@ func (s *stateDB) Context() *Context {
 }
 
 func (s *stateDB) Bootstrap() error {
-	if s.config.FeeRecipient == ld.EthIDEmpty {
+	if s.config.FeeRecipient == util.EthIDEmpty {
 		for k := range s.genesis.Alloc {
 			s.config.FeeRecipient = k
 			break
@@ -235,7 +235,7 @@ func (s *stateDB) Bootstrap() error {
 		return err
 	}
 
-	genesisBlock, err := NewBlock(genesisLdBlock, s.ctx)
+	genesisBlock, err := NewGenesisBlock(genesisLdBlock, s.ctx)
 	if err != nil {
 		logging.Log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err
@@ -253,31 +253,18 @@ func (s *stateDB) Bootstrap() error {
 	if err == database.ErrNotFound {
 		logging.Log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
 		genesisBlock.InitState(s.db, false)
-		// the metaverse is born out of blackhole
-		blackhole := NewAccount(constants.BlackholeAddr)
-		accountDB := genesisBlock.bs.(*blockState).accountDB
-		accountCache := genesisBlock.bs.(*blockState).accountCache
-		blackhole.Init(accountDB)
-		blackhole.Add(s.genesis.Chain.MaxTotalSupply)
-		accountCache[constants.BlackholeAddr] = blackhole
 		data, _ := genesisBlock.MarshalJSON()
 		logging.Log.Info("genesisBlock:\n%s", string(data))
 		if err := genesisBlock.VerifyGenesis(); err != nil {
 			logging.Log.Error("VerifyGenesis block error: %v", err)
 			return fmt.Errorf("VerifyGenesis block error: %v", err)
 		}
-		// remove the blackhole account, it's life is over,
-		// and should not be wrote into blockchain, as if it never existed.
-		delete(accountCache, constants.BlackholeAddr)
-		accountDB.Delete(constants.BlackholeAddr[:])
 
 		logging.Log.Info("Bootstrap commit Genesis Block")
 		if err := genesisBlock.Accept(); err != nil {
 			logging.Log.Error("Accept genesis block: %v", err)
 			return fmt.Errorf("Accept genesis block error: %v", err)
 		}
-
-		time.AfterFunc(time.Second*3, func() { genesisBlock.ProposeMintFeeTx() })
 		return nil
 	}
 
@@ -301,7 +288,6 @@ func (s *stateDB) Bootstrap() error {
 		genesisBlock.InitState(s.db, true)
 		s.preferred.StoreV(genesisBlock)
 		s.lastAcceptedBlock.StoreV(genesisBlock.ld)
-		time.AfterFunc(time.Second*3, func() { genesisBlock.ProposeMintFeeTx() })
 		return nil
 	}
 
@@ -341,7 +327,6 @@ func (s *stateDB) Bootstrap() error {
 	logging.Log.Info("Bootstrap load %d versions fee configs", len(s.genesis.Chain.FeeConfigs))
 	logging.Log.Info("Bootstrap finished at the block %s, %d", lastAcceptedBlock.ID(), lastAcceptedBlock.ld.Height)
 	logging.Log.Info("Bootstrap finished with miner %s", s.config.FeeRecipient)
-	time.AfterFunc(time.Second*3, func() { lastAcceptedBlock.ProposeMintFeeTx() })
 	return nil
 }
 
@@ -357,7 +342,7 @@ func (s *stateDB) HealthCheck() (interface{}, error) {
 
 func (s *stateDB) TotalSupply() *big.Int {
 	t := new(big.Int)
-	if acc, err := s.LoadAccount(constants.GenesisAddr); err == nil {
+	if acc, err := s.LoadAccount(constants.GenesisAccount); err == nil {
 		max := s.genesis.Chain.MaxTotalSupply
 		t.Sub(max, acc.Balance)
 	}
@@ -427,13 +412,7 @@ func (s *stateDB) SetLastAccepted(blk *Block) error {
 		}
 	}
 
-	s.currentBlocks.Set(id[:], blk.ld, int64(len(blk.Bytes())))
-	for i := range blk.txs {
-		tx := blk.txs[i]
-		id := tx.ID()
-		s.currentTxs.Set(id[:], tx, int64(len(tx.Bytes())))
-	}
-
+	s.recentBlocks.Set(id[:], blk.ld, int64(len(blk.Bytes())))
 	go func() {
 		s.verifiedBlocks.Range(func(key, value any) bool {
 			if b, ok := value.(*Block); ok {
@@ -488,7 +467,7 @@ func (s *stateDB) BuildBlock() (*Block, error) {
 		return nil, err
 	}
 	id := blk.ID()
-	s.currentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
+	s.recentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
 	return blk, nil
 }
 
@@ -505,7 +484,7 @@ func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
 	if blk.Context() == nil {
 		blk.SetContext(s.ctx)
 	}
-	s.currentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
+	s.recentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
 	return blk, nil
 }
 
@@ -518,7 +497,7 @@ func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
 		return blk.(*Block), nil
 	}
 
-	obj, err := s.blockDB.Load(id[:], s.currentBlocks)
+	obj, err := s.blockDB.Load(id[:], s.recentBlocks)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +513,7 @@ func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
 }
 
 func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	obj, err := s.heightDB.Load(database.PackUInt64(height), s.currentHeights)
+	obj, err := s.heightDB.Load(database.PackUInt64(height), s.recentHeights)
 	if err != nil {
 		return ids.Empty, err
 	}
@@ -547,21 +526,10 @@ func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 func (s *stateDB) SubmitTx(tx *ld.Transaction) error {
 	var err error
 	logging.Log.Info("SubmitTx: %#v", tx)
-	if tx.Type == ld.TypeMintFee {
-		return fmt.Errorf("SubmitTx error, TypeMintFee not support")
-	}
 	if err = tx.SyntacticVerify(); err != nil {
 		return err
 	}
 
-	preferred := s.preferred.LoadV()
-	feeCfg := s.ctx.Chain().Fee(preferred.Height())
-	gas := tx.RequireGas(feeCfg.ThresholdGas)
-	if gas > tx.GasFeeCap {
-		return fmt.Errorf("SubmitTx error, gasFeeCap exceeded, expected %v, got %v",
-			gas, tx.GasFeeCap)
-	}
-	tx.Gas = gas + tx.GasTip
 	ntx, err := NewTx(tx, true)
 	if err != nil {
 		return err
@@ -569,26 +537,11 @@ func (s *stateDB) SubmitTx(tx *ld.Transaction) error {
 	if err = ntx.SyntacticVerify(); err != nil {
 		return err
 	}
-	if err = ntx.Verify(preferred); err != nil {
+	if err = ntx.Verify(s.preferred.LoadV()); err != nil {
 		return err
 	}
 	s.AddTxs(true, tx)
 	go s.notifyBuild()
-	return nil
-}
-
-func (s *stateDB) ProposeMintFeeTx(tx *ld.Transaction) error {
-	var err error
-	d, _ := tx.MarshalJSON()
-	logging.Log.Info("ProposeMintFeeTx: %s", string(d))
-	if tx.Type != ld.TypeMintFee {
-		return fmt.Errorf("ProposeMintFeeTx error, required TypeMintFee")
-	}
-	if err = tx.SyntacticVerify(); err != nil {
-		return err
-	}
-	s.AddTxs(true, tx)
-	s.gossipTx(tx)
 	return nil
 }
 
@@ -602,13 +555,17 @@ func (s *stateDB) AddTxs(isNew bool, txs ...*ld.Transaction) {
 	s.txPool.Add(txs...)
 }
 
+func (s *stateDB) AddRecentTx(tx Transaction, status choices.Status) {
+	id := tx.ID()
+	tx.SetStatus(status)
+	s.recentTxs.Set(id[:], tx, int64(len(tx.Bytes())))
+}
+
 func (s *stateDB) GetTx(id ids.ID) Transaction {
 	if tx := s.txPool.Get(id); tx != nil {
-		if ntx, err := NewTx(tx, false); err == nil {
-			return ntx
-		}
+		return tx
 	}
-	if tx, ok := s.currentTxs.Get(id[:]); ok {
+	if tx, ok := s.recentTxs.Get(id[:]); ok {
 		return tx.(Transaction)
 	}
 	return nil
@@ -618,12 +575,8 @@ func (s *stateDB) RemoveTx(id ids.ID) {
 	s.txPool.Remove(id)
 }
 
-func (s *stateDB) SeeNode(id ids.ShortID) {
-	s.txPool.SeeNode(id)
-}
-
 func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
-	obj, err := s.accountDB.Load(id[:], s.currentAccounts)
+	obj, err := s.accountDB.Load(id[:], s.recentAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -633,7 +586,7 @@ func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
 }
 
 func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
-	obj, err := s.nameDB.Load([]byte(strings.ToLower(name)), s.currentNames)
+	obj, err := s.nameDB.Load([]byte(strings.ToLower(name)), s.recentNames)
 	if err != nil {
 		return nil, err
 	}
@@ -647,7 +600,7 @@ func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
 }
 
 func (s *stateDB) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
-	obj, err := s.modelDB.Load(id[:], s.currentModels)
+	obj, err := s.modelDB.Load(id[:], s.recentModels)
 	if err != nil {
 		return nil, err
 	}
@@ -657,7 +610,7 @@ func (s *stateDB) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
 }
 
 func (s *stateDB) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
-	obj, err := s.dataDB.Load(id[:], s.currentDatas)
+	obj, err := s.dataDB.Load(id[:], s.recentData)
 	if err != nil {
 		return nil, err
 	}
@@ -676,7 +629,7 @@ func (s *stateDB) LoadPrevData(id ids.ShortID, version uint64) (*ld.DataMeta, er
 	copy(key, id[:])
 	copy(key[20:], v)
 
-	obj, err := s.prevDataDB.Load(key, s.currentDatas)
+	obj, err := s.prevDataDB.Load(key, s.recentData)
 	if err != nil {
 		return nil, err
 	}

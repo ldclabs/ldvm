@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/util"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/app"
@@ -32,7 +33,7 @@ type TxData interface {
 
 type EncodeReply struct {
 	Bytes    string              `json:"bytes"`
-	Encoding formatting.Encoding `json:"encoding"` // cb58
+	Encoding formatting.Encoding `json:"encoding"` // hex
 	Length   int                 `json:"length"`
 }
 
@@ -41,11 +42,11 @@ func (r *EncodeReply) SetTxData(tx TxData) error {
 		return fmt.Errorf("invalid args: %v", err)
 	}
 	data := tx.Bytes()
-	s, err := formatting.EncodeWithChecksum(formatting.CB58, data)
+	s, err := formatting.EncodeWithChecksum(formatting.Hex, data)
 	if err != nil {
 		return fmt.Errorf("invalid args: %v", err)
 	}
-	r.Encoding = formatting.CB58
+	r.Encoding = formatting.Hex
 	r.Length = len(data)
 	r.Bytes = s
 	return nil
@@ -67,14 +68,14 @@ type TransactionArgs struct {
 	Nonce     uint64          `json:"Nonce"`
 	GasTip    uint64          `json:"gasTip"`
 	GasFeeCap uint64          `json:"gasFeeCap"`
-	From      ld.EthID        `json:"from"`
-	To        ld.EthID        `json:"to"`
+	From      util.EthID      `json:"from"`
+	To        util.EthID      `json:"to"`
 	Amount    *big.Int        `json:"amount"`
 	Data      json.RawMessage `json:"data"`
 }
 
 func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *EncodeReply) error {
-	data := ld.JSONUnmarshalData(args.Data)
+	data := util.JSONUnmarshalData(args.Data)
 	tx := &ld.Transaction{
 		Type:      ld.TxType(args.Type),
 		ChainID:   args.ChainID,
@@ -90,20 +91,20 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 }
 
 type DataMetaArgs struct {
-	ModelID   ld.ModelID      `json:"modelID"`
+	ModelID   util.ModelID    `json:"modelID"`
 	Version   uint64          `json:"version"`
 	Threshold uint8           `json:"threshold"`
-	Keepers   []ld.EthID      `json:"keepers"`
+	Keepers   []util.EthID    `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }
 
 func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataMetaArgs, reply *EncodeReply) error {
-	data := ld.JSONUnmarshalData(args.Data)
+	data := util.JSONUnmarshalData(args.Data)
 	tx := &ld.DataMeta{
 		ModelID:   ids.ShortID(args.ModelID),
 		Version:   args.Version,
 		Threshold: args.Threshold,
-		Keepers:   ld.EthIDsToShort(args.Keepers...),
+		Keepers:   util.EthIDsToShort(args.Keepers...),
 		Data:      data,
 	}
 	return reply.SetTxData(tx)
@@ -112,16 +113,16 @@ func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataMetaArgs, reply *E
 type ModelMetaArgs struct {
 	Name      string          `json:"name"`
 	Threshold uint8           `json:"threshold"`
-	Keepers   []ld.EthID      `json:"keepers"`
+	Keepers   []util.EthID    `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }
 
 func (api *VMAPI) EncodeCreateModel(_ *http.Request, args *ModelMetaArgs, reply *EncodeReply) error {
-	data := ld.JSONUnmarshalData(args.Data)
+	data := util.JSONUnmarshalData(args.Data)
 	tx := &ld.ModelMeta{
 		Name:      args.Name,
 		Threshold: args.Threshold,
-		Keepers:   ld.EthIDsToShort(args.Keepers...),
+		Keepers:   util.EthIDsToShort(args.Keepers...),
 		Data:      data,
 	}
 	return reply.SetTxData(tx)
@@ -129,15 +130,15 @@ func (api *VMAPI) EncodeCreateModel(_ *http.Request, args *ModelMetaArgs, reply 
 
 type TxTransferArgs struct {
 	Nonce  uint64          `json:"nonce"`
-	From   ld.EthID        `json:"from"`
-	To     ld.EthID        `json:"to"`
+	From   util.EthID      `json:"from"`
+	To     util.EthID      `json:"to"`
 	Amount *big.Int        `json:"amount"`
 	Expire uint64          `json:"expire"`
 	Data   json.RawMessage `json:"data"`
 }
 
 func (api *VMAPI) EncodeTxTransfer(_ *http.Request, args *TxTransferArgs, reply *EncodeReply) error {
-	data := ld.JSONUnmarshalData(args.Data)
+	data := util.JSONUnmarshalData(args.Data)
 	tx := &ld.TxTransfer{
 		Nonce:  args.Nonce,
 		From:   ids.ShortID(args.From),
@@ -152,19 +153,19 @@ func (api *VMAPI) EncodeTxTransfer(_ *http.Request, args *TxTransferArgs, reply 
 type TxUpdaterArgs struct {
 	Version   uint64          `json:"version"`
 	Threshold uint8           `json:"threshold"`
-	Keepers   []ld.EthID      `json:"keepers"`
-	To        ld.EthID        `json:"to"`
+	Keepers   []util.EthID    `json:"keepers"`
+	To        util.EthID      `json:"to"`
 	Amount    *big.Int        `json:"amount"`
 	Expire    uint64          `json:"expire"`
 	Data      json.RawMessage `json:"data"`
 }
 
 func (api *VMAPI) EncodeTxUpdater(_ *http.Request, args *TxUpdaterArgs, reply *EncodeReply) error {
-	data := ld.JSONUnmarshalData(args.Data)
+	data := util.JSONUnmarshalData(args.Data)
 	tx := &ld.TxUpdater{
 		Version:   args.Version,
 		Threshold: args.Threshold,
-		Keepers:   ld.EthIDsToShort(args.Keepers...),
+		Keepers:   util.EthIDsToShort(args.Keepers...),
 		To:        ids.ShortID(args.To),
 		Amount:    args.Amount,
 		Expire:    args.Expire,

@@ -11,14 +11,17 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/util"
 )
 
 // TxTransfer is a hybrid data model for:
 //
-// TxTransferReply{To[, Amount, Expire, Data]}
-// TxTransferCash{Nonce, From, Amount, Expire[, To, Data]}
+// TxTransferPay{To[, Token, Amount, Expire, Data]}
+// TxTransferCash{Nonce, From, Amount, Expire[, Token, To, Data]}
 type TxTransfer struct {
 	Nonce  uint64      // sender's nonce
+	Token  ids.ShortID // token symbol, default is NativeToken
 	From   ids.ShortID // amount sender
 	To     ids.ShortID // amount recipient
 	Amount *big.Int    // transfer amount
@@ -31,6 +34,7 @@ type TxTransfer struct {
 
 type jsonTxTransfer struct {
 	Nonce  uint64          `json:"nonce,omitempty"`
+	Token  string          `json:"token,omitempty"`
 	From   string          `json:"from,omitempty"`
 	To     string          `json:"to,omitempty"`
 	Amount *big.Int        `json:"amount,omitempty"`
@@ -38,143 +42,155 @@ type jsonTxTransfer struct {
 	Data   json.RawMessage `json:"data,omitempty"`
 }
 
-func (d *TxTransfer) MarshalJSON() ([]byte, error) {
-	if d == nil {
-		return Null, nil
+func (t *TxTransfer) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return util.Null, nil
 	}
 	v := &jsonTxTransfer{
-		Nonce:  d.Nonce,
-		Amount: d.Amount,
-		Expire: d.Expire,
-		Data:   JSONMarshalData(d.Data),
+		Nonce:  t.Nonce,
+		Amount: t.Amount,
+		Expire: t.Expire,
+		Token:  util.TokenSymbol(t.Token).String(),
+		Data:   util.JSONMarshalData(t.Data),
 	}
 
-	if d.From != ids.ShortEmpty {
-		v.From = EthID(d.From).String()
+	if t.From != ids.ShortEmpty {
+		v.From = util.EthID(t.From).String()
 	}
-	if d.To != ids.ShortEmpty {
-		v.To = EthID(d.To).String()
+	if t.To != ids.ShortEmpty {
+		v.To = util.EthID(t.To).String()
 	}
 	return json.Marshal(v)
 }
 
-func (d *TxTransfer) Copy() *TxTransfer {
+func (t *TxTransfer) Copy() *TxTransfer {
 	x := new(TxTransfer)
-	*x = *d
-	if d.Amount != nil {
-		x.Amount = new(big.Int).Set(d.Amount)
+	*x = *t
+	if t.Amount != nil {
+		x.Amount = new(big.Int).Set(t.Amount)
 	}
-	x.Data = make([]byte, len(d.Data))
-	copy(x.Data, d.Data)
+	x.Data = make([]byte, len(t.Data))
+	copy(x.Data, t.Data)
 	x.raw = nil
 	return x
 }
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
-func (d *TxTransfer) SyntacticVerify() error {
-	if d == nil {
+func (t *TxTransfer) SyntacticVerify() error {
+	if t == nil {
 		return fmt.Errorf("invalid TxTransfer")
 	}
 
-	if d.Nonce == 0 {
+	if t.Nonce == 0 {
 		return fmt.Errorf("invalid nonce")
 	}
-	if d.From == ids.ShortEmpty {
+	if t.Token != constants.LDCAccount && util.TokenSymbol(t.Token).String() == "" {
+		return fmt.Errorf("invalid token symbol")
+	}
+	if t.From == ids.ShortEmpty {
 		return fmt.Errorf("invalid from")
 	}
-	if d.Amount != nil && d.Amount.Sign() < 1 {
+	if t.Amount != nil && t.Amount.Sign() < 1 {
 		return fmt.Errorf("invalid amount")
 	}
-	if d.Expire < uint64(time.Now().Unix()) {
+	if t.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("invalid expire")
 	}
-	if _, err := d.Marshal(); err != nil {
+	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("TxTransfer marshal error: %v", err)
 	}
 	return nil
 }
 
-func (d *TxTransfer) Equal(o *TxTransfer) bool {
+func (t *TxTransfer) Equal(o *TxTransfer) bool {
 	if o == nil {
 		return false
 	}
-	if len(o.raw) > 0 && len(d.raw) > 0 {
-		return bytes.Equal(o.raw, d.raw)
+	if len(o.raw) > 0 && len(t.raw) > 0 {
+		return bytes.Equal(o.raw, t.raw)
 	}
-	if o.Nonce != d.Nonce {
+	if o.Nonce != t.Nonce {
 		return false
 	}
-	if o.From != d.From {
+	if o.Token != t.Token {
 		return false
 	}
-	if o.To != d.To {
+	if o.From != t.From {
 		return false
 	}
-	if o.Amount == nil || d.Amount == nil {
-		if o.Amount != d.Amount {
+	if o.To != t.To {
+		return false
+	}
+	if o.Amount == nil || t.Amount == nil {
+		if o.Amount != t.Amount {
 			return false
 		}
 	}
-	if o.Amount.Cmp(d.Amount) != 0 {
+	if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
-	if o.Expire != d.Expire {
+	if o.Expire != t.Expire {
 		return false
 	}
-	return bytes.Equal(o.Data, d.Data)
+	return bytes.Equal(o.Data, t.Data)
 }
 
-func (d *TxTransfer) Bytes() []byte {
-	if len(d.raw) == 0 {
-		if _, err := d.Marshal(); err != nil {
+func (t *TxTransfer) Bytes() []byte {
+	if len(t.raw) == 0 {
+		if _, err := t.Marshal(); err != nil {
 			panic(err)
 		}
 	}
 
-	return d.raw
+	return t.raw
 }
 
-func (d *TxTransfer) Unmarshal(data []byte) error {
+func (t *TxTransfer) Unmarshal(data []byte) error {
 	p, err := txTransferLDBuilder.Unmarshal(data)
 	if err != nil {
 		return err
 	}
 	if v, ok := p.(*bindTxTransfer); ok {
-		d.Nonce = v.Nonce.Value()
-		d.Expire = v.Expire.Value()
-		d.Amount = PtrToBigInt(v.Amount)
-		d.Data = PtrToBytes(v.Data)
-		if d.From, err = PtrToShortID(v.From); err != nil {
+		t.Nonce = v.Nonce.Value()
+		t.Expire = v.Expire.Value()
+		t.Amount = PtrToBigInt(v.Amount)
+		t.Data = PtrToBytes(v.Data)
+		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if d.To, err = PtrToShortID(v.To); err != nil {
+		if t.From, err = PtrToShortID(v.From); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		d.raw = data
+		if t.To, err = PtrToShortID(v.To); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		t.raw = data
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindTxTransfer")
 }
 
-func (d *TxTransfer) Marshal() ([]byte, error) {
+func (t *TxTransfer) Marshal() ([]byte, error) {
 	v := &bindTxTransfer{
-		Nonce:  PtrFromUint64(d.Nonce),
-		To:     PtrFromShortID(d.To),
-		From:   PtrFromShortID(d.From),
-		Amount: PtrFromBigInt(d.Amount),
-		Expire: PtrFromUint64(d.Expire),
-		Data:   PtrFromBytes(d.Data),
+		Nonce:  PtrFromUint64(t.Nonce),
+		Token:  PtrFromShortID(ids.ShortID(t.Token)),
+		To:     PtrFromShortID(t.To),
+		From:   PtrFromShortID(t.From),
+		Amount: PtrFromBigInt(t.Amount),
+		Expire: PtrFromUint64(t.Expire),
+		Data:   PtrFromBytes(t.Data),
 	}
 	data, err := txTransferLDBuilder.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	d.raw = data
+	t.raw = data
 	return data, nil
 }
 
 type bindTxTransfer struct {
 	Nonce  *Uint64
+	Token  *[]byte
 	From   *[]byte
 	To     *[]byte
 	Amount *[]byte
@@ -192,6 +208,7 @@ func init() {
 	type BigInt bytes
 	type TxTransfer struct {
 		Nonce  nullable Uint64 (rename "n")
+		Token  nullable ID20   (rename "tk")
 		From   nullable ID20   (rename "fr")
 		To     nullable ID20   (rename "to")
 		Amount nullable BigInt (rename "a")

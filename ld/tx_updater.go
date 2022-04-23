@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/util"
 )
 
 // TxUpdater is a hybrid data model for:
@@ -19,16 +20,17 @@ import (
 // TxDeleteData{ID, Version[, Data]}
 // TxUpdateDataKeepers{ID, Version, Threshold, Keepers[, Data]}
 // TxUpdateData{ID, Version, Data[, Expire]}
-// TxUpdateAccountKeepers{Threshold, Keepers[, Data]}
+// TxAccountUpdateKeepers{Threshold, Keepers[, Data]}
 // TxUpdateModelKeepers{ID, Threshold, Keepers[, Data]}
-// TxUpdateDataKeepersByAuth{ID, Version, To, Amount[, Expire, Threshold, Keepers, Data]}
+// TxUpdateDataKeepersByAuth{ID, Version, To, Amount[, Token, Expire, Threshold, Keepers, Data]}
 type TxUpdater struct {
 	ID        ids.ShortID // data id
 	Version   uint64      // data version
 	Threshold uint8
 	Keepers   []ids.ShortID
-	To        ids.ShortID // amount recipient
-	Amount    *big.Int    // transfer amount
+	Token     util.TokenSymbol // token symbol, default is NativeToken
+	To        ids.ShortID      // optional recipient
+	Amount    *big.Int         // transfer amount
 	Expire    uint64
 	Data      []byte
 
@@ -41,175 +43,189 @@ type jsonTxUpdater struct {
 	Version   uint64          `json:"version,omitempty"`
 	Threshold uint8           `json:"threshold,omitempty"`
 	Keepers   []string        `json:"keepers,omitempty"`
+	Token     string          `json:"token,omitempty"`
 	To        string          `json:"to,omitempty"`
 	Amount    *big.Int        `json:"amount,omitempty"`
 	Expire    uint64          `json:"expire,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
 }
 
-func (d *TxUpdater) MarshalJSON() ([]byte, error) {
-	if d == nil {
-		return Null, nil
+func (t *TxUpdater) MarshalJSON() ([]byte, error) {
+	if t == nil {
+		return util.Null, nil
 	}
 	v := &jsonTxUpdater{
-		Version:   d.Version,
-		Threshold: d.Threshold,
-		Amount:    d.Amount,
-		Expire:    d.Expire,
-		Data:      JSONMarshalData(d.Data),
+		Version:   t.Version,
+		Threshold: t.Threshold,
+		Amount:    t.Amount,
+		Expire:    t.Expire,
+		Token:     t.Token.String(),
+		Data:      util.JSONMarshalData(t.Data),
 	}
 
-	if d.ID != ids.ShortEmpty {
-		v.ID = EthID(d.ID).String()
+	if t.ID != ids.ShortEmpty {
+		v.ID = util.EthID(t.ID).String()
 	}
-	if len(d.Keepers) > 0 {
-		v.Keepers = make([]string, len(d.Keepers))
-		for i := range d.Keepers {
-			v.Keepers[i] = EthID(d.Keepers[i]).String()
+	if len(t.Keepers) > 0 {
+		v.Keepers = make([]string, len(t.Keepers))
+		for i := range t.Keepers {
+			v.Keepers[i] = util.EthID(t.Keepers[i]).String()
 		}
 	}
-	if d.To != ids.ShortEmpty {
-		v.To = EthID(d.To).String()
+	if t.To != ids.ShortEmpty {
+		v.To = util.EthID(t.To).String()
 	}
 	return json.Marshal(v)
 }
 
-func (d *TxUpdater) Copy() *TxUpdater {
+func (t *TxUpdater) Copy() *TxUpdater {
 	x := new(TxUpdater)
-	*x = *d
-	if d.Amount != nil {
-		x.Amount = new(big.Int).Set(d.Amount)
+	*x = *t
+	if t.Amount != nil {
+		x.Amount = new(big.Int).Set(t.Amount)
 	}
-	x.Keepers = make([]ids.ShortID, len(d.Keepers))
-	copy(x.Keepers, d.Keepers)
-	x.Data = make([]byte, len(d.Data))
-	copy(x.Data, d.Data)
+	x.Keepers = make([]ids.ShortID, len(t.Keepers))
+	copy(x.Keepers, t.Keepers)
+	x.Data = make([]byte, len(t.Data))
+	copy(x.Data, t.Data)
 	x.raw = nil
 	return x
 }
 
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
-func (d *TxUpdater) SyntacticVerify() error {
-	if d == nil {
+func (t *TxUpdater) SyntacticVerify() error {
+	if t == nil {
 		return fmt.Errorf("invalid TxUpdater")
 	}
 
-	if d.Amount != nil && d.Amount.Sign() < 0 {
+	if t.Token != util.NativeToken && t.Token.String() == "" {
+		return fmt.Errorf("invalid token symbol")
+	}
+	if t.Amount != nil && t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
 	}
-	if len(d.Keepers) > math.MaxUint8 {
+	if len(t.Keepers) > math.MaxUint8 {
 		return fmt.Errorf("invalid keepers, too many")
 	}
-	if int(d.Threshold) > len(d.Keepers) {
+	if int(t.Threshold) > len(t.Keepers) {
 		return fmt.Errorf("invalid threshold")
 	}
-	if d.Expire > 0 && d.Expire < uint64(time.Now().Unix()) {
+	if t.Expire > 0 && t.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("invalid expire")
 	}
-	for _, id := range d.Keepers {
+	for _, id := range t.Keepers {
 		if id == ids.ShortEmpty {
 			return fmt.Errorf("invalid data keeper")
 		}
 	}
-	if _, err := d.Marshal(); err != nil {
+	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("TxUpdater marshal error: %v", err)
 	}
 	return nil
 }
 
-func (d *TxUpdater) Equal(o *TxUpdater) bool {
+func (t *TxUpdater) Equal(o *TxUpdater) bool {
 	if o == nil {
 		return false
 	}
-	if len(o.raw) > 0 && len(d.raw) > 0 {
-		return bytes.Equal(o.raw, d.raw)
+	if len(o.raw) > 0 && len(t.raw) > 0 {
+		return bytes.Equal(o.raw, t.raw)
 	}
-	if o.ID != d.ID {
+	if o.ID != t.ID {
 		return false
 	}
-	if o.Version != d.Version {
+	if o.Version != t.Version {
 		return false
 	}
-	if o.Threshold != d.Threshold {
+	if o.Threshold != t.Threshold {
 		return false
 	}
-	if o.Amount == nil || d.Amount == nil {
-		if o.Amount != d.Amount {
+	if o.Amount == nil || t.Amount == nil {
+		if o.Amount != t.Amount {
 			return false
 		}
 	}
-	if o.Amount.Cmp(d.Amount) != 0 {
+	if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
-	if o.To != d.To {
+	if o.To != t.To {
 		return false
 	}
-	if len(o.Keepers) != len(d.Keepers) {
+	if o.Token != t.Token {
 		return false
 	}
-	for i := range d.Keepers {
-		if o.Keepers[i] != d.Keepers[i] {
+	if len(o.Keepers) != len(t.Keepers) {
+		return false
+	}
+	for i := range t.Keepers {
+		if o.Keepers[i] != t.Keepers[i] {
 			return false
 		}
 	}
-	if o.Expire != d.Expire {
+	if o.Expire != t.Expire {
 		return false
 	}
-	return bytes.Equal(o.Data, d.Data)
+	return bytes.Equal(o.Data, t.Data)
 }
 
-func (d *TxUpdater) Bytes() []byte {
-	if len(d.raw) == 0 {
-		if _, err := d.Marshal(); err != nil {
+func (t *TxUpdater) Bytes() []byte {
+	if len(t.raw) == 0 {
+		if _, err := t.Marshal(); err != nil {
 			panic(err)
 		}
 	}
 
-	return d.raw
+	return t.raw
 }
 
-func (d *TxUpdater) Unmarshal(data []byte) error {
+func (t *TxUpdater) Unmarshal(data []byte) error {
 	p, err := txUpdaterLDBuilder.Unmarshal(data)
 	if err != nil {
 		return err
 	}
 	if v, ok := p.(*bindTxUpdater); ok {
-		d.Version = v.Version.Value()
-		d.Threshold = v.Threshold.Value()
-		d.Expire = v.Expire.Value()
-		d.Amount = PtrToBigInt(v.Amount)
-		d.Data = PtrToBytes(v.Data)
-		if d.ID, err = PtrToShortID(v.ID); err != nil {
+		t.Version = v.Version.Value()
+		t.Threshold = v.Threshold.Value()
+		t.Expire = v.Expire.Value()
+		t.Amount = PtrToBigInt(v.Amount)
+		t.Data = PtrToBytes(v.Data)
+		if t.ID, err = PtrToShortID(v.ID); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if d.Keepers, err = PtrToShortIDs(v.Keepers); err != nil {
+		var token ids.ShortID
+		if token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if d.To, err = PtrToShortID(v.To); err != nil {
+		t.Token = util.TokenSymbol(token)
+		if t.Keepers, err = PtrToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		d.raw = data
+		if t.To, err = PtrToShortID(v.To); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		t.raw = data
 		return nil
 	}
 	return fmt.Errorf("unmarshal error: expected *bindTxUpdater")
 }
 
-func (d *TxUpdater) Marshal() ([]byte, error) {
+func (t *TxUpdater) Marshal() ([]byte, error) {
 	v := &bindTxUpdater{
-		ID:        PtrFromShortID(d.ID),
-		Version:   PtrFromUint64(d.Version),
-		Threshold: PtrFromUint8(d.Threshold),
-		Keepers:   PtrFromShortIDs(d.Keepers),
-		Amount:    PtrFromBigInt(d.Amount),
-		To:        PtrFromShortID(d.To),
-		Expire:    PtrFromUint64(d.Expire),
-		Data:      PtrFromBytes(d.Data),
+		ID:        PtrFromShortID(t.ID),
+		Version:   PtrFromUint64(t.Version),
+		Threshold: PtrFromUint8(t.Threshold),
+		Keepers:   PtrFromShortIDs(t.Keepers),
+		Token:     PtrFromShortID(ids.ShortID(t.Token)),
+		Amount:    PtrFromBigInt(t.Amount),
+		To:        PtrFromShortID(t.To),
+		Expire:    PtrFromUint64(t.Expire),
+		Data:      PtrFromBytes(t.Data),
 	}
 	data, err := txUpdaterLDBuilder.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	d.raw = data
+	t.raw = data
 	return data, nil
 }
 
@@ -218,6 +234,7 @@ type bindTxUpdater struct {
 	Version   *Uint64
 	Threshold *Uint8
 	Keepers   *[][]byte
+	Token     *[]byte
 	To        *[]byte
 	Amount    *[]byte
 	Expire    *Uint64
@@ -237,6 +254,7 @@ func init() {
 		Version   nullable Uint64 (rename "v")
 		Threshold nullable Uint8  (rename "th")
 		Keepers   nullable [ID20] (rename "ks")
+		Token     nullable ID20   (rename "tk")
 		To        nullable ID20   (rename "to")
 		Amount    nullable BigInt (rename "a")
 		Expire    nullable Uint64 (rename "e")

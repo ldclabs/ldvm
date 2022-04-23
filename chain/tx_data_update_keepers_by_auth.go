@@ -5,28 +5,23 @@ package chain
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxUpdateDataKeepersByAuth struct {
-	ld          *ld.Transaction
-	from        *Account
-	to          *Account
-	genesisAddr *Account
-	signers     []ids.ShortID
-	exSigners   []ids.ShortID
-	data        *ld.TxUpdater
-	dm          *ld.DataMeta
+	*TxBase
+	exSigners []ids.ShortID
+	data      *ld.TxUpdater
+	dm        *ld.DataMeta
 }
 
 func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
-	if tx == nil {
-		return ld.Null, nil
+	if tx == nil || tx.ld == nil {
+		return util.Null, nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -43,33 +38,24 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	return v.MarshalJSON()
 }
 
-func (tx *TxUpdateDataKeepersByAuth) ID() ids.ID {
-	return tx.ld.ID()
-}
-
-func (tx *TxUpdateDataKeepersByAuth) Type() ld.TxType {
-	return tx.ld.Type
-}
-
-func (tx *TxUpdateDataKeepersByAuth) Bytes() []byte {
-	return tx.ld.Bytes()
-}
-
-func (tx *TxUpdateDataKeepersByAuth) Status() string {
-	return tx.ld.Status.String()
-}
-
-func (tx *TxUpdateDataKeepersByAuth) SetStatus(s choices.Status) {
-	tx.ld.Status = s
-}
-
 func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
-	if tx == nil ||
-		len(tx.ld.Data) == 0 {
-		return fmt.Errorf("invalid TxUpdateDataKeepersByAuth")
+	var err error
+	if err = tx.TxBase.SyntacticVerify(); err != nil {
+		return err
 	}
 
-	var err error
+	if tx.ld.Token != constants.LDCAccount {
+		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	}
+	if len(tx.ld.Data) == 0 {
+		return fmt.Errorf("TxUpdateModelKeepers invalid")
+	}
+
+	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	if err != nil {
+		return fmt.Errorf("invalid exSignatures: %v", err)
+	}
+
 	tx.data = &ld.TxUpdater{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth unmarshal data failed: %v", err)
@@ -89,27 +75,11 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 
 func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block) error {
 	var err error
-	tx.signers, err = ld.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
-	if err != nil {
-		return fmt.Errorf("invalid signatures: %v", err)
-	}
-
-	tx.exSigners, err = ld.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
-	if err != nil {
-		return fmt.Errorf("invalid exSignatures: %v", err)
+	if err = tx.TxBase.Verify(blk); err != nil {
+		return err
 	}
 
 	bs := blk.State()
-	if tx.from, err = verifyBase(blk, tx.ld, tx.signers); err != nil {
-		return err
-	}
-	if tx.genesisAddr, err = bs.LoadAccount(constants.GenesisAddr); err != nil {
-		return err
-	}
-	if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
-		return err
-	}
-
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
@@ -119,16 +89,16 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block) error {
 			tx.dm.Version, tx.data.Version)
 	}
 	// verify seller's signatures
-	if !ld.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners, false) {
+	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners, false) {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth need more exSignatures")
 	}
 	return nil
 }
 
 func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block) error {
-	bs := blk.State()
-
 	var err error
+
+	bs := blk.State()
 	tx.dm.Version++
 	tx.dm.Threshold = tx.data.Threshold
 	tx.dm.Keepers = tx.data.Keepers
@@ -139,21 +109,8 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block) error {
 	if err = tx.dm.SyntacticVerify(); err != nil {
 		return err
 	}
-
-	fee := new(big.Int).Mul(tx.ld.BigIntGas(), blk.GasPrice())
-	cost := new(big.Int).Add(tx.ld.Amount, fee)
-	if err = tx.from.SubByNonce(tx.ld.Nonce, cost); err != nil {
+	if err = bs.SaveData(tx.data.ID, tx.dm); err != nil {
 		return err
 	}
-	if err = tx.genesisAddr.Add(fee); err != nil {
-		return err
-	}
-	if err = tx.to.Add(tx.ld.Amount); err != nil {
-		return err
-	}
-	return bs.SaveData(tx.data.ID, tx.dm)
-}
-
-func (tx *TxUpdateDataKeepersByAuth) Event(ts int64) *Event {
-	return nil
+	return tx.TxBase.Accept(blk)
 }

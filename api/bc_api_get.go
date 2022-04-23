@@ -15,7 +15,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/ld/app"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type BlockChainAPI struct {
@@ -51,7 +51,7 @@ func (api *BlockChainAPI) GetRecentEvents(_ *http.Request, _ *NoArgs, reply *[]*
 }
 
 type GetAccountArgs struct {
-	ID ld.EthID `json:"address"`
+	ID util.EthID `json:"address"`
 }
 
 type GetBalanceReply struct {
@@ -61,7 +61,7 @@ type GetBalanceReply struct {
 // GetBalance
 func (api *BlockChainAPI) GetBalance(_ *http.Request, args *GetAccountArgs, reply *GetBalanceReply) error {
 	id := ids.ShortID(args.ID)
-	if id == constants.BlackholeAddr {
+	if id == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
 	acc, err := api.state.LoadAccount(id)
@@ -75,7 +75,7 @@ func (api *BlockChainAPI) GetBalance(_ *http.Request, args *GetAccountArgs, repl
 // GetAccount
 func (api *BlockChainAPI) GetAccount(_ *http.Request, args *GetAccountArgs, reply *ld.Account) error {
 	id := ids.ShortID(args.ID)
-	if id == constants.BlackholeAddr {
+	if id == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
 	acc, err := api.state.LoadAccount(id)
@@ -131,7 +131,7 @@ func (api *BlockChainAPI) GetTx(_ *http.Request, args *GetBlockArgs, reply *GetR
 }
 
 type GetModelArgs struct {
-	ID ld.ModelID `json:"id"`
+	ID util.ModelID `json:"id"`
 }
 
 // GetModel
@@ -150,8 +150,8 @@ func (api *BlockChainAPI) GetModel(_ *http.Request, args *GetModelArgs, reply *G
 }
 
 type GetDataArgs struct {
-	ID      ld.DataID `json:"id"`
-	Version uint64    `json:"version"`
+	ID      util.DataID `json:"id"`
+	Version uint64      `json:"version"`
 }
 
 // GetData
@@ -199,14 +199,14 @@ type ResolveArgs struct {
 
 // GetData
 func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *GetReply) error {
-	if !app.ValidDomainName(args.Name) {
+	if !util.ValidDomainName(args.Name) {
 		return fmt.Errorf("invalid name %s to resolve", strconv.Quote(args.Name))
 	}
 	data, err := api.state.ResolveName(args.Name)
 	if err != nil {
 		return err
 	}
-	reply.ID = ld.DataID(data.ID).String()
+	reply.ID = util.DataID(data.ID).String()
 	reply.Data = data
 	return nil
 }

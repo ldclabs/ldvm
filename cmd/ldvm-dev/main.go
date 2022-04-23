@@ -93,7 +93,7 @@ func run(log logging.Logger, binaryPath, dbPath string) error {
 	if cfg.Flags == nil {
 		cfg.Flags = make(map[string]interface{})
 	}
-	cfg.Flags["whitelisted-subnets"] = "k2N2VSSafGrN39VtDgMBdeson8mixzKk2k1ECBdfA3QezRe7G"
+	cfg.Flags["whitelisted-subnets"] = "T8e9XMvDtUS8VQmHzdwHtE1XHvz4H1BbfynoF1vPPqo4ZZutc"
 
 	nw, err := local.NewNetwork(log, cfg, dbPath)
 	if err != nil {

@@ -11,8 +11,11 @@
       "gasRebateRate": 1000,
       "maxTxGas": 42000000,
       "maxBlockTxsSize": 4200000,
-      "maxBlockMiners": 128,
-      "minMinerStake": 1000000000000
+      "minTokenPledge": 10000000000000,
+      "minValidatorStake": 1000000000000,
+      "maxValidatorStake": 100000000000000,
+      "minDelegatorStake": 100000000000,
+      "minDelegationFee": 20000
     },
     "feeConfigThreshold": 2,
     "feeConfigKeepers": [
@@ -25,13 +28,17 @@
       "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
     ]
   },
-  "block": {
-    "gasRebateRate": 500,
-    "gasPrice": 1000
-  },
   "alloc": {
+    "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF": {
+      "balance": 400000000000000000,
+      "threshold": 2,
+      "keepers": [
+        "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
+        "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
+      ]
+    },
     "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC": {
-      "balance": 500000000000000000,
+      "balance": 100000000000000000,
       "threshold": 1,
       "keepers": [
         "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
