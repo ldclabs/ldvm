@@ -205,6 +205,13 @@ func (b *Block) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindBlock); ok {
+		if !v.Height.Valid() ||
+			!v.Timestamp.Valid() ||
+			!v.Gas.Valid() ||
+			!v.GasPrice.Valid() ||
+			!v.GasRebateRate.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
 		b.Height = v.Height.Value()
 		b.Timestamp = v.Timestamp.Value()
 		b.Gas = v.Gas.Value()
@@ -289,7 +296,7 @@ func init() {
 		Gas           Uint64  (rename "g")
 		GasPrice      Uint64  (rename "gp")
 		GasRebateRate Uint64  (rename "gr")
-		Miner         ID20    (rename "mi")
+		Miner         ID20    (rename "mn")
 		Shares        [ID20]  (rename "sh")
 		Txs           [Bytes] (rename "txs")
 	}

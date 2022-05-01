@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/hashing"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -136,20 +135,6 @@ type ModelID ids.ShortID
 
 var ModelIDEmpty = ModelID(ids.ShortEmpty)
 
-func ModelIDFromData(inputs ...[]byte) ModelID {
-	s := 0
-	for _, d := range inputs {
-		s += len(d)
-	}
-	data := make([]byte, s)
-	s = 0
-	for _, d := range inputs {
-		n := copy(data[s:], d)
-		s += n
-	}
-	return ModelID(hashing.ComputeHash160Array(data))
-}
-
 func ModelIDFromString(str string) (ModelID, error) {
 	if str == "" {
 		return ModelIDEmpty, nil
@@ -213,20 +198,6 @@ func (id *ModelID) UnmarshalJSON(b []byte) error {
 type DataID ids.ShortID
 
 var DataIDEmpty = DataID(ids.ShortEmpty)
-
-func DataIDFromData(inputs ...[]byte) DataID {
-	s := 0
-	for _, d := range inputs {
-		s += len(d)
-	}
-	data := make([]byte, s)
-	s = 0
-	for _, d := range inputs {
-		n := copy(data[s:], d)
-		s += n
-	}
-	return DataID(hashing.ComputeHash160Array(data))
-}
 
 func DataIDFromString(str string) (DataID, error) {
 	if str == "" {

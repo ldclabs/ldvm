@@ -35,6 +35,10 @@ func (tx *TxBase) MarshalJSON() ([]byte, error) {
 	return tx.ld.MarshalJSON()
 }
 
+func (tx *TxBase) LD() *ld.Transaction {
+	return tx.ld
+}
+
 func (tx *TxBase) ID() ids.ID {
 	return tx.ld.ID()
 }
@@ -63,7 +67,10 @@ func (tx *TxBase) SyntacticVerify() error {
 		return fmt.Errorf("invalid token %s", util.EthID(tx.ld.Token))
 	}
 	if tx.ld.From == ids.ShortEmpty {
-		return fmt.Errorf("invalid sender")
+		return fmt.Errorf("invalid from")
+	}
+	if tx.ld.From == tx.ld.To {
+		return fmt.Errorf("invalid to")
 	}
 
 	var err error
@@ -75,7 +82,7 @@ func (tx *TxBase) SyntacticVerify() error {
 }
 
 // call after SyntacticVerify
-func (tx *TxBase) Verify(blk *Block) error {
+func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	feeCfg := blk.FeeConfig()
 	requireGas := tx.ld.RequireGas(feeCfg.ThresholdGas)
 	if price := blk.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
@@ -90,7 +97,6 @@ func (tx *TxBase) Verify(blk *Block) error {
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
 
 	var err error
-	bs := blk.State()
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
@@ -123,7 +129,8 @@ func (tx *TxBase) Verify(blk *Block) error {
 	switch tx.from.Type() {
 	case ld.TokenAccount:
 		switch tx.ld.Type {
-		case ld.TypeDestroyTokenAccount:
+		case ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount:
+			// just go ahead
 		case ld.TypeTransfer:
 			if tx.ld.Token == constants.LDCAccount {
 				total := new(big.Int).Add(tx.ld.Amount, tx.cost)
@@ -137,12 +144,34 @@ func (tx *TxBase) Verify(blk *Block) error {
 			return fmt.Errorf("invalid from account for %s", ld.TxTypeString(tx.ld.Type))
 		}
 	case ld.StakeAccount:
-		if tx.ld.Type != ld.TypeResetStakeAccount {
+		switch tx.ld.Type {
+		case ld.TypeUpdateAccountKeepers, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeResetStakeAccount:
+			// just go ahead
+		default:
 			return fmt.Errorf("invalid from account for %s", ld.TxTypeString(tx.ld.Type))
 		}
 	}
 
-	if tx.ld.Amount != nil && tx.ld.From != tx.ld.To {
+	if tx.to != nil {
+		switch tx.to.Type() {
+		case ld.TokenAccount:
+			switch tx.ld.Type {
+			case ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateTokenAccount:
+				// just go ahead
+			default:
+				return fmt.Errorf("invalid to account for %s", ld.TxTypeString(tx.ld.Type))
+			}
+		case ld.StakeAccount:
+			switch tx.ld.Type {
+			case ld.TypeCreateStakeAccount, ld.TypeTakeStake, ld.TypeWithdrawStake:
+				// just go ahead
+			default:
+				return fmt.Errorf("invalid to account for %s", ld.TxTypeString(tx.ld.Type))
+			}
+		}
+	}
+
+	if tx.ld.Amount != nil {
 		switch tx.ld.Token {
 		case constants.LDCAccount:
 			if total := new(big.Int).Add(tx.ld.Amount, tx.cost); ldcB.Cmp(total) < 0 {
@@ -160,7 +189,7 @@ func (tx *TxBase) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxBase) Accept(blk *Block) error {
+func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 	var err error
 	if err = tx.from.SubByNonce(constants.LDCAccount, tx.ld.Nonce, tx.cost); err != nil {
 		return err

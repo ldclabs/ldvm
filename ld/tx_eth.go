@@ -134,8 +134,7 @@ func (t *TxEth) Equal(o *TxEth) bool {
 		if o.Value != t.Value {
 			return false
 		}
-	}
-	if o.Value.Cmp(t.Value) != 0 {
+	} else if o.Value.Cmp(t.Value) != 0 {
 		return false
 	}
 	return bytes.Equal(o.Data, t.Data)

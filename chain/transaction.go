@@ -12,14 +12,15 @@ import (
 )
 
 type Transaction interface {
+	LD() *ld.Transaction
 	ID() ids.ID
 	Type() ld.TxType
 	Bytes() []byte
 	Status() string
 	SetStatus(choices.Status)
 	SyntacticVerify() error
-	Verify(blk *Block) error
-	Accept(blk *Block) error
+	Verify(blk *Block, bs BlockState) error
+	Accept(blk *Block, bs BlockState) error
 	Event(ts int64) *Event
 	MarshalJSON() ([]byte, error)
 }
@@ -32,6 +33,9 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	}
 	var tt Transaction
 	switch tx.Type {
+	case ld.TypeTest:
+		tt = &TxTest{ld: tx}
+
 	case ld.TypeEth:
 		tt = &TxEth{TxBase: &TxBase{ld: tx}}
 	case ld.TypeTransfer:
@@ -42,8 +46,11 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxTransferCash{TxBase: &TxBase{ld: tx}}
 	case ld.TypeExchange:
 		tt = &TxTransferExchange{TxBase: &TxBase{ld: tx}}
+
+	case ld.TypeAddNonceTable:
+		tt = &TxAddAccountNonceTable{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
-		tt = &TxAccountUpdateKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateAccountKeepers{TxBase: &TxBase{ld: tx}}
 	case ld.TypeCreateTokenAccount:
 		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
 	case ld.TypeDestroyTokenAccount:
@@ -56,10 +63,12 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxWithdrawStake{TxBase: &TxBase{ld: tx}}
 	case ld.TypeResetStakeAccount:
 		tt = &TxResetStakeAccount{TxBase: &TxBase{ld: tx}}
+
 	case ld.TypeCreateModel:
 		tt = &TxCreateModel{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateModelKeepers:
 		tt = &TxUpdateModelKeepers{TxBase: &TxBase{ld: tx}}
+
 	case ld.TypeCreateData:
 		tt = &TxCreateData{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateData:
@@ -70,6 +79,8 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxUpdateDataKeepersByAuth{TxBase: &TxBase{ld: tx}}
 	case ld.TypeDeleteData:
 		tt = &TxDeleteData{TxBase: &TxBase{ld: tx}}
+	case ld.TypePunish:
+		tt = &TxPunish{TxBase: &TxBase{ld: tx}}
 	default:
 		return nil, fmt.Errorf("unknown tx type: %d", tx.Type)
 	}
@@ -81,7 +92,7 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 }
 
 type GenesisTx interface {
-	VerifyGenesis(blk *Block) error
+	VerifyGenesis(blk *Block, bs BlockState) error
 }
 
 func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
@@ -90,7 +101,7 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypeTransfer:
 		tt = &TxTransfer{TxBase: &TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
-		tt = &TxAccountUpdateKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateAccountKeepers{TxBase: &TxBase{ld: tx}}
 	case ld.TypeCreateTokenAccount:
 		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
 	case ld.TypeCreateModel:

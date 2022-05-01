@@ -66,13 +66,12 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateDataKeepers) Verify(blk *Block) error {
+func (tx *TxUpdateDataKeepers) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	bs := blk.State()
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers load data failed: %v", err)
@@ -81,13 +80,13 @@ func (tx *TxUpdateDataKeepers) Verify(blk *Block) error {
 		return fmt.Errorf("TxUpdateDataKeepers version mismatch, expected %v, got %v",
 			tx.dm.Version, tx.data.Version)
 	}
-	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
+	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateDataKeepers need more signatures")
 	}
 	return nil
 }
 
-func (tx *TxUpdateDataKeepers) Accept(blk *Block) error {
+func (tx *TxUpdateDataKeepers) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Version++
@@ -96,8 +95,8 @@ func (tx *TxUpdateDataKeepers) Accept(blk *Block) error {
 	if err = tx.dm.SyntacticVerify(); err != nil {
 		return err
 	}
-	if err = blk.State().SaveData(tx.data.ID, tx.dm); err != nil {
+	if err = bs.SaveData(tx.data.ID, tx.dm); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

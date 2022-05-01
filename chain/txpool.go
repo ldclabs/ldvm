@@ -31,7 +31,7 @@ type TxPool interface {
 	Add(txs ...*ld.Transaction) error
 	Get(txID ids.ID) Transaction
 	PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction
-	Rejecte(*ld.Transaction)
+	Reject(*ld.Transaction)
 }
 
 func NewTxPool() *txPool {
@@ -133,12 +133,16 @@ func (p *txPool) Add(txs ...*ld.Transaction) error {
 }
 
 // Rejecte a tx that should not in pool.
-func (p *txPool) Rejecte(tx *ld.Transaction) {
+func (p *txPool) Reject(tx *ld.Transaction) {
 	id := tx.ID()
 	p.rejected.Set(string(id[:]), tx, rejectedTxsTTL)
 }
 
 func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
+	if uint64(askSize) < threshold {
+		return []*ld.Transaction{}
+	}
+
 	rt := make([]*ld.Transaction, 0, 64)
 	p.mu.Lock()
 	defer p.mu.Unlock()

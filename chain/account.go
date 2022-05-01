@@ -113,10 +113,6 @@ func (a *Account) SatisfySigning(signers []ids.ShortID) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	// if len(a.ld.Keepers) == 0 && util.ShortIDs(signers).Has(a.id) {
-	// 	return true
-	// }
-
 	return util.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
 }
 
@@ -154,6 +150,10 @@ func (a *Account) Sub(token ids.ShortID, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	return a.sub(token, amount)
+}
+
+func (a *Account) sub(token ids.ShortID, amount *big.Int) error {
 	if amount == nil || amount.Sign() < 0 {
 		return fmt.Errorf(
 			"Account.Sub %s invalid amount %v",
@@ -162,6 +162,7 @@ func (a *Account) Sub(token ids.ShortID, amount *big.Int) error {
 	if amount.Sign() == 0 {
 		return nil
 	}
+
 	switch token {
 	case constants.LDCAccount:
 		if amount.Cmp(a.ld.Balance) > 0 {
@@ -186,41 +187,97 @@ func (a *Account) SubByNonce(token ids.ShortID, nonce uint64, amount *big.Int) e
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if amount == nil || amount.Sign() < 0 {
-		return fmt.Errorf(
-			"Account.SubByNonce %s invalid amount %v",
-			util.EthID(a.id), amount)
-	}
-
-	if amount.Sign() == 0 {
-		return nil
-	}
-
 	if a.ld.Nonce != nonce {
 		return fmt.Errorf(
 			"Account.SubByNonce %s invalid nonce, expected %v, got %v",
 			util.EthID(a.id), a.ld.Nonce, nonce)
 	}
 
-	switch token {
-	case constants.LDCAccount:
-		if amount.Cmp(a.ld.Balance) > 0 {
-			return fmt.Errorf(
-				"Account.SubByNonce %s insufficient balance %v",
-				util.EthID(a.id), a.ld.Balance)
+	if err := a.sub(token, amount); err != nil {
+		return err
+	}
+	a.ld.Nonce++
+	return nil
+}
+
+func (a *Account) SubByNonceTable(token ids.ShortID, expire, nonce uint64, amount *big.Int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.nonceTableSpent(expire, nonce, true); err != nil {
+		return fmt.Errorf(
+			"Account.SubByNonceTable %s: %v", util.EthID(a.id), err)
+	}
+	if err := a.sub(token, amount); err != nil {
+		return fmt.Errorf(
+			"Account.SubByNonceTable %s: %v", util.EthID(a.id), err)
+	}
+	return nil
+}
+
+func (a *Account) NonceTableHas(expire uint64, nonce uint64) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.nonceTableSpent(expire, nonce, false)
+}
+
+func (a *Account) nonceTableSpent(expire uint64, nonce uint64, update bool) error {
+	uu, ok := a.ld.NonceTable[expire]
+	i := -1
+	if ok {
+		for j, u := range uu {
+			if u == nonce {
+				i = j
+				break
+			}
 		}
-		a.ld.Balance.Sub(a.ld.Balance, amount)
-	default:
-		v := a.ld.Ledger[token]
-		if v == nil || amount.Cmp(v) > 0 {
-			return fmt.Errorf(
-				"Account.SubByNonce %s, %s insufficient balance %v",
-				util.EthID(a.id), token.String(), v)
-		}
-		v.Sub(v, amount)
+	}
+	if i == -1 {
+		return fmt.Errorf("Account %s NonceTable %d not exists at %d",
+			util.EthID(a.id), nonce, expire)
 	}
 
-	a.ld.Nonce++
+	if update {
+		copy(uu[i:], uu[i+1:])
+		a.ld.NonceTable[expire] = uu[:len(uu)-1]
+	}
+	return nil
+}
+
+func (a *Account) NonceTableValid(expire uint64, ns []uint64) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.nonceTableValidAndUpdate(expire, ns, false)
+}
+
+func (a *Account) NonceTableAdd(expire uint64, ns []uint64) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.nonceTableValidAndUpdate(expire, ns, true)
+}
+
+func (a *Account) nonceTableValidAndUpdate(expire uint64, ns []uint64, update bool) error {
+	if len(a.ld.NonceTable) >= 64 {
+		return fmt.Errorf("Account %s NonceTable too many groups, should not more than %d",
+			util.EthID(a.id), 64)
+	}
+	us := util.Uint64Set(make(map[uint64]struct{}, len(a.ld.NonceTable[expire])+len(ns)))
+	if uu, ok := a.ld.NonceTable[expire]; ok {
+		us.Add(uu...)
+	}
+	for _, u := range ns {
+		if us.Has(u) {
+			return fmt.Errorf("Account %s NonceTable %d exists at %d",
+				util.EthID(a.id), u, expire)
+		}
+		us.Add(u)
+	}
+	if update {
+		a.ld.NonceTable[expire] = us.List()
+	}
 	return nil
 }
 

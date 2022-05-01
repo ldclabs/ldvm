@@ -75,9 +75,9 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxCreateStakeAccount) Verify(blk *Block) error {
+func (tx *TxCreateStakeAccount) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 	if !tx.to.IsEmpty() {
@@ -98,10 +98,10 @@ func (tx *TxCreateStakeAccount) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxCreateStakeAccount) Accept(blk *Block) error {
+func (tx *TxCreateStakeAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
 	if err = tx.to.CreateStake(tx.ld.From, tx.ld.Amount, tx.data); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

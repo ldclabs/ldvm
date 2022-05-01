@@ -4,41 +4,38 @@
 package ld
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestDataMeta(t *testing.T) {
-	address := ids.ShortID{1, 2, 3, 4}
+	assert := assert.New(t)
+
+	address := util.Signer1.Address()
+	data := []byte("testdata")
+	kSig, err := util.Signer1.Sign(data)
 	dm := &DataMeta{
 		ModelID:   ids.ShortID{4, 5, 6, 7, 8},
 		Version:   10,
 		Threshold: 1,
 		Keepers:   []ids.ShortID{address},
-		Data:      []byte("testdata"),
+		KSig:      kSig,
+		Data:      data,
 	}
-	data, err := dm.Marshal()
-	if err != nil {
-		t.Fatalf("Marshal failed: %v", err)
-	}
+	data, err = dm.Marshal()
+	assert.Nil(err)
 
 	dm2 := &DataMeta{}
 	err = dm2.Unmarshal(data)
-	if err != nil {
-		t.Fatalf("Unmarshal failed: %v", err)
-	}
-	if !dm2.Equal(dm) {
-		t.Fatalf("should equal")
-	}
+	assert.Nil(err)
+	assert.True(dm2.Equal(dm))
 
 	dm.Version++
 	data2, err := dm.Marshal()
-	if err != nil {
-		t.Fatalf("Marshal failed: %v", err)
-	}
-	if bytes.Equal(data, data2) {
-		t.Fatalf("should not equal")
-	}
+	assert.Nil(err)
+	assert.NotEqual(data, data2)
 }

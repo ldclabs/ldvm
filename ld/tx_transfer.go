@@ -19,6 +19,7 @@ import (
 //
 // TxTransferPay{To[, Token, Amount, Expire, Data]}
 // TxTransferCash{Nonce, From, Amount, Expire[, Token, To, Data]}
+// TxTakeStake{Nonce, From, To, Amount, Expire[, Data]}
 type TxTransfer struct {
 	Nonce  uint64      // sender's nonce
 	Token  ids.ShortID // token symbol, default is NativeToken
@@ -125,8 +126,7 @@ func (t *TxTransfer) Equal(o *TxTransfer) bool {
 		if o.Amount != t.Amount {
 			return false
 		}
-	}
-	if o.Amount.Cmp(t.Amount) != 0 {
+	} else if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if o.Expire != t.Expire {
@@ -151,9 +151,14 @@ func (t *TxTransfer) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindTxTransfer); ok {
+		if !v.Nonce.Valid() ||
+			!v.Expire.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
+
 		t.Nonce = v.Nonce.Value()
 		t.Expire = v.Expire.Value()
-		t.Amount = PtrToBigInt(v.Amount)
+		t.Amount = v.Amount.PtrValue()
 		t.Data = PtrToBytes(v.Data)
 		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
@@ -176,7 +181,7 @@ func (t *TxTransfer) Marshal() ([]byte, error) {
 		Token:  PtrFromShortID(ids.ShortID(t.Token)),
 		To:     PtrFromShortID(t.To),
 		From:   PtrFromShortID(t.From),
-		Amount: PtrFromBigInt(t.Amount),
+		Amount: PtrFromUint(t.Amount),
 		Expire: PtrFromUint64(t.Expire),
 		Data:   PtrFromBytes(t.Data),
 	}
@@ -193,7 +198,7 @@ type bindTxTransfer struct {
 	Token  *[]byte
 	From   *[]byte
 	To     *[]byte
-	Amount *[]byte
+	Amount *BigUint
 	Expire *Uint64
 	Data   *[]byte
 }
@@ -205,15 +210,15 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
-	type BigInt bytes
+	type BigUint bytes
 	type TxTransfer struct {
-		Nonce  nullable Uint64 (rename "n")
-		Token  nullable ID20   (rename "tk")
-		From   nullable ID20   (rename "fr")
-		To     nullable ID20   (rename "to")
-		Amount nullable BigInt (rename "a")
-		Expire nullable Uint64 (rename "e")
-		Data   nullable Bytes  (rename "d")
+		Nonce  nullable Uint64  (rename "n")
+		Token  nullable ID20    (rename "tk")
+		From   nullable ID20    (rename "fr")
+		To     nullable ID20    (rename "to")
+		Amount nullable BigUint (rename "a")
+		Expire nullable Uint64  (rename "e")
+		Data   nullable Bytes   (rename "d")
 	}
 `
 

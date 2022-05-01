@@ -15,7 +15,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/ld/app"
+	"github.com/ldclabs/ldvm/ld/service"
 )
 
 type VMAPI struct{}
@@ -91,7 +91,7 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 }
 
 type DataMetaArgs struct {
-	ModelID   util.ModelID    `json:"modelID"`
+	ModelID   util.ModelID    `json:"mID"`
 	Version   uint64          `json:"version"`
 	Threshold uint8           `json:"threshold"`
 	Keepers   []util.EthID    `json:"keepers"`
@@ -174,10 +174,10 @@ func (api *VMAPI) EncodeTxUpdater(_ *http.Request, args *TxUpdaterArgs, reply *E
 	return reply.SetTxData(tx)
 }
 
-func (api *VMAPI) EncodeName(_ *http.Request, args *app.Name, reply *EncodeReply) error {
-	return reply.SetTxData(app.NewName(args))
+func (api *VMAPI) EncodeName(_ *http.Request, args *service.Name, reply *EncodeReply) error {
+	return reply.SetTxData(args)
 }
 
-func (api *VMAPI) EncodeInfo(_ *http.Request, args *app.Profile, reply *EncodeReply) error {
-	return reply.SetTxData(app.NewProfile(args))
+func (api *VMAPI) EncodeInfo(_ *http.Request, args *service.Profile, reply *EncodeReply) error {
+	return reply.SetTxData(args)
 }

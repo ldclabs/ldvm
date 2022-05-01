@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 
@@ -199,9 +198,6 @@ type ResolveArgs struct {
 
 // GetData
 func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *GetReply) error {
-	if !util.ValidDomainName(args.Name) {
-		return fmt.Errorf("invalid name %s to resolve", strconv.Quote(args.Name))
-	}
 	data, err := api.state.ResolveName(args.Name)
 	if err != nil {
 		return err

@@ -12,13 +12,13 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxDeleteData struct {
+type TxPunish struct {
 	*TxBase
 	data *ld.TxUpdater
 	dm   *ld.DataMeta
 }
 
-func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
+func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return util.Null, nil
 	}
@@ -26,7 +26,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		tx.data = &ld.TxUpdater{}
 		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
+			return nil, fmt.Errorf("TxPunish unmarshal data failed: %v", err)
 		}
 	}
 	d, err := tx.data.MarshalJSON()
@@ -37,7 +37,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	return v.MarshalJSON()
 }
 
-func (tx *TxDeleteData) SyntacticVerify() error {
+func (tx *TxPunish) SyntacticVerify() error {
 	var err error
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
@@ -46,24 +46,26 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 	if tx.ld.Token != constants.LDCAccount {
 		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
 	}
+	if tx.ld.From != constants.GenesisAccount {
+		return fmt.Errorf("TxPunish invalid from, expected GenesisAccount")
+	}
 	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxDeleteData invalid")
+		return fmt.Errorf("TxPunish invalid")
 	}
 	tx.data = &ld.TxUpdater{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
+		return fmt.Errorf("TxPunish unmarshal data failed: %v", err)
 	}
 	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxDeleteData SyntacticVerify failed: %v", err)
+		return fmt.Errorf("TxPunish SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty ||
-		tx.data.Version == 0 {
-		return fmt.Errorf("TxDeleteData invalid TxUpdater")
+	if tx.data.ID == ids.ShortEmpty {
+		return fmt.Errorf("TxPunish invalid TxUpdater")
 	}
 	return nil
 }
 
-func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
+func (tx *TxPunish) Verify(blk *Block, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
@@ -71,19 +73,12 @@ func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
 
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
-		return fmt.Errorf("TxDeleteData load data failed: %v", err)
-	}
-	if tx.dm.Version != tx.data.Version {
-		return fmt.Errorf("TxDeleteData version mismatch, expected %v, got %v",
-			tx.dm.Version, tx.data.Version)
-	}
-	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
-		return fmt.Errorf("TxDeleteData need more signatures")
+		return fmt.Errorf("TxPunish load data failed: %v", err)
 	}
 	return nil
 }
 
-func (tx *TxDeleteData) Accept(blk *Block, bs BlockState) error {
+func (tx *TxPunish) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Data = tx.data.Data
@@ -93,7 +88,7 @@ func (tx *TxDeleteData) Accept(blk *Block, bs BlockState) error {
 	return tx.TxBase.Accept(blk, bs)
 }
 
-func (tx *TxDeleteData) Event(ts int64) *Event {
+func (tx *TxPunish) Event(ts int64) *Event {
 	e := NewEvent(tx.data.ID, SrcData, ActionDelete)
 	e.Time = ts
 	return e

@@ -4,91 +4,150 @@
 package ld
 
 import (
-	"encoding/binary"
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"math/big"
 	"sort"
-	"strconv"
-	"sync"
 
 	ipld "github.com/ipld/go-ipld-prime"
+	"github.com/ipld/go-ipld-prime/codec/dagcbor"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
 	"github.com/ipld/go-ipld-prime/datamodel"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 
 	"github.com/ldclabs/ldvm/util"
 )
 
-var pool10Bytes = sync.Pool{
-	New: func() any {
-		b := make([]byte, 10)
-		return &b
-	},
+type BigUint []byte
+
+func FromUint(u *big.Int) BigUint {
+	if u == nil {
+		return nil
+	}
+	return u.Bytes()
+}
+
+func PtrFromUint(u *big.Int) *BigUint {
+	if u == nil {
+		return nil
+	}
+	b := BigUint(u.Bytes())
+	return &b
+}
+
+func (b *BigUint) Value() *big.Int {
+	u := new(big.Int)
+	if b != nil {
+		u.SetBytes(*b)
+	}
+	return u
+}
+
+func (b *BigUint) PtrValue() *big.Int {
+	if b == nil {
+		return nil
+	}
+	return b.Value()
 }
 
 type Uint8 []byte
 
-func (u *Uint8) Value() uint8 {
-	if u == nil {
-		return 0
-	}
-	if len(*u) == 1 {
-		return uint8((*u)[0])
-	}
-	return 0
+func FromUint8(u uint8) Uint8 {
+	return new(big.Int).SetUint64(uint64(u)).Bytes()
 }
 
-func (u *Uint8) String() string {
-	return strconv.FormatUint(uint64(u.Value()), 10)
-}
-
-func (u *Uint8) GoString() string {
-	return u.String()
-}
-
-func FromUint8(x uint8) Uint8 {
-	return []byte{x}
-}
-
-func PtrFromUint8(x uint8) *Uint8 {
-	if x == 0 {
+func PtrFromUint8(u uint8) *Uint8 {
+	if u == 0 {
 		return nil
 	}
-	v := FromUint8(x)
-	return &v
+	b := Uint8(new(big.Int).SetUint64(uint64(u)).Bytes())
+	return &b
+}
+
+func (b *Uint8) Valid() bool {
+	return b == nil || len(*b) <= 1
+}
+
+func (b *Uint8) Value() uint8 {
+	if b == nil {
+		return 0
+	}
+	return uint8(new(big.Int).SetBytes(*b).Uint64())
 }
 
 type Uint64 []byte
 
-func (u *Uint64) Value() uint64 {
-	if u == nil {
-		return 0
-	}
-	x, _ := binary.Uvarint(*u)
-	return x
+func FromUint64(u uint64) Uint64 {
+	return new(big.Int).SetUint64(u).Bytes()
 }
 
-func (u *Uint64) String() string {
-	return strconv.FormatUint(u.Value(), 10)
-}
-
-func (u *Uint64) GoString() string {
-	return u.String()
-}
-
-func FromUint64(x uint64) Uint64 {
-	buf := pool10Bytes.Get().(*[]byte)
-	n := binary.PutUvarint(*buf, x)
-	b := make([]byte, n)
-	copy(b, *buf)
-	pool10Bytes.Put(buf)
-	return b
-}
-
-func PtrFromUint64(x uint64) *Uint64 {
-	if x == 0 {
+func PtrFromUint64(u uint64) *Uint64 {
+	if u == 0 {
 		return nil
 	}
-	v := FromUint64(x)
-	return &v
+	b := Uint64(new(big.Int).SetUint64(u).Bytes())
+	return &b
+}
+
+func (b *Uint64) Valid() bool {
+	return b == nil || len(*b) <= 8
+}
+
+func (b *Uint64) Value() uint64 {
+	if b == nil {
+		return 0
+	}
+	return new(big.Int).SetBytes(*b).Uint64()
+}
+
+func WriteUint64s(w io.Writer, u uint64, uu ...uint64) error {
+	return Recover("WriteUint64s", func() error {
+		nb := basicnode.Prototype.List.NewBuilder()
+		la, er := nb.BeginList(int64(len(uu) + 1))
+		if er != nil {
+			return er
+		}
+		la.AssembleValue().AssignBytes(FromUint64(u))
+		for _, u := range uu {
+			la.AssembleValue().AssignBytes(FromUint64(u))
+		}
+		if er = la.Finish(); er != nil {
+			return er
+		}
+		return dagcbor.Encode(nb.Build(), w)
+	})
+}
+
+func ReadUint64s(data []byte) ([]uint64, error) {
+	var err error
+	nb := basicnode.Prototype.List.NewBuilder()
+	if err = dagcbor.Decode(nb, bytes.NewReader(data)); err != nil {
+		return nil, err
+	}
+
+	node := nb.Build()
+	ln := node.Length()
+	arr := make([]uint64, ln)
+
+	var n ipld.Node
+	var b Uint64
+	for i := int64(0); i < ln; i++ {
+		n, err = node.LookupByIndex(i)
+		if err != nil {
+			return nil, err
+		}
+		b, err = n.AsBytes()
+		if err != nil {
+			return nil, err
+		}
+		if !b.Valid() {
+			return nil, fmt.Errorf("ReadUint64s error: invalid uint64")
+		}
+		arr[i] = b.Value()
+	}
+	return arr, nil
 }
 
 type MapStringString struct {

@@ -11,7 +11,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/ld/app"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -27,22 +27,18 @@ type Allocation struct {
 }
 
 type ChainConfig struct {
-	ChainID            uint64       `json:"chainID"`
-	MaxTotalSupply     *big.Int     `json:"maxTotalSupply"`
-	Message            string       `json:"message"`
-	FeeConfigThreshold uint8        `json:"feeConfigThreshold"`
-	FeeConfigKeepers   []util.EthID `json:"feeConfigKeepers"`
-	FeeConfigID        util.DataID  `json:"feeConfigID"`
-	NameAppThreshold   uint8        `json:"nameAppThreshold"`
-	NameAppKeepers     []util.EthID `json:"nameAppKeepers"`
-	NameAppID          util.ModelID `json:"nameAppID"`
-	ProfileAppID       util.ModelID `json:"profileAppID"`
-	FeeConfig          *FeeConfig   `json:"feeConfig"`
-	FeeConfigs         []*FeeConfig `json:"feeConfigs"`
+	ChainID          uint64       `json:"chainID"`
+	MaxTotalSupply   *big.Int     `json:"maxTotalSupply"`
+	Message          string       `json:"message"`
+	FeeConfigID      util.DataID  `json:"feeConfigID"`
+	NameServiceID    util.ModelID `json:"nameAppID"`
+	ProfileServiceID util.ModelID `json:"profileAppID"`
+	FeeConfig        *FeeConfig   `json:"feeConfig"`
+	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
 }
 
-func (c *ChainConfig) IsNameApp(id ids.ShortID) bool {
-	return c.NameAppID == util.ModelID(id)
+func (c *ChainConfig) IsNameService(id ids.ShortID) bool {
+	return c.NameServiceID == util.ModelID(id)
 }
 
 func (c *ChainConfig) Fee(height uint64) *FeeConfig {
@@ -89,6 +85,11 @@ func FromJSON(data []byte) (*Genesis, error) {
 }
 
 func (g *Genesis) ToBlock() (*ld.Block, error) {
+	genesisAccount, ok := g.Alloc[util.EthID(constants.GenesisAccount)]
+	if !ok {
+		return nil, fmt.Errorf("genesis account not found")
+	}
+
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
@@ -107,24 +108,7 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	}
 	txs = append(txs, tx)
 
-	// config data tx
-	cfg, err := json.Marshal(g.Chain.FeeConfig)
-	if err != nil {
-		return nil, err
-	}
-	cfgData := &ld.DataMeta{
-		ModelID:   ids.ShortID(constants.JsonModelID),
-		Version:   1,
-		Threshold: g.Chain.FeeConfigThreshold,
-		Keepers:   util.EthIDsToShort(g.Chain.FeeConfigKeepers...),
-		Data:      cfg,
-	}
-
 	// Alloc Txs
-	if _, ok := g.Alloc[util.EthID(constants.GenesisAccount)]; !ok {
-		return nil, fmt.Errorf("genesis allocation empty")
-	}
-
 	nonce := uint64(0)
 	list := make([]ids.ShortID, 0, len(g.Alloc))
 	for id := range g.Alloc {
@@ -160,7 +144,18 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		}
 	}
 
-	// Config tx
+	// config data tx
+	cfg, err := json.Marshal(g.Chain.FeeConfig)
+	if err != nil {
+		return nil, err
+	}
+	cfgData := &ld.TxUpdater{
+		ID:        ids.ShortID(constants.JsonModelID),
+		Version:   1,
+		Threshold: genesisAccount.Threshold,
+		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
+		Data:      cfg,
+	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
@@ -171,11 +166,11 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs = append(txs, tx)
 
 	// name app tx
-	name, sch := app.NameSchema()
+	name, sch := service.NameSchema()
 	nameModel := &ld.ModelMeta{
 		Name:      name,
-		Threshold: g.Chain.NameAppThreshold,
-		Keepers:   util.EthIDsToShort(g.Chain.NameAppKeepers...),
+		Threshold: genesisAccount.Threshold,
+		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
 		Data:      sch,
 	}
 	tx = &ld.Transaction{
@@ -184,14 +179,16 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAccount,
 		Data:    nameModel.Bytes(),
 	}
-	g.Chain.NameAppID = util.ModelID(tx.ShortID())
+	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// Profile app tx
-	name, sch = app.ProfileSchema()
+	name, sch = service.ProfileSchema()
 	profileModel := &ld.ModelMeta{
-		Name: name,
-		Data: sch,
+		Name:      name,
+		Threshold: genesisAccount.Threshold,
+		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
+		Data:      sch,
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
@@ -199,7 +196,7 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAccount,
 		Data:    profileModel.Bytes(),
 	}
-	g.Chain.ProfileAppID = util.ModelID(tx.ShortID())
+	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// build genesis block

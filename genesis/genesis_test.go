@@ -10,38 +10,32 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ldclabs/ldvm/util"
 )
 
 func TestGenesis(t *testing.T) {
-	address1, _ := util.EthIDFromString("0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
-	address2, _ := util.EthIDFromString("0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+	assert := assert.New(t)
+	address1 := util.EthID(util.Signer1.Address())
+	address2 := util.EthID(util.Signer2.Address())
 
 	file := "./genesis_sample.json"
 	data, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatalf("Read %s failed: %v", file, err)
-	}
+	assert.Nil(err)
 
 	gs, err := FromJSON(data)
-	if err != nil {
-		t.Fatalf("FromJSON failed: %v", err)
-	}
+	assert.Nil(err)
 
-	if gs.Chain.ChainID != uint64(2357) ||
-		gs.Chain.MaxTotalSupply.Cmp(big.NewInt(1000000000000000000)) != 0 ||
-		gs.Alloc[address1].Keepers[1] != address2 {
-		t.Fatalf("parse genesis failed")
-	}
+	assert.Equal(uint64(2357), gs.Chain.ChainID)
+	assert.Equal(0, gs.Chain.MaxTotalSupply.Cmp(big.NewInt(1000000000000000000)))
+	assert.Equal(address2, gs.Alloc[address1].Keepers[1])
+
 	blk, err := gs.ToBlock()
-	if err != nil {
-		t.Fatalf("ToBlock failed: %v", err)
-	}
+	assert.Nil(err)
 
 	data, err = json.Marshal(blk)
-	if err != nil {
-		t.Fatalf("Marshal failed: %v", err)
-	}
+	assert.Nil(err)
 	fmt.Printf("\n%s\n", string(data))
-	t.Fatalf("finish")
+	// t.Fatalf("finish")
 }

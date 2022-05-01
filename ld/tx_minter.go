@@ -130,8 +130,7 @@ func (t *TxMinter) Equal(o *TxMinter) bool {
 		if o.Amount != t.Amount {
 			return false
 		}
-	}
-	if o.Amount.Cmp(t.Amount) != 0 {
+	} else if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if len(o.Keepers) != len(t.Keepers) {
@@ -161,10 +160,18 @@ func (t *TxMinter) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindTxMinter); ok {
+		if !v.Threshold.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
+		if !v.LockTime.Valid() ||
+			!v.DelegationFee.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
+
 		t.Threshold = v.Threshold.Value()
 		t.LockTime = v.LockTime.Value()
 		t.DelegationFee = v.DelegationFee.Value()
-		t.Amount = PtrToBigInt(v.Amount)
+		t.Amount = v.Amount.PtrValue()
 		if t.Keepers, err = PtrToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
@@ -186,7 +193,7 @@ func (t *TxMinter) Marshal() ([]byte, error) {
 		Keepers:       PtrFromShortIDs(t.Keepers),
 		LockTime:      PtrFromUint64(t.LockTime),
 		DelegationFee: PtrFromUint64(t.DelegationFee),
-		Amount:        PtrFromBigInt(t.Amount),
+		Amount:        PtrFromUint(t.Amount),
 	}
 	if t.Name != "" {
 		v.Name = &t.Name
@@ -207,7 +214,7 @@ type bindTxMinter struct {
 	Keepers       *[][]byte
 	LockTime      *Uint64
 	DelegationFee *Uint64
-	Amount        *[]byte
+	Amount        *BigUint
 	Name          *string
 	Message       *string
 }
@@ -219,15 +226,15 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
-	type BigInt bytes
+	type BigUint bytes
 	type TxMinter struct {
-		Threshold     nullable Uint8  (rename "ts")
-		Keepers       nullable [ID20] (rename "ks")
-		LockTime      nullable Uint64 (rename "lt")
-		DelegationFee nullable Uint64 (rename "dg")
-		Amount        nullable BigInt (rename "a")
-		Name          nullable String (rename "n")
-		Message       nullable String (rename "m")
+		Threshold     nullable Uint8   (rename "th")
+		Keepers       nullable [ID20]  (rename "kp")
+		LockTime      nullable Uint64  (rename "lt")
+		DelegationFee nullable Uint64  (rename "df")
+		Amount        nullable BigUint (rename "a")
+		Name          nullable String  (rename "n")
+		Message       nullable String  (rename "m")
 	}
 `
 

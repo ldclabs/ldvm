@@ -29,9 +29,9 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxDestroyTokenAccount) Verify(blk *Block) error {
+func (tx *TxDestroyTokenAccount) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 	// destroy
@@ -47,9 +47,9 @@ func (tx *TxDestroyTokenAccount) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxDestroyTokenAccount) Accept(blk *Block) error {
+func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
 	if err := tx.from.DestroyToken(tx.ld.From, tx.ld.To); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

@@ -19,14 +19,20 @@ import (
 )
 
 const (
+	// The "test" transaction tests that a value of data at the target location
+	// is equal to a specified value. test transaction will not write to the block.
+	// It should be in a batch transactions.
+	TypeTest TxType = iota
+
 	// Transfer
-	TypeEth          TxType = iota // send given amount of NanoLDC to a address in ETH transaction
-	TypeTransfer                   // send given amount of NanoLDC to a address
-	TypeTransferPay                // send given amount of NanoLDC to the address who request payment
-	TypeTransferCash               // cash given amount of NanoLDC to sender, like cash a check.
-	TypeExchange                   // exchange tokens
+	TypeEth          // send given amount of NanoLDC to a address in ETH transaction
+	TypeTransfer     // send given amount of NanoLDC to a address
+	TypeTransferPay  // send given amount of NanoLDC to the address who request payment
+	TypeTransferCash // cash given amount of NanoLDC to sender, like cash a check.
+	TypeExchange     // exchange tokens
 
 	// Account
+	TypeAddNonceTable        // add more nonce with expire time to account
 	TypeUpdateAccountKeepers // update account's Keepers and Threshold
 	TypeCreateTokenAccount   // create a token account
 	TypeDestroyTokenAccount  // destroy a token account
@@ -45,6 +51,10 @@ const (
 	TypeUpdateDataKeepers       // update data's Keepers and Threshold
 	TypeUpdateDataKeepersByAuth // update data's Keepers and Threshold by authorization
 	TypeDeleteData              // delete the data
+
+	// punish transaction can be issued by genesisAccount
+	// we can only punish illegal data
+	TypePunish TxType = 255
 )
 
 const (
@@ -54,7 +64,8 @@ const (
 	TxTransferCashGas = uint64(42)
 	TxExchangeGas     = uint64(42)
 
-	TxAccountUpdateKeepersGas = uint64(1000)
+	TxAddNonceTableGas        = uint64(100)
+	TxUpdateAccountKeepersGas = uint64(1000)
 	TxCreateTokenAccountGas   = uint64(1000)
 	TxDestroyTokenAccountGas  = uint64(1000)
 	TxCreateStakeAccountGas   = uint64(1000)
@@ -71,6 +82,8 @@ const (
 	TxUpdateDataKeepersByAuthGas = uint64(200)
 	TxDeleteDataGas              = uint64(200)
 
+	TxPunishGas = uint64(1000)
+
 	MinThresholdGas = uint64(1000)
 )
 
@@ -82,6 +95,8 @@ type TxType uint8
 
 func TxTypeString(t TxType) string {
 	switch t {
+	case TypeTest:
+		return "TestTx"
 	case TypeEth:
 		return "EthTx"
 	case TypeTransfer:
@@ -92,6 +107,8 @@ func TxTypeString(t TxType) string {
 		return "TransferCashTx"
 	case TypeExchange:
 		return "ExchangeTx"
+	case TypeAddNonceTable:
+		return "TypeAddNonceTable"
 	case TypeUpdateAccountKeepers:
 		return "UpdateAccountKeepersTx"
 	case TypeCreateTokenAccount:
@@ -120,6 +137,8 @@ func TxTypeString(t TxType) string {
 		return "UpdateDataKeepersByAuthTx"
 	case TypeDeleteData:
 		return "DeleteDataTx"
+	case TypePunish:
+		return "PunishTx"
 	default:
 		return "UnknownTx"
 	}
@@ -147,6 +166,40 @@ type Transaction struct {
 	raw         []byte // the transaction's raw bytes, included id and sigs.
 	AddTime     uint64
 	Priority    uint64
+	Err         error
+	// support for batch transactions
+	// they are processed in the same block, one fail all fail
+	batch Txs
+}
+
+func NewBatchTx(txs []*Transaction) (*Transaction, error) {
+	if len(txs) <= 1 {
+		return nil, fmt.Errorf("not batch transactions")
+	}
+
+	tx := &Transaction{}
+	maxSize := 0
+	var err error
+	for i, t := range txs {
+		if t.Type == TypeTest {
+			continue
+		}
+
+		if err = t.SyntacticVerify(); err != nil {
+			return nil, err
+		}
+		if size := len(t.UnsignedBytes()); size > maxSize {
+			tx = txs[i] // find the max UnsignedBytes tx as batch transactions' container
+			maxSize = size
+		}
+	}
+	tx = tx.Copy()
+	if err = tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+
+	tx.batch = txs
+	return tx, nil
 }
 
 type jsonTransaction struct {
@@ -165,6 +218,7 @@ type jsonTransaction struct {
 	Data         json.RawMessage  `json:"data"`
 	Signatures   []util.Signature `json:"signatures"`
 	ExSignatures []util.Signature `json:"exSignatures"`
+	Err          string           `json:"error"`
 }
 
 type Txs []*Transaction
@@ -242,6 +296,19 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	if t == nil {
 		return util.Null, nil
 	}
+
+	if len(t.batch) > 0 {
+		arr := make([]json.RawMessage, len(t.batch))
+		for i, tx := range t.batch {
+			v, err := tx.MarshalJSON()
+			if err != nil {
+				return nil, err
+			}
+			arr[i] = v
+		}
+		return json.Marshal(arr)
+	}
+
 	v := &jsonTransaction{
 		ID:           t.ID(),
 		Type:         t.Type,
@@ -259,7 +326,18 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 		Signatures:   t.Signatures,
 		ExSignatures: t.ExSignatures,
 	}
+	if t.Err != nil {
+		v.Err = t.Err.Error()
+	}
 	return json.Marshal(v)
+}
+
+func (t *Transaction) IsBatched() bool {
+	return len(t.batch) > 0
+}
+
+func (t *Transaction) Txs() []*Transaction {
+	return t.batch
 }
 
 func (t *Transaction) ID() ids.ID {
@@ -281,6 +359,7 @@ func (t *Transaction) ShortID() ids.ShortID {
 func (t *Transaction) Copy() *Transaction {
 	x := new(Transaction)
 	*x = *t
+
 	if t.Amount != nil {
 		x.Amount = new(big.Int).Set(t.Amount)
 	}
@@ -290,6 +369,13 @@ func (t *Transaction) Copy() *Transaction {
 	copy(x.Signatures, t.Signatures)
 	x.ExSignatures = make([]util.Signature, len(t.ExSignatures))
 	copy(x.ExSignatures, t.ExSignatures)
+	if len(t.batch) > 0 {
+		x.batch = make([]*Transaction, len(t.batch))
+		for i := range t.batch {
+			x.batch[i] = t.batch[i].Copy()
+		}
+		return x
+	}
 	x.unsignedRaw = nil
 	x.raw = nil
 	return x
@@ -349,11 +435,15 @@ func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
 }
 
 func (t *Transaction) RequireGas(threshold uint64) uint64 {
+	return RequireGas(t.Type, uint64(len(t.UnsignedBytes())), threshold)
+}
+
+func RequireGas(ty TxType, unsignedBytes uint64, threshold uint64) uint64 {
 	if threshold < MinThresholdGas {
 		threshold = MinThresholdGas
 	}
-	gas := uint64(len(t.UnsignedBytes()))
-	switch t.Type {
+	gas := unsignedBytes
+	switch ty {
 	case TypeEth:
 		return requireGas(threshold, gas+TxEthGas)
 	case TypeTransfer:
@@ -365,8 +455,10 @@ func (t *Transaction) RequireGas(threshold uint64) uint64 {
 	case TypeExchange:
 		return requireGas(threshold, gas+TxExchangeGas)
 
+	case TypeAddNonceTable:
+		return requireGas(threshold, gas+TxAddNonceTableGas)
 	case TypeUpdateAccountKeepers:
-		return requireGas(threshold, gas+TxAccountUpdateKeepersGas)
+		return requireGas(threshold, gas+TxUpdateAccountKeepersGas)
 	case TypeCreateTokenAccount:
 		return requireGas(threshold, gas+TxCreateTokenAccountGas)
 	case TypeDestroyTokenAccount:
@@ -395,6 +487,9 @@ func (t *Transaction) RequireGas(threshold uint64) uint64 {
 		return requireGas(threshold, gas+TxUpdateDataKeepersByAuthGas)
 	case TypeDeleteData:
 		return requireGas(threshold, gas+TxDeleteDataGas)
+
+	case TypePunish:
+		return requireGas(threshold, gas+TxPunishGas)
 
 	default:
 		return requireGas(threshold, gas)
@@ -450,8 +545,7 @@ func (t *Transaction) Equal(o *Transaction) bool {
 		if o.Amount != t.Amount {
 			return false
 		}
-	}
-	if o.Amount.Cmp(t.Amount) != 0 {
+	} else if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if len(o.Signatures) != len(t.Signatures) {
@@ -544,13 +638,23 @@ func (t *Transaction) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindTransaction); ok {
+		if !v.Type.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
+		if !v.ChainID.Valid() ||
+			!v.Nonce.Valid() ||
+			!v.GasTip.Valid() ||
+			!v.GasFeeCap.Valid() ||
+			!v.Gas.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
 		t.Type = TxType(v.Type.Value())
 		t.ChainID = v.ChainID.Value()
 		t.Nonce = v.Nonce.Value()
 		t.GasTip = v.GasTip.Value()
 		t.GasFeeCap = v.GasFeeCap.Value()
 		t.Gas = v.Gas.Value()
-		t.Amount = PtrToBigInt(v.Amount)
+		t.Amount = v.Amount.PtrValue()
 		t.Data = PtrToBytes(v.Data)
 		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
@@ -561,10 +665,10 @@ func (t *Transaction) Unmarshal(data []byte) error {
 		if t.To, err = PtrToShortID(v.To); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if t.Signatures, err = util.PtrToSignatures(v.Signatures); err != nil {
+		if t.Signatures, err = PtrToSignatures(v.Signatures); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if t.ExSignatures, err = util.PtrToSignatures(v.ExSignatures); err != nil {
+		if t.ExSignatures, err = PtrToSignatures(v.ExSignatures); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		if t.id, err = PtrToID(v.ID); err != nil {
@@ -578,6 +682,9 @@ func (t *Transaction) Unmarshal(data []byte) error {
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
+	if t.IsBatched() {
+		return nil, fmt.Errorf("can not marshal batch transactions")
+	}
 	v := &bindTransaction{
 		Type:         FromUint8(uint8(t.Type)),
 		ChainID:      FromUint64(t.ChainID),
@@ -588,10 +695,10 @@ func (t *Transaction) Marshal() ([]byte, error) {
 		Token:        PtrFromShortID(ids.ShortID(t.Token)),
 		From:         PtrFromShortID(t.From),
 		To:           PtrFromShortID(t.To),
-		Amount:       PtrFromBigInt(t.Amount),
+		Amount:       PtrFromUint(t.Amount),
 		Data:         PtrFromBytes(t.Data),
-		Signatures:   util.PtrFromSignatures(t.Signatures),
-		ExSignatures: util.PtrFromSignatures(t.ExSignatures),
+		Signatures:   PtrFromSignatures(t.Signatures),
+		ExSignatures: PtrFromSignatures(t.ExSignatures),
 		ID:           PtrFromID(t.id),
 	}
 	data, err := transactionLDBuilder.Marshal(v)
@@ -613,7 +720,7 @@ type bindTransaction struct {
 	Token        *[]byte
 	From         *[]byte
 	To           *[]byte
-	Amount       *[]byte
+	Amount       *BigUint
 	Data         *[]byte
 	Signatures   *[][]byte
 	ExSignatures *[][]byte
@@ -629,7 +736,7 @@ func init() {
 	type ID20 bytes
 	type ID32 bytes
 	type Sig65 bytes
-	type BigInt bytes
+	type BigUint bytes
 	type Transaction struct {
 		Type         Uint8            (rename "t")
 		ChainID      Uint64           (rename "c")
@@ -640,7 +747,7 @@ func init() {
 		Token        nullable ID20    (rename "tk")
 		From         nullable ID20    (rename "fr")
 		To           nullable ID20    (rename "to")
-		Amount       nullable BigInt  (rename "a")
+		Amount       nullable BigUint (rename "a")
 		Data         nullable Bytes   (rename "d")
 		Signatures   nullable [Sig65] (rename "ss")
 		ExSignatures nullable [Sig65] (rename "es")

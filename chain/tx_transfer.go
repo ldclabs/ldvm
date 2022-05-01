@@ -28,14 +28,13 @@ func (tx *TxTransfer) SyntacticVerify() error {
 }
 
 // VerifyGenesis skipping signature verification
-func (tx *TxTransfer) VerifyGenesis(blk *Block) error {
+func (tx *TxTransfer) VerifyGenesis(blk *Block, bs BlockState) error {
 	var err error
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 	tx.cost = tx.cost.Add(tx.cost, tx.ld.Amount)
 
-	bs := blk.State()
 	tx.from, err = bs.LoadAccount(tx.ld.From)
 	if err != nil {
 		return err

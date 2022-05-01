@@ -6,12 +6,14 @@ package chain
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
+	"golang.org/x/net/idna"
 
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
@@ -30,9 +32,9 @@ var poolAccountCache = sync.Pool{
 }
 
 type blockState struct {
-	ctx   *Context
-	id    ids.ID
-	state StateDB
+	ctx    *Context
+	height uint64
+	state  StateDB
 
 	vdb            *versiondb.Database
 	blockDB        *db.PrefixDB
@@ -49,6 +51,7 @@ type blockState struct {
 }
 
 type BlockState interface {
+	DeriveState() *blockState
 	VersionDB() *versiondb.Database
 
 	LoadAccount(ids.ShortID) (*Account, error)
@@ -60,6 +63,7 @@ type BlockState interface {
 	LoadData(ids.ShortID) (*ld.DataMeta, error)
 	SaveData(ids.ShortID, *ld.DataMeta) error
 	SavePrevData(ids.ShortID, *ld.DataMeta) error
+	DeleteData(ids.ShortID, *ld.DataMeta) error
 
 	AddEvent(*Event)
 	Events() []*Event
@@ -68,15 +72,36 @@ type BlockState interface {
 	Commit() error
 }
 
-func newBlockState(ctx *Context, id ids.ID, baseVDB database.Database) *blockState {
+func newBlockState(ctx *Context, height uint64, baseVDB database.Database) *blockState {
 	vdb := versiondb.New(baseVDB)
 	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
 
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
 		ctx:            ctx,
-		id:             id,
+		height:         height,
 		state:          ctx.StateDB(),
+		vdb:            vdb,
+		blockDB:        pdb.With(blockDBPrefix),
+		heightDB:       pdb.With(heightDBPrefix),
+		lastAcceptedDB: pdb.With(lastAcceptedKey),
+		accountDB:      pdb.With(accountDBPrefix),
+		modelDB:        pdb.With(modelDBPrefix),
+		dataDB:         pdb.With(dataDBPrefix),
+		prevDataDB:     pdb.With(prevDataDBPrefix),
+		nameDB:         pdb.With(nameDBPrefix),
+		accountCache:   *accountCache,
+	}
+}
+
+func (bs *blockState) DeriveState() *blockState {
+	vdb := versiondb.New(bs.vdb)
+	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
+	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
+	return &blockState{
+		ctx:            bs.ctx,
+		height:         bs.height,
+		state:          bs.ctx.StateDB(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
@@ -133,7 +158,12 @@ func (bs *blockState) SetName(name string, id ids.ShortID) error {
 }
 
 func (bs *blockState) ResolveNameID(name string) (ids.ShortID, error) {
-	data, err := bs.nameDB.Get([]byte(strings.ToLower(name)))
+	dn, err := idna.Registration.ToASCII(name)
+	if err != nil {
+		return ids.ShortEmpty, fmt.Errorf("invalid name %s, error: %v",
+			strconv.Quote(name), err)
+	}
+	data, err := bs.nameDB.Get([]byte(dn))
 	if err != nil {
 		return ids.ShortEmpty, err
 	}
@@ -215,6 +245,23 @@ func (bs *blockState) SavePrevData(id ids.ShortID, dm *ld.DataMeta) error {
 	return bs.prevDataDB.Put(key, dm.Bytes())
 }
 
+func (bs *blockState) DeleteData(id ids.ShortID, dm *ld.DataMeta) error {
+	version := dm.Version
+	dm.Version = 0 // mark dropped
+	if err := bs.SaveData(id, dm); err != nil {
+		return err
+	}
+	for version > 0 {
+		v := database.PackUInt64(version)
+		version--
+		key := make([]byte, 20+len(v))
+		copy(key, id[:])
+		copy(key[20:], v)
+		bs.prevDataDB.Delete(key)
+	}
+	return nil
+}
+
 func (bs *blockState) AddEvent(e *Event) {
 	if e != nil {
 		bs.events = append(bs.events, e)
@@ -248,7 +295,7 @@ func (bs *blockState) Commit() error {
 }
 
 func (bs *blockState) free() {
-	logging.Log.Info("free blockState %s", bs.id)
+	logging.Log.Info("free blockState at height %d", bs.height)
 	for k := range bs.accountCache {
 		delete(bs.accountCache, k)
 	}

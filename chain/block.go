@@ -37,14 +37,16 @@ var (
 // If the status of the block is Accepted or Rejected; Parent, Verify, Accept,
 // and Reject will never be called.
 type Block struct {
-	ld       *ld.Block
-	parent   *ld.Block
-	ctx      *Context
-	bs       BlockState
-	status   choices.Status
-	txs      []Transaction
-	miner    *Account
-	verified bool
+	ld        *ld.Block
+	parent    *ld.Block
+	ctx       *Context
+	bs        BlockState
+	tryBS     BlockState
+	status    choices.Status
+	txs       []Transaction
+	originTxs []*ld.Transaction
+	miner     *Account
+	verified  bool
 }
 
 func NewGenesisBlock(b *ld.Block, ctx *Context) (*Block, error) {
@@ -64,28 +66,16 @@ func NewGenesisBlock(b *ld.Block, ctx *Context) (*Block, error) {
 	return blk, nil
 }
 
-// tx gas, block gas, block miners should be set up !!!
-func NewBlock(b *ld.Block, ctx *Context) (*Block, error) {
-	blk := &Block{ld: b, ctx: ctx}
-	if err := blk.init(); err != nil {
-		return nil, err
-	}
-	return blk, nil
+func NewBlock(b *ld.Block, ctx *Context) *Block {
+	return &Block{ld: b, ctx: ctx}
 }
 
-func (b *Block) init() error {
+// tx gas, block gas, block miners should be set up !!!
+func (b *Block) SyntacticVerify() error {
 	if err := b.ld.SyntacticVerify(); err != nil {
 		return err
 	}
 	b.status = choices.Processing
-	b.txs = make([]Transaction, len(b.ld.Txs))
-	for i := range b.ld.Txs {
-		tx, err := NewTx(b.ld.Txs[i], false)
-		if err != nil {
-			return err
-		}
-		b.txs[i] = tx
-	}
 	return nil
 }
 
@@ -99,7 +89,18 @@ func (b *Block) Unmarshal(data []byte) error {
 	if err := b.ld.Unmarshal(data); err != nil {
 		return err
 	}
-	return b.init()
+	if err := b.SyntacticVerify(); err != nil {
+		return err
+	}
+	b.txs = make([]Transaction, len(b.ld.Txs))
+	for i := range b.ld.Txs {
+		tx, err := NewTx(b.ld.Txs[i], false)
+		if err != nil {
+			return err
+		}
+		b.txs[i] = tx
+	}
+	return nil
 }
 
 func (b *Block) SetContext(ctx *Context) { b.ctx = ctx }
@@ -120,7 +121,8 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Block) InitState(db database.Database, accepted bool) {
-	b.bs = newBlockState(b.ctx, b.ID(), db)
+	b.bs = newBlockState(b.ctx, b.ld.Height, db)
+	b.tryBS = b.bs
 	if accepted { // history block
 		b.status = choices.Accepted
 		for _, tx := range b.txs {
@@ -158,10 +160,10 @@ func (b *Block) VerifyGenesis() error {
 		if !ok {
 			return fmt.Errorf("invalid genesis tx")
 		}
-		if err := tx.VerifyGenesis(b); err != nil {
+		if err := tx.VerifyGenesis(b, b.bs); err != nil {
 			return err
 		}
-		if err := b.txs[i].Accept(b); err != nil {
+		if err := b.txs[i].Accept(b, b.bs); err != nil {
 			return err
 		}
 		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Processing)
@@ -194,6 +196,101 @@ func (b *Block) Verify() error {
 	b.ctx.StateDB().AddVerifiedBlock(b)
 	b.verified = true
 	return nil
+}
+
+func (b *Block) TryVerifyTxs(txs ...*ld.Transaction) error {
+	feeCfg := b.FeeConfig()
+	tryBS := b.bs.DeriveState()
+	count := 0
+	for i := range txs {
+		tx := txs[i]
+
+		if tx.Type != ld.TypeTest {
+			count++
+			if tx.GasFeeCap < b.ld.GasPrice {
+				return fmt.Errorf("need more gasFeeCap, expected %d, got %d", b.ld.GasPrice, tx.GasFeeCap)
+			}
+			tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
+			if tx.Gas > feeCfg.MaxTxGas {
+				return fmt.Errorf("gas too large, expected %d, got %d", feeCfg.MaxTxGas, tx.Gas)
+			}
+		}
+
+		ntx, err := NewTx(tx, true)
+		if err != nil {
+			return err
+		}
+		if err = ntx.Verify(b, tryBS); err != nil {
+			return err
+		}
+		if err = ntx.Accept(b, tryBS); err != nil {
+			return err
+		}
+	}
+	if count == 0 {
+		return fmt.Errorf("no valid transaction")
+	}
+	return nil
+}
+
+func (b *Block) TryVerifyAndAddTxs(txs ...*ld.Transaction) choices.Status {
+	feeCfg := b.FeeConfig()
+	gas := uint64(0)
+	ntxs := make([]Transaction, 0, len(txs)-1)
+	tryBS := b.tryBS.DeriveState()
+	for i := range txs {
+		tx := txs[i]
+
+		if tx.Type != ld.TypeTest {
+			if tx.GasFeeCap < b.ld.GasPrice {
+				return choices.Unknown
+			}
+			tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
+			if tx.Gas > feeCfg.MaxTxGas {
+				tx.Err = fmt.Errorf("gas too large, expected %d, got %d", feeCfg.MaxTxGas, tx.Gas)
+				return choices.Rejected
+			}
+			gas += tx.Gas
+		}
+
+		// syntacticVerify again after gas calculation
+		ntx, err := NewTx(tx, true)
+		if err != nil {
+			tx.Err = err
+			return choices.Rejected
+		}
+		if err := ntx.Verify(b, tryBS); err != nil {
+			tx.Err = err
+			return choices.Rejected
+		}
+		if err := ntx.Accept(b, tryBS); err != nil {
+			tx.Err = err
+			return choices.Rejected
+		}
+		if tx.Type != ld.TypeTest {
+			ntxs = append(ntxs, ntx)
+		}
+	}
+
+	if len(ntxs) == 0 {
+		return choices.Rejected
+	}
+
+	b.ld.Gas = gas
+	b.tryBS = tryBS
+	for i := range ntxs {
+		b.ld.Txs = append(b.ld.Txs, ntxs[i].LD())
+		b.txs = append(b.txs, ntxs[i])
+	}
+	return choices.Processing
+}
+
+func (b *Block) TxsSize() int {
+	txsSize := 0
+	for _, tx := range b.ld.Txs {
+		txsSize += len(tx.Bytes())
+	}
+	return txsSize
 }
 
 func (b *Block) verify() error {
@@ -229,12 +326,10 @@ func (b *Block) verify() error {
 	ts := b.Timestamp().Unix()
 	for i := range b.ld.Txs {
 		tx := b.txs[i]
-		if err := tx.Verify(b); err != nil {
+		if err := tx.Verify(b, b.bs); err != nil {
 			return err
 		}
-		// d, _ := tx.MarshalJSON()
-		// logging.Log.Info("Block.Accept %s %d, %v", b.ID(), i, string(d))
-		if err := tx.Accept(b); err != nil {
+		if err := tx.Accept(b, b.bs); err != nil {
 			return err
 		}
 		b.ctx.StateDB().RemoveTx(tx.ID())
@@ -310,7 +405,7 @@ func (b *Block) Reject() error {
 func (b *Block) reject() {
 	if b.status != choices.Rejected {
 		b.status = choices.Rejected
-		b.ctx.StateDB().AddTxs(false, b.ld.Txs...)
+		b.ctx.StateDB().AddTxs(false, b.originTxs...)
 	}
 }
 
