@@ -86,14 +86,14 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxTransferExchange) Verify(blk *Block) error {
+func (tx *TxTransferExchange) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	if tx.to.Nonce() != tx.data.Nonce {
-		return fmt.Errorf("TxTransferExchange invalid seller nonce")
+	if err = tx.to.NonceTableHas(tx.data.Expire, tx.data.Nonce); err != nil {
+		return err
 	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
@@ -107,13 +107,13 @@ func (tx *TxTransferExchange) Verify(blk *Block) error {
 	return err
 }
 
-func (tx *TxTransferExchange) Accept(blk *Block) error {
+func (tx *TxTransferExchange) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.SubByNonce(tx.data.Sell, tx.data.Nonce, tx.quantity); err != nil {
+	if err = tx.to.SubByNonceTable(tx.data.Sell, tx.data.Expire, tx.data.Nonce, tx.quantity); err != nil {
 		return err
 	}
 	if err = tx.from.Add(tx.data.Sell, tx.quantity); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

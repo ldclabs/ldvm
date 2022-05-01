@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
@@ -91,7 +92,6 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
-	gas := uint64(0)
 	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize), feeCfg.ThresholdGas)
 	blk.GasPrice = preferred.GasPrice().Uint64()
 	if b.txPool.Len() > len(txs) {
@@ -106,40 +106,39 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		}
 	}
 
-	for i := range txs {
-		tx := txs[i]
-		if tx.GasFeeCap < blk.GasPrice {
-			b.txPool.Add(tx)
-			continue
-		}
-		tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
-		if tx.Gas > feeCfg.MaxTxGas {
-			b.txPool.Rejecte(tx)
-			continue
-		}
+	nblk := NewBlock(blk, preferred.Context())
+	nblk.InitState(preferred.State().VersionDB(), false)
 
-		// verify again after gas calculation
-		if err := tx.SyntacticVerify(); err != nil {
-			b.txPool.Rejecte(tx)
-			continue
+	var status choices.Status
+	for len(txs) > 0 {
+		for i := range txs {
+			tx := txs[i]
+			switch {
+			case tx.IsBatched():
+				status = nblk.TryVerifyAndAddTxs(tx.Txs()...)
+			case tx.Type == ld.TypeTest: // TextTx should be in Batch
+				status = choices.Rejected
+			default:
+				status = nblk.TryVerifyAndAddTxs(tx)
+			}
+
+			switch status {
+			case choices.Unknown:
+				b.txPool.Add(tx)
+			case choices.Rejected:
+				b.txPool.Reject(tx)
+			default:
+				nblk.originTxs = append(nblk.originTxs, tx)
+			}
 		}
-		gas += tx.Gas
-		blk.Txs = append(blk.Txs, tx)
+		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas)
 	}
 
 	if len(blk.Txs) == 0 {
 		return nil, fmt.Errorf("no txs to build")
 	}
 
-	blk.Gas = gas
-	nblk, err := NewBlock(blk, preferred.Context())
-	if err != nil {
-		return nil, err
-	}
-
-	nblk.InitState(preferred.State().VersionDB(), false)
 	b.lastBuildHeight = blk.Height
 	logging.Log.Info("Build block %s at %d", blk.ID(), blk.Height)
-	// TODO: pre-verify, rejecte invalid transactions
 	return nblk, nil
 }

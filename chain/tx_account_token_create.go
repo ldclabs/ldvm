@@ -74,9 +74,9 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxCreateTokenAccount) Verify(blk *Block) error {
+func (tx *TxCreateTokenAccount) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 	if !tx.to.IsEmpty() {
@@ -91,13 +91,20 @@ func (tx *TxCreateTokenAccount) Verify(blk *Block) error {
 }
 
 // VerifyGenesis skipping signature verification
-func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block) error {
+func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 	var err error
+	tx.data = &ld.TxMinter{}
+	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxCreateTokenAccount unmarshal data failed: %v", err)
+	}
+	if err = tx.data.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxCreateTokenAccount SyntacticVerify failed: %v", err)
+	}
+
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 
-	bs := blk.State()
 	tx.from, err = bs.LoadAccount(tx.ld.From)
 	if err != nil {
 		return err
@@ -114,10 +121,10 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block) error {
 	return nil
 }
 
-func (tx *TxCreateTokenAccount) Accept(blk *Block) error {
+func (tx *TxCreateTokenAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
 	if err = tx.to.CreateToken(tx.ld.To, tx.data); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

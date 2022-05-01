@@ -69,9 +69,9 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxWithdrawStake) Verify(blk *Block) error {
+func (tx *TxWithdrawStake) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 	if tx.to.IsEmpty() {
@@ -80,7 +80,7 @@ func (tx *TxWithdrawStake) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxWithdrawStake) Accept(blk *Block) error {
+func (tx *TxWithdrawStake) Accept(blk *Block, bs BlockState) error {
 	withdraw, err := tx.to.WithdrawStake(tx.ld.From, tx.data.Amount)
 	if err != nil {
 		return err
@@ -91,5 +91,5 @@ func (tx *TxWithdrawStake) Accept(blk *Block) error {
 	if err = tx.from.Add(constants.LDCAccount, withdraw); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

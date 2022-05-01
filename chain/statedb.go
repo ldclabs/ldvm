@@ -6,7 +6,7 @@ package chain
 import (
 	"fmt"
 	"math/big"
-	"strings"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +15,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
+	"golang.org/x/net/idna"
 
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/constants"
@@ -71,7 +72,7 @@ type StateDB interface {
 	AddVerifiedBlock(*Block)
 
 	// txs state
-	SubmitTx(*ld.Transaction) error
+	SubmitTx(...*ld.Transaction) error
 	AddTxs(isNew bool, txs ...*ld.Transaction)
 	AddRecentTx(Transaction, choices.Status)
 	GetTx(ids.ID) Transaction
@@ -342,9 +343,8 @@ func (s *stateDB) HealthCheck() (interface{}, error) {
 
 func (s *stateDB) TotalSupply() *big.Int {
 	t := new(big.Int)
-	if acc, err := s.LoadAccount(constants.GenesisAccount); err == nil {
-		max := s.genesis.Chain.MaxTotalSupply
-		t.Sub(max, acc.Balance)
+	if acc, err := s.LoadAccount(constants.LDCAccount); err == nil {
+		t.Sub(acc.MaxTotalSupply, acc.Balance)
 	}
 	return t
 }
@@ -523,23 +523,27 @@ func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 }
 
 // SubmitTx processes a transaction from API server
-func (s *stateDB) SubmitTx(tx *ld.Transaction) error {
+func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
+	if len(txs) == 0 {
+		return nil
+	}
+
 	var err error
-	logging.Log.Info("SubmitTx: %#v", tx)
-	if err = tx.SyntacticVerify(); err != nil {
+	tx := txs[0]
+	if len(txs) > 1 {
+		tx, err = ld.NewBatchTx(txs)
+		if err != nil {
+			return err
+		}
+	}
+
+	if tx.Type == ld.TypeTest {
+		return fmt.Errorf("TestTx should be in a batch transactions.")
+	}
+	if err := s.preferred.LoadV().TryVerifyTxs(txs...); err != nil {
 		return err
 	}
 
-	ntx, err := NewTx(tx, true)
-	if err != nil {
-		return err
-	}
-	if err = ntx.SyntacticVerify(); err != nil {
-		return err
-	}
-	if err = ntx.Verify(s.preferred.LoadV()); err != nil {
-		return err
-	}
 	s.AddTxs(true, tx)
 	go s.notifyBuild()
 	return nil
@@ -586,7 +590,12 @@ func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
 }
 
 func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
-	obj, err := s.nameDB.Load([]byte(strings.ToLower(name)), s.recentNames)
+	dn, err := idna.Registration.ToASCII(name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid name %s, error: %v",
+			strconv.Quote(name), err)
+	}
+	obj, err := s.nameDB.Load([]byte(dn), s.recentNames)
 	if err != nil {
 		return nil, err
 	}

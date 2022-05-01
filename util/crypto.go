@@ -26,6 +26,8 @@ const (
 	legacySigAdj = 27
 )
 
+var SignatureEmpty = Signature{}
+
 type Signature [crypto.SignatureLength]byte
 
 func (s Signature) MarshalJSON() ([]byte, error) {
@@ -56,41 +58,17 @@ func SignaturesFromStrings(ss []string) ([]Signature, error) {
 	return sigs, nil
 }
 
-func PtrToSignatures(d *[][]byte) ([]Signature, error) {
-	var data [][]byte
-	if d != nil {
-		data = *d
-	}
-	ss := make([]Signature, len(data))
-	for i := range data {
-		switch len(data[i]) {
-		case crypto.SignatureLength:
-			ss[i] = Signature{}
-			copy(ss[i][:], data[i])
-		default:
-			return ss, fmt.Errorf("expected 65 bytes but got %d", len(data[i]))
-		}
-	}
-	return ss, nil
-}
-
-func PtrFromSignatures(ss []Signature) *[][]byte {
-	if len(ss) == 0 {
-		return nil
-	}
-	v := make([][]byte, len(ss))
-	for i := range ss {
-		v[i] = ss[i][:]
-	}
-	return &v
-}
-
-func Sign(dh []byte, priv *ecdsa.PrivateKey) ([]byte, error) {
-	sig, err := crypto.Sign(dh, priv)
+func Sign(dh []byte, priv *ecdsa.PrivateKey) (Signature, error) {
+	sig := Signature{}
+	data, err := crypto.Sign(dh, priv)
 	if err != nil {
-		return nil, err
+		return sig, err
 	}
-	sig[vOffset] += legacySigAdj
+	if len(data) != crypto.SignatureLength {
+		return sig, fmt.Errorf("invalid signature")
+	}
+	data[vOffset] = data[vOffset] + legacySigAdj
+	copy(sig[:], data)
 	return sig, nil
 }
 
@@ -104,9 +82,26 @@ func DerivePublicKey(dh []byte, sig []byte) (*ecdsa.PublicKey, error) {
 
 	// Support signers that don't apply offset (ex: ledger)
 	if sigcpy[vOffset] >= legacySigAdj {
-		sigcpy[vOffset] -= legacySigAdj
+		sigcpy[vOffset] = sig[vOffset] - legacySigAdj
 	}
 	return crypto.SigToPub(dh, sigcpy)
+}
+
+func SignData(data []byte, priv *ecdsa.PrivateKey) (Signature, error) {
+	dh := sha3.Sum256(data)
+	return Sign(dh[:], priv)
+}
+
+func DeriveSigner(data []byte, sig []byte) (ids.ShortID, error) {
+	if len(data) == 0 || len(sig) != crypto.SignatureLength {
+		return ids.ShortEmpty, fmt.Errorf("no data or signatures to derive")
+	}
+	dh := sha3.Sum256(data)
+	pk, err := DerivePublicKey(dh[:], sig)
+	if err != nil {
+		return ids.ShortEmpty, err
+	}
+	return ids.ShortID(crypto.PubkeyToAddress(*pk)), nil
 }
 
 func DeriveSigners(data []byte, sigs []Signature) ([]ids.ShortID, error) {
@@ -142,4 +137,12 @@ func SatisfySigning(threshold uint8, keepers, signers []ids.ShortID, whenZero bo
 		}
 	}
 	return t >= threshold
+}
+
+// SatisfySigningPlus verify for updating keepers.
+func SatisfySigningPlus(threshold uint8, keepers, signers []ids.ShortID) bool {
+	if int(threshold) < len(keepers) {
+		threshold += 1
+	}
+	return SatisfySigning(threshold, keepers, signers, false)
 }

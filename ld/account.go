@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
+	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
@@ -49,9 +51,10 @@ type Account struct {
 	// the account id must be one of them.
 	Keepers []ids.ShortID
 
-	LockTime       uint64   // only used with StakeAccount
-	DelegationFee  uint64   // only used with StakeAccount, 1_000 == 100%, should be in [1, 500]
-	MaxTotalSupply *big.Int // only used with TokenAccount
+	LockTime       uint64              // only used with StakeAccount
+	DelegationFee  uint64              // only used with StakeAccount, 1_000 == 100%, should be in [1, 500]
+	MaxTotalSupply *big.Int            // only used with TokenAccount
+	NonceTable     map[uint64][]uint64 // map[expire][]nonce
 	Ledger         map[ids.ShortID]*big.Int
 
 	// external assignment
@@ -69,6 +72,7 @@ type jsonAccount struct {
 	LockTime       uint64              `json:"lockTime,omitempty"`
 	DelegationFee  uint64              `json:"delegationFee,omitempty"`
 	MaxTotalSupply *big.Int            `json:"maxTotalSupply,omitempty"`
+	NonceTable     map[string][]uint64 `json:"nonceTable"`
 	Ledger         map[string]*big.Int `json:"ledger"`
 }
 
@@ -86,12 +90,15 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		LockTime:       a.LockTime,
 		DelegationFee:  a.DelegationFee,
 		MaxTotalSupply: a.MaxTotalSupply,
+		NonceTable:     make(map[string][]uint64, len(a.NonceTable)),
 		Ledger:         make(map[string]*big.Int, len(a.Ledger)),
 	}
 	for i := range a.Keepers {
 		v.Keepers[i] = util.EthID(a.Keepers[i]).String()
 	}
-
+	for k, arr := range a.NonceTable {
+		v.NonceTable[strconv.FormatUint(k, 10)] = arr
+	}
 	for k := range a.Ledger {
 		str := util.TokenSymbol(k).String()
 		if str == "" {
@@ -108,6 +115,13 @@ func (a *Account) Copy() *Account {
 	x.Balance = new(big.Int).Set(a.Balance)
 	x.Keepers = make([]ids.ShortID, len(a.Keepers))
 	copy(x.Keepers, a.Keepers)
+	x.NonceTable = make(map[uint64][]uint64, len(a.NonceTable))
+	for k, v := range a.NonceTable {
+		x.NonceTable[k] = make([]uint64, len(v))
+		for i := range v {
+			x.NonceTable[k][i] = v[i]
+		}
+	}
 	x.Ledger = make(map[ids.ShortID]*big.Int, len(a.Ledger))
 	for k, v := range a.Ledger {
 		x.Ledger[k] = new(big.Int).Set(v)
@@ -133,6 +147,9 @@ func (a *Account) SyntacticVerify() error {
 	}
 	if int(a.Threshold) > len(a.Keepers) {
 		return fmt.Errorf("invalid threshold")
+	}
+	if a.NonceTable == nil {
+		return fmt.Errorf("invalid nonceTable")
 	}
 	if a.Ledger == nil {
 		return fmt.Errorf("invalid ledger")
@@ -199,8 +216,7 @@ func (a *Account) Equal(o *Account) bool {
 		if o.MaxTotalSupply != a.MaxTotalSupply {
 			return false
 		}
-	}
-	if o.MaxTotalSupply.Cmp(a.MaxTotalSupply) != 0 {
+	} else if o.MaxTotalSupply.Cmp(a.MaxTotalSupply) != 0 {
 		return false
 	}
 	if o.Threshold != a.Threshold {
@@ -218,6 +234,19 @@ func (a *Account) Equal(o *Account) bool {
 	for i := range a.Keepers {
 		if o.Keepers[i] != a.Keepers[i] {
 			return false
+		}
+	}
+	if len(o.NonceTable) != len(a.NonceTable) {
+		return false
+	}
+	for k, v := range a.NonceTable {
+		if len(o.NonceTable[k]) != len(v) {
+			return false
+		}
+		for i := range v {
+			if o.NonceTable[k][i] != v[i] {
+				return false
+			}
 		}
 	}
 	if len(o.Ledger) != len(a.Ledger) {
@@ -247,21 +276,41 @@ func (a *Account) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindAccount); ok {
+		if !v.Type.Valid() || !v.Threshold.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
+		if !v.Nonce.Valid() ||
+			!v.LockTime.Valid() ||
+			!v.DelegationFee.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
+
 		a.Type = AccountType(v.Type.Value())
 		a.Nonce = v.Nonce.Value()
-		a.Balance = ToBigInt(v.Balance)
+		a.Balance = v.Balance.Value()
 		a.Threshold = v.Threshold.Value()
+		a.MaxTotalSupply = v.MaxTotalSupply.Value()
+		a.LockTime = v.LockTime.Value()
+		a.DelegationFee = v.DelegationFee.Value()
+		a.NonceTable = make(map[uint64][]uint64, len(a.NonceTable))
+
 		if a.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		if len(v.MaxTotalSupply) > 0 {
-			a.MaxTotalSupply = ToBigInt(v.MaxTotalSupply)
-		} else if a.Type == TokenAccount {
-			a.MaxTotalSupply = new(big.Int)
+		now := uint64(time.Now().Unix())
+		for _, data := range v.NonceTable {
+			uu, err := ReadUint64s(data)
+			if err != nil {
+				return err
+			}
+			if len(uu) < 1 {
+				return fmt.Errorf("unmarshal NonceTable error")
+			}
+			if exp := uu[0]; exp >= now && len(uu) > 1 {
+				a.NonceTable[exp] = uu[1:]
+			}
 		}
 
-		a.LockTime = v.LockTime.Value()
-		a.DelegationFee = v.DelegationFee.Value()
 		a.Ledger = make(map[ids.ShortID]*big.Int, len(v.Ledger))
 		for _, data := range v.Ledger {
 			if len(data) < 20 {
@@ -281,16 +330,31 @@ func (a *Account) Marshal() ([]byte, error) {
 	ba := &bindAccount{
 		Type:           FromUint8(uint8(a.Type)),
 		Nonce:          FromUint64(a.Nonce),
-		Balance:        FromBigInt(a.Balance),
+		Balance:        FromUint(a.Balance),
 		Threshold:      FromUint8(a.Threshold),
 		Keepers:        FromShortIDs(a.Keepers),
 		LockTime:       FromUint64(a.LockTime),
 		DelegationFee:  FromUint64(a.DelegationFee),
-		MaxTotalSupply: FromBigInt(a.MaxTotalSupply),
+		MaxTotalSupply: FromUint(a.MaxTotalSupply),
+		NonceTable:     make([][]byte, 0, len(a.NonceTable)),
 		Ledger:         make([][]byte, 0, len(a.Ledger)),
 	}
+	now := uint64(time.Now().Unix())
+	buf := new(bytes.Buffer)
+	var err error
+	for k, uu := range a.NonceTable {
+		if k < now || len(uu) == 0 {
+			continue
+		}
+		if err = WriteUint64s(buf, k, uu...); err != nil {
+			return nil, err
+		}
+		ba.NonceTable = append(ba.NonceTable, buf.Bytes())
+		buf.Reset()
+	}
+
 	for k, v := range a.Ledger {
-		b := FromBigInt(v)
+		b := FromUint(v)
 		data := make([]byte, 20+len(b))
 		copy(data, k[:])
 		copy(data[20:], b)
@@ -307,13 +371,14 @@ func (a *Account) Marshal() ([]byte, error) {
 type bindAccount struct {
 	Type           Uint8
 	Nonce          Uint64
-	Balance        []byte
+	Balance        BigUint
 	Threshold      Uint8
 	Keepers        [][]byte
+	NonceTable     [][]byte
 	Ledger         [][]byte
 	LockTime       Uint64
 	DelegationFee  Uint64
-	MaxTotalSupply []byte
+	MaxTotalSupply BigUint
 }
 
 var accountLDBuilder *LDBuilder
@@ -323,17 +388,18 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
-	type BigInt bytes
+	type BigUint bytes
 	type Account struct {
-		Type           Uint8           (rename "t")
-		Nonce          Uint64          (rename "n")
-		Balance        BigInt          (rename "b")
-		Threshold      Uint8           (rename "th")
-		Keepers        [ID20]          (rename "ks")
-		Ledger         [Bytes]         (rename "lg")
-		LockTime       Uint64 (rename "lt")
-		DelegationFee  Uint64 (rename "dg")
-		MaxTotalSupply BigInt (rename "mts")
+		Type           Uint8   (rename "t")
+		Nonce          Uint64  (rename "n")
+		Balance        BigUint (rename "b")
+		Threshold      Uint8   (rename "th")
+		Keepers        [ID20]  (rename "kp")
+		NonceTable     [Bytes] (rename "nt")
+		Ledger         [Bytes] (rename "lg")
+		LockTime       Uint64  (rename "lt")
+		DelegationFee  Uint64  (rename "df")
+		MaxTotalSupply BigUint (rename "mts")
 	}
 `
 	builder, err := NewLDBuilder("Account", []byte(sch), (*bindAccount)(nil))

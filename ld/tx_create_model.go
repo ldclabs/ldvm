@@ -150,6 +150,9 @@ func (t *ModelMeta) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindModelMeta); ok {
+		if !v.Threshold.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
 		t.Name = v.Name
 		t.Threshold = v.Threshold.Value()
 		t.Data = v.Data
@@ -193,7 +196,7 @@ func init() {
 	type ModelMeta struct {
 		Name      String (rename "n")
 		Threshold Uint8  (rename "th")
-		Keepers   [ID20] (rename "ks")
+		Keepers   [ID20] (rename "kp")
 		Data      Bytes  (rename "d")
 	}
 `

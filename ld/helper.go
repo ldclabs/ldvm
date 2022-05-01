@@ -5,10 +5,11 @@ package ld
 
 import (
 	"fmt"
-	"math/big"
 	"runtime"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func Recover(errfmt string, fn func() error) (err error) {
@@ -141,33 +142,31 @@ func PtrFromID(id ids.ID) *[]byte {
 	return nil
 }
 
-func ToBigInt(data []byte) *big.Int {
-	i := &big.Int{}
-	return i.SetBytes(data)
-}
+// func ToBigInt(data []byte) *big.Int {
+// 	return new(big.Int).SetBytes(data)
+// }
 
-func PtrToBigInt(data *[]byte) *big.Int {
-	if data == nil {
-		return nil
-	}
-	i := &big.Int{}
-	return i.SetBytes(*data)
-}
+// func PtrToBigInt(data *[]byte) *big.Int {
+// 	if data == nil {
+// 		return nil
+// 	}
+// 	return new(big.Int).SetBytes(*data)
+// }
 
-func FromBigInt(i *big.Int) []byte {
-	if i == nil {
-		return nil
-	}
-	return i.Bytes()
-}
+// func FromBigInt(u *big.Int) []byte {
+// 	if u == nil {
+// 		return nil
+// 	}
+// 	return u.Bytes()
+// }
 
-func PtrFromBigInt(i *big.Int) *[]byte {
-	if i == nil {
-		return nil
-	}
-	b := i.Bytes()
-	return &b
-}
+// func PtrFromBigInt(u *big.Int) *[]byte {
+// 	if u == nil {
+// 		return nil
+// 	}
+// 	b := u.Bytes()
+// 	return &b
+// }
 
 func PtrToBytes(data *[]byte) []byte {
 	if data == nil {
@@ -181,4 +180,69 @@ func PtrFromBytes(data []byte) *[]byte {
 		return nil
 	}
 	return &data
+}
+
+func ToSignature(data []byte) (util.Signature, error) {
+	ss := util.Signature{}
+	switch len(data) {
+	case crypto.SignatureLength:
+		copy(ss[:], data)
+		return ss, nil
+	default:
+		return ss, fmt.Errorf("expected 65 bytes but got %d", len(data))
+	}
+}
+
+func PtrToSignature(d *[]byte) (*util.Signature, error) {
+	var data []byte
+	if d == nil {
+		return nil, nil
+	}
+
+	data = *d
+	switch len(data) {
+	case crypto.SignatureLength:
+		ss := util.Signature{}
+		copy(ss[:], data)
+		return &ss, nil
+	default:
+		return nil, fmt.Errorf("expected 65 bytes but got %d", len(data))
+	}
+}
+
+func PtrFromSignature(ss *util.Signature) *[]byte {
+	if ss == nil || *ss == util.SignatureEmpty {
+		return nil
+	}
+	v := (*ss)[:]
+	return &v
+}
+
+func PtrToSignatures(d *[][]byte) ([]util.Signature, error) {
+	var data [][]byte
+	if d != nil {
+		data = *d
+	}
+	ss := make([]util.Signature, len(data))
+	for i := range data {
+		switch len(data[i]) {
+		case crypto.SignatureLength:
+			ss[i] = util.Signature{}
+			copy(ss[i][:], data[i])
+		default:
+			return ss, fmt.Errorf("expected 65 bytes but got %d", len(data[i]))
+		}
+	}
+	return ss, nil
+}
+
+func PtrFromSignatures(ss []util.Signature) *[][]byte {
+	if len(ss) == 0 {
+		return nil
+	}
+	v := make([][]byte, len(ss))
+	for i := range ss {
+		v[i] = ss[i][:]
+	}
+	return &v
 }

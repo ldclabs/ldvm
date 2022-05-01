@@ -16,17 +16,7 @@
       "maxValidatorStake": 100000000000000,
       "minDelegatorStake": 100000000000,
       "minDelegationFee": 20000
-    },
-    "feeConfigThreshold": 2,
-    "feeConfigKeepers": [
-      "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
-      "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
-    ],
-    "nameAppThreshold": 2,
-    "nameAppKeepers": [
-      "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
-      "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
-    ]
+    }
   },
   "alloc": {
     "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF": {

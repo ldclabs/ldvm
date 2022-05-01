@@ -12,26 +12,34 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
 // TxUpdater is a hybrid data model for:
 //
+// TxCreateData{ID, Version, Threshold, Keepers, Data, KSig} no model keepers
+// TxCreateData{ID, Version, To, Amount, Threshold, Keepers, Data, KSig, SSig, Expire} with model keepers
+// TxUpdateData{ID, Version, Data, KSig} no model keepers
+// TxUpdateData{ID, Version, To, Amount, Data, KSig, SSig, Expire} with model keepers
 // TxDeleteData{ID, Version[, Data]}
-// TxUpdateDataKeepers{ID, Version, Threshold, Keepers[, Data]}
-// TxUpdateData{ID, Version, Data[, Expire]}
-// TxAccountUpdateKeepers{Threshold, Keepers[, Data]}
+// TxUpdateDataKeepers{ID, Version, Threshold, Keepers, KSig[, Data]}
+// TxUpdateDataKeepersByAuth{ID, Version, To, Amount, Threshold, Keepers, KSig, Expire[, Token, Data]}
 // TxUpdateModelKeepers{ID, Threshold, Keepers[, Data]}
-// TxUpdateDataKeepersByAuth{ID, Version, To, Amount[, Token, Expire, Threshold, Keepers, Data]}
+// TxUpdateAccountKeepers{Threshold, Keepers[, Data]}
+// TxAddAccountNonceTable{Expire, Numbers[, Data]}
 type TxUpdater struct {
-	ID        ids.ShortID // data id
+	ID        ids.ShortID // data id or model id
 	Version   uint64      // data version
 	Threshold uint8
 	Keepers   []ids.ShortID
-	Token     util.TokenSymbol // token symbol, default is NativeToken
-	To        ids.ShortID      // optional recipient
-	Amount    *big.Int         // transfer amount
+	Token     ids.ShortID     // token symbol, default is NativeToken
+	To        ids.ShortID     // optional recipient
+	Amount    *big.Int        // transfer amount
+	KSig      *util.Signature // full data signature signing by Data Keeper
+	SSig      *util.Signature // full data signature signing by Service Authority
 	Expire    uint64
+	Numbers   []uint64
 	Data      []byte
 
 	// external assignment
@@ -47,6 +55,9 @@ type jsonTxUpdater struct {
 	To        string          `json:"to,omitempty"`
 	Amount    *big.Int        `json:"amount,omitempty"`
 	Expire    uint64          `json:"expire,omitempty"`
+	KSig      *util.Signature `json:"kSig,omitempty"`
+	SSig      *util.Signature `json:"sSig,omitempty"`
+	Numbers   []uint64        `json:"numbers,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
 }
 
@@ -59,7 +70,10 @@ func (t *TxUpdater) MarshalJSON() ([]byte, error) {
 		Threshold: t.Threshold,
 		Amount:    t.Amount,
 		Expire:    t.Expire,
-		Token:     t.Token.String(),
+		Token:     util.TokenSymbol(t.Token).String(),
+		KSig:      t.KSig,
+		SSig:      t.SSig,
+		Numbers:   t.Numbers,
 		Data:      util.JSONMarshalData(t.Data),
 	}
 
@@ -86,8 +100,20 @@ func (t *TxUpdater) Copy() *TxUpdater {
 	}
 	x.Keepers = make([]ids.ShortID, len(t.Keepers))
 	copy(x.Keepers, t.Keepers)
+	x.Numbers = make([]uint64, len(t.Numbers))
+	copy(x.Data, t.Data)
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
+	if t.KSig != nil {
+		kSig := util.Signature{}
+		copy(kSig[:], (*t.KSig)[:])
+		x.KSig = &kSig
+	}
+	if t.SSig != nil {
+		sSig := util.Signature{}
+		copy(sSig[:], (*t.SSig)[:])
+		x.SSig = &sSig
+	}
 	x.raw = nil
 	return x
 }
@@ -98,7 +124,7 @@ func (t *TxUpdater) SyntacticVerify() error {
 		return fmt.Errorf("invalid TxUpdater")
 	}
 
-	if t.Token != util.NativeToken && t.Token.String() == "" {
+	if t.Token != constants.LDCAccount && util.TokenSymbol(t.Token).String() == "" {
 		return fmt.Errorf("invalid token symbol")
 	}
 	if t.Amount != nil && t.Amount.Sign() < 0 {
@@ -144,8 +170,7 @@ func (t *TxUpdater) Equal(o *TxUpdater) bool {
 		if o.Amount != t.Amount {
 			return false
 		}
-	}
-	if o.Amount.Cmp(t.Amount) != 0 {
+	} else if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if o.To != t.To {
@@ -164,6 +189,28 @@ func (t *TxUpdater) Equal(o *TxUpdater) bool {
 	}
 	if o.Expire != t.Expire {
 		return false
+	}
+	if o.KSig == nil || t.KSig == nil {
+		if o.KSig != t.KSig {
+			return false
+		}
+	} else if *o.KSig != *t.KSig {
+		return false
+	}
+	if o.SSig == nil || t.SSig == nil {
+		if o.SSig != t.SSig {
+			return false
+		}
+	} else if *o.SSig != *t.SSig {
+		return false
+	}
+	if len(o.Numbers) != len(t.Numbers) {
+		return false
+	}
+	for i := range t.Numbers {
+		if o.Numbers[i] != t.Numbers[i] {
+			return false
+		}
 	}
 	return bytes.Equal(o.Data, t.Data)
 }
@@ -184,24 +231,45 @@ func (t *TxUpdater) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindTxUpdater); ok {
+		if !v.Threshold.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
+		if !v.Version.Valid() ||
+			!v.Expire.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
+
 		t.Version = v.Version.Value()
 		t.Threshold = v.Threshold.Value()
 		t.Expire = v.Expire.Value()
-		t.Amount = PtrToBigInt(v.Amount)
+		t.Amount = v.Amount.PtrValue()
 		t.Data = PtrToBytes(v.Data)
 		if t.ID, err = PtrToShortID(v.ID); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		var token ids.ShortID
-		if token, err = PtrToShortID(v.Token); err != nil {
+		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		t.Token = util.TokenSymbol(token)
 		if t.Keepers, err = PtrToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		if t.To, err = PtrToShortID(v.To); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		if t.KSig, err = PtrToSignature(v.KSig); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		if t.SSig, err = PtrToSignature(v.SSig); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		if v.Numbers != nil {
+			t.Numbers = make([]uint64, len(*v.Numbers))
+			for i, n := range *v.Numbers {
+				if !n.Valid() {
+					return fmt.Errorf("unmarshal error: invalid uint64")
+				}
+				t.Numbers[i] = n.Value()
+			}
 		}
 		t.raw = data
 		return nil
@@ -215,11 +283,20 @@ func (t *TxUpdater) Marshal() ([]byte, error) {
 		Version:   PtrFromUint64(t.Version),
 		Threshold: PtrFromUint8(t.Threshold),
 		Keepers:   PtrFromShortIDs(t.Keepers),
-		Token:     PtrFromShortID(ids.ShortID(t.Token)),
-		Amount:    PtrFromBigInt(t.Amount),
+		Token:     PtrFromShortID(t.Token),
+		Amount:    PtrFromUint(t.Amount),
 		To:        PtrFromShortID(t.To),
 		Expire:    PtrFromUint64(t.Expire),
+		KSig:      PtrFromSignature(t.KSig),
+		SSig:      PtrFromSignature(t.SSig),
 		Data:      PtrFromBytes(t.Data),
+	}
+	if len(t.Numbers) > 0 {
+		arr := make([]Uint64, len(t.Numbers))
+		for i, n := range t.Numbers {
+			arr[i] = FromUint64(n)
+		}
+		v.Numbers = &arr
 	}
 	data, err := txUpdaterLDBuilder.Marshal(v)
 	if err != nil {
@@ -236,8 +313,11 @@ type bindTxUpdater struct {
 	Keepers   *[][]byte
 	Token     *[]byte
 	To        *[]byte
-	Amount    *[]byte
+	Amount    *BigUint
 	Expire    *Uint64
+	KSig      *[]byte
+	SSig      *[]byte
+	Numbers   *[]Uint64
 	Data      *[]byte
 }
 
@@ -248,17 +328,21 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
-	type BigInt bytes
+	type BigUint bytes
+	type Sig65 bytes
 	type TxUpdater struct {
-		ID        nullable ID20   (rename "id")
-		Version   nullable Uint64 (rename "v")
-		Threshold nullable Uint8  (rename "th")
-		Keepers   nullable [ID20] (rename "ks")
-		Token     nullable ID20   (rename "tk")
-		To        nullable ID20   (rename "to")
-		Amount    nullable BigInt (rename "a")
-		Expire    nullable Uint64 (rename "e")
-		Data      nullable Bytes  (rename "d")
+		ID        nullable ID20     (rename "id")
+		Version   nullable Uint64   (rename "v")
+		Threshold nullable Uint8    (rename "th")
+		Keepers   nullable [ID20]   (rename "kp")
+		Token     nullable ID20     (rename "tk")
+		To        nullable ID20     (rename "to")
+		Amount    nullable BigUint  (rename "a")
+		Expire    nullable Uint64   (rename "e")
+		KSig      nullable Sig65    (rename "ks")
+		SSig      nullable Sig65    (rename "ss")
+		Numbers   nullable [Uint64] (rename "ns")
+		Data      nullable Bytes    (rename "d")
 	}
 `
 

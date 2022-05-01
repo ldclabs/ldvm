@@ -5,6 +5,7 @@ package util
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 	"unicode/utf8"
 
@@ -65,4 +66,26 @@ func (s ShortIDs) Has(id ids.ShortID) bool {
 		}
 	}
 	return false
+}
+
+type Uint64Set map[uint64]struct{}
+
+func (us Uint64Set) Has(u uint64) bool {
+	_, ok := us[u]
+	return ok
+}
+
+func (us Uint64Set) Add(uu ...uint64) {
+	for _, u := range uu {
+		us[u] = struct{}{}
+	}
+}
+
+func (us Uint64Set) List() []uint64 {
+	list := make([]uint64, 0, len(us))
+	for u := range us {
+		list = append(list, u)
+	}
+	sort.SliceStable(list, func(i, j int) bool { return list[i] < list[j] })
+	return list
 }

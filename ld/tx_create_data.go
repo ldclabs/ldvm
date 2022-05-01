@@ -25,6 +25,8 @@ type DataMeta struct {
 	Threshold uint8
 	// keepers who owned this data, no more than 255
 	Keepers []ids.ShortID
+	KSig    util.Signature  // full data signature signing by Data Keeper
+	SSig    *util.Signature // full data signature signing by Service Authority
 	Data    []byte
 
 	// external assignment
@@ -34,10 +36,12 @@ type DataMeta struct {
 
 type jsonDataMeta struct {
 	ID        string          `json:"id"`
-	ModelID   string          `json:"modelID"`
+	ModelID   string          `json:"mID"`
 	Version   uint64          `json:"version"`
 	Threshold uint8           `json:"threshold"`
 	Keepers   []string        `json:"keepers"`
+	KSig      util.Signature  `json:"kSig"`
+	SSig      *util.Signature `json:"sSig,omitempty"`
 	Data      json.RawMessage `json:"data"`
 }
 
@@ -50,6 +54,8 @@ func (t *DataMeta) MarshalJSON() ([]byte, error) {
 		ModelID:   util.ModelID(t.ModelID).String(),
 		Version:   t.Version,
 		Threshold: t.Threshold,
+		KSig:      t.KSig,
+		SSig:      t.SSig,
 		Data:      util.JSONMarshalData(t.Data),
 		Keepers:   make([]string, len(t.Keepers)),
 	}
@@ -66,6 +72,11 @@ func (t *DataMeta) Copy() *DataMeta {
 	copy(x.Keepers, t.Keepers)
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
+	if t.SSig != nil {
+		sSig := util.Signature{}
+		copy(sSig[:], (*t.SSig)[:])
+		x.SSig = &sSig
+	}
 	x.raw = nil
 	return x
 }
@@ -122,6 +133,16 @@ func (t *DataMeta) Equal(o *DataMeta) bool {
 			return false
 		}
 	}
+	if o.KSig != t.KSig {
+		return false
+	}
+	if o.SSig == nil || t.SSig == nil {
+		if o.SSig != t.SSig {
+			return false
+		}
+	} else if *o.SSig != *t.SSig {
+		return false
+	}
 	return bytes.Equal(o.Data, t.Data)
 }
 
@@ -141,6 +162,12 @@ func (t *DataMeta) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindDataMeta); ok {
+		if !v.Threshold.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint8")
+		}
+		if !v.Version.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
 		t.Version = v.Version.Value()
 		t.Threshold = v.Threshold.Value()
 		t.Data = v.Data
@@ -148,6 +175,12 @@ func (t *DataMeta) Unmarshal(data []byte) error {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		if t.Keepers, err = ToShortIDs(v.Keepers); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		if t.KSig, err = ToSignature(v.KSig); err != nil {
+			return fmt.Errorf("unmarshal error: %v", err)
+		}
+		if t.SSig, err = PtrToSignature(v.SSig); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
 		t.raw = data
@@ -162,6 +195,8 @@ func (t *DataMeta) Marshal() ([]byte, error) {
 		Version:   FromUint64(t.Version),
 		Threshold: FromUint8(t.Threshold),
 		Keepers:   FromShortIDs(t.Keepers),
+		KSig:      t.KSig[:],
+		SSig:      PtrFromSignature(t.SSig),
 		Data:      t.Data,
 	}
 	data, err := dataMetaLDBuilder.Marshal(v)
@@ -178,6 +213,8 @@ type bindDataMeta struct {
 	Threshold Uint8
 	Keepers   [][]byte
 	Data      []byte
+	KSig      []byte
+	SSig      *[]byte
 }
 
 var dataMetaLDBuilder *LDBuilder
@@ -187,12 +224,15 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
+	type Sig65 bytes
 	type DataMeta struct {
 		ModelID   ID20   (rename "mid")
 		Version   Uint64 (rename "v")
 		Threshold Uint8  (rename "th")
-		Keepers   [ID20] (rename "ks")
+		Keepers   [ID20] (rename "kp")
 		Data      Bytes  (rename "d")
+		KSig      Sig65  (rename "ks")
+		SSig      nullable Sig65 (rename "ss")
 	}
 `
 

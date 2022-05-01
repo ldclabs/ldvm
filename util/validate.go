@@ -11,29 +11,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 )
 
-func ValidDomainName(name string) bool {
-	// [0-9A-Za-z-.]
-	prePunct := true
-	for _, r := range name {
-		u := uint32(r)
-		switch {
-		case u == 45 || u == 46:
-			if prePunct {
-				return false
-			}
-			prePunct = true
-			continue
-		case (u >= 48 && u <= 57) || (u >= 65 && u <= 90) || (u >= 97 && u <= 122):
-			prePunct = false
-			continue
-		default:
-			return false
-		}
-	}
-
-	return !prePunct && len(name) < 256
-}
-
 func ValidName(name string) bool {
 	preSpace := true
 	lastRune := ' '
@@ -67,7 +44,7 @@ func ValidLink(link string) bool {
 	if err != nil {
 		return false
 	}
-	return u.String() == link && len(link) < 512
+	return u.String() == link && len(link) < 512 && utf8.ValidString(link)
 }
 
 func ValidMID(mid string) bool {

@@ -165,11 +165,16 @@ func (t *TxExchanger) Unmarshal(data []byte) error {
 		return err
 	}
 	if v, ok := p.(*bindTxExchanger); ok {
+		if !v.Nonce.Valid() ||
+			!v.Expire.Valid() {
+			return fmt.Errorf("unmarshal error: invalid uint64")
+		}
+
 		t.Nonce = v.Nonce.Value()
 		t.Expire = v.Expire.Value()
-		t.Quota = ToBigInt(v.Quota)
-		t.Minimum = ToBigInt(v.Minimum)
-		t.Price = ToBigInt(v.Price)
+		t.Quota = v.Quota.Value()
+		t.Minimum = v.Minimum.Value()
+		t.Price = v.Price.Value()
 		if t.Sell, err = ToShortID(v.Sell); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
@@ -193,9 +198,9 @@ func (t *TxExchanger) Marshal() ([]byte, error) {
 		Nonce:   FromUint64(t.Nonce),
 		Sell:    FromShortID(t.Sell),
 		Receive: FromShortID(t.Receive),
-		Quota:   FromBigInt(t.Quota),
-		Minimum: FromBigInt(t.Minimum),
-		Price:   FromBigInt(t.Price),
+		Quota:   FromUint(t.Quota),
+		Minimum: FromUint(t.Minimum),
+		Price:   FromUint(t.Price),
 		Expire:  FromUint64(t.Expire),
 		Seller:  FromShortID(t.Seller),
 		To:      PtrFromShortID(t.To),
@@ -212,9 +217,9 @@ type bindTxExchanger struct {
 	Nonce   Uint64
 	Sell    []byte
 	Receive []byte
-	Quota   []byte
-	Minimum []byte
-	Price   []byte
+	Quota   BigUint
+	Minimum BigUint
+	Price   BigUint
 	Expire  Uint64
 	Seller  []byte
 	To      *[]byte
@@ -227,16 +232,16 @@ func init() {
 	type Uint8 bytes
 	type Uint64 bytes
 	type ID20 bytes
-	type BigInt bytes
+	type BigUint bytes
 	type TxExchanger struct {
 		Nonce   Uint64        (rename "n")
-		Sell    ID20          (rename "s")
-		Receive ID20          (rename "r")
-		Quota   BigInt        (rename "q")
-		Minimum BigInt        (rename "m")
-		Price   BigInt        (rename "p")
+		Sell    ID20          (rename "st")
+		Receive ID20          (rename "rt")
+		Quota   BigUint       (rename "q")
+		Minimum BigUint       (rename "m")
+		Price   BigUint       (rename "p")
 		Expire  Uint64        (rename "e")
-		Seller  ID20          (rename "py")
+		Seller  ID20          (rename "sl")
 		To      nullable ID20 (rename "to")
 	}
 `

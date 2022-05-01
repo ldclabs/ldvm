@@ -76,13 +76,12 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateData) Verify(blk *Block) error {
+func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	bs := blk.State()
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data failed: %v", err)
@@ -125,23 +124,22 @@ func (tx *TxUpdateData) Verify(blk *Block) error {
 	}
 	// TODO: apply patch operations
 	// tx.data.Validate(mm.SchemaType)
-	if blk.ctx.Chain().IsNameApp(tx.dm.ModelID) {
+	if blk.ctx.Chain().IsNameService(tx.dm.ModelID) {
 		// TODO: should not update name
 	}
 	return nil
 }
 
-func (tx *TxUpdateData) Accept(blk *Block) error {
+func (tx *TxUpdateData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	bs := blk.State()
 	if err = bs.SavePrevData(tx.data.ID, tx.prevDM); err != nil {
 		return err
 	}
 	if err = bs.SaveData(tx.data.ID, tx.dm); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }
 
 func (tx *TxUpdateData) Event(ts int64) *Event {

@@ -71,9 +71,9 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxResetStakeAccount) Verify(blk *Block) error {
+func (tx *TxResetStakeAccount) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 	switch {
@@ -98,7 +98,7 @@ func (tx *TxResetStakeAccount) Verify(blk *Block) error {
 	return nil
 }
 
-func (tx *TxResetStakeAccount) Accept(blk *Block) error {
+func (tx *TxResetStakeAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
 	switch {
 	case tx.data == nil:
@@ -113,5 +113,5 @@ func (tx *TxResetStakeAccount) Accept(blk *Block) error {
 		}
 	}
 
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

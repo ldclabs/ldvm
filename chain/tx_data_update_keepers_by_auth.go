@@ -73,13 +73,12 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block) error {
+func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	bs := blk.State()
 	tx.dm, err = bs.LoadData(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
@@ -89,16 +88,15 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block) error {
 			tx.dm.Version, tx.data.Version)
 	}
 	// verify seller's signatures
-	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners, false) {
+	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners) {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth need more exSignatures")
 	}
 	return nil
 }
 
-func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block) error {
+func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	bs := blk.State()
 	tx.dm.Version++
 	tx.dm.Threshold = tx.data.Threshold
 	tx.dm.Keepers = tx.data.Keepers
@@ -112,5 +110,5 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block) error {
 	if err = bs.SaveData(tx.data.ID, tx.dm); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

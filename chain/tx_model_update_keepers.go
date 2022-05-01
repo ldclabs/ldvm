@@ -66,25 +66,24 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateModelKeepers) Verify(blk *Block) error {
+func (tx *TxUpdateModelKeepers) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	bs := blk.State()
 	tx.mm, err = bs.LoadModel(tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateModelKeepers load model failed: %v", err)
 	}
 
-	if !util.SatisfySigning(tx.mm.Threshold, tx.mm.Keepers, tx.signers, false) {
+	if !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateModelKeepers need more signatures")
 	}
 	return nil
 }
 
-func (tx *TxUpdateModelKeepers) Accept(blk *Block) error {
+func (tx *TxUpdateModelKeepers) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.mm.Threshold = tx.data.Threshold
@@ -92,8 +91,8 @@ func (tx *TxUpdateModelKeepers) Accept(blk *Block) error {
 	if err = tx.mm.SyntacticVerify(); err != nil {
 		return err
 	}
-	if err = blk.State().SaveModel(tx.data.ID, tx.mm); err != nil {
+	if err = bs.SaveModel(tx.data.ID, tx.mm); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

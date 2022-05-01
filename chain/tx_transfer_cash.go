@@ -43,6 +43,9 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
+	if tx.ld.Amount != nil {
+		return fmt.Errorf("TxTransferCash invalid amount")
+	}
 
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxTransferCash invalid")
@@ -69,37 +72,34 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferCash invalid recipient")
 	}
-	if tx.data.To != tx.ld.To {
-		return fmt.Errorf("TxTransferCash invalid recipient")
+	if tx.data.From != tx.ld.To {
+		return fmt.Errorf("TxTransferCash invalid issuer")
 	}
+
 	if tx.data.Expire > 0 && tx.data.Expire < uint64(time.Now().Unix()) {
 		return fmt.Errorf("TxTransferCash expired")
 	}
 
-	// tx.ld.Amount can be less than tx.data.Amount
-	if tx.data.Amount == nil || tx.ld.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) < 0 {
-		return fmt.Errorf("TxTransferCash invalid amount")
+	if tx.data.Amount == nil || tx.data.Amount.Sign() <= 0 {
+		return fmt.Errorf("TxTransferCash invalid data amount")
 	}
 	return nil
 }
 
-func (tx *TxTransferCash) Verify(blk *Block) error {
+func (tx *TxTransferCash) Verify(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.TxBase.Verify(blk); err != nil {
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
 
-	if tx.issuer, err = blk.State().LoadAccount(tx.data.From); err != nil {
+	if err = tx.to.NonceTableHas(tx.data.Expire, tx.data.Nonce); err != nil {
 		return err
 	}
-	if tx.issuer.Nonce() != tx.data.Nonce {
-		return fmt.Errorf("TxTransferCash invalid issuer nonce")
-	}
 	// verify issuer's signatures
-	if !tx.issuer.SatisfySigning(tx.exSigners) {
+	if !tx.to.SatisfySigning(tx.exSigners) {
 		return fmt.Errorf("TxTransferCash account issuer need more signers")
 	}
-	tokenB := tx.issuer.BalanceOf(tx.ld.Token)
+	tokenB := tx.to.BalanceOf(tx.ld.Token)
 	if tx.data.Amount.Cmp(tokenB) > 0 {
 		return fmt.Errorf("TxTransferCash issuer %s insufficient balance, expected %v, got %v",
 			tx.data.From, tx.data.Amount, tokenB)
@@ -107,13 +107,13 @@ func (tx *TxTransferCash) Verify(blk *Block) error {
 	return err
 }
 
-func (tx *TxTransferCash) Accept(blk *Block) error {
+func (tx *TxTransferCash) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.issuer.SubByNonce(tx.ld.Token, tx.data.Nonce, tx.ld.Amount); err != nil {
+	if err = tx.to.SubByNonceTable(tx.ld.Token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
 		return err
 	}
-	if err = tx.to.Add(tx.ld.Token, tx.ld.Amount); err != nil {
+	if err = tx.from.Add(tx.ld.Token, tx.data.Amount); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }

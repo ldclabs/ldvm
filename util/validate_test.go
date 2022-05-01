@@ -9,29 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidDomainName(t *testing.T) {
-	assert.False(t, ValidDomainName(""))
-
-	assert.True(t, ValidDomainName("aa"))
-	assert.True(t, ValidDomainName("Aa"))
-	assert.True(t, ValidDomainName("aa"))
-	assert.True(t, ValidDomainName("a-a"))
-	assert.True(t, ValidDomainName("a.a"))
-	assert.True(t, ValidDomainName("a.com"))
-
-	assert.False(t, ValidDomainName("a/a"))
-	assert.False(t, ValidDomainName("a_a"))
-	assert.False(t, ValidDomainName("a正"))
-	assert.False(t, ValidDomainName("a a"))
-	assert.False(t, ValidDomainName("a."))
-	assert.False(t, ValidDomainName(".a"))
-	assert.False(t, ValidDomainName("a-"))
-	assert.False(t, ValidDomainName("-a"))
-	assert.False(t, ValidDomainName("a..a"))
-	assert.False(t, ValidDomainName("a-.a"))
-	assert.False(t, ValidDomainName("a.com."))
-}
-
 func TestValidName(t *testing.T) {
 	assert.False(t, ValidName(""))
 

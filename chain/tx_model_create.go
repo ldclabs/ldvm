@@ -14,7 +14,7 @@ import (
 
 type TxCreateModel struct {
 	*TxBase
-	data *ld.ModelMeta
+	mm *ld.ModelMeta
 }
 
 func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
@@ -22,13 +22,13 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 		return util.Null, nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
-		tx.data = &ld.ModelMeta{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
+	if tx.mm == nil {
+		tx.mm = &ld.ModelMeta{}
+		if err := tx.mm.Unmarshal(tx.ld.Data); err != nil {
 			return nil, fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
 		}
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := tx.mm.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
@@ -48,24 +48,31 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxCreateModel invalid")
 	}
-	tx.data = &ld.ModelMeta{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.mm = &ld.ModelMeta{}
+	if err = tx.mm.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.mm.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxCreateModel SyntacticVerify failed: %v", err)
 	}
 	return nil
 }
 
 // VerifyGenesis skipping signature verification
-func (tx *TxCreateModel) VerifyGenesis(blk *Block) error {
+func (tx *TxCreateModel) VerifyGenesis(blk *Block, bs BlockState) error {
 	var err error
+	tx.mm = &ld.ModelMeta{}
+	if err = tx.mm.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
+	}
+	if err = tx.mm.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxCreateModel SyntacticVerify failed: %v", err)
+	}
+
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 
-	bs := blk.State()
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
@@ -76,13 +83,13 @@ func (tx *TxCreateModel) VerifyGenesis(blk *Block) error {
 	return err
 }
 
-func (tx *TxCreateModel) Accept(blk *Block) error {
+func (tx *TxCreateModel) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	if err = blk.State().SaveModel(tx.ld.ShortID(), tx.data); err != nil {
+	if err = bs.SaveModel(tx.ld.ShortID(), tx.mm); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk)
+	return tx.TxBase.Accept(blk, bs)
 }
 
 func (tx *TxCreateModel) Event(ts int64) *Event {
