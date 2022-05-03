@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -99,9 +98,6 @@ func (t *TxExchanger) SyntacticVerify() error {
 	}
 	if t.Price == nil || t.Price.Sign() < 1 {
 		return fmt.Errorf("invalid price")
-	}
-	if t.Expire < uint64(time.Now().Unix()) {
-		return fmt.Errorf("invalid expire")
 	}
 	if t.Seller == ids.ShortEmpty {
 		return fmt.Errorf("invalid payee")

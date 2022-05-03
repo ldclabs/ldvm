@@ -6,6 +6,7 @@ package chain
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,9 +16,11 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"golang.org/x/net/idna"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/util"
 )
 
 var (
@@ -32,9 +35,9 @@ var poolAccountCache = sync.Pool{
 }
 
 type blockState struct {
-	ctx    *Context
-	height uint64
-	state  StateDB
+	ctx               *Context
+	height, timestamp uint64
+	state             StateDB
 
 	vdb            *versiondb.Database
 	blockDB        *db.PrefixDB
@@ -72,7 +75,7 @@ type BlockState interface {
 	Commit() error
 }
 
-func newBlockState(ctx *Context, height uint64, baseVDB database.Database) *blockState {
+func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Database) *blockState {
 	vdb := versiondb.New(baseVDB)
 	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
 
@@ -80,6 +83,7 @@ func newBlockState(ctx *Context, height uint64, baseVDB database.Database) *bloc
 	return &blockState{
 		ctx:            ctx,
 		height:         height,
+		timestamp:      timestamp,
 		state:          ctx.StateDB(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
@@ -94,6 +98,7 @@ func newBlockState(ctx *Context, height uint64, baseVDB database.Database) *bloc
 	}
 }
 
+// DeriveState for the given block
 func (bs *blockState) DeriveState() *blockState {
 	vdb := versiondb.New(bs.vdb)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
@@ -101,6 +106,7 @@ func (bs *blockState) DeriveState() *blockState {
 	return &blockState{
 		ctx:            bs.ctx,
 		height:         bs.height,
+		timestamp:      bs.timestamp,
 		state:          bs.ctx.StateDB(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
@@ -135,7 +141,16 @@ func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 			return nil, err
 		}
 
-		a.Init(bs.accountDB)
+		feeCfg := bs.ctx.Chain().Fee(bs.height)
+		switch {
+		case a.ld.Type == ld.TokenAccount && id != constants.LDCAccount:
+			a.Init(bs.accountDB, feeCfg.MinTokenPledge, bs.height, bs.timestamp)
+		case a.ld.Type == ld.StakeAccount:
+			a.Init(bs.accountDB, feeCfg.MinStakePledge, bs.height, bs.timestamp)
+		default:
+			a.Init(bs.accountDB, new(big.Int), bs.height, bs.timestamp)
+		}
+
 		bs.accountCache[id] = a
 	}
 
@@ -201,6 +216,9 @@ func (bs *blockState) SaveModel(id ids.ShortID, mm *ld.ModelMeta) error {
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
+	if ok, _ := bs.modelDB.Has(id[:]); ok {
+		return fmt.Errorf("SaveModel error: model %s exists", util.ModelID(id).String())
+	}
 	return bs.modelDB.Put(id[:], mm.Bytes())
 }
 
@@ -226,6 +244,11 @@ func (bs *blockState) SaveData(id ids.ShortID, dm *ld.DataMeta) error {
 	}
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
+	}
+	if dm.Version == 1 {
+		if ok, _ := bs.dataDB.Has(id[:]); ok {
+			return fmt.Errorf("SaveData error: data %s exists", util.DataID(id).String())
+		}
 	}
 	return bs.dataDB.Put(id[:], dm.Bytes())
 }
@@ -279,10 +302,17 @@ func (bs *blockState) SaveBlock(blk *Block) error {
 		}
 	}
 	id := blk.ID()
+	if ok, _ := bs.blockDB.Has(id[:]); ok {
+		return fmt.Errorf("SaveBlock error: block %s at height %d exists", id.String(), blk.Height())
+	}
 	if err := bs.blockDB.Put(id[:], blk.Bytes()); err != nil {
 		return err
 	}
-	return bs.heightDB.Put(database.PackUInt64(blk.Height()), id[:])
+	hKey := database.PackUInt64(blk.Height())
+	if ok, _ := bs.heightDB.Has(hKey); ok {
+		return fmt.Errorf("SaveBlock height error: block %s at height %d exists", id.String(), blk.Height())
+	}
+	return bs.heightDB.Put(hKey, id[:])
 }
 
 // Commit when accept

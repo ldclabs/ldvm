@@ -5,6 +5,7 @@ package ld
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -15,6 +16,7 @@ func TestTransaction(t *testing.T) {
 	tx := &Transaction{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
+		Amount:  big.NewInt(100),
 		To:      address,
 	}
 

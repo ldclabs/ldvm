@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -33,12 +32,8 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxUpdater{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxCreateData unmarshal failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -90,7 +85,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		if tx.data.To != tx.ld.To {
 			return fmt.Errorf("TxCreateData invalid recipient")
 		}
-		if tx.data.Expire < uint64(time.Now().Unix()) {
+		if tx.data.Expire < tx.ld.Timestamp {
 			return fmt.Errorf("TxCreateData expired")
 		}
 		if tx.data.Amount == nil || tx.ld.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) != 0 {

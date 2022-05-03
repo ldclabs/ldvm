@@ -165,7 +165,17 @@ func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
 	total := 0
 	n := 0
 	for i, tx := range p.txQueue {
-		total += len(tx.Bytes())
+		switch {
+		case tx.IsBatched():
+			for _, tx2 := range tx.Txs() {
+				if tx2.Type != ld.TypeTest {
+					total += len(tx2.Bytes())
+				}
+			}
+		default:
+			total += len(tx.Bytes())
+		}
+
 		if total > askSize {
 			break
 		}

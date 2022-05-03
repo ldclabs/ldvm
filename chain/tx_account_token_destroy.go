@@ -5,8 +5,8 @@ package chain
 
 import (
 	"fmt"
-	"math/big"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -23,8 +23,14 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	if tx.ld.Token != constants.LDCAccount {
 		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
 	}
-	if util.TokenSymbol(tx.ld.From).String() == "" {
-		return fmt.Errorf("TxDestroyTokenAccount invalid token: %s", util.EthID(tx.ld.From))
+	if tx.ld.To == ids.ShortEmpty {
+		return fmt.Errorf("TxDestroyTokenAccount invalid recipient")
+	}
+	if token := util.TokenSymbol(tx.ld.From); token.String() == "" {
+		return fmt.Errorf("TxDestroyTokenAccount invalid token: %s", token)
+	}
+	if tx.ld.Amount == nil || tx.ld.Amount.Sign() != 0 {
+		return fmt.Errorf("TxCreateTokenAccount invalid amount")
 	}
 	return nil
 }
@@ -34,22 +40,16 @@ func (tx *TxDestroyTokenAccount) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	// destroy
-	ldcB := tx.from.BalanceOf(constants.LDCAccount)
-	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
-	tx.ld.Amount = new(big.Int).Sub(ldcB, tx.cost)
-	if tx.ld.Amount.Sign() < 0 {
-		return fmt.Errorf(
-			"Account.TxDestroyTokenAccount %s insufficient balance to destroy, expected %v, got %v",
-			util.EthID(tx.ld.From), tx.cost, ldcB)
+	if !tx.from.SatisfySigningPlus(tx.signers) {
+		return fmt.Errorf("sender account need more signers")
 	}
-	tx.cost = tx.cost.Set(ldcB)
-	return nil
+	return tx.from.CheckDestroyToken(tx.ld.From, tx.to)
 }
 
 func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
-	if err := tx.from.DestroyToken(tx.ld.From, tx.ld.To); err != nil {
+	if err := tx.TxBase.Accept(blk, bs); err != nil {
 		return err
 	}
-	return tx.TxBase.Accept(blk, bs)
+	// DestroyToken after TxBase.Accept
+	return tx.from.DestroyToken(tx.ld.From, tx.to)
 }

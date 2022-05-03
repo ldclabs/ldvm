@@ -26,10 +26,7 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxExchanger{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxTransferExchange unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
@@ -91,18 +88,12 @@ func (tx *TxTransferExchange) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-
-	if err = tx.to.NonceTableHas(tx.data.Expire, tx.data.Nonce); err != nil {
-		return err
-	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return fmt.Errorf("TxTransferExchange account seller need more signers")
 	}
-	tokenB := tx.to.BalanceOf(tx.data.Sell)
-	if tx.quantity.Cmp(tokenB) > 0 {
-		return fmt.Errorf("TxTransferExchange seller %s insufficient balance, expected %v, got %v",
-			tx.data.Seller, tx.quantity, tokenB)
+	if err = tx.to.CheckSubByNonceTable(tx.data.Sell, tx.data.Expire, tx.data.Nonce, tx.quantity); err != nil {
+		return err
 	}
 	return err
 }

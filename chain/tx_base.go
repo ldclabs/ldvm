@@ -120,26 +120,11 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 			tx.from.Nonce(), tx.ld.Nonce)
 	}
 
-	ldcB := tx.from.BalanceOf(constants.LDCAccount)
-	if ldcB.Cmp(tx.cost) < 0 {
-		return fmt.Errorf("sender account insufficient balance for fee, expected %d, got %d",
-			tx.cost, ldcB)
-	}
-
 	switch tx.from.Type() {
 	case ld.TokenAccount:
 		switch tx.ld.Type {
-		case ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount:
+		case ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount, ld.TypeTransfer:
 			// just go ahead
-		case ld.TypeTransfer:
-			if tx.ld.Token == constants.LDCAccount {
-				total := new(big.Int).Add(tx.ld.Amount, tx.cost)
-				total.Add(total, blk.FeeConfig().MinTokenPledge)
-				if ldcB.Cmp(total) < 0 {
-					return fmt.Errorf("sender account insufficient balance, expected %d, got %d",
-						total, ldcB)
-				}
-			}
 		default:
 			return fmt.Errorf("invalid from account for %s", ld.TxTypeString(tx.ld.Type))
 		}
@@ -171,19 +156,17 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 		}
 	}
 
-	if tx.ld.Amount != nil {
-		switch tx.ld.Token {
-		case constants.LDCAccount:
-			if total := new(big.Int).Add(tx.ld.Amount, tx.cost); ldcB.Cmp(total) < 0 {
-				return fmt.Errorf("sender account insufficient balance, expected %d, got %d",
-					total, ldcB)
-			}
-		default:
-			tokenB := tx.from.BalanceOf(tx.ld.Token)
-			if tokenB.Cmp(tx.ld.Amount) < 0 {
-				return fmt.Errorf("sender account %s insufficient balance, expected %d, got %d",
-					tx.ld.Token.String(), tx.ld.Amount, tokenB)
-			}
+	switch tx.ld.Token {
+	case constants.LDCAccount:
+		if err = tx.from.CheckBalance(constants.LDCAccount, new(big.Int).Add(tx.ld.Amount, tx.cost)); err != nil {
+			return err
+		}
+	default:
+		if err = tx.from.CheckBalance(constants.LDCAccount, tx.cost); err != nil {
+			return fmt.Errorf("check fee failed: %v", err)
+		}
+		if err = tx.from.CheckBalance(tx.ld.Token, tx.ld.Amount); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -195,7 +178,7 @@ func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	if tx.ld.Amount != nil && tx.ld.From != tx.ld.To {
+	if tx.ld.Amount.Sign() > 0 {
 		if err = tx.from.Sub(tx.ld.Token, tx.ld.Amount); err != nil {
 			return err
 		}

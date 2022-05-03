@@ -21,7 +21,7 @@ var LocalGenesisConfigJSON = `
       "minValidatorStake": 1000000000000,
       "maxValidatorStake": 100000000000000,
       "minDelegatorStake": 100000000000,
-      "minDelegationFee": 20000
+      "minWithdrawFee": 20000
     }
   },
   "alloc": {

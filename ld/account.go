@@ -10,10 +10,14 @@ import (
 	"math"
 	"math/big"
 	"strconv"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
+)
+
+var (
+	_ LDObject = (*LendingConfig)(nil)
+	_ LDObject = (*StakeConfig)(nil)
 )
 
 // AccountType is an uint8 representing the type of account
@@ -51,29 +55,313 @@ type Account struct {
 	// the account id must be one of them.
 	Keepers []ids.ShortID
 
-	LockTime       uint64              // only used with StakeAccount
-	DelegationFee  uint64              // only used with StakeAccount, 1_000 == 100%, should be in [1, 500]
 	MaxTotalSupply *big.Int            // only used with TokenAccount
 	NonceTable     map[uint64][]uint64 // map[expire][]nonce
-	Ledger         map[ids.ShortID]*big.Int
+	Tokens         map[ids.ShortID]*big.Int
+
+	Stake         *StakeConfig
+	StakeLedger   Ledger
+	Lending       *LendingConfig
+	LendingLedger Ledger
 
 	// external assignment
-	raw []byte
-	ID  ids.ShortID
+	Height    uint64 // block's timestamp
+	Timestamp uint64 // block's timestamp
+	raw       []byte
+	ID        ids.ShortID
 }
 
 type jsonAccount struct {
-	Type           string              `json:"type"`
-	Address        string              `json:"address"`
-	Nonce          uint64              `json:"nonce"`
-	Balance        *big.Int            `json:"balance"`
-	Threshold      uint8               `json:"threshold"`
-	Keepers        []string            `json:"keepers"`
-	LockTime       uint64              `json:"lockTime,omitempty"`
-	DelegationFee  uint64              `json:"delegationFee,omitempty"`
-	MaxTotalSupply *big.Int            `json:"maxTotalSupply,omitempty"`
-	NonceTable     map[string][]uint64 `json:"nonceTable"`
-	Ledger         map[string]*big.Int `json:"ledger"`
+	Type           string                  `json:"type"`
+	Address        string                  `json:"address"`
+	Nonce          uint64                  `json:"nonce"`
+	Balance        *big.Int                `json:"balance"`
+	Threshold      uint8                   `json:"threshold"`
+	Keepers        []string                `json:"keepers"`
+	MaxTotalSupply *big.Int                `json:"maxTotalSupply,omitempty"`
+	NonceTable     map[string][]uint64     `json:"nonceTable"`
+	Tokens         map[string]*big.Int     `json:"tokens"`
+	Stake          *StakeConfig            `json:"stake,omitempty"`
+	StakeLedger    map[string]*LedgerEntry `json:"stakeLedger,omitempty"`
+	Lending        *LendingConfig          `json:"lending,omitempty"`
+	LendingLedger  map[string]*LedgerEntry `json:"lendingLedger,omitempty"`
+}
+
+type Ledger map[ids.ShortID]*LedgerEntry
+
+func LedgerFromBytesList(list [][]byte) (Ledger, error) {
+	ledger := make(map[ids.ShortID]*LedgerEntry, len(list))
+	for _, data := range list {
+		list2, err := ReadBytesList(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal error: %v", err)
+		}
+		if len(list2) != 4 || len(list2[0]) != 20 {
+			return nil, fmt.Errorf("unmarshal error: invalid LedgerEntry data")
+		}
+		le, err := LedgerEntryFromBytesList(list2[1:])
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal error: %v", err)
+		}
+		id := ids.ShortID{}
+		copy(id[:], list[0])
+		ledger[id] = le
+	}
+	return ledger, nil
+}
+
+func (l Ledger) ToBytesList(buf *bytes.Buffer) ([][]byte, error) {
+	if l == nil {
+		return [][]byte{}, nil
+	}
+	var err error
+	list := make([][]byte, 0, len(l))
+	if buf == nil {
+		buf = new(bytes.Buffer)
+	}
+	for k, v := range l {
+		if err = WriteBytesList(buf, k[:], v.ToBytesList()...); err != nil {
+			return nil, err
+		}
+
+		list = append(list, buf.Bytes())
+		buf.Reset()
+	}
+	return list, nil
+}
+
+type LedgerEntry struct {
+	Amount   *big.Int `json:"amount"`
+	UpdateAt uint64   `json:"updateAt"`
+	DueTime  uint64   `json:"dueTime"`
+}
+
+func (e *LedgerEntry) ToBytesList() [][]byte {
+	return [][]byte{FromUint(e.Amount), FromUint64(e.UpdateAt), FromUint64(e.DueTime)}
+}
+
+func LedgerEntryFromBytesList(list [][]byte) (*LedgerEntry, error) {
+	if len(list) != 3 {
+		return nil, fmt.Errorf("invalid LedgerEntry bytes list")
+	}
+	e := &LedgerEntry{}
+	e.Amount = new(big.Int).SetBytes(list[0])
+	u := Uint64(list[1])
+	if !u.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	e.UpdateAt = u.Value()
+	u = Uint64(list[2])
+	if !u.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	e.DueTime = u.Value()
+	return e, nil
+}
+
+type StakeConfig struct {
+	// 0: account keepers can not use stake token
+	// 1: account keepers can take a stake in other stake account
+	// 2: in addition to 1, account keepers can transfer stake token to other account
+	// 3: in addition to 2, account keepers can liquidate shareholder (use with lending)
+	Type        uint8    `json:"type"`
+	Token       string   `json:"token"`
+	LockTime    uint64   `json:"lockTime"`
+	WithdrawFee uint64   `json:"withdrawFee"` // 1_000_000 == 100%, should be in [1, 200_000]
+	MinAmount   *big.Int `json:"minAmount"`
+	MaxAmount   *big.Int `json:"maxAmount"`
+
+	TokenID ids.ShortID `json:"-"`
+}
+
+// SyntacticVerify verifies that a *StakeConfig is well-formed.
+func (c *StakeConfig) SyntacticVerify() error {
+	if c == nil {
+		return fmt.Errorf("invalid StakeConfig")
+	}
+	if c.Type > 3 {
+		return fmt.Errorf("invalid StakeConfig type")
+	}
+	token, err := util.NewSymbol(c.Token)
+	if err != nil {
+		return err
+	}
+	c.TokenID = ids.ShortID(token)
+
+	if c.WithdrawFee < 1 || c.WithdrawFee > 200_000 {
+		return fmt.Errorf("invalid WithdrawFee, should be in [1, 200_000]")
+	}
+
+	if c.MinAmount == nil || c.MinAmount.Sign() < 1 {
+		return fmt.Errorf("invalid MinAmount")
+	}
+	if c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0 {
+		return fmt.Errorf("invalid MaxAmount")
+	}
+	return nil
+}
+
+func (c *StakeConfig) Unmarshal(data []byte) error {
+	list, err := ReadBytesList(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	lc, err := StakeConfigFromBytesList(list)
+	if err != nil {
+		return err
+	}
+	*c = *lc
+	return nil
+}
+
+func (c *StakeConfig) Marshal() ([]byte, error) {
+	list := c.ToBytesList()
+	buf := new(bytes.Buffer)
+	if err := WriteBytesList(buf, list[0], list[1:]...); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (c *StakeConfig) MarshalJSON() ([]byte, error) {
+	if c == nil {
+		return util.Null, nil
+	}
+	return json.Marshal(c)
+}
+
+func (c *StakeConfig) ToBytesList() [][]byte {
+	return [][]byte{
+		FromUint8(c.Type),
+		[]byte(c.Token),
+		FromUint64(c.LockTime),
+		FromUint64(c.WithdrawFee),
+		FromUint(c.MinAmount),
+		FromUint(c.MaxAmount),
+	}
+}
+
+func StakeConfigFromBytesList(list [][]byte) (*StakeConfig, error) {
+	if len(list) != 6 {
+		return nil, fmt.Errorf("invalid StakeConfig bytes list")
+	}
+	c := &StakeConfig{}
+	u := Uint8(list[0])
+	if !u.Valid() {
+		return nil, fmt.Errorf("invalid uint8 bytes")
+	}
+	c.Type = u.Value()
+	c.Token = string(list[1])
+	u2 := Uint64(list[2])
+	if !u2.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	c.LockTime = u2.Value()
+	u2 = Uint64(list[3])
+	if !u2.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	c.WithdrawFee = u2.Value()
+	c.MinAmount = new(big.Int).SetBytes(list[4])
+	c.MaxAmount = new(big.Int).SetBytes(list[5])
+	return c, nil
+}
+
+type LendingConfig struct {
+	Token           string   `json:"token"`
+	DailyInterest   uint64   `json:"dailyInterest"`   // 1_000_000 == 100%, should be in [1, 10_000]
+	OverdueInterest uint64   `json:"overdueInterest"` // 1_000_000 == 100%, should be in [1, 10_000]
+	MinAmount       *big.Int `json:"minAmount"`
+	MaxAmount       *big.Int `json:"maxAmount"`
+
+	TokenID ids.ShortID `json:"-"`
+}
+
+// SyntacticVerify verifies that a *LendingConfig is well-formed.
+func (c *LendingConfig) SyntacticVerify() error {
+	if c == nil {
+		return fmt.Errorf("invalid LendingConfig")
+	}
+	token, err := util.NewSymbol(c.Token)
+	if err != nil {
+		return err
+	}
+	c.TokenID = ids.ShortID(token)
+
+	if c.DailyInterest < 1 || c.DailyInterest > 10_000 {
+		return fmt.Errorf("invalid DailyInterest, should be in [1, 10_000]")
+	}
+	if c.OverdueInterest < 1 || c.OverdueInterest > 10_000 {
+		return fmt.Errorf("invalid OverdueInterest, should be in [1, 10_000]")
+	}
+
+	if c.MinAmount == nil || c.MinAmount.Sign() < 1 {
+		return fmt.Errorf("invalid MinAmount")
+	}
+	if c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0 {
+		return fmt.Errorf("invalid MaxAmount")
+	}
+	return nil
+}
+
+func (c *LendingConfig) Unmarshal(data []byte) error {
+	list, err := ReadBytesList(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	lc, err := LendingConfigFromBytesList(list)
+	if err != nil {
+		return err
+	}
+	*c = *lc
+	return nil
+}
+
+func (c *LendingConfig) Marshal() ([]byte, error) {
+	list := c.ToBytesList()
+	buf := new(bytes.Buffer)
+	if err := WriteBytesList(buf, list[0], list[1:]...); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (c *LendingConfig) MarshalJSON() ([]byte, error) {
+	if c == nil {
+		return util.Null, nil
+	}
+	return json.Marshal(c)
+}
+
+func (c *LendingConfig) ToBytesList() [][]byte {
+	return [][]byte{
+		[]byte(c.Token),
+		FromUint64(c.DailyInterest),
+		FromUint64(c.OverdueInterest),
+		FromUint(c.MinAmount),
+		FromUint(c.MaxAmount),
+	}
+}
+
+func LendingConfigFromBytesList(list [][]byte) (*LendingConfig, error) {
+	if len(list) != 5 {
+		return nil, fmt.Errorf("invalid LendingConfig bytes list")
+	}
+	c := &LendingConfig{}
+	c.Token = string(list[0])
+	u := Uint64(list[1])
+	if !u.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	c.DailyInterest = u.Value()
+	u = Uint64(list[2])
+	if !u.Valid() {
+		return nil, fmt.Errorf("invalid uint64 bytes")
+	}
+	c.OverdueInterest = u.Value()
+	c.MinAmount = new(big.Int).SetBytes(list[3])
+	c.MaxAmount = new(big.Int).SetBytes(list[4])
+	return c, nil
 }
 
 func (a *Account) MarshalJSON() ([]byte, error) {
@@ -87,11 +375,11 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 		Balance:        a.Balance,
 		Threshold:      a.Threshold,
 		Keepers:        make([]string, len(a.Keepers)),
-		LockTime:       a.LockTime,
-		DelegationFee:  a.DelegationFee,
 		MaxTotalSupply: a.MaxTotalSupply,
 		NonceTable:     make(map[string][]uint64, len(a.NonceTable)),
-		Ledger:         make(map[string]*big.Int, len(a.Ledger)),
+		Tokens:         make(map[string]*big.Int, len(a.Tokens)),
+		Stake:          a.Stake,
+		Lending:        a.Lending,
 	}
 	for i := range a.Keepers {
 		v.Keepers[i] = util.EthID(a.Keepers[i]).String()
@@ -99,12 +387,24 @@ func (a *Account) MarshalJSON() ([]byte, error) {
 	for k, arr := range a.NonceTable {
 		v.NonceTable[strconv.FormatUint(k, 10)] = arr
 	}
-	for k := range a.Ledger {
+	for k := range a.Tokens {
 		str := util.TokenSymbol(k).String()
 		if str == "" {
 			str = util.EthID(k).String()
 		}
-		v.Ledger[str] = a.Ledger[k]
+		v.Tokens[str] = a.Tokens[k]
+	}
+	if a.Stake != nil {
+		v.StakeLedger = make(map[string]*LedgerEntry, len(a.StakeLedger))
+		for k := range a.StakeLedger {
+			v.StakeLedger[util.EthID(k).String()] = a.StakeLedger[k]
+		}
+	}
+	if a.Lending != nil {
+		v.LendingLedger = make(map[string]*LedgerEntry, len(a.LendingLedger))
+		for k := range a.LendingLedger {
+			v.LendingLedger[util.EthID(k).String()] = a.LendingLedger[k]
+		}
 	}
 	return json.Marshal(v)
 }
@@ -122,9 +422,9 @@ func (a *Account) Copy() *Account {
 			x.NonceTable[k][i] = v[i]
 		}
 	}
-	x.Ledger = make(map[ids.ShortID]*big.Int, len(a.Ledger))
-	for k, v := range a.Ledger {
-		x.Ledger[k] = new(big.Int).Set(v)
+	x.Tokens = make(map[ids.ShortID]*big.Int, len(a.Tokens))
+	for k, v := range a.Tokens {
+		x.Tokens[k] = new(big.Int).Set(v)
 	}
 	if a.MaxTotalSupply != nil {
 		x.MaxTotalSupply = new(big.Int).Set(a.MaxTotalSupply)
@@ -151,8 +451,8 @@ func (a *Account) SyntacticVerify() error {
 	if a.NonceTable == nil {
 		return fmt.Errorf("invalid nonceTable")
 	}
-	if a.Ledger == nil {
-		return fmt.Errorf("invalid ledger")
+	if a.Tokens == nil {
+		return fmt.Errorf("invalid tokens")
 	}
 
 	switch a.Type {
@@ -160,18 +460,12 @@ func (a *Account) SyntacticVerify() error {
 		if a.MaxTotalSupply != nil {
 			return fmt.Errorf("invalid maxTotalSupply, should be nil")
 		}
-		if a.LockTime != 0 {
-			return fmt.Errorf("invalid lockTime, should be 0")
-		}
-		if a.DelegationFee != 0 {
-			return fmt.Errorf("invalid delegationFee, should be 0")
+		if a.Stake != nil || len(a.StakeLedger) > 0 {
+			return fmt.Errorf("invalid stake on NativeAccount")
 		}
 	case TokenAccount:
-		if a.LockTime != 0 {
-			return fmt.Errorf("invalid lockTime, should be 0")
-		}
-		if a.DelegationFee != 0 {
-			return fmt.Errorf("invalid delegationFee, should be 0")
+		if a.Stake != nil || len(a.StakeLedger) > 0 {
+			return fmt.Errorf("invalid stake on TokenAccount")
 		}
 		if a.MaxTotalSupply == nil || a.MaxTotalSupply.Sign() < 0 {
 			return fmt.Errorf("invalid maxTotalSupply")
@@ -180,11 +474,8 @@ func (a *Account) SyntacticVerify() error {
 		if a.MaxTotalSupply != nil {
 			return fmt.Errorf("invalid maxTotalSupply, should be nil")
 		}
-		if a.LockTime == 0 {
-			return fmt.Errorf("invalid lockTime, should not be 0")
-		}
-		if a.DelegationFee == 0 || a.DelegationFee > 500 {
-			return fmt.Errorf("invalid delegationFee, should be in [1, 500]")
+		if a.Stake == nil || a.StakeLedger == nil {
+			return fmt.Errorf("invalid stake on StakeAccount")
 		}
 	default:
 		return fmt.Errorf("invalid type")
@@ -222,12 +513,6 @@ func (a *Account) Equal(o *Account) bool {
 	if o.Threshold != a.Threshold {
 		return false
 	}
-	if o.LockTime != a.LockTime {
-		return false
-	}
-	if o.DelegationFee != a.DelegationFee {
-		return false
-	}
 	if len(o.Keepers) != len(a.Keepers) {
 		return false
 	}
@@ -249,11 +534,11 @@ func (a *Account) Equal(o *Account) bool {
 			}
 		}
 	}
-	if len(o.Ledger) != len(a.Ledger) {
+	if len(o.Tokens) != len(a.Tokens) {
 		return false
 	}
-	for id := range a.Ledger {
-		if o.Ledger[id] == nil || a.Ledger[id] == nil || o.Ledger[id].Cmp(a.Ledger[id]) != 0 {
+	for id := range a.Tokens {
+		if o.Tokens[id] == nil || a.Tokens[id] == nil || o.Tokens[id].Cmp(a.Tokens[id]) != 0 {
 			return false
 		}
 	}
@@ -279,9 +564,7 @@ func (a *Account) Unmarshal(data []byte) error {
 		if !v.Type.Valid() || !v.Threshold.Valid() {
 			return fmt.Errorf("unmarshal error: invalid uint8")
 		}
-		if !v.Nonce.Valid() ||
-			!v.LockTime.Valid() ||
-			!v.DelegationFee.Valid() {
+		if !v.Nonce.Valid() {
 			return fmt.Errorf("unmarshal error: invalid uint64")
 		}
 
@@ -290,14 +573,12 @@ func (a *Account) Unmarshal(data []byte) error {
 		a.Balance = v.Balance.Value()
 		a.Threshold = v.Threshold.Value()
 		a.MaxTotalSupply = v.MaxTotalSupply.Value()
-		a.LockTime = v.LockTime.Value()
-		a.DelegationFee = v.DelegationFee.Value()
 		a.NonceTable = make(map[uint64][]uint64, len(a.NonceTable))
 
 		if a.Keepers, err = ToShortIDs(v.Keepers); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)
 		}
-		now := uint64(time.Now().Unix())
+
 		for _, data := range v.NonceTable {
 			uu, err := ReadUint64s(data)
 			if err != nil {
@@ -306,19 +587,52 @@ func (a *Account) Unmarshal(data []byte) error {
 			if len(uu) < 1 {
 				return fmt.Errorf("unmarshal NonceTable error")
 			}
-			if exp := uu[0]; exp >= now && len(uu) > 1 {
+			if exp := uu[0]; exp >= a.Timestamp && len(uu) > 1 {
 				a.NonceTable[exp] = uu[1:]
 			}
 		}
 
-		a.Ledger = make(map[ids.ShortID]*big.Int, len(v.Ledger))
-		for _, data := range v.Ledger {
-			if len(data) < 20 {
-				return fmt.Errorf("unmarshal error: invalid ledger data")
+		a.Tokens = make(map[ids.ShortID]*big.Int, len(v.Tokens))
+		for _, data := range v.Tokens {
+			list, err := ReadBytesList(bytes.NewReader(data))
+			if err != nil {
+				return fmt.Errorf("unmarshal error: %v", err)
 			}
+			if len(list) != 2 || len(list[0]) != 20 {
+				return fmt.Errorf("unmarshal error: invalid Tokens data")
+			}
+
 			id := ids.ShortID{}
-			copy(id[:], data[:20])
-			a.Ledger[id] = new(big.Int).SetBytes(data[20:])
+			copy(id[:], list[0])
+			a.Tokens[id] = new(big.Int).SetBytes(list[1])
+		}
+
+		if v.Stake != nil {
+			a.Stake, err = StakeConfigFromBytesList(*v.Stake)
+			if err != nil {
+				return fmt.Errorf("unmarshal error: invalid Stake, %v", err)
+			}
+			if v.StakeLedger == nil {
+				return fmt.Errorf("unmarshal error: invalid StakeLedger")
+			}
+			a.StakeLedger, err = LedgerFromBytesList(*v.StakeLedger)
+			if err != nil {
+				return fmt.Errorf("unmarshal error: %v", err)
+			}
+		}
+
+		if v.Lending != nil {
+			a.Lending, err = LendingConfigFromBytesList(*v.Lending)
+			if err != nil {
+				return fmt.Errorf("unmarshal error: invalid Lending, %v", err)
+			}
+			if v.LendingLedger == nil {
+				return fmt.Errorf("unmarshal error: invalid LendingLedger")
+			}
+			a.LendingLedger, err = LedgerFromBytesList(*v.LendingLedger)
+			if err != nil {
+				return fmt.Errorf("unmarshal error: %v", err)
+			}
 		}
 		a.raw = data
 		return nil
@@ -333,17 +647,15 @@ func (a *Account) Marshal() ([]byte, error) {
 		Balance:        FromUint(a.Balance),
 		Threshold:      FromUint8(a.Threshold),
 		Keepers:        FromShortIDs(a.Keepers),
-		LockTime:       FromUint64(a.LockTime),
-		DelegationFee:  FromUint64(a.DelegationFee),
 		MaxTotalSupply: FromUint(a.MaxTotalSupply),
 		NonceTable:     make([][]byte, 0, len(a.NonceTable)),
-		Ledger:         make([][]byte, 0, len(a.Ledger)),
+		Tokens:         make([][]byte, 0, len(a.Tokens)),
 	}
-	now := uint64(time.Now().Unix())
+
 	buf := new(bytes.Buffer)
 	var err error
 	for k, uu := range a.NonceTable {
-		if k < now || len(uu) == 0 {
+		if k < a.Timestamp || len(uu) == 0 {
 			continue
 		}
 		if err = WriteUint64s(buf, k, uu...); err != nil {
@@ -353,13 +665,34 @@ func (a *Account) Marshal() ([]byte, error) {
 		buf.Reset()
 	}
 
-	for k, v := range a.Ledger {
-		b := FromUint(v)
-		data := make([]byte, 20+len(b))
-		copy(data, k[:])
-		copy(data[20:], b)
-		ba.Ledger = append(ba.Ledger, data)
+	for k, v := range a.Tokens {
+		if err = WriteBytesList(buf, k[:], FromUint(v)); err != nil {
+			return nil, err
+		}
+		ba.Tokens = append(ba.Tokens, buf.Bytes())
+		buf.Reset()
 	}
+
+	if a.Stake != nil {
+		list := a.Stake.ToBytesList()
+		ba.Stake = &list
+		list, err = a.StakeLedger.ToBytesList(buf)
+		if err != nil {
+			return nil, err
+		}
+		ba.StakeLedger = &list
+	}
+
+	if a.Lending != nil {
+		list := a.Lending.ToBytesList()
+		ba.Lending = &list
+		list, err = a.LendingLedger.ToBytesList(buf)
+		if err != nil {
+			return nil, err
+		}
+		ba.LendingLedger = &list
+	}
+
 	data, err := accountLDBuilder.Marshal(ba)
 	if err != nil {
 		return nil, err
@@ -375,10 +708,12 @@ type bindAccount struct {
 	Threshold      Uint8
 	Keepers        [][]byte
 	NonceTable     [][]byte
-	Ledger         [][]byte
-	LockTime       Uint64
-	DelegationFee  Uint64
+	Tokens         [][]byte
 	MaxTotalSupply BigUint
+	Stake          *[][]byte
+	StakeLedger    *[][]byte
+	Lending        *[][]byte
+	LendingLedger  *[][]byte
 }
 
 var accountLDBuilder *LDBuilder
@@ -396,10 +731,12 @@ func init() {
 		Threshold      Uint8   (rename "th")
 		Keepers        [ID20]  (rename "kp")
 		NonceTable     [Bytes] (rename "nt")
-		Ledger         [Bytes] (rename "lg")
-		LockTime       Uint64  (rename "lt")
-		DelegationFee  Uint64  (rename "df")
+		Tokens         [Bytes] (rename "lg")
 		MaxTotalSupply BigUint (rename "mts")
+		Stake          nullable [Bytes] (rename "st")
+		StakeLedger    nullable [Bytes] (rename "stl")
+		Lending        nullable [Bytes] (rename "le")
+		LendingLedger  nullable [Bytes] (rename "lel")
 	}
 `
 	builder, err := NewLDBuilder("Account", []byte(sch), (*bindAccount)(nil))

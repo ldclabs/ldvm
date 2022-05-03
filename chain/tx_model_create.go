@@ -23,10 +23,7 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.mm == nil {
-		tx.mm = &ld.ModelMeta{}
-		if err := tx.mm.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.mm.MarshalJSON()
 	if err != nil {

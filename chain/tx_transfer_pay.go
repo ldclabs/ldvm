@@ -5,7 +5,6 @@ package chain
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
@@ -24,10 +23,7 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxTransfer{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxTransferPay unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
@@ -65,7 +61,7 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	if tx.data.To != tx.ld.To {
 		return fmt.Errorf("TxTransferPay invalid recipient")
 	}
-	if tx.data.Expire > 0 && tx.data.Expire < uint64(time.Now().Unix()) {
+	if tx.data.Expire < tx.ld.Timestamp {
 		return fmt.Errorf("TxTransferPay expired")
 	}
 	if tx.data.Amount != nil && tx.data.Amount.Cmp(tx.ld.Amount) != 0 {

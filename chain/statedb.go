@@ -540,7 +540,8 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 	if tx.Type == ld.TypeTest {
 		return fmt.Errorf("TestTx should be in a batch transactions.")
 	}
-	if err := s.preferred.LoadV().TryVerifyTxs(txs...); err != nil {
+	blk := s.preferred.LoadV()
+	if err := blk.TryVerifyTxs(txs...); err != nil {
 		return err
 	}
 
@@ -584,7 +585,10 @@ func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
 	if err != nil {
 		return nil, err
 	}
+	blk := s.LastAcceptedBlock()
 	rt := obj.(*ld.Account)
+	rt.Height = blk.Height
+	rt.Timestamp = blk.Timestamp
 	rt.ID = id
 	return rt, nil
 }

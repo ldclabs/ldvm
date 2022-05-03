@@ -5,7 +5,6 @@ package chain
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -24,10 +23,7 @@ func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxUpdater{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxAddAccountNonceTable unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
@@ -69,8 +65,8 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 	if len(tx.data.Numbers) > 1024 {
 		return fmt.Errorf("TxAddAccountNonceTable too many numbers")
 	}
-	now := time.Now()
-	if tx.data.Expire < uint64(now.Unix()) || tx.data.Expire > uint64(now.Add(time.Hour*24*7).Unix()) {
+	now := tx.ld.Timestamp
+	if tx.data.Expire < now || tx.data.Expire > (now+3600*24*7) {
 		return fmt.Errorf("TxAddAccountNonceTable invalid expire")
 	}
 	return nil
@@ -81,7 +77,7 @@ func (tx *TxAddAccountNonceTable) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	if err = tx.from.NonceTableValid(tx.data.Expire, tx.data.Numbers); err != nil {
+	if err = tx.from.CheckNonceTable(tx.data.Expire, tx.data.Numbers); err != nil {
 		return err
 	}
 	return nil
@@ -89,7 +85,7 @@ func (tx *TxAddAccountNonceTable) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxAddAccountNonceTable) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.from.NonceTableAdd(tx.data.Expire, tx.data.Numbers); err != nil {
+	if err = tx.from.AddNonceTable(tx.data.Expire, tx.data.Numbers); err != nil {
 		return err
 	}
 

@@ -61,18 +61,15 @@ func (c *ChainConfig) AddFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight       uint64   `json:"startHeight"`
-	ThresholdGas      uint64   `json:"thresholdGas"`
-	MinGasPrice       uint64   `json:"minGasPrice"`
-	MaxGasPrice       uint64   `json:"maxGasPrice"`
-	MaxTxGas          uint64   `json:"maxTxGas"`
-	MaxBlockTxsSize   uint64   `json:"maxBlockTxsSize"`
-	GasRebateRate     uint64   `json:"gasRebateRate"`
-	MinTokenPledge    *big.Int `json:"minTokenPledge"`
-	MinValidatorStake *big.Int `json:"minValidatorStake"`
-	MaxValidatorStake *big.Int `json:"maxValidatorStake"`
-	MinDelegatorStake *big.Int `json:"minDelegatorStake"`
-	MinDelegationFee  uint64   `json:"minDelegationFee"` // 1_000 == 100%, should be in [1, 500]
+	StartHeight     uint64   `json:"startHeight"`
+	ThresholdGas    uint64   `json:"thresholdGas"`
+	MinGasPrice     uint64   `json:"minGasPrice"`
+	MaxGasPrice     uint64   `json:"maxGasPrice"`
+	MaxTxGas        uint64   `json:"maxTxGas"`
+	MaxBlockTxsSize uint64   `json:"maxBlockTxsSize"`
+	GasRebateRate   uint64   `json:"gasRebateRate"`
+	MinTokenPledge  *big.Int `json:"minTokenPledge"`
+	MinStakePledge  *big.Int `json:"minStakePledge"`
 }
 
 func FromJSON(data []byte) (*Genesis, error) {
@@ -93,7 +90,7 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
-	minter := &ld.TxMinter{
+	minter := &ld.TxAccounter{
 		Amount:  g.Chain.MaxTotalSupply,
 		Name:    "Linked Data Chain",
 		Message: g.Chain.Message,
