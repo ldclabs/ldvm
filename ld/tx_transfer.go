@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -91,11 +90,8 @@ func (t *TxTransfer) SyntacticVerify() error {
 	if t.From == ids.ShortEmpty {
 		return fmt.Errorf("invalid from")
 	}
-	if t.Amount != nil && t.Amount.Sign() < 1 {
+	if t.Amount == nil || t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
-	}
-	if t.Expire < uint64(time.Now().Unix()) {
-		return fmt.Errorf("invalid expire")
 	}
 	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("TxTransfer marshal error: %v", err)
@@ -122,11 +118,7 @@ func (t *TxTransfer) Equal(o *TxTransfer) bool {
 	if o.To != t.To {
 		return false
 	}
-	if o.Amount == nil || t.Amount == nil {
-		if o.Amount != t.Amount {
-			return false
-		}
-	} else if o.Amount.Cmp(t.Amount) != 0 {
+	if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if o.Expire != t.Expire {
@@ -158,7 +150,7 @@ func (t *TxTransfer) Unmarshal(data []byte) error {
 
 		t.Nonce = v.Nonce.Value()
 		t.Expire = v.Expire.Value()
-		t.Amount = v.Amount.PtrValue()
+		t.Amount = v.Amount.Value()
 		t.Data = PtrToBytes(v.Data)
 		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)

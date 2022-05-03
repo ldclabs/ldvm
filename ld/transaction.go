@@ -37,9 +37,13 @@ const (
 	TypeCreateTokenAccount   // create a token account
 	TypeDestroyTokenAccount  // destroy a token account
 	TypeCreateStakeAccount   // create a stake account
+	TypeResetStakeAccount    // reset or destroy a stake account
 	TypeTakeStake            // take a stake in
 	TypeWithdrawStake        // withdraw stake
-	TypeResetStakeAccount    // reset or destroy a stake account
+	TypeOpenLending
+	TypeCloseLending
+	TypeBorrow
+	TypeRepay
 
 	// Model
 	TypeCreateModel        // create a data model
@@ -166,6 +170,8 @@ type Transaction struct {
 	raw         []byte // the transaction's raw bytes, included id and sigs.
 	AddTime     uint64
 	Priority    uint64
+	Height      uint64 // block's timestamp
+	Timestamp   uint64 // block's timestamp
 	Err         error
 	// support for batch transactions
 	// they are processed in the same block, one fail all fail
@@ -214,7 +220,7 @@ type jsonTransaction struct {
 	Token        string           `json:"token,omitempty"`
 	From         string           `json:"from"`
 	To           string           `json:"to"`
-	Amount       *big.Int         `json:"amount"`
+	Amount       *big.Int         `json:"amount,omitempty"`
 	Data         json.RawMessage  `json:"data"`
 	Signatures   []util.Signature `json:"signatures"`
 	ExSignatures []util.Signature `json:"exSignatures"`
@@ -360,9 +366,7 @@ func (t *Transaction) Copy() *Transaction {
 	x := new(Transaction)
 	*x = *t
 
-	if t.Amount != nil {
-		x.Amount = new(big.Int).Set(t.Amount)
-	}
+	x.Amount = new(big.Int).Set(t.Amount)
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
 	x.Signatures = make([]util.Signature, len(t.Signatures))
@@ -397,7 +401,7 @@ func (t *Transaction) SyntacticVerify() error {
 	if t.Token != constants.LDCAccount && util.TokenSymbol(t.Token).String() == "" {
 		return fmt.Errorf("invalid token symbol")
 	}
-	if t.Amount != nil && t.Amount.Sign() < 0 {
+	if t.Amount == nil || t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
 	}
 	if len(t.Signatures) > math.MaxUint8 {
@@ -541,11 +545,7 @@ func (t *Transaction) Equal(o *Transaction) bool {
 	if o.To != t.To {
 		return false
 	}
-	if o.Amount == nil || t.Amount == nil {
-		if o.Amount != t.Amount {
-			return false
-		}
-	} else if o.Amount.Cmp(t.Amount) != 0 {
+	if o.Amount.Cmp(t.Amount) != 0 {
 		return false
 	}
 	if len(o.Signatures) != len(t.Signatures) {
@@ -654,7 +654,7 @@ func (t *Transaction) Unmarshal(data []byte) error {
 		t.GasTip = v.GasTip.Value()
 		t.GasFeeCap = v.GasFeeCap.Value()
 		t.Gas = v.Gas.Value()
-		t.Amount = v.Amount.PtrValue()
+		t.Amount = v.Amount.Value()
 		t.Data = PtrToBytes(v.Data)
 		if t.Token, err = PtrToShortID(v.Token); err != nil {
 			return fmt.Errorf("unmarshal error: %v", err)

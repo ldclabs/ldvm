@@ -1,10 +1,9 @@
+// go:build test
+
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 //
 // Much love to the original authors for their work.
-// **********
-// Copyright (C) 2019-2021, Ava Labs, Inc. All rights reserved.
-// See the file LICENSE for licensing terms.
 
 package util
 

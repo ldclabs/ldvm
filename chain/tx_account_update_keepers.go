@@ -23,10 +23,7 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxUpdater{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
@@ -85,6 +82,17 @@ func (tx *TxUpdateAccountKeepers) VerifyGenesis(blk *Block, bs BlockState) error
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
 	return err
+}
+
+func (tx *TxUpdateAccountKeepers) Verify(blk *Block, bs BlockState) error {
+	var err error
+	if err = tx.TxBase.Verify(blk, bs); err != nil {
+		return err
+	}
+	if !tx.from.SatisfySigningPlus(tx.signers) {
+		return fmt.Errorf("sender account need more signers")
+	}
+	return nil
 }
 
 func (tx *TxUpdateAccountKeepers) Accept(blk *Block, bs BlockState) error {

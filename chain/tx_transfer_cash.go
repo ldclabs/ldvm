@@ -5,7 +5,6 @@ package chain
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
@@ -25,10 +24,7 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxTransfer{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxTransferCash unmarshal data failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
@@ -63,9 +59,6 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTransferCash SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Nonce == 0 {
-		return fmt.Errorf("TxTransferCash invalid nonce")
-	}
 	if tx.data.Token != tx.ld.Token {
 		return fmt.Errorf("TxTransferCash invalid token")
 	}
@@ -76,7 +69,7 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 		return fmt.Errorf("TxTransferCash invalid issuer")
 	}
 
-	if tx.data.Expire > 0 && tx.data.Expire < uint64(time.Now().Unix()) {
+	if tx.data.Expire < tx.ld.Timestamp {
 		return fmt.Errorf("TxTransferCash expired")
 	}
 
@@ -92,17 +85,13 @@ func (tx *TxTransferCash) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	if err = tx.to.NonceTableHas(tx.data.Expire, tx.data.Nonce); err != nil {
-		return err
-	}
 	// verify issuer's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return fmt.Errorf("TxTransferCash account issuer need more signers")
 	}
-	tokenB := tx.to.BalanceOf(tx.ld.Token)
-	if tx.data.Amount.Cmp(tokenB) > 0 {
-		return fmt.Errorf("TxTransferCash issuer %s insufficient balance, expected %v, got %v",
-			tx.data.From, tx.data.Amount, tokenB)
+
+	if err = tx.to.CheckSubByNonceTable(tx.ld.Token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
+		return err
 	}
 	return err
 }

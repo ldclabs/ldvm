@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -135,9 +134,6 @@ func (t *TxUpdater) SyntacticVerify() error {
 	}
 	if int(t.Threshold) > len(t.Keepers) {
 		return fmt.Errorf("invalid threshold")
-	}
-	if t.Expire > 0 && t.Expire < uint64(time.Now().Unix()) {
-		return fmt.Errorf("invalid expire")
 	}
 	for _, id := range t.Keepers {
 		if id == ids.ShortEmpty {

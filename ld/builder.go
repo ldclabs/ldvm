@@ -6,12 +6,14 @@ package ld
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"sync"
 
 	ipld "github.com/ipld/go-ipld-prime"
 	"github.com/ipld/go-ipld-prime/codec/dagcbor"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
 	"github.com/ipld/go-ipld-prime/datamodel"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 	"github.com/ipld/go-ipld-prime/node/bindnode"
 	"github.com/ipld/go-ipld-prime/schema"
 )
@@ -128,4 +130,49 @@ func NewSchemaType(name string, sch []byte) (schema.Type, error) {
 		return nil, err
 	}
 	return st, nil
+}
+
+func WriteBytesList(w io.Writer, b []byte, bb ...[]byte) error {
+	return Recover("WriteBytesList", func() error {
+		nb := basicnode.Prototype.List.NewBuilder()
+		la, er := nb.BeginList(int64(len(bb) + 1))
+		if er != nil {
+			return er
+		}
+		la.AssembleValue().AssignBytes(b)
+		for _, v := range bb {
+			la.AssembleValue().AssignBytes(v)
+		}
+		if er = la.Finish(); er != nil {
+			return er
+		}
+		return dagcbor.Encode(nb.Build(), w)
+	})
+}
+
+func ReadBytesList(r io.Reader) ([][]byte, error) {
+	var err error
+	nb := basicnode.Prototype.List.NewBuilder()
+	if err = dagcbor.Decode(nb, r); err != nil {
+		return nil, err
+	}
+
+	node := nb.Build()
+	ln := node.Length()
+	list := make([][]byte, ln)
+
+	var n ipld.Node
+	var b []byte
+	for i := int64(0); i < ln; i++ {
+		n, err = node.LookupByIndex(i)
+		if err != nil {
+			return nil, err
+		}
+		b, err = n.AsBytes()
+		if err != nil {
+			return nil, err
+		}
+		list[i] = b
+	}
+	return list, nil
 }

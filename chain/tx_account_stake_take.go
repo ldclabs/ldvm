@@ -5,11 +5,9 @@ package chain
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -26,12 +24,8 @@ func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxTransfer{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxTakeStake unmarshal failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -46,9 +40,6 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
-	}
 	if !util.ValidStakeAddress(tx.ld.To) {
 		return fmt.Errorf("TxTakeStake invalid stake address: %s", util.EthID(tx.ld.To))
 	}
@@ -67,10 +58,7 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTakeStake SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Nonce == tx.ld.Nonce {
-		return fmt.Errorf("TxTakeStake invalid nonce")
-	}
-	if tx.data.Token != constants.LDCAccount {
+	if tx.data.Token != tx.ld.Token {
 		return fmt.Errorf("TxTakeStake invalid token")
 	}
 	if tx.data.From != tx.ld.From {
@@ -79,11 +67,10 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	if tx.data.To != tx.ld.To {
 		return fmt.Errorf("TxTakeStake invalid recipient")
 	}
-	if tx.data.Expire > 0 && tx.data.Expire < uint64(time.Now().Unix()) {
+	if tx.data.Expire < tx.ld.Timestamp {
 		return fmt.Errorf("TxTakeStake expired")
 	}
-	// tx.ld.Amount can be less than tx.data.Amount
-	if tx.data.Amount == nil || tx.ld.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) < 0 {
+	if tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
 		return fmt.Errorf("TxTransferCash invalid amount")
 	}
 	return nil
@@ -94,27 +81,15 @@ func (tx *TxTakeStake) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	if tx.to.IsEmpty() {
-		return fmt.Errorf("TxTakeStake invalid address, stake account %s not exists", util.EthID(tx.ld.To))
-	}
-	feeCfg := blk.FeeConfig()
-	if tx.ld.Amount.Cmp(feeCfg.MinDelegatorStake) < 0 {
-		return fmt.Errorf("TxTakeStake invalid amount, expected >= %v, got %v",
-			feeCfg.MinDelegatorStake, tx.ld.Amount)
-	}
-	if tx.ld.Amount.Cmp(feeCfg.MaxValidatorStake) > 0 {
-		return fmt.Errorf("TxTakeStake invalid amount, expected <= %v, got %v",
-			feeCfg.MaxValidatorStake, tx.ld.Amount)
-	}
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return fmt.Errorf("stake account need more signers")
 	}
-	return nil
+	return tx.to.CheckTakeStake(tx.ld.Token, tx.ld.From, tx.ld.Amount)
 }
 
 func (tx *TxTakeStake) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.TakeStake(tx.ld.From, tx.ld.Amount, blk.FeeConfig().MaxValidatorStake); err != nil {
+	if err = tx.to.TakeStake(tx.ld.Token, tx.ld.From, tx.ld.Amount); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

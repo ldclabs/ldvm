@@ -121,7 +121,7 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Block) InitState(db database.Database, accepted bool) {
-	b.bs = newBlockState(b.ctx, b.ld.Height, db)
+	b.bs = newBlockState(b.ctx, b.ld.Height, b.ld.Timestamp, db)
 	b.tryBS = b.bs
 	if accepted { // history block
 		b.status = choices.Accepted
@@ -140,12 +140,11 @@ func (b *Block) ID() ids.ID { return b.ld.ID() }
 func (b *Block) Miner() (*Account, error) {
 	var err error
 	if b.miner == nil {
-		feeCfg := b.FeeConfig()
 		b.miner, err = b.bs.LoadAccount(b.ld.Miner)
 		if err != nil {
 			return nil, err
 		}
-		if !b.miner.ValidStake(feeCfg.MinValidatorStake) {
+		if !b.miner.Valid(ld.StakeAccount) {
 			logging.Log.Warn("Block.Miner %s not valid, used genesis account", b.ld.Miner)
 			b.miner, err = b.bs.LoadAccount(constants.GenesisAccount)
 		}
@@ -202,9 +201,11 @@ func (b *Block) TryVerifyTxs(txs ...*ld.Transaction) error {
 	feeCfg := b.FeeConfig()
 	tryBS := b.bs.DeriveState()
 	count := 0
+
 	for i := range txs {
 		tx := txs[i]
-
+		tx.Height = b.ld.Height
+		tx.Timestamp = b.ld.Timestamp
 		if tx.Type != ld.TypeTest {
 			count++
 			if tx.GasFeeCap < b.ld.GasPrice {
@@ -240,7 +241,8 @@ func (b *Block) TryVerifyAndAddTxs(txs ...*ld.Transaction) choices.Status {
 	tryBS := b.tryBS.DeriveState()
 	for i := range txs {
 		tx := txs[i]
-
+		tx.Height = b.ld.Height
+		tx.Timestamp = b.ld.Timestamp
 		if tx.Type != ld.TypeTest {
 			if tx.GasFeeCap < b.ld.GasPrice {
 				return choices.Unknown
@@ -424,13 +426,12 @@ func (b *Block) mintFee() error {
 	}
 
 	shares := make([]*Account, 0, len(b.ld.Shares))
-	feeCfg := b.FeeConfig()
 	for _, id := range b.ld.Shares {
 		sc, err := b.bs.LoadAccount(id)
 		if err != nil {
 			return err
 		}
-		if sc.ValidStake(feeCfg.MinValidatorStake) {
+		if sc.Valid(ld.StakeAccount) {
 			shares = append(shares, sc)
 		} else {
 			logging.Log.Warn("Block.mintFee stake account %s not valid, skipped", id)

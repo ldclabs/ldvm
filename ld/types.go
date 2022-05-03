@@ -4,27 +4,29 @@
 package ld
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
 	"math/big"
 	"sort"
 
 	ipld "github.com/ipld/go-ipld-prime"
-	"github.com/ipld/go-ipld-prime/codec/dagcbor"
 	"github.com/ipld/go-ipld-prime/codec/dagjson"
 	"github.com/ipld/go-ipld-prime/datamodel"
-	"github.com/ipld/go-ipld-prime/node/basicnode"
 
 	"github.com/ldclabs/ldvm/util"
 )
+
+type LDObject interface {
+	SyntacticVerify() error
+	Unmarshal(data []byte) error
+	Marshal() ([]byte, error)
+	MarshalJSON() ([]byte, error)
+}
 
 type BigUint []byte
 
 func FromUint(u *big.Int) BigUint {
 	if u == nil {
-		return nil
+		return []byte{}
 	}
 	return u.Bytes()
 }
@@ -55,14 +57,17 @@ func (b *BigUint) PtrValue() *big.Int {
 type Uint8 []byte
 
 func FromUint8(u uint8) Uint8 {
-	return new(big.Int).SetUint64(uint64(u)).Bytes()
+	if u == 0 {
+		return []byte{}
+	}
+	return []byte{u}
 }
 
 func PtrFromUint8(u uint8) *Uint8 {
 	if u == 0 {
 		return nil
 	}
-	b := Uint8(new(big.Int).SetUint64(uint64(u)).Bytes())
+	b := Uint8([]byte{u})
 	return &b
 }
 
@@ -71,10 +76,10 @@ func (b *Uint8) Valid() bool {
 }
 
 func (b *Uint8) Value() uint8 {
-	if b == nil {
+	if b == nil || len(*b) == 0 {
 		return 0
 	}
-	return uint8(new(big.Int).SetBytes(*b).Uint64())
+	return (*b)[0]
 }
 
 type Uint64 []byte
@@ -100,54 +105,6 @@ func (b *Uint64) Value() uint64 {
 		return 0
 	}
 	return new(big.Int).SetBytes(*b).Uint64()
-}
-
-func WriteUint64s(w io.Writer, u uint64, uu ...uint64) error {
-	return Recover("WriteUint64s", func() error {
-		nb := basicnode.Prototype.List.NewBuilder()
-		la, er := nb.BeginList(int64(len(uu) + 1))
-		if er != nil {
-			return er
-		}
-		la.AssembleValue().AssignBytes(FromUint64(u))
-		for _, u := range uu {
-			la.AssembleValue().AssignBytes(FromUint64(u))
-		}
-		if er = la.Finish(); er != nil {
-			return er
-		}
-		return dagcbor.Encode(nb.Build(), w)
-	})
-}
-
-func ReadUint64s(data []byte) ([]uint64, error) {
-	var err error
-	nb := basicnode.Prototype.List.NewBuilder()
-	if err = dagcbor.Decode(nb, bytes.NewReader(data)); err != nil {
-		return nil, err
-	}
-
-	node := nb.Build()
-	ln := node.Length()
-	arr := make([]uint64, ln)
-
-	var n ipld.Node
-	var b Uint64
-	for i := int64(0); i < ln; i++ {
-		n, err = node.LookupByIndex(i)
-		if err != nil {
-			return nil, err
-		}
-		b, err = n.AsBytes()
-		if err != nil {
-			return nil, err
-		}
-		if !b.Valid() {
-			return nil, fmt.Errorf("ReadUint64s error: invalid uint64")
-		}
-		arr[i] = b.Value()
-	}
-	return arr, nil
 }
 
 type MapStringString struct {

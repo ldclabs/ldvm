@@ -17,15 +17,19 @@ var NativeToken = TokenSymbol(ids.ShortEmpty)
 type TokenSymbol ids.ShortID
 
 func NewSymbol(s string) (TokenSymbol, error) {
-	if l := len(s); l > 10 || l < 2 {
-		return TokenSymbol{}, fmt.Errorf("invalid token symbol")
-	}
 	symbol := TokenSymbol{}
-	copy(symbol[20-len(s):], []byte(s))
-	if symbol.String() == "" {
-		return TokenSymbol{}, fmt.Errorf("invalid token symbol")
+	l := len(s)
+	switch {
+	case l == 0:
+		return NativeToken, nil
+	case l > 1 && l <= 10:
+		copy(symbol[20-len(s):], []byte(s))
+		if symbol.String() == s {
+			return symbol, nil
+		}
 	}
-	return symbol, nil
+
+	return symbol, fmt.Errorf("invalid token symbol")
 }
 
 func (s TokenSymbol) String() string {
@@ -48,6 +52,16 @@ func (s TokenSymbol) String() string {
 		}
 	}
 	return string(s[start:])
+}
+
+func (s TokenSymbol) GoString() string {
+	if s == NativeToken {
+		return "NativeLDC"
+	}
+	if str := s.String(); str != "" {
+		return str
+	}
+	return EthID(s).String()
 }
 
 // EthID ==========

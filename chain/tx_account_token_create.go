@@ -14,7 +14,7 @@ import (
 
 type TxCreateTokenAccount struct {
 	*TxBase
-	data *ld.TxMinter
+	data *ld.TxAccounter
 }
 
 func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
@@ -23,12 +23,8 @@ func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxMinter{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxCreateTokenAccount unmarshal failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -47,14 +43,14 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
 	}
 
-	if util.TokenSymbol(tx.ld.To).String() == "" {
-		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", util.EthID(tx.ld.To))
+	if token := util.TokenSymbol(tx.ld.To); token.String() == "" {
+		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", token)
 	}
 
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxCreateTokenAccount invalid")
 	}
-	tx.data = &ld.TxMinter{}
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateTokenAccount unmarshal data failed: %v", err)
 	}
@@ -79,21 +75,19 @@ func (tx *TxCreateTokenAccount) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	if !tx.to.IsEmpty() {
-		return fmt.Errorf("TxCreateTokenAccount invalid address, token account %s exists", util.EthID(tx.ld.To))
-	}
+
 	feeCfg := blk.FeeConfig()
 	if tx.ld.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
 			feeCfg.MinTokenPledge, tx.ld.Amount)
 	}
-	return nil
+	return tx.to.CheckCreateToken(tx.ld.To, tx.data)
 }
 
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 	var err error
-	tx.data = &ld.TxMinter{}
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateTokenAccount unmarshal data failed: %v", err)
 	}

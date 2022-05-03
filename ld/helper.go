@@ -4,7 +4,9 @@
 package ld
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"runtime"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -142,32 +144,6 @@ func PtrFromID(id ids.ID) *[]byte {
 	return nil
 }
 
-// func ToBigInt(data []byte) *big.Int {
-// 	return new(big.Int).SetBytes(data)
-// }
-
-// func PtrToBigInt(data *[]byte) *big.Int {
-// 	if data == nil {
-// 		return nil
-// 	}
-// 	return new(big.Int).SetBytes(*data)
-// }
-
-// func FromBigInt(u *big.Int) []byte {
-// 	if u == nil {
-// 		return nil
-// 	}
-// 	return u.Bytes()
-// }
-
-// func PtrFromBigInt(u *big.Int) *[]byte {
-// 	if u == nil {
-// 		return nil
-// 	}
-// 	b := u.Bytes()
-// 	return &b
-// }
-
 func PtrToBytes(data *[]byte) []byte {
 	if data == nil {
 		return nil
@@ -245,4 +221,30 @@ func PtrFromSignatures(ss []util.Signature) *[][]byte {
 		v[i] = ss[i][:]
 	}
 	return &v
+}
+
+func WriteUint64s(w io.Writer, u uint64, uu ...uint64) error {
+	b := FromUint64(u)
+	bb := make([][]byte, len(uu))
+	for i, u := range uu {
+		bb[i] = FromUint64(u)
+	}
+	return WriteBytesList(w, b, bb...)
+}
+
+func ReadUint64s(data []byte) ([]uint64, error) {
+	bb, err := ReadBytesList(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	list := make([]uint64, len(bb))
+	for i, b := range bb {
+		u := Uint64(b)
+		if !u.Valid() {
+			return nil, fmt.Errorf("ReadUint64s error: invalid uint64 bytes")
+		}
+		list[i] = u.Value()
+	}
+
+	return list, nil
 }

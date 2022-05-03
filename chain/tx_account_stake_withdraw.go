@@ -13,7 +13,7 @@ import (
 
 type TxWithdrawStake struct {
 	*TxBase
-	data *ld.TxMinter
+	data *ld.TxTransfer
 }
 
 func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
@@ -22,12 +22,8 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
-		tx.data = &ld.TxMinter{}
-		if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-			return nil, fmt.Errorf("TxCreateStakeAccount unmarshal failed: %v", err)
-		}
+		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-
 	d, err := tx.data.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -46,7 +42,7 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
 	}
 
-	if tx.ld.Amount != nil {
+	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxWithdrawStake invalid amount")
 	}
 	if !util.ValidStakeAddress(tx.ld.To) {
@@ -55,7 +51,7 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxWithdrawStake invalid")
 	}
-	tx.data = &ld.TxMinter{}
+	tx.data = &ld.TxTransfer{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxWithdrawStake unmarshal data failed: %v", err)
 	}
@@ -74,21 +70,19 @@ func (tx *TxWithdrawStake) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	if tx.to.IsEmpty() {
-		return fmt.Errorf("TxTakeStake invalid address, stake account %s not exists", util.EthID(tx.ld.To))
-	}
-	return nil
+	_, err = tx.to.CheckWithdrawStake(tx.ld.Token, tx.ld.From, tx.data.Amount)
+	return err
 }
 
 func (tx *TxWithdrawStake) Accept(blk *Block, bs BlockState) error {
-	withdraw, err := tx.to.WithdrawStake(tx.ld.From, tx.data.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.ld.Token, tx.ld.From, tx.data.Amount)
 	if err != nil {
 		return err
 	}
-	if err = tx.to.Sub(constants.LDCAccount, withdraw); err != nil {
+	if err = tx.to.Sub(tx.ld.Token, withdraw); err != nil {
 		return err
 	}
-	if err = tx.from.Add(constants.LDCAccount, withdraw); err != nil {
+	if err = tx.from.Add(tx.ld.Token, withdraw); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)
