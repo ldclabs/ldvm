@@ -4,17 +4,16 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
-
-	"github.com/ava-labs/avalanchego/ids"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTakeStake struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxTransfer
 }
 
@@ -26,12 +25,12 @@ func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxTakeStake) SyntacticVerify() error {
@@ -41,7 +40,7 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	}
 
 	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxTakeStake invalid stake address: %s", util.EthID(tx.ld.To))
+		return fmt.Errorf("TxTakeStake invalid stake address: %s", tx.ld.To)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxTakeStake invalid")

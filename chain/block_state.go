@@ -29,7 +29,7 @@ var (
 
 var poolAccountCache = sync.Pool{
 	New: func() any {
-		v := make(map[ids.ShortID]*Account, 256)
+		v := make(map[util.EthID]*Account, 256)
 		return &v
 	},
 }
@@ -49,7 +49,7 @@ type blockState struct {
 	prevDataDB     *db.PrefixDB
 	nameDB         *db.PrefixDB
 
-	accountCache map[ids.ShortID]*Account
+	accountCache map[util.EthID]*Account
 	events       []*Event
 }
 
@@ -57,16 +57,16 @@ type BlockState interface {
 	DeriveState() *blockState
 	VersionDB() *versiondb.Database
 
-	LoadAccount(ids.ShortID) (*Account, error)
-	ResolveNameID(name string) (ids.ShortID, error)
+	LoadAccount(util.EthID) (*Account, error)
+	ResolveNameID(name string) (util.DataID, error)
 	ResolveName(name string) (*ld.DataMeta, error)
-	SetName(name string, id ids.ShortID) error
-	LoadModel(ids.ShortID) (*ld.ModelMeta, error)
-	SaveModel(ids.ShortID, *ld.ModelMeta) error
-	LoadData(ids.ShortID) (*ld.DataMeta, error)
-	SaveData(ids.ShortID, *ld.DataMeta) error
-	SavePrevData(ids.ShortID, *ld.DataMeta) error
-	DeleteData(ids.ShortID, *ld.DataMeta) error
+	SetName(name string, id util.DataID) error
+	LoadModel(util.ModelID) (*ld.ModelMeta, error)
+	SaveModel(util.ModelID, *ld.ModelMeta) error
+	LoadData(util.DataID) (*ld.DataMeta, error)
+	SaveData(util.DataID, *ld.DataMeta) error
+	SavePrevData(util.DataID, *ld.DataMeta) error
+	DeleteData(util.DataID, *ld.DataMeta) error
 
 	AddEvent(*Event)
 	Events() []*Event
@@ -77,7 +77,7 @@ type BlockState interface {
 
 func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Database) *blockState {
 	vdb := versiondb.New(baseVDB)
-	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
+	accountCache := poolAccountCache.Get().(*map[util.EthID]*Account)
 
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
@@ -102,7 +102,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Data
 func (bs *blockState) DeriveState() *blockState {
 	vdb := versiondb.New(bs.vdb)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
-	accountCache := poolAccountCache.Get().(*map[ids.ShortID]*Account)
+	accountCache := poolAccountCache.Get().(*map[util.EthID]*Account)
 	return &blockState{
 		ctx:            bs.ctx,
 		height:         bs.height,
@@ -125,7 +125,7 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
+func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
 	a := bs.accountCache[id]
 	if a == nil {
 		data, err := bs.accountDB.Get(id[:])
@@ -157,7 +157,7 @@ func (bs *blockState) LoadAccount(id ids.ShortID) (*Account, error) {
 	return bs.accountCache[id], nil
 }
 
-func (bs *blockState) SetName(name string, id ids.ShortID) error {
+func (bs *blockState) SetName(name string, id util.DataID) error {
 	key := []byte(strings.ToLower(name))
 	data, err := bs.nameDB.Get(key)
 	switch err {
@@ -172,17 +172,18 @@ func (bs *blockState) SetName(name string, id ids.ShortID) error {
 	return err
 }
 
-func (bs *blockState) ResolveNameID(name string) (ids.ShortID, error) {
+func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 	dn, err := idna.Registration.ToASCII(name)
 	if err != nil {
-		return ids.ShortEmpty, fmt.Errorf("invalid name %s, error: %v",
+		return util.DataIDEmpty, fmt.Errorf("invalid name %s, error: %v",
 			strconv.Quote(name), err)
 	}
 	data, err := bs.nameDB.Get([]byte(dn))
 	if err != nil {
-		return ids.ShortEmpty, err
+		return util.DataIDEmpty, err
 	}
-	return ids.ToShortID(data)
+	id, err := ids.ToShortID(data)
+	return util.DataID(id), err
 }
 
 func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
@@ -193,7 +194,7 @@ func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
 	return bs.LoadData(id)
 }
 
-func (bs *blockState) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
+func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
 		return nil, err
@@ -209,7 +210,7 @@ func (bs *blockState) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
 	return mm, nil
 }
 
-func (bs *blockState) SaveModel(id ids.ShortID, mm *ld.ModelMeta) error {
+func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
 	if mm == nil {
 		return fmt.Errorf("SaveData with nil ModelMeta")
 	}
@@ -222,7 +223,7 @@ func (bs *blockState) SaveModel(id ids.ShortID, mm *ld.ModelMeta) error {
 	return bs.modelDB.Put(id[:], mm.Bytes())
 }
 
-func (bs *blockState) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
+func (bs *blockState) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
 		return nil, err
@@ -238,7 +239,7 @@ func (bs *blockState) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
 	return dm, nil
 }
 
-func (bs *blockState) SaveData(id ids.ShortID, dm *ld.DataMeta) error {
+func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
 	if dm == nil {
 		return fmt.Errorf("SaveData with nil DataMeta")
 	}
@@ -253,7 +254,7 @@ func (bs *blockState) SaveData(id ids.ShortID, dm *ld.DataMeta) error {
 	return bs.dataDB.Put(id[:], dm.Bytes())
 }
 
-func (bs *blockState) SavePrevData(id ids.ShortID, dm *ld.DataMeta) error {
+func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	if dm == nil {
 		return fmt.Errorf("SavePrevData with nil DataMeta")
 	}
@@ -268,7 +269,7 @@ func (bs *blockState) SavePrevData(id ids.ShortID, dm *ld.DataMeta) error {
 	return bs.prevDataDB.Put(key, dm.Bytes())
 }
 
-func (bs *blockState) DeleteData(id ids.ShortID, dm *ld.DataMeta) error {
+func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta) error {
 	version := dm.Version
 	dm.Version = 0 // mark dropped
 	if err := bs.SaveData(id, dm); err != nil {

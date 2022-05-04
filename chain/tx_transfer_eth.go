@@ -4,16 +4,16 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxEth struct {
-	*TxBase
+	TxBase
 	data *ld.TxEth
 }
 
@@ -25,12 +25,12 @@ func (tx *TxEth) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxEth) SyntacticVerify() error {
@@ -49,8 +49,8 @@ func (tx *TxEth) SyntacticVerify() error {
 	if err := tx.data.SyntacticVerify(); err != nil {
 		return err
 	}
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 	if tx.ld.ChainID != tx.data.ChainID {
 		return fmt.Errorf("TxEth invalid chainID")
@@ -74,6 +74,6 @@ func (tx *TxEth) SyntacticVerify() error {
 		return fmt.Errorf("TxEth invalid amount")
 	}
 
-	tx.signers = []ids.ShortID{tx.ld.From}
+	tx.signers = []util.EthID{tx.ld.From}
 	return nil
 }

@@ -5,7 +5,6 @@ package ld
 
 import (
 	"encoding/json"
-	"math/big"
 	"sort"
 
 	ipld "github.com/ipld/go-ipld-prime"
@@ -14,98 +13,6 @@ import (
 
 	"github.com/ldclabs/ldvm/util"
 )
-
-type LDObject interface {
-	SyntacticVerify() error
-	Unmarshal(data []byte) error
-	Marshal() ([]byte, error)
-	MarshalJSON() ([]byte, error)
-}
-
-type BigUint []byte
-
-func FromUint(u *big.Int) BigUint {
-	if u == nil {
-		return []byte{}
-	}
-	return u.Bytes()
-}
-
-func PtrFromUint(u *big.Int) *BigUint {
-	if u == nil {
-		return nil
-	}
-	b := BigUint(u.Bytes())
-	return &b
-}
-
-func (b *BigUint) Value() *big.Int {
-	u := new(big.Int)
-	if b != nil {
-		u.SetBytes(*b)
-	}
-	return u
-}
-
-func (b *BigUint) PtrValue() *big.Int {
-	if b == nil {
-		return nil
-	}
-	return b.Value()
-}
-
-type Uint8 []byte
-
-func FromUint8(u uint8) Uint8 {
-	if u == 0 {
-		return []byte{}
-	}
-	return []byte{u}
-}
-
-func PtrFromUint8(u uint8) *Uint8 {
-	if u == 0 {
-		return nil
-	}
-	b := Uint8([]byte{u})
-	return &b
-}
-
-func (b *Uint8) Valid() bool {
-	return b == nil || len(*b) <= 1
-}
-
-func (b *Uint8) Value() uint8 {
-	if b == nil || len(*b) == 0 {
-		return 0
-	}
-	return (*b)[0]
-}
-
-type Uint64 []byte
-
-func FromUint64(u uint64) Uint64 {
-	return new(big.Int).SetUint64(u).Bytes()
-}
-
-func PtrFromUint64(u uint64) *Uint64 {
-	if u == 0 {
-		return nil
-	}
-	b := Uint64(new(big.Int).SetUint64(u).Bytes())
-	return &b
-}
-
-func (b *Uint64) Valid() bool {
-	return b == nil || len(*b) <= 8
-}
-
-func (b *Uint64) Value() uint64 {
-	if b == nil {
-		return 0
-	}
-	return new(big.Int).SetBytes(*b).Uint64()
-}
 
 type MapStringString struct {
 	Keys   []string

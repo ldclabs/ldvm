@@ -4,17 +4,17 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxBorrow struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxTransfer
 	dueTime   uint64
 }
@@ -27,12 +27,12 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxBorrow) SyntacticVerify() error {
@@ -41,11 +41,11 @@ func (tx *TxBorrow) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
-	if tx.ld.To == ids.ShortEmpty {
-		return fmt.Errorf("TxBorrow invalid to: %s", util.EthID(tx.ld.To).String())
+	if tx.ld.To == util.EthIDEmpty {
+		return fmt.Errorf("TxBorrow invalid to: %s", tx.ld.To)
 	}
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxBorrow invalid amount, expected 0, got %v", tx.ld.Amount)
@@ -81,11 +81,11 @@ func (tx *TxBorrow) SyntacticVerify() error {
 	}
 
 	if len(tx.data.Data) > 0 {
-		u := ld.Uint64(tx.data.Data)
-		if !u.Valid() {
-			return fmt.Errorf("TxBorrow unmarshal failed: invalid dueTime")
+		u := uint64(0)
+		if err = ld.DecMode.Unmarshal(tx.ld.Data, &u); err != nil {
+			return fmt.Errorf("TxBorrow unmarshal dueTime failed: %v", err)
 		}
-		tx.dueTime = u.Value()
+		tx.dueTime = u
 	}
 	return nil
 }

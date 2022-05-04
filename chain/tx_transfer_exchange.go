@@ -4,18 +4,18 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTransferExchange struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxExchanger
 	quantity  *big.Int
 }
@@ -28,12 +28,12 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxTransferExchange) SyntacticVerify() error {
@@ -64,7 +64,7 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	if tx.data.Seller != tx.ld.To {
 		return fmt.Errorf("TxTransferExchange invalid to")
 	}
-	if tx.data.To != ids.ShortEmpty && tx.data.To != tx.ld.From {
+	if tx.data.To != util.EthIDEmpty && tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferExchange invalid from")
 	}
 	if tx.data.Receive != tx.ld.Token {

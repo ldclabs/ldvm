@@ -11,7 +11,7 @@ import (
 )
 
 type TxTransfer struct {
-	*TxBase
+	TxBase
 }
 
 func (tx *TxTransfer) SyntacticVerify() error {

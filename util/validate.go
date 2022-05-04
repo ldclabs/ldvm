@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/ava-labs/avalanchego/ids"
 )
 
 func ValidName(name string) bool {
@@ -68,6 +66,6 @@ func ValidMessage(msg string) bool {
 	return len(msg) <= 1024 && utf8.ValidString(msg)
 }
 
-func ValidStakeAddress(id ids.ShortID) bool {
+func ValidStakeAddress(id EthID) bool {
 	return id[0] == '$'
 }

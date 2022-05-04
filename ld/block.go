@@ -19,88 +19,38 @@ const (
 )
 
 type Block struct {
-	Parent    ids.ID // The genesis block's parent ID is ids.Empty.
-	Height    uint64 // The genesis block is at 0.
-	Timestamp uint64 // The genesis block is at 0.
-	Gas       uint64 // This block's total gas units.
-	GasPrice  uint64 // This block's gas price
+	Parent    ids.ID `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
+	Height    uint64 `cbor:"h" json:"height"`     // The genesis block is at 0.
+	Timestamp uint64 `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
+	Gas       uint64 `cbor:"g" json:"gas"`        // This block's total gas units.
+	GasPrice  uint64 `cbor:"gp" json:"gasPrice"`  // This block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
-	GasRebateRate uint64
+	GasRebateRate uint64 `cbor:"gr" json:"gasRebateRate"`
 	// The address of validator (convert to valid StakeAccount) who build this block.
 	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Miner ids.ShortID
+	Miner util.EthID `cbor:"mn" json:"miner"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Shares []ids.ShortID
-	Txs    []*Transaction
+	Shares []util.EthID   `cbor:"sh" json:"shares"`
+	Txs    []*Transaction `cbor:"txs" json:"-"`
 
 	// external assignment
-	RawTxs []json.RawMessage
-	id     ids.ID
-	raw    []byte // the block's raw bytes
-}
-
-type jsonBlock struct {
-	ID            string            `json:"id"`
-	Parent        string            `json:"parent"`
-	Height        uint64            `json:"height"`
-	Timestamp     uint64            `json:"timestamp"`
-	Gas           uint64            `json:"gas"`
-	GasPrice      uint64            `json:"gasPrice"`
-	GasRebateRate uint64            `json:"gasRebateRate"`
-	Miner         string            `json:"miner"`
-	Shares        []string          `json:"shares"`
-	Txs           []json.RawMessage `json:"txs"`
-}
-
-func (b *Block) MarshalJSON() ([]byte, error) {
-	if b == nil {
-		return util.Null, nil
-	}
-	v := &jsonBlock{
-		ID:            b.id.String(),
-		Parent:        b.Parent.String(),
-		Height:        b.Height,
-		Timestamp:     b.Timestamp,
-		Gas:           b.Gas,
-		GasPrice:      b.GasPrice,
-		GasRebateRate: b.GasRebateRate,
-		Miner:         util.EthID(b.Miner).String(),
-		Shares:        make([]string, len(b.Shares)),
-		Txs:           b.RawTxs,
-	}
-	for i := range b.Shares {
-		v.Shares[i] = util.EthID(b.Shares[i]).String()
-	}
-	if b.RawTxs == nil {
-		v.Txs = make([]json.RawMessage, len(b.Txs))
-		for i := range b.Txs {
-			d, err := b.Txs[i].MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			v.Txs[i] = d
-		}
-	}
-	return json.Marshal(v)
-}
-
-func (b *Block) ID() ids.ID {
-	return b.id
+	ID     ids.ID            `cbor:"-" json:"id"`
+	RawTxs []json.RawMessage `cbor:"-" json:"txs"`
+	raw    []byte            `cbor:"-" json:"-"` // the block's raw bytes
 }
 
 func (b *Block) Copy() *Block {
 	x := new(Block)
 	*x = *b
-	x.Shares = make([]ids.ShortID, len(b.Shares))
+	x.Shares = make([]util.EthID, len(b.Shares))
 	copy(x.Shares, x.Shares)
 	x.Txs = make([]*Transaction, len(b.Txs))
 	for i := range b.Txs {
 		x.Txs[i] = b.Txs[i].Copy()
 	}
 	x.raw = nil
-	x.RawTxs = nil
 	return x
 }
 
@@ -117,7 +67,7 @@ func (b *Block) SyntacticVerify() error {
 		return fmt.Errorf("invalid gasRebateRate")
 	}
 	for _, a := range b.Shares {
-		if a == ids.ShortEmpty {
+		if a == util.EthIDEmpty {
 			return fmt.Errorf("invalid miner address")
 		}
 	}
@@ -187,11 +137,8 @@ func (b *Block) Equal(o *Block) bool {
 
 func (b *Block) Bytes() []byte {
 	if len(b.raw) == 0 {
-		if _, err := b.Marshal(); err != nil {
-			panic(err)
-		}
+		MustMarshal(b)
 	}
-
 	return b.raw
 }
 
@@ -200,110 +147,17 @@ func (b *Block) FeeCost() *big.Int {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	p, err := blockLDBuilder.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-	if v, ok := p.(*bindBlock); ok {
-		if !v.Height.Valid() ||
-			!v.Timestamp.Valid() ||
-			!v.Gas.Valid() ||
-			!v.GasPrice.Valid() ||
-			!v.GasRebateRate.Valid() {
-			return fmt.Errorf("unmarshal error: invalid uint64")
-		}
-		b.Height = v.Height.Value()
-		b.Timestamp = v.Timestamp.Value()
-		b.Gas = v.Gas.Value()
-		b.GasPrice = v.GasPrice.Value()
-		b.GasRebateRate = v.GasRebateRate.Value()
-		b.Txs = make([]*Transaction, len(v.Txs))
-		for i := range v.Txs {
-			tx := &Transaction{}
-			if err := tx.Unmarshal(v.Txs[i]); err != nil {
-				return err
-			}
-			b.Txs[i] = tx
-		}
-		if b.Miner, err = ToShortID(v.Miner); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if b.Parent, err = ToID(v.Parent); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if b.Shares, err = ToShortIDs(v.Shares); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		b.raw = data
-		b.id = util.IDFromBytes(data)
-		return nil
-	}
-	return fmt.Errorf("unmarshal error: expected *bindBlock")
+	b.ID = util.IDFromBytes(data)
+	b.raw = data
+	return DecMode.Unmarshal(data, b)
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	v := &bindBlock{
-		Parent:        FromID(b.Parent),
-		Height:        FromUint64(b.Height),
-		Timestamp:     FromUint64(b.Timestamp),
-		Gas:           FromUint64(b.Gas),
-		GasPrice:      FromUint64(b.GasPrice),
-		GasRebateRate: FromUint64(b.GasRebateRate),
-		Miner:         FromShortID(b.Miner),
-		Shares:        FromShortIDs(b.Shares),
-		Txs:           make([][]byte, len(b.Txs)),
-	}
-	for i := range b.Txs {
-		data, err := b.Txs[i].Marshal()
-		if err != nil {
-			return nil, err
-		}
-		v.Txs[i] = data
-	}
-	data, err := blockLDBuilder.Marshal(v)
+	data, err := EncMode.Marshal(b)
 	if err != nil {
 		return nil, err
 	}
+	b.ID = util.IDFromBytes(data)
 	b.raw = data
-	b.id = util.IDFromBytes(data)
 	return data, nil
-}
-
-type bindBlock struct {
-	Parent        []byte
-	Height        Uint64
-	Timestamp     Uint64
-	Gas           Uint64
-	GasPrice      Uint64
-	GasRebateRate Uint64
-	Miner         []byte
-	Shares        [][]byte
-	Txs           [][]byte
-}
-
-var blockLDBuilder *LDBuilder
-
-func init() {
-	sch := `
-	type Uint64 bytes
-	type ID20 bytes
-	type ID32 bytes
-	type Sig65 bytes
-	type Block struct {
-		Parent        ID32    (rename "p")
-		Height        Uint64  (rename "h")
-		Timestamp     Uint64  (rename "ts")
-		Gas           Uint64  (rename "g")
-		GasPrice      Uint64  (rename "gp")
-		GasRebateRate Uint64  (rename "gr")
-		Miner         ID20    (rename "mn")
-		Shares        [ID20]  (rename "sh")
-		Txs           [Bytes] (rename "txs")
-	}
-`
-	builder, err := NewLDBuilder("Block", []byte(sch), (*bindBlock)(nil))
-	if err != nil {
-		panic(err)
-	}
-	blockLDBuilder = builder
 }

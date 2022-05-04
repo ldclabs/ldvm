@@ -4,16 +4,16 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTransferPay struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxTransfer
 }
 
@@ -25,12 +25,12 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxTransferPay) SyntacticVerify() error {
@@ -47,7 +47,7 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	if err != nil {
 		return fmt.Errorf("TxTransferPay invalid exSignatures: %v", err)
 	}
-	if !util.ShortIDs(tx.exSigners).Has(tx.ld.To) {
+	if !util.EthIDs(tx.exSigners).Has(tx.ld.To) {
 		return fmt.Errorf("TxTransferPay invalid exSignatures, not from recipient")
 	}
 

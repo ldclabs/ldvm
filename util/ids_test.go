@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +21,7 @@ func TestEthID(t *testing.T) {
 
 	id1, err := EthIDFromString(address1)
 	assert.Nil(err)
-	assert.Equal(Signer1.Address(), ids.ShortID(id1))
+	assert.Equal(Signer1.Address(), id1)
 
 	id2, err := EthIDFromString("8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 	assert.Nil(err)
@@ -34,7 +33,7 @@ func TestEthID(t *testing.T) {
 
 	id, err := EthIDFromString(address2)
 	assert.Nil(err)
-	assert.Equal(Signer2.Address(), ids.ShortID(id))
+	assert.Equal(Signer2.Address(), id)
 
 	eids := make([]EthID, 0)
 	err = json.Unmarshal([]byte(`[

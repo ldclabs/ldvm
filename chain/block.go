@@ -57,11 +57,14 @@ func NewGenesisBlock(b *ld.Block, ctx *Context) (*Block, error) {
 	blk.status = choices.Processing
 	blk.txs = make([]Transaction, len(b.Txs))
 	for i := range b.Txs {
-		tx, err := NewGenesisTx(b.Txs[i])
+		tx := b.Txs[i]
+		tx.Height = b.Height
+		tx.Timestamp = b.Timestamp
+		ntx, err := NewGenesisTx(tx)
 		if err != nil {
 			return nil, err
 		}
-		blk.txs[i] = tx
+		blk.txs[i] = ntx
 	}
 	return blk, nil
 }
@@ -94,11 +97,14 @@ func (b *Block) Unmarshal(data []byte) error {
 	}
 	b.txs = make([]Transaction, len(b.ld.Txs))
 	for i := range b.ld.Txs {
-		tx, err := NewTx(b.ld.Txs[i], false)
+		tx := b.ld.Txs[i]
+		tx.Height = b.ld.Height
+		tx.Timestamp = b.ld.Timestamp
+		ntx, err := NewTx(tx, false)
 		if err != nil {
 			return err
 		}
-		b.txs[i] = tx
+		b.txs[i] = ntx
 	}
 	return nil
 }
@@ -117,7 +123,7 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 		txs[i] = d
 	}
 	b.ld.RawTxs = txs
-	return b.ld.MarshalJSON()
+	return json.Marshal(b.ld)
 }
 
 func (b *Block) InitState(db database.Database, accepted bool) {
@@ -135,7 +141,7 @@ func (b *Block) State() BlockState { return b.bs }
 
 // ID implements the snowman.Block choices.Decidable ID interface
 // ID returns a unique ID for this element.
-func (b *Block) ID() ids.ID { return b.ld.ID() }
+func (b *Block) ID() ids.ID { return b.ld.ID }
 
 func (b *Block) Miner() (*Account, error) {
 	var err error
@@ -305,7 +311,7 @@ func (b *Block) verify() error {
 	lastAccepted := b.ctx.StateDB().LastAcceptedBlock()
 	preferred := b.ctx.StateDB().PreferredBlock()
 	switch b.Parent() {
-	case lastAccepted.ID():
+	case lastAccepted.ID:
 		parent = lastAccepted
 	case preferred.ID():
 		parent = preferred.ld
@@ -389,8 +395,8 @@ func (b *Block) accept() error {
 		return fmt.Errorf("Block.Accept %s not verified", b.ID())
 	}
 	parent := b.ctx.StateDB().LastAcceptedBlock()
-	if b.Parent() != parent.ID() {
-		return fmt.Errorf("Block.Accept invalid parent, expected %s, got %s", parent.ID(), b.Parent())
+	if b.Parent() != parent.ID {
+		return fmt.Errorf("Block.Accept invalid parent, expected %s, got %s", parent.ID, b.Parent())
 	}
 
 	return b.bs.Commit()
@@ -411,7 +417,7 @@ func (b *Block) reject() {
 	}
 }
 
-func (b *Block) FeeConfig() *genesis.FeeConfig {
+func (b *Block) FeeConfig() genesis.FeeConfig {
 	return b.ctx.Chain().Fee(b.ld.Height)
 }
 
@@ -451,16 +457,16 @@ func (b *Block) mintFee() error {
 
 	total := new(big.Int).Mul(fee, num)
 	total = total.Add(total, b.GasRebate20())
-	if err := ldc.Sub(constants.LDCAccount, total); err != nil {
+	if err := ldc.Sub(constants.NativeToken, total); err != nil {
 		return fmt.Errorf("Block.mintFee failed: %v", err)
 	}
 
 	for _, share := range shares {
-		if err = share.Add(constants.LDCAccount, fee); err != nil {
+		if err = share.Add(constants.NativeToken, fee); err != nil {
 			return err
 		}
 	}
-	return miner.Add(constants.LDCAccount, b.GasRebate20())
+	return miner.Add(constants.NativeToken, b.GasRebate20())
 }
 
 // Status implements the snowman.Block choices.Decidable Status interface

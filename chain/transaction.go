@@ -37,50 +37,58 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxTest{ld: tx}
 
 	case ld.TypeEth:
-		tt = &TxEth{TxBase: &TxBase{ld: tx}}
+		tt = &TxEth{TxBase: TxBase{ld: tx}}
 	case ld.TypeTransfer:
-		tt = &TxTransfer{TxBase: &TxBase{ld: tx}}
+		tt = &TxTransfer{TxBase: TxBase{ld: tx}}
 	case ld.TypeTransferPay:
-		tt = &TxTransferPay{TxBase: &TxBase{ld: tx}}
+		tt = &TxTransferPay{TxBase: TxBase{ld: tx}}
 	case ld.TypeTransferCash:
-		tt = &TxTransferCash{TxBase: &TxBase{ld: tx}}
+		tt = &TxTransferCash{TxBase: TxBase{ld: tx}}
 	case ld.TypeExchange:
-		tt = &TxTransferExchange{TxBase: &TxBase{ld: tx}}
+		tt = &TxTransferExchange{TxBase: TxBase{ld: tx}}
 
 	case ld.TypeAddNonceTable:
-		tt = &TxAddAccountNonceTable{TxBase: &TxBase{ld: tx}}
+		tt = &TxAddAccountNonceTable{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateTokenAccount:
-		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateTokenAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeDestroyTokenAccount:
-		tt = &TxDestroyTokenAccount{TxBase: &TxBase{ld: tx}}
+		tt = &TxDestroyTokenAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateStakeAccount:
-		tt = &TxCreateStakeAccount{TxBase: &TxBase{ld: tx}}
-	case ld.TypeTakeStake:
-		tt = &TxTakeStake{TxBase: &TxBase{ld: tx}}
-	case ld.TypeWithdrawStake:
-		tt = &TxWithdrawStake{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateStakeAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeResetStakeAccount:
-		tt = &TxResetStakeAccount{TxBase: &TxBase{ld: tx}}
+		tt = &TxResetStakeAccount{TxBase: TxBase{ld: tx}}
+	case ld.TypeTakeStake:
+		tt = &TxTakeStake{TxBase: TxBase{ld: tx}}
+	case ld.TypeWithdrawStake:
+		tt = &TxWithdrawStake{TxBase: TxBase{ld: tx}}
+	case ld.TypeOpenLending:
+		tt = &TxOpenLending{TxBase: TxBase{ld: tx}}
+	case ld.TypeCloseLending:
+		tt = &TxCloseLending{TxBase: TxBase{ld: tx}}
+	case ld.TypeBorrow:
+		tt = &TxBorrow{TxBase: TxBase{ld: tx}}
+	case ld.TypeRepay:
+		tt = &TxRepay{TxBase: TxBase{ld: tx}}
 
 	case ld.TypeCreateModel:
-		tt = &TxCreateModel{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateModel{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateModelKeepers:
-		tt = &TxUpdateModelKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateModelKeepers{TxBase: TxBase{ld: tx}}
 
 	case ld.TypeCreateData:
-		tt = &TxCreateData{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateData:
-		tt = &TxUpdateData{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateData{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateDataKeepers:
-		tt = &TxUpdateDataKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateDataKeepers{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateDataKeepersByAuth:
-		tt = &TxUpdateDataKeepersByAuth{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateDataKeepersByAuth{TxBase: TxBase{ld: tx}}
 	case ld.TypeDeleteData:
-		tt = &TxDeleteData{TxBase: &TxBase{ld: tx}}
+		tt = &TxDeleteData{TxBase: TxBase{ld: tx}}
 	case ld.TypePunish:
-		tt = &TxPunish{TxBase: &TxBase{ld: tx}}
+		tt = &TxPunish{TxBase: TxBase{ld: tx}}
 	default:
 		return nil, fmt.Errorf("unknown tx type: %d", tx.Type)
 	}
@@ -99,15 +107,15 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	var tt Transaction
 	switch tx.Type {
 	case ld.TypeTransfer:
-		tt = &TxTransfer{TxBase: &TxBase{ld: tx}}
+		tt = &TxTransfer{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{TxBase: &TxBase{ld: tx}}
+		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateTokenAccount:
-		tt = &TxCreateTokenAccount{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateTokenAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateModel:
-		tt = &TxCreateModel{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateModel{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateData:
-		tt = &TxCreateData{TxBase: &TxBase{ld: tx}}
+		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	default:
 		return nil, fmt.Errorf("not support genesis tx type: %d", tx.Type)
 	}

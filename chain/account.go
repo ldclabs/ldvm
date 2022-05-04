@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
-
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
@@ -21,24 +19,24 @@ import (
 type Account struct {
 	ld     *ld.Account
 	mu     sync.RWMutex
-	id     ids.ShortID  // account address
+	id     util.EthID   // account address
 	vdb    *db.PrefixDB // account version database
 	pledge *big.Int     // token account and stake account should have pledge
 }
 
-func NewAccount(id ids.ShortID) *Account {
+func NewAccount(id util.EthID) *Account {
 	return &Account{
 		id:     id,
 		pledge: new(big.Int),
 		ld: &ld.Account{
-			ID:      id,
+			ID:      util.EthID(id),
 			Balance: big.NewInt(0),
-			Tokens:  make(map[ids.ShortID]*big.Int),
+			Tokens:  make(map[util.TokenSymbol]*big.Int),
 		},
 	}
 }
 
-func ParseAccount(id ids.ShortID, data []byte) (*Account, error) {
+func ParseAccount(id util.EthID, data []byte) (*Account, error) {
 	a := &Account{id: id, pledge: new(big.Int), ld: &ld.Account{Balance: new(big.Int)}}
 	if err := a.ld.Unmarshal(data); err != nil {
 		return nil, err
@@ -60,13 +58,6 @@ func (a *Account) Init(vdb *db.PrefixDB, pledge *big.Int, height, timestamp uint
 func (a *Account) Type() ld.AccountType {
 	return a.ld.Type
 }
-
-// func (a *Account) IsEmpty() bool {
-// 	a.mu.RLock()
-// 	defer a.mu.RUnlock()
-
-// 	return a.isEmpty()
-// }
 
 func (a *Account) isEmpty() bool {
 	return len(a.ld.Keepers) == 0
@@ -101,16 +92,9 @@ func (a *Account) Nonce() uint64 {
 	return a.ld.Nonce
 }
 
-// func (a *Account) BalanceOf(token ids.ShortID) *big.Int {
-// 	a.mu.RLock()
-// 	defer a.mu.RUnlock()
-
-// 	return a.balanceOf(token)
-// }
-
-func (a *Account) balanceOf(token ids.ShortID) *big.Int {
+func (a *Account) balanceOf(token util.TokenSymbol) *big.Int {
 	switch token {
-	case constants.LDCAccount:
+	case constants.NativeToken:
 		if b := new(big.Int).Sub(a.ld.Balance, a.pledge); b.Sign() >= 0 {
 			return b
 		}
@@ -123,9 +107,9 @@ func (a *Account) balanceOf(token ids.ShortID) *big.Int {
 	}
 }
 
-func (a *Account) balanceOfAll(token ids.ShortID) *big.Int {
+func (a *Account) balanceOfAll(token util.TokenSymbol) *big.Int {
 	switch token {
-	case constants.LDCAccount:
+	case constants.NativeToken:
 		return new(big.Int).Set(a.ld.Balance)
 	default:
 		if v := a.ld.Tokens[token]; v != nil {
@@ -135,19 +119,19 @@ func (a *Account) balanceOfAll(token ids.ShortID) *big.Int {
 	}
 }
 
-func (a *Account) CheckBalance(token ids.ShortID, amount *big.Int) error {
+func (a *Account) CheckBalance(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.checkBalance(token, amount)
 }
 
-func (a *Account) checkBalance(token ids.ShortID, amount *big.Int) error {
+func (a *Account) checkBalance(token util.TokenSymbol, amount *big.Int) error {
 	if amount.Sign() > 0 {
 		if ba := a.balanceOf(token); amount.Cmp(ba) > 0 {
 			return fmt.Errorf(
 				"Account(%s) token(%s) insufficient balance, expected %v, got %v",
-				util.EthID(a.id), util.TokenSymbol(token), amount, a.ld.Balance)
+				a.id, token, amount, a.ld.Balance)
 		}
 	}
 	return nil
@@ -160,28 +144,28 @@ func (a *Account) Threshold() uint8 {
 	return a.ld.Threshold
 }
 
-func (a *Account) Keepers() []ids.ShortID {
+func (a *Account) Keepers() []util.EthID {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.ld.Keepers
 }
 
-func (a *Account) SatisfySigning(signers []ids.ShortID) bool {
+func (a *Account) SatisfySigning(signers []util.EthID) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return util.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
 }
 
-func (a *Account) SatisfySigningPlus(signers []ids.ShortID) bool {
+func (a *Account) SatisfySigningPlus(signers []util.EthID) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return util.SatisfySigningPlus(a.ld.Threshold, a.ld.Keepers, signers)
 }
 
-func (a *Account) Add(token ids.ShortID, amount *big.Int) error {
+func (a *Account) Add(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -195,7 +179,7 @@ func (a *Account) Add(token ids.ShortID, amount *big.Int) error {
 	}
 
 	switch token {
-	case constants.LDCAccount:
+	case constants.NativeToken:
 		a.ld.Balance.Add(a.ld.Balance, amount)
 	default:
 		if v := a.ld.Tokens[token]; v != nil {
@@ -206,12 +190,12 @@ func (a *Account) Add(token ids.ShortID, amount *big.Int) error {
 
 	if a.isEmpty() && a.ld.Type == ld.NativeAccount {
 		a.ld.Threshold = 1
-		a.ld.Keepers = []ids.ShortID{a.id}
+		a.ld.Keepers = []util.EthID{a.id}
 	}
 	return nil
 }
 
-func (a *Account) Sub(token ids.ShortID, amount *big.Int) error {
+func (a *Account) Sub(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -223,10 +207,10 @@ func (a *Account) Sub(token ids.ShortID, amount *big.Int) error {
 	return nil
 }
 
-func (a *Account) subNoCheck(token ids.ShortID, amount *big.Int) {
+func (a *Account) subNoCheck(token util.TokenSymbol, amount *big.Int) {
 	if amount.Sign() > 0 {
 		switch token {
-		case constants.LDCAccount:
+		case constants.NativeToken:
 			a.ld.Balance.Sub(a.ld.Balance, amount)
 		default:
 			v := a.ld.Tokens[token]
@@ -235,14 +219,14 @@ func (a *Account) subNoCheck(token ids.ShortID, amount *big.Int) {
 	}
 }
 
-func (a *Account) SubByNonce(token ids.ShortID, nonce uint64, amount *big.Int) error {
+func (a *Account) SubByNonce(token util.TokenSymbol, nonce uint64, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if a.ld.Nonce != nonce {
 		return fmt.Errorf(
 			"Account.SubByNonce %s invalid nonce, expected %v, got %v",
-			util.EthID(a.id), a.ld.Nonce, nonce)
+			a.id, a.ld.Nonce, nonce)
 	}
 
 	if err := a.checkBalance(token, amount); err != nil {
@@ -254,21 +238,21 @@ func (a *Account) SubByNonce(token ids.ShortID, nonce uint64, amount *big.Int) e
 	return nil
 }
 
-func (a *Account) CheckSubByNonceTable(token ids.ShortID, expire uint64, nonce uint64, amount *big.Int) error {
+func (a *Account) CheckSubByNonceTable(token util.TokenSymbol, expire, nonce uint64, amount *big.Int) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.subByNonceTable(token, expire, nonce, amount, false)
 }
 
-func (a *Account) SubByNonceTable(token ids.ShortID, expire, nonce uint64, amount *big.Int) error {
+func (a *Account) SubByNonceTable(token util.TokenSymbol, expire, nonce uint64, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.subByNonceTable(token, expire, nonce, amount, true)
 }
 
-func (a *Account) subByNonceTable(token ids.ShortID, expire uint64, nonce uint64, amount *big.Int, write bool) error {
+func (a *Account) subByNonceTable(token util.TokenSymbol, expire, nonce uint64, amount *big.Int, write bool) error {
 	uu, ok := a.ld.NonceTable[expire]
 	i := -1
 	if ok {
@@ -281,7 +265,7 @@ func (a *Account) subByNonceTable(token ids.ShortID, expire uint64, nonce uint64
 	}
 	if i == -1 {
 		return fmt.Errorf("Account(%s) NonceTable %d not exists at %d",
-			util.EthID(a.id), nonce, expire)
+			a.id, nonce, expire)
 	}
 
 	if err := a.checkBalance(token, amount); err != nil {
@@ -332,7 +316,7 @@ func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error
 	return nil
 }
 
-func (a *Account) UpdateKeepers(threshold uint8, keepers []ids.ShortID) error {
+func (a *Account) UpdateKeepers(threshold uint8, keepers []util.EthID) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -341,21 +325,21 @@ func (a *Account) UpdateKeepers(threshold uint8, keepers []ids.ShortID) error {
 	return nil
 }
 
-func (a *Account) CheckCreateToken(token ids.ShortID, data *ld.TxAccounter) error {
+func (a *Account) CheckCreateToken(token util.TokenSymbol, data *ld.TxAccounter) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.createToken(token, data, false)
 }
 
-func (a *Account) CreateToken(token ids.ShortID, data *ld.TxAccounter) error {
+func (a *Account) CreateToken(token util.TokenSymbol, data *ld.TxAccounter) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.createToken(token, data, true)
 }
 
-func (a *Account) createToken(token ids.ShortID, data *ld.TxAccounter, write bool) error {
+func (a *Account) createToken(token util.TokenSymbol, data *ld.TxAccounter, write bool) error {
 	if !a.isEmpty() {
 		return fmt.Errorf("CreateToken token account %s exists", util.TokenSymbol(a.id))
 	}
@@ -366,7 +350,7 @@ func (a *Account) createToken(token ids.ShortID, data *ld.TxAccounter, write boo
 		a.ld.Keepers = data.Keepers
 		a.ld.MaxTotalSupply = data.Amount
 		switch token {
-		case constants.LDCAccount:
+		case constants.NativeToken:
 			a.ld.Balance.Set(data.Amount)
 		default:
 			a.ld.Tokens[token] = data.Amount
@@ -375,21 +359,21 @@ func (a *Account) createToken(token ids.ShortID, data *ld.TxAccounter, write boo
 	return nil
 }
 
-func (a *Account) CheckDestroyToken(token ids.ShortID, recipient *Account) error {
+func (a *Account) CheckDestroyToken(token util.TokenSymbol, recipient *Account) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.destroyToken(token, recipient, false)
 }
 
-func (a *Account) DestroyToken(token ids.ShortID, recipient *Account) error {
+func (a *Account) DestroyToken(token util.TokenSymbol, recipient *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.destroyToken(token, recipient, true)
 }
 
-func (a *Account) destroyToken(token ids.ShortID, recipient *Account, write bool) error {
+func (a *Account) destroyToken(token util.TokenSymbol, recipient *Account, write bool) error {
 	if a.valid(ld.TokenAccount) {
 		return fmt.Errorf("Account.DestroyToken invalid token account")
 	}
@@ -399,7 +383,7 @@ func (a *Account) destroyToken(token ids.ShortID, recipient *Account, write bool
 	}
 
 	if write {
-		recipient.Add(constants.LDCAccount, a.ld.Balance)
+		recipient.Add(constants.NativeToken, a.ld.Balance)
 		a.ld.Balance.SetUint64(0)
 		a.ld.Threshold = 0
 		a.ld.Keepers = a.ld.Keepers[:0]
@@ -410,7 +394,7 @@ func (a *Account) destroyToken(token ids.ShortID, recipient *Account, write bool
 }
 
 func (a *Account) CheckCreateStake(
-	from ids.ShortID,
+	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
 	stake *ld.StakeConfig,
@@ -422,7 +406,7 @@ func (a *Account) CheckCreateStake(
 }
 
 func (a *Account) CreateStake(
-	from ids.ShortID,
+	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
 	stake *ld.StakeConfig,
@@ -434,7 +418,7 @@ func (a *Account) CreateStake(
 }
 
 func (a *Account) createStake(
-	from ids.ShortID,
+	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
 	stake *ld.StakeConfig,
@@ -454,7 +438,7 @@ func (a *Account) createStake(
 		a.ld.StakeLedger = make(ld.Ledger)
 		a.ld.MaxTotalSupply = nil
 		switch stake.TokenID {
-		case constants.LDCAccount:
+		case constants.NativeToken:
 			a.ld.StakeLedger[from] = &ld.LedgerEntry{Amount: pledge}
 		default:
 			if b := a.ld.Tokens[stake.TokenID]; b == nil {
@@ -544,9 +528,9 @@ func (a *Account) destroyStake(recipient *Account, write bool) error {
 	}
 
 	if write {
-		recipient.Add(constants.LDCAccount, a.ld.Balance)
+		recipient.Add(constants.NativeToken, a.ld.Balance)
 		a.ld.Balance.SetUint64(0)
-		if a.ld.Stake.TokenID != constants.LDCAccount {
+		if a.ld.Stake.TokenID != constants.NativeToken {
 			if b := a.ld.Tokens[a.ld.Stake.TokenID]; b.Sign() > 0 {
 				recipient.Add(a.ld.Stake.TokenID, b)
 				b.SetUint64(0)
@@ -560,21 +544,21 @@ func (a *Account) destroyStake(recipient *Account, write bool) error {
 	return nil
 }
 
-func (a *Account) CheckTakeStake(token, from ids.ShortID, amount *big.Int) error {
+func (a *Account) CheckTakeStake(token util.TokenSymbol, from util.EthID, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.takeStake(token, from, amount, false)
 }
 
-func (a *Account) TakeStake(token, from ids.ShortID, amount *big.Int) error {
+func (a *Account) TakeStake(token util.TokenSymbol, from util.EthID, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.takeStake(token, from, amount, true)
 }
 
-func (a *Account) takeStake(token, from ids.ShortID, amount *big.Int, write bool) error {
+func (a *Account) takeStake(token util.TokenSymbol, from util.EthID, amount *big.Int, write bool) error {
 	if a.valid(ld.StakeAccount) {
 		return fmt.Errorf("Account.TakeStake invalid stake account")
 	}
@@ -582,7 +566,7 @@ func (a *Account) takeStake(token, from ids.ShortID, amount *big.Int, write bool
 	stake := a.ld.Stake
 	if token != stake.TokenID {
 		return fmt.Errorf("Account.TakeStake invalid stake token, expected %s, got %s",
-			util.TokenSymbol(stake.TokenID), util.TokenSymbol(token))
+			stake.TokenID, token)
 	}
 
 	if amount.Cmp(stake.MinAmount) < 0 {
@@ -614,21 +598,21 @@ func (a *Account) takeStake(token, from ids.ShortID, amount *big.Int, write bool
 	return nil
 }
 
-func (a *Account) CheckWithdrawStake(token, from ids.ShortID, amount *big.Int) (*big.Int, error) {
+func (a *Account) CheckWithdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.withdrawStake(token, from, amount, false)
 }
 
-func (a *Account) WithdrawStake(token, from ids.ShortID, amount *big.Int) (*big.Int, error) {
+func (a *Account) WithdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.withdrawStake(token, from, amount, true)
 }
 
-func (a *Account) withdrawStake(token, from ids.ShortID, amount *big.Int, write bool) (*big.Int, error) {
+func (a *Account) withdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int, write bool) (*big.Int, error) {
 	if a.valid(ld.StakeAccount) {
 		return nil, fmt.Errorf("Account.withdrawStake invalid stake account")
 	}
@@ -750,21 +734,21 @@ func (a *Account) closeLending(write bool) error {
 	return nil
 }
 
-func (a *Account) CheckBorrow(token, from ids.ShortID, amount *big.Int, dueTime uint64) error {
+func (a *Account) CheckBorrow(token util.TokenSymbol, from util.EthID, amount *big.Int, dueTime uint64) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.borrow(token, from, amount, dueTime, false)
 }
 
-func (a *Account) Borrow(token, from ids.ShortID, amount *big.Int, dueTime uint64) error {
+func (a *Account) Borrow(token util.TokenSymbol, from util.EthID, amount *big.Int, dueTime uint64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.borrow(token, from, amount, dueTime, true)
 }
 
-func (a *Account) borrow(token, from ids.ShortID, amount *big.Int, dueTime uint64, write bool) error {
+func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.Int, dueTime uint64, write bool) error {
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return fmt.Errorf("Account invalid lending: %v, %v", a.ld.Lending, a.ld.LendingLedger)
 	}
@@ -806,21 +790,21 @@ func (a *Account) borrow(token, from ids.ShortID, amount *big.Int, dueTime uint6
 	return nil
 }
 
-func (a *Account) CheckRepay(token, from ids.ShortID, amount *big.Int) (*big.Int, error) {
+func (a *Account) CheckRepay(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.repay(token, from, amount, false)
 }
 
-func (a *Account) Repay(token, from ids.ShortID, amount *big.Int) (*big.Int, error) {
+func (a *Account) Repay(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	return a.repay(token, from, amount, true)
 }
 
-func (a *Account) repay(token, from ids.ShortID, amount *big.Int, write bool) (*big.Int, error) {
+func (a *Account) repay(token util.TokenSymbol, from util.EthID, amount *big.Int, write bool) (*big.Int, error) {
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return nil, fmt.Errorf("Account invalid lending: %v, %v", a.ld.Lending, a.ld.LendingLedger)
 	}
@@ -855,7 +839,7 @@ func (a *Account) repay(token, from ids.ShortID, amount *big.Int, write bool) (*
 
 const day = 3600 * 24
 
-func (a *Account) calcBorrowTotal(from ids.ShortID) *big.Int {
+func (a *Account) calcBorrowTotal(from util.EthID) *big.Int {
 	cfg := a.ld.Lending
 	e := a.ld.LendingLedger[from]
 	amount := new(big.Int).Set(e.Amount)

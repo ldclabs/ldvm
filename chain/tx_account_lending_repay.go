@@ -6,12 +6,11 @@ package chain
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxRepay struct {
-	*TxBase
+	TxBase
 }
 
 func (tx *TxRepay) SyntacticVerify() error {
@@ -20,8 +19,8 @@ func (tx *TxRepay) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.To == ids.ShortEmpty {
-		return fmt.Errorf("TxRepay invalid to: %s", util.EthID(tx.ld.To).String())
+	if tx.ld.To == util.EthIDEmpty {
+		return fmt.Errorf("TxRepay invalid to: %s", tx.ld.To)
 	}
 	if tx.ld.Amount.Sign() == 0 {
 		return fmt.Errorf("TxRepay invalid amount, got 0")

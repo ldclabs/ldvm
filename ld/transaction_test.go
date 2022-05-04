@@ -9,10 +9,11 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestTransaction(t *testing.T) {
-	address := ids.ShortID{1, 2, 3, 4}
+	address := util.EthID{1, 2, 3, 4}
 	tx := &Transaction{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
@@ -24,7 +25,7 @@ func TestTransaction(t *testing.T) {
 		t.Fatalf("SyntacticVerify failed: %v", err)
 	}
 
-	if tx.ID() == ids.Empty {
+	if tx.ID == ids.Empty {
 		t.Fatalf("id should not be Empty")
 	}
 

@@ -4,14 +4,10 @@
 package ld
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"runtime"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ldclabs/ldvm/util"
 )
 
 func Recover(errfmt string, fn func() error) (err error) {
@@ -27,6 +23,18 @@ func Recover(errfmt string, fn func() error) (err error) {
 		return fmt.Errorf("%s error: %v", errfmt, err)
 	}
 	return nil
+}
+
+type Marshaler interface {
+	Marshal() ([]byte, error)
+}
+
+func MustMarshal(v Marshaler) []byte {
+	data, err := v.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 func ToShortID(data []byte) (ids.ShortID, error) {
@@ -109,142 +117,4 @@ func PtrFromShortIDs(list []ids.ShortID) *[][]byte {
 		v[i] = list[i][:]
 	}
 	return &v
-}
-
-func ToID(data []byte) (ids.ID, error) {
-	switch {
-	case len(data) == 0:
-		return ids.Empty, nil
-	default:
-		return ids.ToID(data)
-	}
-}
-
-func PtrToID(data *[]byte) (ids.ID, error) {
-	switch {
-	case data == nil || len(*data) == 0:
-		return ids.Empty, nil
-	default:
-		return ids.ToID(*data)
-	}
-}
-
-func FromID(id ids.ID) []byte {
-	if id != ids.Empty {
-		return id[:]
-	}
-	return nil
-}
-
-func PtrFromID(id ids.ID) *[]byte {
-	if id != ids.Empty {
-		b := id[:]
-		return &b
-	}
-	return nil
-}
-
-func PtrToBytes(data *[]byte) []byte {
-	if data == nil {
-		return nil
-	}
-	return *data
-}
-
-func PtrFromBytes(data []byte) *[]byte {
-	if len(data) == 0 {
-		return nil
-	}
-	return &data
-}
-
-func ToSignature(data []byte) (util.Signature, error) {
-	ss := util.Signature{}
-	switch len(data) {
-	case crypto.SignatureLength:
-		copy(ss[:], data)
-		return ss, nil
-	default:
-		return ss, fmt.Errorf("expected 65 bytes but got %d", len(data))
-	}
-}
-
-func PtrToSignature(d *[]byte) (*util.Signature, error) {
-	var data []byte
-	if d == nil {
-		return nil, nil
-	}
-
-	data = *d
-	switch len(data) {
-	case crypto.SignatureLength:
-		ss := util.Signature{}
-		copy(ss[:], data)
-		return &ss, nil
-	default:
-		return nil, fmt.Errorf("expected 65 bytes but got %d", len(data))
-	}
-}
-
-func PtrFromSignature(ss *util.Signature) *[]byte {
-	if ss == nil || *ss == util.SignatureEmpty {
-		return nil
-	}
-	v := (*ss)[:]
-	return &v
-}
-
-func PtrToSignatures(d *[][]byte) ([]util.Signature, error) {
-	var data [][]byte
-	if d != nil {
-		data = *d
-	}
-	ss := make([]util.Signature, len(data))
-	for i := range data {
-		switch len(data[i]) {
-		case crypto.SignatureLength:
-			ss[i] = util.Signature{}
-			copy(ss[i][:], data[i])
-		default:
-			return ss, fmt.Errorf("expected 65 bytes but got %d", len(data[i]))
-		}
-	}
-	return ss, nil
-}
-
-func PtrFromSignatures(ss []util.Signature) *[][]byte {
-	if len(ss) == 0 {
-		return nil
-	}
-	v := make([][]byte, len(ss))
-	for i := range ss {
-		v[i] = ss[i][:]
-	}
-	return &v
-}
-
-func WriteUint64s(w io.Writer, u uint64, uu ...uint64) error {
-	b := FromUint64(u)
-	bb := make([][]byte, len(uu))
-	for i, u := range uu {
-		bb[i] = FromUint64(u)
-	}
-	return WriteBytesList(w, b, bb...)
-}
-
-func ReadUint64s(data []byte) ([]uint64, error) {
-	bb, err := ReadBytesList(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	list := make([]uint64, len(bb))
-	for i, b := range bb {
-		u := Uint64(b)
-		if !u.Valid() {
-			return nil, fmt.Errorf("ReadUint64s error: invalid uint64 bytes")
-		}
-		list[i] = u.Value()
-	}
-
-	return list, nil
 }

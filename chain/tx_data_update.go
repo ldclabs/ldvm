@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -15,8 +16,8 @@ import (
 )
 
 type TxUpdateData struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxUpdater
 	dm        *ld.DataMeta
 	prevDM    *ld.DataMeta
@@ -31,12 +32,12 @@ func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxUpdateData) SyntacticVerify() error {
@@ -45,8 +46,8 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateData invalid")
@@ -79,7 +80,7 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(tx.data.ID)
+	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data failed: %v", err)
 	}
@@ -130,10 +131,10 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 func (tx *TxUpdateData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	if err = bs.SavePrevData(tx.data.ID, tx.prevDM); err != nil {
+	if err = bs.SavePrevData(util.DataID(tx.data.ID), tx.prevDM); err != nil {
 		return err
 	}
-	if err = bs.SaveData(tx.data.ID, tx.dm); err != nil {
+	if err = bs.SaveData(util.DataID(tx.data.ID), tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

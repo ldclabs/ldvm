@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -13,8 +14,8 @@ import (
 )
 
 type TxUpdateAccountKeepers struct {
-	*TxBase
-	data *ld.TxUpdater
+	TxBase
+	data *ld.TxAccounter
 }
 
 func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
@@ -25,12 +26,12 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 // VerifyGenesis skipping signature verification
@@ -40,13 +41,13 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateAccountKeepers invalid")
 	}
-	tx.data = &ld.TxUpdater{}
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}
@@ -62,7 +63,7 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 
 func (tx *TxUpdateAccountKeepers) VerifyGenesis(blk *Block, bs BlockState) error {
 	var err error
-	tx.data = &ld.TxUpdater{}
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}

@@ -36,7 +36,7 @@ func JSONMarshalData(data []byte) json.RawMessage {
 }
 
 func JSONUnmarshalData(data json.RawMessage) []byte {
-	if last := len(data) - 1; last > 10 && data[0] == '"' && data[last] == '"' {
+	if last := len(data) - 1; last > 2 && data[0] == '"' && data[last] == '"' {
 		if d, err := formatting.Decode(formatting.Hex, string(data[1:last])); err == nil {
 			return d
 		}
@@ -44,8 +44,8 @@ func JSONUnmarshalData(data json.RawMessage) []byte {
 	return data
 }
 
-func NodeIDToStakeAddress(nodeIDs ...ids.ShortID) []ids.ShortID {
-	rt := make([]ids.ShortID, len(nodeIDs))
+func NodeIDToStakeAddress(nodeIDs ...EthID) []EthID {
+	rt := make([]EthID, len(nodeIDs))
 	for i, id := range nodeIDs {
 		rt[i] = id
 		rt[i][0] = '$'
@@ -57,9 +57,9 @@ func IDFromBytes(data []byte) ids.ID {
 	return ids.ID(sha3.Sum256(data))
 }
 
-type ShortIDs []ids.ShortID
+type EthIDs []EthID
 
-func (s ShortIDs) Has(id ids.ShortID) bool {
+func (s EthIDs) Has(id EthID) bool {
 	for _, v := range s {
 		if v == id {
 			return true

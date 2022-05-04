@@ -4,17 +4,17 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxAddAccountNonceTable struct {
-	*TxBase
-	data *ld.TxUpdater
+	TxBase
+	data []uint64
 }
 
 func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
@@ -25,12 +25,12 @@ func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 // VerifyGenesis skipping signature verification
@@ -40,10 +40,10 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
-	if tx.ld.To != ids.ShortEmpty {
+	if tx.ld.To != util.EthIDEmpty {
 		return fmt.Errorf("TxAddAccountNonceTable invalid to")
 	}
 	if tx.ld.Amount != nil {
@@ -52,21 +52,17 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxAddAccountNonceTable invalid")
 	}
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.data = make([]uint64, 0)
+	if err = ld.DecMode.Unmarshal(tx.ld.Data, &tx.data); err != nil {
 		return fmt.Errorf("TxAddAccountNonceTable unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxAddAccountNonceTable SyntacticVerify failed: %v", err)
-	}
-	if len(tx.data.Numbers) == 0 {
+	if len(tx.data) < 2 {
 		return fmt.Errorf("TxAddAccountNonceTable numbers empty")
 	}
-	if len(tx.data.Numbers) > 1024 {
+	if len(tx.data) > 1025 {
 		return fmt.Errorf("TxAddAccountNonceTable too many numbers")
 	}
-	now := tx.ld.Timestamp
-	if tx.data.Expire < now || tx.data.Expire > (now+3600*24*7) {
+	if tx.data[0] < tx.ld.Timestamp || tx.data[0] > (tx.ld.Timestamp+3600*24*7) {
 		return fmt.Errorf("TxAddAccountNonceTable invalid expire")
 	}
 	return nil
@@ -77,7 +73,7 @@ func (tx *TxAddAccountNonceTable) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	if err = tx.from.CheckNonceTable(tx.data.Expire, tx.data.Numbers); err != nil {
+	if err = tx.from.CheckNonceTable(tx.data[0], tx.data[1:]); err != nil {
 		return err
 	}
 	return nil
@@ -85,7 +81,7 @@ func (tx *TxAddAccountNonceTable) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxAddAccountNonceTable) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.from.AddNonceTable(tx.data.Expire, tx.data.Numbers); err != nil {
+	if err = tx.from.AddNonceTable(tx.data[0], tx.data[1:]); err != nil {
 		return err
 	}
 

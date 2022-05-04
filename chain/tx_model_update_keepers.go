@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -13,7 +14,7 @@ import (
 )
 
 type TxUpdateModelKeepers struct {
-	*TxBase
+	TxBase
 	data *ld.TxUpdater
 	mm   *ld.ModelMeta
 }
@@ -26,12 +27,12 @@ func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
@@ -40,8 +41,8 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateModelKeepers invalid")
@@ -69,7 +70,7 @@ func (tx *TxUpdateModelKeepers) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.mm, err = bs.LoadModel(tx.data.ID)
+	tx.mm, err = bs.LoadModel(util.ModelID(tx.data.ID))
 	if err != nil {
 		return fmt.Errorf("TxUpdateModelKeepers load model failed: %v", err)
 	}
@@ -88,7 +89,7 @@ func (tx *TxUpdateModelKeepers) Accept(blk *Block, bs BlockState) error {
 	if err = tx.mm.SyntacticVerify(); err != nil {
 		return err
 	}
-	if err = bs.SaveModel(tx.data.ID, tx.mm); err != nil {
+	if err = bs.SaveModel(util.ModelID(tx.data.ID), tx.mm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

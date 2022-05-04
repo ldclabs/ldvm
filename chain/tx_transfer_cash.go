@@ -4,17 +4,17 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTransferCash struct {
-	*TxBase
+	TxBase
 	issuer    *Account
-	exSigners []ids.ShortID
+	exSigners []util.EthID
 	data      *ld.TxTransfer
 }
 
@@ -26,12 +26,12 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxTransferCash) SyntacticVerify() error {

@@ -137,11 +137,8 @@ func (p *Profile) Equal(o *Profile) bool {
 
 func (b *Profile) Bytes() []byte {
 	if len(b.raw) == 0 {
-		if _, err := b.Marshal(); err != nil {
-			panic(err)
-		}
+		ld.MustMarshal(b)
 	}
-
 	return b.raw
 }
 

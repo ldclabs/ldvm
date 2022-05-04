@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ldclabs/ldvm/util"
@@ -29,8 +28,8 @@ type TxEth struct {
 	GasTipCap uint64
 	GasFeeCap uint64
 	Gas       uint64
-	From      ids.ShortID
-	To        ids.ShortID
+	From      util.EthID
+	To        util.EthID
 	Value     *big.Int
 	Data      []byte
 	Signature util.Signature
@@ -40,39 +39,11 @@ type TxEth struct {
 	raw []byte
 }
 
-type jsonTxEth struct {
-	ChainID   uint64          `json:"chainID,omitempty"`
-	Nonce     uint64          `json:"nonce,omitempty"`
-	GasTipCap uint64          `json:"gasTipCap,omitempty"`
-	GasFeeCap uint64          `json:"gasPrice,omitempty"`
-	Gas       uint64          `json:"gasLimit,omitempty"`
-	From      string          `json:"from,omitempty"`
-	To        string          `json:"to,omitempty"`
-	Value     *big.Int        `json:"value,omitempty"`
-	Data      json.RawMessage `json:"data,omitempty"`
-}
-
 func (t *TxEth) MarshalJSON() ([]byte, error) {
 	if t == nil {
 		return util.Null, nil
 	}
-	v := &jsonTxEth{
-		ChainID:   t.ChainID,
-		Nonce:     t.Nonce,
-		GasTipCap: t.GasTipCap,
-		GasFeeCap: t.GasFeeCap,
-		Gas:       t.Gas,
-		Value:     t.Value,
-		Data:      util.JSONMarshalData(t.Data),
-	}
-
-	if t.From != ids.ShortEmpty {
-		v.From = util.EthID(t.From).String()
-	}
-	if t.To != ids.ShortEmpty {
-		v.To = util.EthID(t.To).String()
-	}
-	return json.Marshal(v)
+	return json.Marshal(t.ToTransaction())
 }
 
 // SyntacticVerify verifies that a *TxEth is well-formed.
@@ -84,7 +55,7 @@ func (t *TxEth) SyntacticVerify() error {
 	if t.Nonce == 0 {
 		return fmt.Errorf("invalid nonce")
 	}
-	if t.To == ids.ShortEmpty {
+	if t.To == util.EthIDEmpty {
 		return fmt.Errorf("invalid recipient")
 	}
 	if t.Value == nil || t.Value.Sign() < 1 {
@@ -95,56 +66,16 @@ func (t *TxEth) SyntacticVerify() error {
 	if err != nil {
 		return fmt.Errorf("invalid signature: %v", err)
 	}
-	t.From = ids.ShortID(from)
+	t.From = util.EthID(from)
 	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("TxEth marshal error: %v", err)
 	}
 	return nil
 }
 
-func (t *TxEth) Equal(o *TxEth) bool {
-	if o == nil {
-		return false
-	}
-	if len(o.raw) > 0 && len(t.raw) > 0 {
-		return bytes.Equal(o.raw, t.raw)
-	}
-	if o.ChainID != t.ChainID {
-		return false
-	}
-	if o.Nonce != t.Nonce {
-		return false
-	}
-	if o.GasTipCap != t.GasTipCap {
-		return false
-	}
-	if o.GasFeeCap != t.GasFeeCap {
-		return false
-	}
-	if o.Gas != t.Gas {
-		return false
-	}
-	if o.From != t.From {
-		return false
-	}
-	if o.To != t.To {
-		return false
-	}
-	if o.Value == nil || t.Value == nil {
-		if o.Value != t.Value {
-			return false
-		}
-	} else if o.Value.Cmp(t.Value) != 0 {
-		return false
-	}
-	return bytes.Equal(o.Data, t.Data)
-}
-
 func (t *TxEth) Bytes() []byte {
 	if len(t.raw) == 0 {
-		if _, err := t.Marshal(); err != nil {
-			panic(err)
-		}
+		MustMarshal(t)
 	}
 	return t.raw
 }
@@ -180,7 +111,7 @@ func (t *TxEth) Unmarshal(data []byte) error {
 	if to == nil {
 		return fmt.Errorf("invalid EthTx to")
 	}
-	t.To = ids.ShortID(*to)
+	t.To = util.EthID(*to)
 	t.Nonce = t.tx.Nonce()
 	t.Gas = t.tx.Gas()
 	t.GasTipCap = t.tx.GasTipCap().Uint64()
@@ -258,12 +189,12 @@ func TxEthFromSigned(data []byte) (*TxEth, error) {
 	if to == nil {
 		return nil, fmt.Errorf("invalid EthTx to")
 	}
-	t.To = ids.ShortID(*to)
+	t.To = util.EthID(*to)
 	from, err := types.Sender(EthSigner, t.tx)
 	if err != nil {
 		return nil, fmt.Errorf("invalid EthTx signature: %v", err)
 	}
-	t.From = ids.ShortID(from)
+	t.From = util.EthID(from)
 	t.Signature = encodeSignature(t.tx.RawSignatureValues())
 	t.Nonce = t.tx.Nonce()
 	t.Gas = t.tx.Gas()
@@ -277,16 +208,6 @@ func TxEthFromSigned(data []byte) (*TxEth, error) {
 	}
 	return t, nil
 }
-
-// func decodeSignature(sig []byte) (r, s, v *big.Int) {
-// 	if len(sig) != crypto.SignatureLength {
-// 		panic(fmt.Sprintf("wrong size for signature: got %d, want %d", len(sig), crypto.SignatureLength))
-// 	}
-// 	r = new(big.Int).SetBytes(sig[:32])
-// 	s = new(big.Int).SetBytes(sig[32:64])
-// 	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
-// 	return r, s, v
-// }
 
 func encodeSignature(r, s, v *big.Int) util.Signature {
 	sig := util.Signature{}

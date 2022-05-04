@@ -97,8 +97,8 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 	if n.vm.appSender == nil {
 		return
 	}
-	if id := tx.ID(); !n.hasTx(id) {
-		n.seeTx(id)
+	if !n.hasTx(tx.ID) {
+		n.seeTx(tx.ID)
 		n.mu.Lock()
 		n.queue = append(n.queue, tx)
 		n.mu.Unlock()
@@ -118,15 +118,14 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 //
 // A node may gossip the same message multiple times. That is,
 // AppGossip([nodeID], [msg]) may be called multiple times.
-func (v *VM) AppGossip(nodeID ids.ShortID, msg []byte) error {
+func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 	txs, err := ld.UnmarshalTxs(msg)
 	if len(txs) > 0 {
 		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))
 		rt := make([]*ld.Transaction, 0, len(txs))
 		for i := range txs {
-			id := txs[i].ID()
-			if !v.network.hasTx(id) {
-				v.network.seeTx(id)
+			if !v.network.hasTx(txs[i].ID) {
+				v.network.seeTx(txs[i].ID)
 				rt = append(rt, txs[i])
 			}
 		}
