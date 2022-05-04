@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -17,13 +16,13 @@ import (
 )
 
 type TxCreateData struct {
-	*TxBase
-	exSigners []ids.ShortID
+	TxBase
+	exSigners []util.EthID
 	data      *ld.TxUpdater
 	dm        *ld.DataMeta
 	name      *service.Name
-	kSigner   ids.ShortID
-	sSigner   ids.ShortID
+	kSigner   util.EthID
+	sSigner   util.EthID
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
@@ -34,12 +33,12 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxCreateData) SyntacticVerify() error {
@@ -81,7 +80,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	}
 
 	// with model keepers
-	if tx.data.To != ids.ShortEmpty {
+	if tx.data.To != util.EthIDEmpty {
 		if tx.data.To != tx.ld.To {
 			return fmt.Errorf("TxCreateData invalid recipient")
 		}
@@ -101,7 +100,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	}
 
 	tx.dm = &ld.DataMeta{
-		ModelID:   tx.data.ID,
+		ModelID:   util.ModelID(tx.data.ID),
 		Version:   tx.data.Version,
 		Threshold: tx.data.Threshold,
 		Keepers:   tx.data.Keepers,
@@ -121,10 +120,10 @@ func (tx *TxCreateData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
-	if tx.kSigner != ids.ShortEmpty && !util.ShortIDs(tx.from.Keepers()).Has(tx.kSigner) {
+	if tx.kSigner != util.EthIDEmpty && !util.EthIDs(tx.from.Keepers()).Has(tx.kSigner) {
 		return fmt.Errorf("TxCreateData invalid kSig, no signer in account keepers")
 	}
 	switch util.ModelID(tx.dm.ModelID) {
@@ -147,7 +146,7 @@ func (tx *TxCreateData) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
 		return fmt.Errorf("TxCreateData need more model keepers signatures")
 	}
-	if tx.sSigner != ids.ShortEmpty && !util.ShortIDs(mm.Keepers).Has(tx.sSigner) {
+	if tx.sSigner != util.EthIDEmpty && !util.EthIDs(mm.Keepers).Has(tx.sSigner) {
 		return fmt.Errorf("TxCreateData invalid sSig, no signer in model keepers")
 	}
 
@@ -176,7 +175,7 @@ func (tx *TxCreateData) VerifyGenesis(blk *Block, bs BlockState) error {
 		return fmt.Errorf("TxCreateData SyntacticVerify failed: %v", err)
 	}
 	tx.dm = &ld.DataMeta{
-		ModelID:   tx.data.ID,
+		ModelID:   util.ModelID(tx.data.ID),
 		Version:   tx.data.Version,
 		Threshold: tx.data.Threshold,
 		Keepers:   tx.data.Keepers,
@@ -200,7 +199,7 @@ func (tx *TxCreateData) VerifyGenesis(blk *Block, bs BlockState) error {
 func (tx *TxCreateData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	id := tx.ld.ShortID()
+	id := util.DataID(tx.ld.ShortID())
 	if tx.name != nil {
 		if err = bs.SetName(tx.name.Name, id); err != nil {
 			return err

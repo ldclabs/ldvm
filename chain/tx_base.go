@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -20,7 +21,7 @@ type TxBase struct {
 	miner   *Account
 	from    *Account
 	to      *Account
-	signers []ids.ShortID
+	signers []util.EthID
 	status  choices.Status
 	fee     *big.Int
 	tip     *big.Int
@@ -32,7 +33,7 @@ func (tx *TxBase) MarshalJSON() ([]byte, error) {
 		return util.Null, nil
 	}
 
-	return tx.ld.MarshalJSON()
+	return json.Marshal(tx.ld)
 }
 
 func (tx *TxBase) LD() *ld.Transaction {
@@ -40,7 +41,7 @@ func (tx *TxBase) LD() *ld.Transaction {
 }
 
 func (tx *TxBase) ID() ids.ID {
-	return tx.ld.ID()
+	return tx.ld.ID
 }
 
 func (tx *TxBase) Type() ld.TxType {
@@ -63,10 +64,10 @@ func (tx *TxBase) SyntacticVerify() error {
 	if tx == nil || tx.ld == nil {
 		return fmt.Errorf("tx is nil")
 	}
-	if tx.ld.Token != constants.LDCAccount && util.TokenSymbol(tx.ld.Token).String() == "" {
-		return fmt.Errorf("invalid token %s", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken && tx.ld.Token.String() == "" {
+		return fmt.Errorf("invalid token %s", tx.ld.Token)
 	}
-	if tx.ld.From == ids.ShortEmpty {
+	if tx.ld.From == util.EthIDEmpty {
 		return fmt.Errorf("invalid from")
 	}
 	if tx.ld.From == tx.ld.To {
@@ -106,7 +107,7 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
 		return err
 	}
-	if tx.ld.To != ids.ShortEmpty {
+	if tx.ld.To != util.EthIDEmpty {
 		if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
 			return err
 		}
@@ -157,12 +158,12 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	}
 
 	switch tx.ld.Token {
-	case constants.LDCAccount:
-		if err = tx.from.CheckBalance(constants.LDCAccount, new(big.Int).Add(tx.ld.Amount, tx.cost)); err != nil {
+	case constants.NativeToken:
+		if err = tx.from.CheckBalance(constants.NativeToken, new(big.Int).Add(tx.ld.Amount, tx.cost)); err != nil {
 			return err
 		}
 	default:
-		if err = tx.from.CheckBalance(constants.LDCAccount, tx.cost); err != nil {
+		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost); err != nil {
 			return fmt.Errorf("check fee failed: %v", err)
 		}
 		if err = tx.from.CheckBalance(tx.ld.Token, tx.ld.Amount); err != nil {
@@ -174,7 +175,7 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.from.SubByNonce(constants.LDCAccount, tx.ld.Nonce, tx.cost); err != nil {
+	if err = tx.from.SubByNonce(constants.NativeToken, tx.ld.Nonce, tx.cost); err != nil {
 		return err
 	}
 
@@ -186,11 +187,11 @@ func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 			return err
 		}
 	}
-	if err = tx.miner.Add(constants.LDCAccount, tx.tip); err != nil {
+	if err = tx.miner.Add(constants.NativeToken, tx.tip); err != nil {
 		return err
 	}
 	// burn fee
-	if err = tx.ldc.Add(constants.LDCAccount, tx.fee); err != nil {
+	if err = tx.ldc.Add(constants.NativeToken, tx.fee); err != nil {
 		return err
 	}
 	return nil

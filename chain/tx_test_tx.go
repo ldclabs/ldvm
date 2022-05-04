@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -22,7 +23,7 @@ func (tx *TxTest) MarshalJSON() ([]byte, error) {
 		return util.Null, nil
 	}
 
-	return tx.ld.MarshalJSON()
+	return json.Marshal(tx.ld)
 }
 
 func (tx *TxTest) LD() *ld.Transaction {
@@ -30,7 +31,7 @@ func (tx *TxTest) LD() *ld.Transaction {
 }
 
 func (tx *TxTest) ID() ids.ID {
-	return tx.ld.ID()
+	return tx.ld.ID
 }
 
 func (tx *TxTest) Type() ld.TxType {

@@ -6,13 +6,12 @@ package chain
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxDestroyTokenAccount struct {
-	*TxBase
+	TxBase
 }
 
 func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
@@ -20,10 +19,10 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
-	if tx.ld.To == ids.ShortEmpty {
+	if tx.ld.To == util.EthIDEmpty {
 		return fmt.Errorf("TxDestroyTokenAccount invalid recipient")
 	}
 	if token := util.TokenSymbol(tx.ld.From); token.String() == "" {
@@ -43,7 +42,7 @@ func (tx *TxDestroyTokenAccount) Verify(blk *Block, bs BlockState) error {
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return fmt.Errorf("sender account need more signers")
 	}
-	return tx.from.CheckDestroyToken(tx.ld.From, tx.to)
+	return tx.from.CheckDestroyToken(util.TokenSymbol(tx.ld.From), tx.to)
 }
 
 func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
@@ -51,5 +50,5 @@ func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
 		return err
 	}
 	// DestroyToken after TxBase.Accept
-	return tx.from.DestroyToken(tx.ld.From, tx.to)
+	return tx.from.DestroyToken(util.TokenSymbol(tx.ld.From), tx.to)
 }

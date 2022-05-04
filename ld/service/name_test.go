@@ -4,20 +4,21 @@
 package service
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
-
+	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestName(t *testing.T) {
 	assert := assert.New(t)
 
-	address := ids.ShortID{1, 2, 3, 4}
+	address := util.DataID{1, 2, 3, 4}
 	name := &Name{
-		Name:   "xn--vuq70b.com",
-		Linked: address,
+		Name:    "xn--vuq70b.com",
+		Linked:  address,
+		Records: []string{},
 	}
 	data, err := name.Marshal()
 	assert.Nil(err)
@@ -32,14 +33,17 @@ func TestName(t *testing.T) {
 	assert.Nil(err)
 
 	assert.NotEqual(data, data2)
-	data, err = name.MarshalJSON()
+
+	assert.Nil(name.SyntacticVerify())
+	data, err = json.Marshal(name)
 	assert.Nil(err)
 
-	jsonStr := `{"name":"公信.com","domain":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"]}`
+	jsonStr := `{"name":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"display":"公信.com"}`
 	assert.Equal(jsonStr, string(data))
 
 	name3 := &Name{}
 	err = name3.Unmarshal(data2)
 	assert.Nil(err)
+	assert.Nil(name3.SyntacticVerify())
 	assert.Equal(name, name3)
 }

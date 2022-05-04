@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -12,7 +13,7 @@ import (
 )
 
 type TxWithdrawStake struct {
-	*TxBase
+	TxBase
 	data *ld.TxTransfer
 }
 
@@ -24,12 +25,12 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxWithdrawStake) SyntacticVerify() error {
@@ -38,15 +39,15 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxWithdrawStake invalid amount")
 	}
 	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxWithdrawStake invalid stake address: %s", util.EthID(tx.ld.To))
+		return fmt.Errorf("TxWithdrawStake invalid stake address: %s", tx.ld.To)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxWithdrawStake invalid")

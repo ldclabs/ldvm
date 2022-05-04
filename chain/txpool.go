@@ -74,7 +74,7 @@ func (p *txPool) Remove(txID ids.ID) {
 	defer p.mu.Unlock()
 
 	for i, tx := range p.txQueue {
-		if tx.ID() == txID {
+		if tx.ID == txID {
 			p.txQueueSet.Remove(txID)
 			n := copy(p.txQueue[i:], p.txQueue[i+1:])
 			p.txQueue = p.txQueue[:i+n]
@@ -105,7 +105,7 @@ func (p *txPool) Get(txID ids.ID) Transaction {
 
 	if p.txQueueSet.Contains(txID) {
 		for _, tx := range p.txQueue {
-			if tx.ID() == txID {
+			if tx.ID == txID {
 				if ntx, _ := NewTx(tx, false); ntx != nil {
 					ntx.SetStatus(choices.Unknown)
 					return ntx
@@ -123,9 +123,8 @@ func (p *txPool) Add(txs ...*ld.Transaction) error {
 	defer p.mu.Unlock()
 
 	for i, tx := range txs {
-		id := tx.ID()
-		if !p.has(id) {
-			p.txQueueSet.Add(id)
+		if !p.has(tx.ID) {
+			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}
 	}
@@ -134,8 +133,7 @@ func (p *txPool) Add(txs ...*ld.Transaction) error {
 
 // Rejecte a tx that should not in pool.
 func (p *txPool) Reject(tx *ld.Transaction) {
-	id := tx.ID()
-	p.rejected.Set(string(id[:]), tx, rejectedTxsTTL)
+	p.rejected.Set(string(tx.ID[:]), tx, rejectedTxsTTL)
 }
 
 func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
@@ -180,7 +178,7 @@ func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
 			break
 		}
 		n++
-		p.txQueueSet.Remove(tx.ID())
+		p.txQueueSet.Remove(tx.ID)
 		rt = append(rt, p.txQueue[i])
 	}
 	if n > 0 {

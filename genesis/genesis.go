@@ -16,8 +16,8 @@ import (
 )
 
 type Genesis struct {
-	Chain *ChainConfig               `json:"chain"`
-	Alloc map[util.EthID]*Allocation `json:"alloc"`
+	Chain ChainConfig               `json:"chain"`
+	Alloc map[util.EthID]Allocation `json:"alloc"`
 }
 
 type Allocation struct {
@@ -33,15 +33,15 @@ type ChainConfig struct {
 	FeeConfigID      util.DataID  `json:"feeConfigID"`
 	NameServiceID    util.ModelID `json:"nameAppID"`
 	ProfileServiceID util.ModelID `json:"profileAppID"`
-	FeeConfig        *FeeConfig   `json:"feeConfig"`
-	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
+	FeeConfig        FeeConfig    `json:"feeConfig"`
+	FeeConfigs       []FeeConfig  `json:"feeConfigs"`
 }
 
-func (c *ChainConfig) IsNameService(id ids.ShortID) bool {
-	return c.NameServiceID == util.ModelID(id)
+func (c *ChainConfig) IsNameService(id util.ModelID) bool {
+	return c.NameServiceID == id
 }
 
-func (c *ChainConfig) Fee(height uint64) *FeeConfig {
+func (c *ChainConfig) Fee(height uint64) FeeConfig {
 	for i, cfg := range c.FeeConfigs {
 		if cfg.StartHeight <= height {
 			return c.FeeConfigs[i]
@@ -51,10 +51,10 @@ func (c *ChainConfig) Fee(height uint64) *FeeConfig {
 	return c.FeeConfig
 }
 
-func (c *ChainConfig) AddFeeConfig(data []byte) (*FeeConfig, error) {
-	fee := &FeeConfig{}
-	if err := json.Unmarshal(data, fee); err != nil {
-		return nil, err
+func (c *ChainConfig) AddFeeConfig(data []byte) (FeeConfig, error) {
+	fee := FeeConfig{}
+	if err := json.Unmarshal(data, &fee); err != nil {
+		return fee, err
 	}
 	c.FeeConfigs = append(c.FeeConfigs, fee)
 	return fee, nil
@@ -77,7 +77,7 @@ func FromJSON(data []byte) (*Genesis, error) {
 	if err := json.Unmarshal(data, g); err != nil {
 		return nil, err
 	}
-	g.Chain.FeeConfigs = []*FeeConfig{g.Chain.FeeConfig}
+	g.Chain.FeeConfigs = []FeeConfig{g.Chain.FeeConfig}
 	return g, nil
 }
 
@@ -99,9 +99,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		Type:    ld.TypeCreateTokenAccount,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		To:      ids.ShortID(constants.LDCAccount),
+		To:      constants.LDCAccount,
 		Amount:  g.Chain.MaxTotalSupply,
-		Data:    minter.Bytes(),
+		Data:    ld.MustMarshal(minter),
 	}
 	txs = append(txs, tx)
 
@@ -119,23 +119,23 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 			ChainID: g.Chain.ChainID,
 			Nonce:   nonce,
 			From:    constants.LDCAccount,
-			To:      id,
+			To:      util.EthID(id),
 			Amount:  v.Balance,
 		}
 		nonce++
 		txs = append(txs, tx)
 
 		if le := len(v.Keepers); le > 0 {
-			update := &ld.TxUpdater{
+			update := &ld.TxAccounter{
 				Threshold: v.Threshold,
-				Keepers:   util.EthIDsToShort(v.Keepers...),
+				Keepers:   v.Keepers,
 			}
 
 			tx := &ld.Transaction{
 				Type:    ld.TypeUpdateAccountKeepers,
 				ChainID: g.Chain.ChainID,
-				From:    id,
-				Data:    update.Bytes(),
+				From:    util.EthID(id),
+				Data:    ld.MustMarshal(update),
 			}
 			txs = append(txs, tx)
 		}
@@ -150,14 +150,14 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		ID:        ids.ShortID(constants.JsonModelID),
 		Version:   1,
 		Threshold: genesisAccount.Threshold,
-		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
+		Keepers:   genesisAccount.Keepers,
 		Data:      cfg,
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		Data:    cfgData.Bytes(),
+		Data:    ld.MustMarshal(cfgData),
 	}
 	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
 	txs = append(txs, tx)
@@ -167,14 +167,14 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	nameModel := &ld.ModelMeta{
 		Name:      name,
 		Threshold: genesisAccount.Threshold,
-		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
+		Keepers:   genesisAccount.Keepers,
 		Data:      sch,
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		Data:    nameModel.Bytes(),
+		Data:    ld.MustMarshal(nameModel),
 	}
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
@@ -184,14 +184,14 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	profileModel := &ld.ModelMeta{
 		Name:      name,
 		Threshold: genesisAccount.Threshold,
-		Keepers:   util.EthIDsToShort(genesisAccount.Keepers...),
+		Keepers:   genesisAccount.Keepers,
 		Data:      sch,
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		Data:    profileModel.Bytes(),
+		Data:    ld.MustMarshal(profileModel),
 	}
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)

@@ -9,10 +9,11 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/util"
 )
 
 func TestBlock(t *testing.T) {
-	address := ids.ShortID{1, 2, 3, 4}
+	address := util.EthID{1, 2, 3, 4}
 
 	tx := &Transaction{
 		Type: TypeTransfer,
@@ -32,7 +33,7 @@ func TestBlock(t *testing.T) {
 		GasPrice:      1000,
 		GasRebateRate: 100,
 		Miner:         constants.GenesisAccount,
-		Shares:        []ids.ShortID{address},
+		Shares:        []util.EthID{address},
 		Txs:           []*Transaction{tx},
 	}
 	data, err := blk.Marshal()

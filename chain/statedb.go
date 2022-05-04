@@ -78,11 +78,11 @@ type StateDB interface {
 	GetTx(ids.ID) Transaction
 	RemoveTx(ids.ID)
 
-	LoadAccount(ids.ShortID) (*ld.Account, error)
+	LoadAccount(util.EthID) (*ld.Account, error)
 	ResolveName(name string) (*ld.DataMeta, error)
-	LoadModel(ids.ShortID) (*ld.ModelMeta, error)
-	LoadData(ids.ShortID) (*ld.DataMeta, error)
-	LoadPrevData(ids.ShortID, uint64) (*ld.DataMeta, error)
+	LoadModel(util.ModelID) (*ld.ModelMeta, error)
+	LoadData(util.DataID) (*ld.DataMeta, error)
+	LoadPrevData(util.DataID, uint64) (*ld.DataMeta, error)
 
 	// events
 	QueryEvents() []*Event
@@ -223,13 +223,6 @@ func (s *stateDB) Context() *Context {
 }
 
 func (s *stateDB) Bootstrap() error {
-	if s.config.FeeRecipient == util.EthIDEmpty {
-		for k := range s.genesis.Alloc {
-			s.config.FeeRecipient = k
-			break
-		}
-	}
-
 	genesisLdBlock, err := s.genesis.ToBlock()
 	if err != nil {
 		logging.Log.Error("Bootstrap genesis.ToBlock error: %v", err)
@@ -304,7 +297,7 @@ func (s *stateDB) Bootstrap() error {
 
 	// load latest fee config from chain.
 	var dm *ld.DataMeta
-	feeConfigID := ids.ShortID(s.genesis.Chain.FeeConfigID)
+	feeConfigID := s.genesis.Chain.FeeConfigID
 	dm, err = s.LoadData(feeConfigID)
 	if err != nil {
 		return fmt.Errorf("load last fee config failed: %v", err)
@@ -327,7 +320,6 @@ func (s *stateDB) Bootstrap() error {
 
 	logging.Log.Info("Bootstrap load %d versions fee configs", len(s.genesis.Chain.FeeConfigs))
 	logging.Log.Info("Bootstrap finished at the block %s, %d", lastAcceptedBlock.ID(), lastAcceptedBlock.ld.Height)
-	logging.Log.Info("Bootstrap finished with miner %s", s.config.FeeRecipient)
 	return nil
 }
 
@@ -446,7 +438,7 @@ func (s *stateDB) SetPreference(id ids.ID) error {
 	blk := v.(*Block)
 
 	if blk.Parent() != pid {
-		if lid := s.lastAcceptedBlock.LoadV().ID(); blk.Parent() != lid {
+		if lid := s.lastAcceptedBlock.LoadV().ID; blk.Parent() != lid {
 			return fmt.Errorf("SetPreference block %s parent error: expected %s, got %s",
 				id, lid, blk.Parent())
 		}
@@ -580,7 +572,7 @@ func (s *stateDB) RemoveTx(id ids.ID) {
 	s.txPool.Remove(id)
 }
 
-func (s *stateDB) LoadAccount(id ids.ShortID) (*ld.Account, error) {
+func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
 	obj, err := s.accountDB.Load(id[:], s.recentAccounts)
 	if err != nil {
 		return nil, err
@@ -609,10 +601,10 @@ func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.LoadData(id)
+	return s.LoadData(util.DataID(id))
 }
 
-func (s *stateDB) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
+func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	obj, err := s.modelDB.Load(id[:], s.recentModels)
 	if err != nil {
 		return nil, err
@@ -622,7 +614,7 @@ func (s *stateDB) LoadModel(id ids.ShortID) (*ld.ModelMeta, error) {
 	return rt, nil
 }
 
-func (s *stateDB) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
+func (s *stateDB) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	obj, err := s.dataDB.Load(id[:], s.recentData)
 	if err != nil {
 		return nil, err
@@ -632,7 +624,7 @@ func (s *stateDB) LoadData(id ids.ShortID) (*ld.DataMeta, error) {
 	return rt, nil
 }
 
-func (s *stateDB) LoadPrevData(id ids.ShortID, version uint64) (*ld.DataMeta, error) {
+func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, error) {
 	if version == 0 {
 		return nil, fmt.Errorf("data not found")
 	}

@@ -59,11 +59,10 @@ type GetBalanceReply struct {
 
 // GetBalance
 func (api *BlockChainAPI) GetBalance(_ *http.Request, args *GetAccountArgs, reply *GetBalanceReply) error {
-	id := ids.ShortID(args.ID)
-	if id == constants.LDCAccount {
+	if args.ID == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
-	acc, err := api.state.LoadAccount(id)
+	acc, err := api.state.LoadAccount(args.ID)
 	if err != nil {
 		return err
 	}
@@ -73,11 +72,10 @@ func (api *BlockChainAPI) GetBalance(_ *http.Request, args *GetAccountArgs, repl
 
 // GetAccount
 func (api *BlockChainAPI) GetAccount(_ *http.Request, args *GetAccountArgs, reply *ld.Account) error {
-	id := ids.ShortID(args.ID)
-	if id == constants.LDCAccount {
+	if args.ID == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
-	acc, err := api.state.LoadAccount(id)
+	acc, err := api.state.LoadAccount(args.ID)
 	if err != nil {
 		return err
 	}
@@ -135,11 +133,10 @@ type GetModelArgs struct {
 
 // GetModel
 func (api *BlockChainAPI) GetModel(_ *http.Request, args *GetModelArgs, reply *GetReply) error {
-	id := ids.ShortID(args.ID)
-	if id == ids.ShortEmpty {
+	if args.ID == util.ModelIDEmpty {
 		return fmt.Errorf("invalid data id: %s", args.ID)
 	}
-	data, err := api.state.LoadModel(id)
+	data, err := api.state.LoadModel(args.ID)
 	if err != nil {
 		return err
 	}
@@ -155,11 +152,10 @@ type GetDataArgs struct {
 
 // GetData
 func (api *BlockChainAPI) GetData(_ *http.Request, args *GetDataArgs, reply *GetReply) error {
-	id := ids.ShortID(args.ID)
-	if id == ids.ShortEmpty {
+	if args.ID == util.DataIDEmpty {
 		return fmt.Errorf("invalid data id: %s", args.ID)
 	}
-	data, err := api.state.LoadData(id)
+	data, err := api.state.LoadData(args.ID)
 	if err != nil {
 		return err
 	}
@@ -170,8 +166,7 @@ func (api *BlockChainAPI) GetData(_ *http.Request, args *GetDataArgs, reply *Get
 
 // GetPrevDatas
 func (api *BlockChainAPI) GetPrevDatas(_ *http.Request, args *GetDataArgs, reply *GetReply) error {
-	id := ids.ShortID(args.ID)
-	if id == ids.ShortEmpty {
+	if args.ID == util.DataIDEmpty {
 		return fmt.Errorf("invalid data id: %s", args.ID)
 	}
 
@@ -179,7 +174,7 @@ func (api *BlockChainAPI) GetPrevDatas(_ *http.Request, args *GetDataArgs, reply
 	rt := make([]*ld.DataMeta, 0, num)
 	ver := args.Version
 	for ver > 0 && len(rt) < num {
-		data, err := api.state.LoadPrevData(id, ver)
+		data, err := api.state.LoadPrevData(args.ID, ver)
 		if err != nil {
 			return err
 		}
@@ -202,7 +197,7 @@ func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *Get
 	if err != nil {
 		return err
 	}
-	reply.ID = util.DataID(data.ID).String()
+	reply.ID = data.ID.String()
 	reply.Data = data
 	return nil
 }

@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -12,7 +13,7 @@ import (
 )
 
 type TxCreateStakeAccount struct {
-	*TxBase
+	TxBase
 	data  *ld.TxAccounter
 	stake *ld.StakeConfig
 }
@@ -26,12 +27,12 @@ func (tx *TxCreateStakeAccount) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxCreateStakeAccount) SyntacticVerify() error {
@@ -40,17 +41,17 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("TxCreateStakeAccount invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("TxCreateStakeAccount invalid token %s, required LDC", tx.ld.Token)
 	}
 	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", util.EthID(tx.ld.To))
+		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", tx.ld.To)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid")
 	}
-	tx.stake = &ld.StakeConfig{}
-	tx.data = &ld.TxAccounter{DataObject: tx.stake}
+
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
 	}
@@ -66,6 +67,14 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 	}
 	if tx.data.Amount.Sign() != 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, please take stake after created")
+	}
+
+	tx.stake = &ld.StakeConfig{}
+	if err = tx.stake.Unmarshal(tx.data.Data); err != nil {
+		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
+	}
+	if err = tx.stake.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxCreateStakeAccount SyntacticVerify failed: %v", err)
 	}
 	if tx.stake.LockTime < tx.ld.Timestamp {
 		return fmt.Errorf("TxCreateStakeAccount invalid lockTime")

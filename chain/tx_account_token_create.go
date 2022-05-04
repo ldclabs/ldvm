@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -13,7 +14,7 @@ import (
 )
 
 type TxCreateTokenAccount struct {
-	*TxBase
+	TxBase
 	data *ld.TxAccounter
 }
 
@@ -25,12 +26,12 @@ func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxCreateTokenAccount) SyntacticVerify() error {
@@ -39,8 +40,8 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 
 	if token := util.TokenSymbol(tx.ld.To); token.String() == "" {
@@ -81,7 +82,7 @@ func (tx *TxCreateTokenAccount) Verify(blk *Block, bs BlockState) error {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
 			feeCfg.MinTokenPledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateToken(tx.ld.To, tx.data)
+	return tx.to.CheckCreateToken(util.TokenSymbol(tx.ld.To), tx.data)
 }
 
 // VerifyGenesis skipping signature verification
@@ -104,7 +105,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.from.Add(constants.LDCAccount, blk.ctx.Chain().MaxTotalSupply)
+	tx.from.Add(constants.NativeToken, blk.ctx.Chain().MaxTotalSupply)
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
@@ -117,7 +118,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 
 func (tx *TxCreateTokenAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.CreateToken(tx.ld.To, tx.data); err != nil {
+	if err = tx.to.CreateToken(util.TokenSymbol(tx.ld.To), tx.data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

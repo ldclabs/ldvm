@@ -4,7 +4,6 @@
 package chain
 
 import (
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
@@ -31,13 +30,9 @@ func (c *Context) StateDB() StateDB {
 }
 
 func (c *Context) Chain() *genesis.ChainConfig {
-	return c.genesis.Chain
+	return &c.genesis.Chain
 }
 
 func (c *Context) Config() *config.Config {
 	return c.config
-}
-
-func (c *Context) FeeRecipient() ids.ShortID {
-	return ids.ShortID(c.config.FeeRecipient)
 }

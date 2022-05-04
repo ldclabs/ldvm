@@ -235,14 +235,14 @@ func (v *VM) HealthCheck() (interface{}, error) {
 
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
-func (v *VM) Connected(id ids.ShortID, nodeVersion version.Application) error {
+func (v *VM) Connected(id ids.NodeID, nodeVersion version.Application) error {
 	v.Log.Info("Connected %s, %v", id, nodeVersion)
 	return nil // noop
 }
 
 // Disconnected implements the common.VM Disconnected interface
 // Connector represents a handler that is called when a connection is marked as disconnected
-func (v *VM) Disconnected(id ids.ShortID) error {
+func (v *VM) Disconnected(id ids.NodeID) error {
 	v.Log.Info("Disconnected %s", id)
 	return nil // noop
 }
@@ -261,7 +261,7 @@ func (v *VM) Disconnected(id ids.ShortID) error {
 // This node should typically send an AppResponse to [nodeID] in response to
 // a valid message using the same request ID before the deadline. However,
 // the VM may arbitrarily choose to not send a response to this request.
-func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, request []byte) error {
+func (v *VM) AppRequest(nodeID ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
 	v.Log.Info("AppRequest %s, %d, %d bytes", nodeID, requestID, len(request))
 	return nil
 }
@@ -286,7 +286,7 @@ func (v *VM) AppRequest(nodeID ids.ShortID, requestID uint32, time time.Time, re
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another AppRequest, or it may give
 // up trying to get the requested information.
-func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) error {
+func (v *VM) AppResponse(nodeID ids.NodeID, requestID uint32, response []byte) error {
 	v.Log.Info("AppResponse %s, %d, %d bytes", nodeID, requestID, len(response))
 	return nil
 }
@@ -304,7 +304,7 @@ func (v *VM) AppResponse(nodeID ids.ShortID, requestID uint32, response []byte) 
 // * This engine sent a request to [nodeID] with ID [requestID].
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
-func (v *VM) AppRequestFailed(nodeID ids.ShortID, requestID uint32) error {
+func (v *VM) AppRequestFailed(nodeID ids.NodeID, requestID uint32) error {
 	v.Log.Warn("AppRequestFailed %s, %d", nodeID, requestID)
 	return nil
 }
@@ -396,8 +396,8 @@ func (v *VM) SetPreference(id ids.ID) error {
 // returned.
 func (v *VM) LastAccepted() (ids.ID, error) {
 	blk := v.state.LastAcceptedBlock()
-	v.Log.Info("VM LastAccepted %s at %d", blk.ID(), blk.Height)
-	return blk.ID(), nil
+	v.Log.Info("VM LastAccepted %s at %d", blk.ID, blk.Height)
+	return blk.ID, nil
 }
 
 // VerifyHeightIndex implements the block.HeightIndexedChainVM VerifyHeightIndex interface

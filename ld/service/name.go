@@ -4,55 +4,27 @@
 package service
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"unicode/utf8"
 
 	"golang.org/x/net/idna"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type Name struct {
-	Name    string      // should be ASCII form (IDNA2008)
-	Linked  ids.ShortID // optional, linked (ProfileService) data id
-	Records []string    // DNS resource records
+	Name    string      `cbor:"n" json:"name"`     // should be ASCII form (IDNA2008)
+	Linked  util.DataID `cbor:"l" json:"linked"`   // optional, linked (ProfileService) data id
+	Records []string    `cbor:"rs" json:"records"` // DNS resource records
 
 	// external assignment
-	raw []byte
-}
-
-type jsonName struct {
-	Name    string   `json:"name"`    // Unicode form
-	Domain  string   `json:"domain"`  // ASCII form
-	Linked  string   `json:"linked"`  // optional, linked (ProfileService) data id
-	Records []string `json:"records"` // DNS resource records
+	DisplayName string `cbor:"-" json:"display"` // Unicode form
 }
 
 func NameSchema() (string, []byte) {
 	return nameLDBuilder.Name(), nameLDBuilder.Schema()
-}
-
-func (n *Name) MarshalJSON() ([]byte, error) {
-	if n == nil {
-		return util.Null, nil
-	}
-	name, err := idna.Registration.ToUnicode(n.Name)
-	if err != nil {
-		return nil, fmt.Errorf("invalid name %s, error: %v",
-			strconv.Quote(n.Name), err)
-	}
-	v := &jsonName{
-		Name:    name,
-		Domain:  n.Name,
-		Linked:  util.DataID(n.Linked).String(),
-		Records: n.Records,
-	}
-	return json.Marshal(v)
 }
 
 // SyntacticVerify verifies that a *Name is well-formed.
@@ -69,6 +41,11 @@ func (n *Name) SyntacticVerify() error {
 		return fmt.Errorf("invalid name %s, should be ASCII form (IDNA2008)",
 			strconv.Quote(n.Name))
 	}
+	name, err := idna.Registration.ToUnicode(n.Name)
+	if err != nil {
+		return fmt.Errorf("invalid name %s, error: %v", strconv.Quote(n.Name), err)
+	}
+	n.DisplayName = name
 	for _, s := range n.Records {
 		if !utf8.ValidString(s) {
 			return fmt.Errorf("invalid utf8 record %s", strconv.Quote(s))
@@ -80,71 +57,50 @@ func (n *Name) SyntacticVerify() error {
 	return nil
 }
 
-func (n *Name) Equal(o *Name) bool {
-	if o == nil {
-		return false
-	}
-
-	if len(o.raw) > 0 && len(n.raw) > 0 {
-		return bytes.Equal(o.raw, n.raw)
-	}
-	if o.Name != n.Name {
-		return false
-	}
-	if o.Linked != n.Linked {
-		return false
-	}
-	if len(o.Records) != len(n.Records) {
-		return false
-	}
-	for i, v := range o.Records {
-		if n.Records[i] != v {
-			return false
-		}
-	}
-	return true
-}
-
-func (n *Name) Bytes() []byte {
-	if len(n.raw) == 0 {
-		if _, err := n.Marshal(); err != nil {
-			panic(err)
-		}
-	}
-
-	return n.raw
-}
-
 func (n *Name) Unmarshal(data []byte) error {
-	p, err := nameLDBuilder.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-	if v, ok := p.(*bindName); ok {
-		n.Name = v.Name
-		n.Records = v.Records
-		if n.Linked, err = ld.PtrToShortID(v.Linked); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		n.raw = data
-		return nil
-	}
-	return fmt.Errorf("unmarshal error: expected *Name")
+	return ld.DecMode.Unmarshal(data, n)
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	v := &bindName{
-		Name:    n.Name,
-		Linked:  ld.PtrFromShortID(ids.ShortID(n.Linked)),
-		Records: n.Records,
-	}
-	data, err := nameLDBuilder.Marshal(v)
+	data, err := ld.EncMode.Marshal(n)
 	if err != nil {
 		return nil, err
 	}
-	n.raw = data
 	return data, nil
 }
+
+// func (n *Name) Unmarshal(data []byte) error {
+// 	p, err := nameLDBuilder.Unmarshal(data)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if v, ok := p.(*bindName); ok {
+// 		n.Name = v.Name
+// 		n.Records = v.Records
+// 		linked, err := ld.PtrToShortID(v.Linked)
+// 		if err != nil {
+// 			return fmt.Errorf("unmarshal error: %v", err)
+// 		}
+// 		n.Linked = util.DataID(linked)
+// 		n.raw = data
+// 		return nil
+// 	}
+// 	return fmt.Errorf("unmarshal error: expected *Name")
+// }
+
+// func (n *Name) Marshal() ([]byte, error) {
+// 	v := &bindName{
+// 		Name:    n.Name,
+// 		Linked:  ld.PtrFromShortID(ids.ShortID(n.Linked)),
+// 		Records: n.Records,
+// 	}
+// 	data, err := nameLDBuilder.Marshal(v)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	n.raw = data
+// 	return data, nil
+// }
 
 type bindName struct {
 	Name    string

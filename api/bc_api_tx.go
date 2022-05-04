@@ -53,7 +53,7 @@ func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *Get
 	if err := api.state.SubmitTx(tx); err != nil {
 		return err
 	}
-	reply.ID = tx.ID().String()
+	reply.ID = tx.ID.String()
 	reply.Status = choices.Unknown.String()
 	return nil
 }

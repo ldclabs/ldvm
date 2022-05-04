@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -13,7 +14,7 @@ import (
 )
 
 type TxDeleteData struct {
-	*TxBase
+	TxBase
 	data *ld.TxUpdater
 	dm   *ld.DataMeta
 }
@@ -26,12 +27,12 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	if tx.data == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := tx.data.MarshalJSON()
+	d, err := json.Marshal(tx.data)
 	if err != nil {
 		return nil, err
 	}
 	v.Data = d
-	return v.MarshalJSON()
+	return json.Marshal(v)
 }
 
 func (tx *TxDeleteData) SyntacticVerify() error {
@@ -40,8 +41,8 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxDeleteData invalid")
@@ -66,7 +67,7 @@ func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(tx.data.ID)
+	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
 	if err != nil {
 		return fmt.Errorf("TxDeleteData load data failed: %v", err)
 	}
@@ -84,7 +85,7 @@ func (tx *TxDeleteData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Data = tx.data.Data
-	if err = bs.DeleteData(tx.data.ID, tx.dm); err != nil {
+	if err = bs.DeleteData(util.DataID(tx.data.ID), tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

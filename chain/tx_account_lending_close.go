@@ -6,13 +6,12 @@ package chain
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxCloseLending struct {
-	*TxBase
+	TxBase
 }
 
 func (tx *TxCloseLending) SyntacticVerify() error {
@@ -21,12 +20,12 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.LDCAccount {
-		return fmt.Errorf("invalid token %s, required native LDC", util.EthID(tx.ld.Token))
+	if tx.ld.Token != constants.NativeToken {
+		return fmt.Errorf("invalid token %s, required native LDC", tx.ld.Token)
 	}
 
-	if tx.ld.To != ids.ShortEmpty {
-		return fmt.Errorf("TxCloseLending invalid to: %s", util.EthID(tx.ld.To).String())
+	if tx.ld.To != util.EthIDEmpty {
+		return fmt.Errorf("TxCloseLending invalid to: %s", tx.ld.To)
 	}
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxCloseLending invalid amount, expected 0, got %v", tx.ld.Amount)

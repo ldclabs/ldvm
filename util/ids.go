@@ -6,6 +6,7 @@ package util
 import (
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -32,9 +33,9 @@ func NewSymbol(s string) (TokenSymbol, error) {
 	return symbol, fmt.Errorf("invalid token symbol")
 }
 
-func (s TokenSymbol) String() string {
+func (id TokenSymbol) String() string {
 	start := 0
-	for i, r := range s[:] {
+	for i, r := range id[:] {
 		switch {
 		case r == 0:
 			if start > 0 || i == 18 {
@@ -51,17 +52,53 @@ func (s TokenSymbol) String() string {
 			return ""
 		}
 	}
-	return string(s[start:])
+	return string(id[start:])
 }
 
-func (s TokenSymbol) GoString() string {
-	if s == NativeToken {
+func (id TokenSymbol) GoString() string {
+	if id == NativeToken {
 		return "NativeLDC"
 	}
-	if str := s.String(); str != "" {
+	if str := id.String(); str != "" {
 		return str
 	}
-	return EthID(s).String()
+	return EthID(id).String()
+}
+
+func (id TokenSymbol) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *TokenSymbol) UnmarshalText(b []byte) error {
+	str := string(b)
+	if str == "" { // If "null", do nothing
+		*id = NativeToken
+		return nil
+	}
+
+	sid, err := NewSymbol(str)
+	if err == nil {
+		*id = sid
+	}
+	return err
+}
+
+func (id TokenSymbol) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + id.String() + "\""), nil
+}
+
+func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
+	str := string(b)
+	if str == "null" { // If "null", do nothing
+		return nil
+	}
+	lastIndex := len(str) - 1
+	if str[0] != '"' || str[lastIndex] != '"' {
+		return fmt.Errorf("invalid TokenSymbol string: %s", strconv.Quote(str))
+	}
+
+	str = str[1:lastIndex]
+	return id.UnmarshalText([]byte(str))
 }
 
 // EthID ==========
@@ -73,14 +110,6 @@ func EthIDFromString(str string) (EthID, error) {
 	id := new(EthID)
 	err := id.UnmarshalText([]byte(str))
 	return *id, err
-}
-
-func EthIDsToShort(eids ...EthID) []ids.ShortID {
-	rt := make([]ids.ShortID, len(eids))
-	for i, id := range eids {
-		rt[i] = id.ShortID()
-	}
-	return rt
 }
 
 func (id EthID) ShortID() ids.ShortID {
@@ -137,7 +166,7 @@ func (id *EthID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("invalid ID string: %s", str)
+		return fmt.Errorf("invalid EthID string: %s", str)
 	}
 
 	str = str[1:lastIndex]
@@ -201,7 +230,7 @@ func (id *ModelID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("invalid ID string: %s", str)
+		return fmt.Errorf("invalid ModelID string: %s", str)
 	}
 
 	str = str[1:lastIndex]
@@ -265,7 +294,7 @@ func (id *DataID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("invalid ID string: %s", str)
+		return fmt.Errorf("invalid DataID string: %s", str)
 	}
 
 	str = str[1:lastIndex]

@@ -10,7 +10,6 @@ package util
 import (
 	"crypto/ecdsa"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -24,8 +23,8 @@ func (s *Signer) Sign(data []byte) (Signature, error) {
 	return SignData(data, s.pk)
 }
 
-func (s *Signer) Address() ids.ShortID {
-	return ids.ShortID(crypto.PubkeyToAddress(s.pk.PublicKey))
+func (s *Signer) Address() EthID {
+	return EthID(crypto.PubkeyToAddress(s.pk.PublicKey))
 }
 
 func init() {

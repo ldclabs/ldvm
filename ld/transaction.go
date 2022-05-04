@@ -5,15 +5,11 @@ package ld
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ipld/go-ipld-prime/codec/dagcbor"
-	"github.com/ipld/go-ipld-prime/datamodel"
-	"github.com/ipld/go-ipld-prime/node/basicnode"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -62,31 +58,35 @@ const (
 )
 
 const (
-	TxEthGas          = uint64(42)
-	TxTransferGas     = uint64(42)
-	TxTransferPayGas  = uint64(42)
-	TxTransferCashGas = uint64(42)
-	TxExchangeGas     = uint64(42)
+	TypeEthGas          = uint64(42)
+	TypeTransferGas     = uint64(42)
+	TypeTransferPayGas  = uint64(42)
+	TypeTransferCashGas = uint64(42)
+	TypeExchangeGas     = uint64(42)
 
-	TxAddNonceTableGas        = uint64(100)
-	TxUpdateAccountKeepersGas = uint64(1000)
-	TxCreateTokenAccountGas   = uint64(1000)
-	TxDestroyTokenAccountGas  = uint64(1000)
-	TxCreateStakeAccountGas   = uint64(1000)
-	TxTakeStakeGas            = uint64(1000)
-	TxWithdrawStakeGas        = uint64(1000)
-	TxResetStakeAccountGas    = uint64(1000)
+	TypeAddNonceTableGas        = uint64(100)
+	TypeUpdateAccountKeepersGas = uint64(1000)
+	TypeCreateTokenAccountGas   = uint64(1000)
+	TypeDestroyTokenAccountGas  = uint64(1000)
+	TypeCreateStakeAccountGas   = uint64(1000)
+	TypeResetStakeAccountGas    = uint64(1000)
+	TypeTakeStakeGas            = uint64(500)
+	TypeWithdrawStakeGas        = uint64(500)
+	TypeOpenLendingGas          = uint64(1000)
+	TypeCloseLendingGas         = uint64(1000)
+	TypeBorrowGas               = uint64(100)
+	TypeRepayGas                = uint64(100)
 
-	TxCreateModelGas        = uint64(500)
-	TxUpdateModelKeepersGas = uint64(500)
+	TypeCreateModelGas        = uint64(500)
+	TypeUpdateModelKeepersGas = uint64(500)
 
-	TxCreateDataGas              = uint64(100)
-	TxUpdateDataGas              = uint64(100)
-	TxUpdateDataKeepersGas       = uint64(100)
-	TxUpdateDataKeepersByAuthGas = uint64(200)
-	TxDeleteDataGas              = uint64(200)
+	TypeCreateDataGas              = uint64(100)
+	TypeUpdateDataGas              = uint64(100)
+	TypeUpdateDataKeepersGas       = uint64(100)
+	TypeUpdateDataKeepersByAuthGas = uint64(200)
+	TypeDeleteDataGas              = uint64(200)
 
-	TxPunishGas = uint64(1000)
+	TypePunishGas = uint64(200)
 
 	MinThresholdGas = uint64(1000)
 )
@@ -121,12 +121,20 @@ func TxTypeString(t TxType) string {
 		return "DestroyTokenAccountTx"
 	case TypeCreateStakeAccount:
 		return "CreateStakeAccountTx"
+	case TypeResetStakeAccount:
+		return "ResetStakeAccountTx"
 	case TypeTakeStake:
 		return "TakeStakeTx"
 	case TypeWithdrawStake:
 		return "WithdrawStakeTx"
-	case TypeResetStakeAccount:
-		return "ResetStakeAccountTx"
+	case TypeOpenLending:
+		return "OpenLendingTx"
+	case TypeCloseLending:
+		return "CloseLendingTx"
+	case TypeBorrow:
+		return "BorrowTx"
+	case TypeRepay:
+		return "RepayTx"
 	case TypeCreateModel:
 		return "CreateModelTx"
 	case TypeUpdateModelKeepers:
@@ -149,33 +157,34 @@ func TxTypeString(t TxType) string {
 }
 
 type Transaction struct {
-	Type         TxType
-	ChainID      uint64
-	Nonce        uint64
-	Gas          uint64 // calculate when build block.
-	GasTip       uint64
-	GasFeeCap    uint64
-	Token        ids.ShortID
-	From         ids.ShortID
-	To           ids.ShortID
-	Amount       *big.Int
-	Data         []byte
-	Signatures   []util.Signature
-	ExSignatures []util.Signature
+	Type         TxType           `cbor:"t" json:"type"`
+	ChainID      uint64           `cbor:"c" json:"chainID"`
+	Nonce        uint64           `cbor:"n" json:"nonce"`
+	Gas          uint64           `cbor:"g" json:"gas"` // calculate when build block.
+	GasTip       uint64           `cbor:"gt" json:"gasTip"`
+	GasFeeCap    uint64           `cbor:"gf" json:"gasFeeCap"`
+	Token        util.TokenSymbol `cbor:"tk" json:"token,omitempty"`
+	From         util.EthID       `cbor:"fr" json:"from"`
+	To           util.EthID       `cbor:"to" json:"to"`
+	Amount       *big.Int         `cbor:"a" json:"amount"`
+	Data         RawData          `cbor:"d" json:"data"`
+	Signatures   []util.Signature `cbor:"ss" json:"signatures"`
+	ExSignatures []util.Signature `cbor:"es" json:"exSignatures"`
 
 	// external assignment
-	gas         uint64
-	id          ids.ID
-	unsignedRaw []byte // raw bytes for sign
-	raw         []byte // the transaction's raw bytes, included id and sigs.
-	AddTime     uint64
-	Priority    uint64
-	Height      uint64 // block's timestamp
-	Timestamp   uint64 // block's timestamp
-	Err         error
+	ID          ids.ID `cbor:"id" json:"id"`
+	Name        string `cbor:"-" json:"name"`
+	Err         error  `cbor:"-" json:"error,omitempty"`
+	gas         uint64 `cbor:"-" json:"-"`
+	unsignedRaw []byte `cbor:"-" json:"-"` // raw bytes for sign
+	raw         []byte `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
+	AddTime     uint64 `cbor:"-" json:"-"`
+	Priority    uint64 `cbor:"-" json:"-"`
+	Height      uint64 `cbor:"-" json:"-"` // block's timestamp
+	Timestamp   uint64 `cbor:"-" json:"-"` // block's timestamp
 	// support for batch transactions
 	// they are processed in the same block, one fail all fail
-	batch Txs
+	batch Txs `cbor:"-" json:"-"`
 }
 
 func NewBatchTx(txs []*Transaction) (*Transaction, error) {
@@ -208,134 +217,24 @@ func NewBatchTx(txs []*Transaction) (*Transaction, error) {
 	return tx, nil
 }
 
-type jsonTransaction struct {
-	ID           ids.ID           `json:"id"`
-	Type         TxType           `json:"type"`
-	TypeStr      string           `json:"typeString"`
-	ChainID      uint64           `json:"chainID"`
-	Nonce        uint64           `json:"nonce"`
-	Gas          uint64           `json:"gas"` // calculate when build block.
-	GasTip       uint64           `json:"gasTip"`
-	GasFeeCap    uint64           `json:"gasFeeCap"`
-	Token        string           `json:"token,omitempty"`
-	From         string           `json:"from"`
-	To           string           `json:"to"`
-	Amount       *big.Int         `json:"amount,omitempty"`
-	Data         json.RawMessage  `json:"data"`
-	Signatures   []util.Signature `json:"signatures"`
-	ExSignatures []util.Signature `json:"exSignatures"`
-	Err          string           `json:"error"`
-}
-
 type Txs []*Transaction
 
 func MarshalTxs(txs []*Transaction) ([]byte, error) {
 	if len(txs) == 0 {
 		return nil, nil
 	}
-	var buf bytes.Buffer
-	err := Recover("MarshalTxs", func() error {
-		nb := basicnode.Prototype.List.NewBuilder()
-		la, er := nb.BeginList(int64(len(txs)))
-		if er != nil {
-			return er
-		}
-		for i := range txs {
-			la.AssembleValue().AssignBytes(txs[i].Bytes())
-		}
-		if er = la.Finish(); er != nil {
-			return er
-		}
-		return dagcbor.Encode(nb.Build(), &buf)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return EncMode.Marshal(txs)
 }
 
 func UnmarshalTxs(data []byte) ([]*Transaction, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
-
-	var rt *[]*Transaction
-	err := Recover("UnmarshalTxs", func() error {
-		var er error
-		nb := basicnode.Prototype.List.NewBuilder()
-		if er = dagcbor.Decode(nb, bytes.NewReader(data)); er != nil {
-			return er
-		}
-		list := nb.Build()
-		le := int(list.Length())
-		txs := make([]*Transaction, le)
-
-		var node datamodel.Node
-		var d []byte
-		for i := 0; i < le; i++ {
-			if node, er = list.LookupByIndex(int64(i)); er != nil {
-				return er
-			}
-			if d, er = node.AsBytes(); er != nil {
-				return er
-			}
-
-			txs[i] = &Transaction{}
-			if er = txs[i].Unmarshal(d); er != nil {
-				return er
-			}
-			if er = txs[i].SyntacticVerify(); er != nil {
-				return er
-			}
-		}
-		rt = &txs
-		return nil
-	})
-
-	if err != nil {
+	txs := make([]*Transaction, 0)
+	if err := DecMode.Unmarshal(data, &txs); err != nil {
 		return nil, err
 	}
-	return *rt, nil
-}
-
-func (t *Transaction) MarshalJSON() ([]byte, error) {
-	if t == nil {
-		return util.Null, nil
-	}
-
-	if len(t.batch) > 0 {
-		arr := make([]json.RawMessage, len(t.batch))
-		for i, tx := range t.batch {
-			v, err := tx.MarshalJSON()
-			if err != nil {
-				return nil, err
-			}
-			arr[i] = v
-		}
-		return json.Marshal(arr)
-	}
-
-	v := &jsonTransaction{
-		ID:           t.ID(),
-		Type:         t.Type,
-		TypeStr:      TxTypeString(t.Type),
-		ChainID:      t.ChainID,
-		Nonce:        t.Nonce,
-		Gas:          t.Gas,
-		GasTip:       t.GasTip,
-		GasFeeCap:    t.GasFeeCap,
-		Token:        util.TokenSymbol(t.Token).String(),
-		From:         util.EthID(t.From).String(),
-		To:           util.EthID(t.To).String(),
-		Data:         util.JSONMarshalData(t.Data),
-		Amount:       t.Amount,
-		Signatures:   t.Signatures,
-		ExSignatures: t.ExSignatures,
-	}
-	if t.Err != nil {
-		v.Err = t.Err.Error()
-	}
-	return json.Marshal(v)
+	return txs, nil
 }
 
 func (t *Transaction) IsBatched() bool {
@@ -346,19 +245,9 @@ func (t *Transaction) Txs() []*Transaction {
 	return t.batch
 }
 
-func (t *Transaction) ID() ids.ID {
-	if t.id == ids.Empty {
-		if _, err := t.calcID(); err != nil {
-			panic(err)
-		}
-	}
-	return t.id
-}
-
 func (t *Transaction) ShortID() ids.ShortID {
-	id := t.ID()
 	sid := ids.ShortID{}
-	copy(sid[:], id[:])
+	copy(sid[:], t.ID[:])
 	return sid
 }
 
@@ -398,8 +287,8 @@ func (t *Transaction) SyntacticVerify() error {
 	if t.Type > TypeDeleteData {
 		return fmt.Errorf("invalid type")
 	}
-	if t.Token != constants.LDCAccount && util.TokenSymbol(t.Token).String() == "" {
-		return fmt.Errorf("invalid token symbol")
+	if t.Token != constants.NativeToken && t.Token.String() == "" {
+		return fmt.Errorf("invalid token symbol: %s", t.Token)
 	}
 	if t.Amount == nil || t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
@@ -420,6 +309,7 @@ func (t *Transaction) SyntacticVerify() error {
 	if _, err := t.calcUnsignedBytes(); err != nil {
 		return err
 	}
+	t.Name = TxTypeString(t.Type)
 	return nil
 }
 
@@ -449,51 +339,58 @@ func RequireGas(ty TxType, unsignedBytes uint64, threshold uint64) uint64 {
 	gas := unsignedBytes
 	switch ty {
 	case TypeEth:
-		return requireGas(threshold, gas+TxEthGas)
+		return requireGas(threshold, gas+TypeEthGas)
 	case TypeTransfer:
-		return requireGas(threshold, gas+TxTransferGas)
+		return requireGas(threshold, gas+TypeTransferGas)
 	case TypeTransferPay:
-		return requireGas(threshold, gas+TxTransferPayGas)
+		return requireGas(threshold, gas+TypeTransferPayGas)
 	case TypeTransferCash:
-		return requireGas(threshold, gas+TxTransferCashGas)
+		return requireGas(threshold, gas+TypeTransferCashGas)
 	case TypeExchange:
-		return requireGas(threshold, gas+TxExchangeGas)
+		return requireGas(threshold, gas+TypeExchangeGas)
 
 	case TypeAddNonceTable:
-		return requireGas(threshold, gas+TxAddNonceTableGas)
+		return requireGas(threshold, gas+TypeAddNonceTableGas)
 	case TypeUpdateAccountKeepers:
-		return requireGas(threshold, gas+TxUpdateAccountKeepersGas)
+		return requireGas(threshold, gas+TypeUpdateAccountKeepersGas)
 	case TypeCreateTokenAccount:
-		return requireGas(threshold, gas+TxCreateTokenAccountGas)
+		return requireGas(threshold, gas+TypeCreateTokenAccountGas)
 	case TypeDestroyTokenAccount:
-		return requireGas(threshold, gas+TxDestroyTokenAccountGas)
+		return requireGas(threshold, gas+TypeDestroyTokenAccountGas)
 	case TypeCreateStakeAccount:
-		return requireGas(threshold, gas+TxCreateStakeAccountGas)
-	case TypeTakeStake:
-		return requireGas(threshold, gas+TxTakeStakeGas)
-	case TypeWithdrawStake:
-		return requireGas(threshold, gas+TxWithdrawStakeGas)
+		return requireGas(threshold, gas+TypeCreateStakeAccountGas)
 	case TypeResetStakeAccount:
-		return requireGas(threshold, gas+TxResetStakeAccountGas)
-
+		return requireGas(threshold, gas+TypeResetStakeAccountGas)
+	case TypeTakeStake:
+		return requireGas(threshold, gas+TypeTakeStakeGas)
+	case TypeWithdrawStake:
+		return requireGas(threshold, gas+TypeWithdrawStakeGas)
+	case TypeOpenLending:
+		return requireGas(threshold, gas+TypeOpenLendingGas)
+	case TypeCloseLending:
+		return requireGas(threshold, gas+TypeCloseLendingGas)
+	case TypeBorrow:
+		return requireGas(threshold, gas+TypeBorrowGas)
+	case TypeRepay:
+		return requireGas(threshold, gas+TypeRepayGas)
 	case TypeCreateModel:
-		return requireGas(threshold, gas+TxCreateModelGas)
+		return requireGas(threshold, gas+TypeCreateModelGas)
 	case TypeUpdateModelKeepers:
-		return requireGas(threshold, gas+TxUpdateModelKeepersGas)
+		return requireGas(threshold, gas+TypeUpdateModelKeepersGas)
 
 	case TypeCreateData:
-		return requireGas(threshold, gas+TxCreateDataGas)
+		return requireGas(threshold, gas+TypeCreateDataGas)
 	case TypeUpdateData:
-		return requireGas(threshold, gas+TxUpdateDataGas)
+		return requireGas(threshold, gas+TypeUpdateDataGas)
 	case TypeUpdateDataKeepers:
-		return requireGas(threshold, gas+TxUpdateDataKeepersGas)
+		return requireGas(threshold, gas+TypeUpdateDataKeepersGas)
 	case TypeUpdateDataKeepersByAuth:
-		return requireGas(threshold, gas+TxUpdateDataKeepersByAuthGas)
+		return requireGas(threshold, gas+TypeUpdateDataKeepersByAuthGas)
 	case TypeDeleteData:
-		return requireGas(threshold, gas+TxDeleteDataGas)
+		return requireGas(threshold, gas+TypeDeleteDataGas)
 
 	case TypePunish:
-		return requireGas(threshold, gas+TxPunishGas)
+		return requireGas(threshold, gas+TypePunishGas)
 
 	default:
 		return requireGas(threshold, gas)
@@ -578,15 +475,13 @@ func (t *Transaction) UnsignedBytes() []byte {
 
 func (t *Transaction) Bytes() []byte {
 	if len(t.raw) == 0 || t.gas != t.Gas {
-		if _, err := t.Marshal(); err != nil {
-			panic(err)
-		}
+		MustMarshal(t)
 	}
 	return t.raw
 }
 
 func (t *Transaction) calcID() (ids.ID, error) {
-	if t.id == ids.Empty {
+	if t.ID == ids.Empty {
 		gas := t.Gas
 		raw := t.raw
 		// clear gas
@@ -599,25 +494,25 @@ func (t *Transaction) calcID() (ids.ID, error) {
 		if err != nil {
 			return ids.Empty, err
 		}
-		t.id = util.IDFromBytes(b)
+		t.ID = util.IDFromBytes(b)
 	}
-	return t.id, nil
+	return t.ID, nil
 }
 
 func (t *Transaction) calcUnsignedBytes() ([]byte, error) {
 	if len(t.unsignedRaw) == 0 {
-		id := t.id
+		id := t.ID
 		gas := t.Gas
 		raw := t.raw
 		sigs := t.Signatures
 		exSigs := t.ExSignatures
 		// clear gas, id, Signatures, ExSignatures
 		t.Gas = 0
-		t.id = ids.Empty
+		t.ID = ids.Empty
 		t.Signatures = nil
 		t.ExSignatures = nil
 		b, err := t.Marshal()
-		t.id = id
+		t.ID = id
 		t.raw = raw
 		t.gas = gas
 		t.Gas = gas
@@ -633,130 +528,24 @@ func (t *Transaction) calcUnsignedBytes() ([]byte, error) {
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	p, err := transactionLDBuilder.Unmarshal(data)
-	if err != nil {
+	if err := DecMode.Unmarshal(data, t); err != nil {
 		return err
 	}
-	if v, ok := p.(*bindTransaction); ok {
-		if !v.Type.Valid() {
-			return fmt.Errorf("unmarshal error: invalid uint8")
-		}
-		if !v.ChainID.Valid() ||
-			!v.Nonce.Valid() ||
-			!v.GasTip.Valid() ||
-			!v.GasFeeCap.Valid() ||
-			!v.Gas.Valid() {
-			return fmt.Errorf("unmarshal error: invalid uint64")
-		}
-		t.Type = TxType(v.Type.Value())
-		t.ChainID = v.ChainID.Value()
-		t.Nonce = v.Nonce.Value()
-		t.GasTip = v.GasTip.Value()
-		t.GasFeeCap = v.GasFeeCap.Value()
-		t.Gas = v.Gas.Value()
-		t.Amount = v.Amount.Value()
-		t.Data = PtrToBytes(v.Data)
-		if t.Token, err = PtrToShortID(v.Token); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if t.From, err = PtrToShortID(v.From); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if t.To, err = PtrToShortID(v.To); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if t.Signatures, err = PtrToSignatures(v.Signatures); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if t.ExSignatures, err = PtrToSignatures(v.ExSignatures); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		if t.id, err = PtrToID(v.ID); err != nil {
-			return fmt.Errorf("unmarshal error: %v", err)
-		}
-		t.gas = t.Gas
-		t.raw = data
-		return nil
-	}
-	return fmt.Errorf("unmarshal error: expected *bindTransaction")
+	t.gas = t.Gas
+	t.raw = data
+	return nil
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
 	if t.IsBatched() {
 		return nil, fmt.Errorf("can not marshal batch transactions")
 	}
-	v := &bindTransaction{
-		Type:         FromUint8(uint8(t.Type)),
-		ChainID:      FromUint64(t.ChainID),
-		Nonce:        PtrFromUint64(t.Nonce),
-		Gas:          PtrFromUint64(t.Gas),
-		GasTip:       PtrFromUint64(t.GasTip),
-		GasFeeCap:    PtrFromUint64(t.GasFeeCap),
-		Token:        PtrFromShortID(ids.ShortID(t.Token)),
-		From:         PtrFromShortID(t.From),
-		To:           PtrFromShortID(t.To),
-		Amount:       PtrFromUint(t.Amount),
-		Data:         PtrFromBytes(t.Data),
-		Signatures:   PtrFromSignatures(t.Signatures),
-		ExSignatures: PtrFromSignatures(t.ExSignatures),
-		ID:           PtrFromID(t.id),
-	}
-	data, err := transactionLDBuilder.Marshal(v)
+
+	data, err := EncMode.Marshal(t)
 	if err != nil {
 		return nil, err
 	}
 	t.gas = t.Gas
 	t.raw = data
 	return data, nil
-}
-
-type bindTransaction struct {
-	Type         Uint8
-	ChainID      Uint64
-	Nonce        *Uint64
-	Gas          *Uint64
-	GasTip       *Uint64
-	GasFeeCap    *Uint64
-	Token        *[]byte
-	From         *[]byte
-	To           *[]byte
-	Amount       *BigUint
-	Data         *[]byte
-	Signatures   *[][]byte
-	ExSignatures *[][]byte
-	ID           *[]byte
-}
-
-var transactionLDBuilder *LDBuilder
-
-func init() {
-	sch := `
-	type Uint8 bytes
-	type Uint64 bytes
-	type ID20 bytes
-	type ID32 bytes
-	type Sig65 bytes
-	type BigUint bytes
-	type Transaction struct {
-		Type         Uint8            (rename "t")
-		ChainID      Uint64           (rename "c")
-		Nonce        nullable Uint64  (rename "n")
-		Gas          nullable Uint64  (rename "g")
-		GasTip       nullable Uint64  (rename "gt")
-		GasFeeCap    nullable Uint64  (rename "gf")
-		Token        nullable ID20    (rename "tk")
-		From         nullable ID20    (rename "fr")
-		To           nullable ID20    (rename "to")
-		Amount       nullable BigUint (rename "a")
-		Data         nullable Bytes   (rename "d")
-		Signatures   nullable [Sig65] (rename "ss")
-		ExSignatures nullable [Sig65] (rename "es")
-		ID           nullable ID32    (rename "id")
-	}
-`
-	builder, err := NewLDBuilder("Transaction", []byte(sch), (*bindTransaction)(nil))
-	if err != nil {
-		panic(err)
-	}
-	transactionLDBuilder = builder
 }

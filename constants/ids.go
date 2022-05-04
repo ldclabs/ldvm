@@ -13,10 +13,11 @@ var (
 	LDVMID = ids.ID{'l', 'd', 'v', 'm'}
 	// 111111111111111111116DBWJs
 	// 0x0000000000000000000000000000000000000000
-	LDCAccount = ids.ShortEmpty
+	LDCAccount  = util.EthIDEmpty
+	NativeToken = util.NativeToken
 	// QLbz7JHiBTspS962RLKV8GndWFwdYhk6V
 	// 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF
-	GenesisAccount = ids.ShortID{
+	GenesisAccount = util.EthID{
 		255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 		255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 	}
