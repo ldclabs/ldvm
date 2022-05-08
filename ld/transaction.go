@@ -20,6 +20,10 @@ const (
 	// It should be in a batch transactions.
 	TypeTest TxType = iota
 
+	// punish transaction can be issued by genesisAccount
+	// we can only punish illegal data
+	TypePunish
+
 	// Transfer
 	TypeEth          // send given amount of NanoLDC to a address in ETH transaction
 	TypeTransfer     // send given amount of NanoLDC to a address
@@ -36,6 +40,7 @@ const (
 	TypeResetStakeAccount    // reset or destroy a stake account
 	TypeTakeStake            // take a stake in
 	TypeWithdrawStake        // withdraw stake
+	TypeUpdateStakeApprover
 	TypeOpenLending
 	TypeCloseLending
 	TypeBorrow
@@ -51,43 +56,9 @@ const (
 	TypeUpdateDataKeepers       // update data's Keepers and Threshold
 	TypeUpdateDataKeepersByAuth // update data's Keepers and Threshold by authorization
 	TypeDeleteData              // delete the data
-
-	// punish transaction can be issued by genesisAccount
-	// we can only punish illegal data
-	TypePunish TxType = 255
 )
 
 const (
-	TypeEthGas          = uint64(42)
-	TypeTransferGas     = uint64(42)
-	TypeTransferPayGas  = uint64(42)
-	TypeTransferCashGas = uint64(42)
-	TypeExchangeGas     = uint64(42)
-
-	TypeAddNonceTableGas        = uint64(100)
-	TypeUpdateAccountKeepersGas = uint64(1000)
-	TypeCreateTokenAccountGas   = uint64(1000)
-	TypeDestroyTokenAccountGas  = uint64(1000)
-	TypeCreateStakeAccountGas   = uint64(1000)
-	TypeResetStakeAccountGas    = uint64(1000)
-	TypeTakeStakeGas            = uint64(500)
-	TypeWithdrawStakeGas        = uint64(500)
-	TypeOpenLendingGas          = uint64(1000)
-	TypeCloseLendingGas         = uint64(1000)
-	TypeBorrowGas               = uint64(100)
-	TypeRepayGas                = uint64(100)
-
-	TypeCreateModelGas        = uint64(500)
-	TypeUpdateModelKeepersGas = uint64(500)
-
-	TypeCreateDataGas              = uint64(100)
-	TypeUpdateDataGas              = uint64(100)
-	TypeUpdateDataKeepersGas       = uint64(100)
-	TypeUpdateDataKeepersByAuthGas = uint64(200)
-	TypeDeleteDataGas              = uint64(200)
-
-	TypePunishGas = uint64(200)
-
 	MinThresholdGas = uint64(1000)
 )
 
@@ -97,10 +68,41 @@ var gChainID = uint64(2357)
 // TxType is an uint8 representing the type of the tx
 type TxType uint8
 
-func TxTypeString(t TxType) string {
+func (t TxType) Gas() uint64 {
+	switch t {
+	case TypeTest:
+		return 0
+	case TypePunish:
+		return 200
+	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
+		TypeExchange, TypeAddNonceTable:
+		return 42
+	case TypeUpdateAccountKeepers, TypeCreateTokenAccount,
+		TypeDestroyTokenAccount, TypeCreateStakeAccount, TypeResetStakeAccount:
+		return 1000
+	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
+		return 500
+	case TypeOpenLending, TypeCloseLending:
+		return 1000
+	case TypeBorrow, TypeRepay:
+		return 100
+	case TypeCreateModel, TypeUpdateModelKeepers:
+		return 500
+	case TypeCreateData, TypeUpdateData, TypeUpdateDataKeepers:
+		return 100
+	case TypeUpdateDataKeepersByAuth, TypeDeleteData:
+		return 200
+	default:
+		return 1000
+	}
+}
+
+func (t TxType) String() string {
 	switch t {
 	case TypeTest:
 		return "TestTx"
+	case TypePunish:
+		return "PunishTx"
 	case TypeEth:
 		return "EthTx"
 	case TypeTransfer:
@@ -127,6 +129,8 @@ func TxTypeString(t TxType) string {
 		return "TakeStakeTx"
 	case TypeWithdrawStake:
 		return "WithdrawStakeTx"
+	case TypeUpdateStakeApprover:
+		return "TypeUpdateStakeApprover"
 	case TypeOpenLending:
 		return "OpenLendingTx"
 	case TypeCloseLending:
@@ -149,8 +153,6 @@ func TxTypeString(t TxType) string {
 		return "UpdateDataKeepersByAuthTx"
 	case TypeDeleteData:
 		return "DeleteDataTx"
-	case TypePunish:
-		return "PunishTx"
 	default:
 		return "UnknownTx"
 	}
@@ -309,7 +311,7 @@ func (t *Transaction) SyntacticVerify() error {
 	if _, err := t.calcUnsignedBytes(); err != nil {
 		return err
 	}
-	t.Name = TxTypeString(t.Type)
+	t.Name = t.Type.String()
 	return nil
 }
 
@@ -336,68 +338,7 @@ func RequireGas(ty TxType, unsignedBytes uint64, threshold uint64) uint64 {
 	if threshold < MinThresholdGas {
 		threshold = MinThresholdGas
 	}
-	gas := unsignedBytes
-	switch ty {
-	case TypeEth:
-		return requireGas(threshold, gas+TypeEthGas)
-	case TypeTransfer:
-		return requireGas(threshold, gas+TypeTransferGas)
-	case TypeTransferPay:
-		return requireGas(threshold, gas+TypeTransferPayGas)
-	case TypeTransferCash:
-		return requireGas(threshold, gas+TypeTransferCashGas)
-	case TypeExchange:
-		return requireGas(threshold, gas+TypeExchangeGas)
-
-	case TypeAddNonceTable:
-		return requireGas(threshold, gas+TypeAddNonceTableGas)
-	case TypeUpdateAccountKeepers:
-		return requireGas(threshold, gas+TypeUpdateAccountKeepersGas)
-	case TypeCreateTokenAccount:
-		return requireGas(threshold, gas+TypeCreateTokenAccountGas)
-	case TypeDestroyTokenAccount:
-		return requireGas(threshold, gas+TypeDestroyTokenAccountGas)
-	case TypeCreateStakeAccount:
-		return requireGas(threshold, gas+TypeCreateStakeAccountGas)
-	case TypeResetStakeAccount:
-		return requireGas(threshold, gas+TypeResetStakeAccountGas)
-	case TypeTakeStake:
-		return requireGas(threshold, gas+TypeTakeStakeGas)
-	case TypeWithdrawStake:
-		return requireGas(threshold, gas+TypeWithdrawStakeGas)
-	case TypeOpenLending:
-		return requireGas(threshold, gas+TypeOpenLendingGas)
-	case TypeCloseLending:
-		return requireGas(threshold, gas+TypeCloseLendingGas)
-	case TypeBorrow:
-		return requireGas(threshold, gas+TypeBorrowGas)
-	case TypeRepay:
-		return requireGas(threshold, gas+TypeRepayGas)
-	case TypeCreateModel:
-		return requireGas(threshold, gas+TypeCreateModelGas)
-	case TypeUpdateModelKeepers:
-		return requireGas(threshold, gas+TypeUpdateModelKeepersGas)
-
-	case TypeCreateData:
-		return requireGas(threshold, gas+TypeCreateDataGas)
-	case TypeUpdateData:
-		return requireGas(threshold, gas+TypeUpdateDataGas)
-	case TypeUpdateDataKeepers:
-		return requireGas(threshold, gas+TypeUpdateDataKeepersGas)
-	case TypeUpdateDataKeepersByAuth:
-		return requireGas(threshold, gas+TypeUpdateDataKeepersByAuthGas)
-	case TypeDeleteData:
-		return requireGas(threshold, gas+TypeDeleteDataGas)
-
-	case TypePunish:
-		return requireGas(threshold, gas+TypePunishGas)
-
-	default:
-		return requireGas(threshold, gas)
-	}
-}
-
-func requireGas(threshold, gas uint64) uint64 {
+	gas := unsignedBytes + ty.Gas()
 	if gas <= threshold {
 		return gas
 	}
@@ -494,7 +435,7 @@ func (t *Transaction) calcID() (ids.ID, error) {
 		if err != nil {
 			return ids.Empty, err
 		}
-		t.ID = util.IDFromBytes(b)
+		t.ID = util.IDFromData(b)
 	}
 	return t.ID, nil
 }

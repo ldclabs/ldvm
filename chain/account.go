@@ -137,6 +137,68 @@ func (a *Account) checkBalance(token util.TokenSymbol, amount *big.Int) error {
 	return nil
 }
 
+func (a *Account) CheckAsFrom(txType ld.TxType) error {
+	switch a.ld.Type {
+	case ld.TokenAccount:
+		switch txType {
+		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount:
+			// just go ahead
+		default:
+			return fmt.Errorf("can not use TokenAccount as sender for %s", txType.String())
+		}
+	case ld.StakeAccount:
+		if a.ld.Stake == nil {
+			return fmt.Errorf("invalid StakeAccount as sender for %s", txType.String())
+		}
+		ty := a.ld.Stake.Type
+		if ty > 2 {
+			return fmt.Errorf("can not use unknown type %d StakeAccount as sender for %s",
+				ty, txType.String())
+		}
+
+		// 0: account keepers can not use stake token
+		// 1: account keepers can take a stake in other stake account
+		// 2: in addition to 1, account keepers can transfer stake token to other account
+		switch txType {
+		case ld.TypeUpdateAccountKeepers, ld.TypeResetStakeAccount:
+			// just go ahead
+		case ld.TypeTakeStake, ld.TypeWithdrawStake:
+			if ty < 1 {
+				return fmt.Errorf("can not use type %d StakeAccount as sender for %s",
+					ty, txType.String())
+			}
+		case ld.TypeEth, ld.TypeTransfer:
+			if ty < 2 {
+				return fmt.Errorf("can not use type %d StakeAccount as sender for %s",
+					ty, txType.String())
+			}
+		default:
+			return fmt.Errorf("can not use type %d StakeAccount as sender for %s", ty, txType.String())
+		}
+	}
+	return nil
+}
+
+func (a *Account) CheckAsTo(txType ld.TxType) error {
+	switch a.ld.Type {
+	case ld.TokenAccount:
+		switch txType {
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateTokenAccount:
+			// just go ahead
+		default:
+			return fmt.Errorf("can not use TokenAccount as recipient for %s", txType.String())
+		}
+	case ld.StakeAccount:
+		switch txType {
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStakeAccount, ld.TypeTakeStake, ld.TypeWithdrawStake:
+			// just go ahead
+		default:
+			return fmt.Errorf("can not use StakeAccount as recipient for %s", txType.String())
+		}
+	}
+	return nil
+}
+
 func (a *Account) Threshold() uint8 {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -144,21 +206,21 @@ func (a *Account) Threshold() uint8 {
 	return a.ld.Threshold
 }
 
-func (a *Account) Keepers() []util.EthID {
+func (a *Account) Keepers() util.EthIDs {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.ld.Keepers
 }
 
-func (a *Account) SatisfySigning(signers []util.EthID) bool {
+func (a *Account) SatisfySigning(signers util.EthIDs) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return util.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
 }
 
-func (a *Account) SatisfySigningPlus(signers []util.EthID) bool {
+func (a *Account) SatisfySigningPlus(signers util.EthIDs) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -341,7 +403,7 @@ func (a *Account) CreateToken(token util.TokenSymbol, data *ld.TxAccounter) erro
 
 func (a *Account) createToken(token util.TokenSymbol, data *ld.TxAccounter, write bool) error {
 	if !a.isEmpty() {
-		return fmt.Errorf("CreateToken token account %s exists", util.TokenSymbol(a.id))
+		return fmt.Errorf("CreateToken token account %s exists", token)
 	}
 
 	if write {
@@ -435,11 +497,11 @@ func (a *Account) createStake(
 		a.ld.Threshold = acc.Threshold
 		a.ld.Keepers = acc.Keepers
 		a.ld.Stake = stake
-		a.ld.StakeLedger = make(ld.Ledger)
+		a.ld.StakeLedger = make(map[util.EthID]*ld.StakeLedgerEntry)
 		a.ld.MaxTotalSupply = nil
 		switch stake.TokenID {
 		case constants.NativeToken:
-			a.ld.StakeLedger[from] = &ld.LedgerEntry{Amount: pledge}
+			a.ld.StakeLedger[from] = &ld.StakeLedgerEntry{Amount: pledge}
 		default:
 			if b := a.ld.Tokens[stake.TokenID]; b == nil {
 				a.ld.Tokens[stake.TokenID] = new(big.Int)
@@ -590,7 +652,7 @@ func (a *Account) takeStake(token util.TokenSymbol, from util.EthID, amount *big
 	if write {
 		a.allocStakeBonus(rate)
 		if v == nil {
-			v = &ld.LedgerEntry{Amount: new(big.Int)}
+			v = &ld.StakeLedgerEntry{Amount: new(big.Int)}
 			a.ld.StakeLedger[from] = v
 		}
 		v.Amount.Add(v.Amount, amount)
@@ -598,21 +660,85 @@ func (a *Account) takeStake(token util.TokenSymbol, from util.EthID, amount *big
 	return nil
 }
 
-func (a *Account) CheckWithdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
+func (a *Account) CheckUpdateApprover(
+	from, approver util.EthID,
+	signers util.EthIDs,
+) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.withdrawStake(token, from, amount, false)
+	return a.updateApprover(from, approver, signers, false)
 }
 
-func (a *Account) WithdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
+func (a *Account) UpdateApprover(
+	from, approver util.EthID,
+	signers util.EthIDs,
+) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.withdrawStake(token, from, amount, true)
+	return a.updateApprover(from, approver, signers, true)
 }
 
-func (a *Account) withdrawStake(token util.TokenSymbol, from util.EthID, amount *big.Int, write bool) (*big.Int, error) {
+func (a *Account) updateApprover(
+	from, approver util.EthID,
+	signers util.EthIDs,
+	write bool,
+) error {
+	if a.valid(ld.StakeAccount) {
+		return fmt.Errorf("Account.UpdateApprover invalid stake account")
+	}
+
+	v := a.ld.StakeLedger[from]
+	if v == nil {
+		return fmt.Errorf("Account.UpdateApprover %s no stake ledger to update",
+			util.EthID(from))
+	}
+	if v.Approver != nil && !signers.Has(*v.Approver) {
+		return fmt.Errorf("Account.UpdateApprover %s no approver signing",
+			util.EthID(from))
+	}
+	if write {
+		if approver == util.EthIDEmpty {
+			v.Approver = nil
+		} else {
+			v.Approver = &approver
+		}
+	}
+	return nil
+}
+
+func (a *Account) CheckWithdrawStake(
+	token util.TokenSymbol,
+	from util.EthID,
+	signers util.EthIDs,
+	amount *big.Int,
+) (*big.Int, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.withdrawStake(token, from, signers, amount, false)
+}
+
+func (a *Account) WithdrawStake(
+	token util.TokenSymbol,
+	from util.EthID,
+	signers util.EthIDs,
+	amount *big.Int,
+) (*big.Int, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.withdrawStake(token, from, signers, amount, true)
+}
+
+func (a *Account) withdrawStake(
+	token util.TokenSymbol,
+	from util.EthID,
+	signers util.EthIDs,
+	amount *big.Int,
+	write bool,
+) (*big.Int, error) {
 	if a.valid(ld.StakeAccount) {
 		return nil, fmt.Errorf("Account.withdrawStake invalid stake account")
 	}
@@ -620,7 +746,7 @@ func (a *Account) withdrawStake(token util.TokenSymbol, from util.EthID, amount 
 	stake := a.ld.Stake
 	if token != stake.TokenID {
 		return nil, fmt.Errorf("Account.withdrawStake invalid stake token, expected %s, got %s",
-			util.TokenSymbol(stake.TokenID), util.TokenSymbol(token))
+			stake.TokenID, token)
 	}
 	if stake.LockTime > a.ld.Timestamp {
 		return nil, fmt.Errorf("Account.WithdrawStake stake in lock, please retry after lockTime")
@@ -629,6 +755,10 @@ func (a *Account) withdrawStake(token util.TokenSymbol, from util.EthID, amount 
 	v := a.ld.StakeLedger[from]
 	if v == nil {
 		return nil, fmt.Errorf("Account.WithdrawStake %s no stake to withdraw",
+			util.EthID(from))
+	}
+	if v.Approver != nil && !signers.Has(*v.Approver) {
+		return nil, fmt.Errorf("Account.WithdrawStake %s no approver signing",
 			util.EthID(from))
 	}
 	total := new(big.Int).Set(v.Amount)
@@ -699,7 +829,7 @@ func (a *Account) openLending(data *ld.LendingConfig, write bool) error {
 
 	if write {
 		a.ld.Lending = data
-		a.ld.LendingLedger = make(ld.Ledger)
+		a.ld.LendingLedger = make(map[util.EthID]*ld.LedgerEntry)
 	}
 	return nil
 }
@@ -755,7 +885,7 @@ func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.In
 
 	if a.ld.Lending.TokenID != token {
 		return fmt.Errorf("Account invalid lending token, expected %s, got %s",
-			a.ld.Lending.Token, util.TokenSymbol(token).String())
+			a.ld.Lending.Token, token)
 	}
 	if amount.Cmp(a.ld.Lending.MinAmount) < 0 {
 		return fmt.Errorf("Account invalid lending amount, expected >= %v, got %v",
@@ -811,7 +941,7 @@ func (a *Account) repay(token util.TokenSymbol, from util.EthID, amount *big.Int
 
 	if a.ld.Lending.TokenID != token {
 		return nil, fmt.Errorf("Account invalid lending token, expected %s, got %s",
-			a.ld.Lending.Token, util.TokenSymbol(token).String())
+			a.ld.Lending.Token, token)
 	}
 
 	e := a.ld.LendingLedger[from]

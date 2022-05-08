@@ -6,22 +6,16 @@ package util
 import (
 	"encoding/json"
 	"sort"
-	"strconv"
-	"unicode/utf8"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"golang.org/x/crypto/sha3"
 )
 
-var Null = []byte("null")
-
 func JSONMarshalData(data []byte) json.RawMessage {
 	switch {
 	case len(data) == 0 || json.Valid(data):
 		return data
-	case utf8.Valid(data):
-		return []byte(strconv.Quote(string(data)))
 	default:
 		s, err := formatting.EncodeWithChecksum(formatting.Hex, data)
 		if err != nil {
@@ -37,7 +31,8 @@ func JSONMarshalData(data []byte) json.RawMessage {
 
 func JSONUnmarshalData(data json.RawMessage) []byte {
 	if last := len(data) - 1; last > 2 && data[0] == '"' && data[last] == '"' {
-		if d, err := formatting.Decode(formatting.Hex, string(data[1:last])); err == nil {
+		b := data[1:last]
+		if d, err := formatting.Decode(formatting.Hex, string(b)); err == nil {
 			return d
 		}
 	}
@@ -48,12 +43,12 @@ func NodeIDToStakeAddress(nodeIDs ...EthID) []EthID {
 	rt := make([]EthID, len(nodeIDs))
 	for i, id := range nodeIDs {
 		rt[i] = id
-		rt[i][0] = '$'
+		rt[i][0] = '@'
 	}
 	return rt
 }
 
-func IDFromBytes(data []byte) ids.ID {
+func IDFromData(data []byte) ids.ID {
 	return ids.ID(sha3.Sum256(data))
 }
 

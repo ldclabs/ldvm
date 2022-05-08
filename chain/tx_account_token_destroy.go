@@ -25,8 +25,8 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	if tx.ld.To == util.EthIDEmpty {
 		return fmt.Errorf("TxDestroyTokenAccount invalid recipient")
 	}
-	if token := util.TokenSymbol(tx.ld.From); token.String() == "" {
-		return fmt.Errorf("TxDestroyTokenAccount invalid token: %s", token)
+	if token := util.TokenSymbol(tx.ld.From); !token.Valid() {
+		return fmt.Errorf("TxDestroyTokenAccount invalid token: %s", token.GoString())
 	}
 	if tx.ld.Amount == nil || tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxCreateTokenAccount invalid amount")

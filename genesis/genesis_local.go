@@ -18,10 +18,7 @@ var LocalGenesisConfigJSON = `
       "maxTxGas": 42000000,
       "maxBlockTxsSize": 4200000,
       "minTokenPledge": 10000000000000,
-      "minValidatorStake": 1000000000000,
-      "maxValidatorStake": 100000000000000,
-      "minDelegatorStake": 100000000000,
-      "minWithdrawFee": 20000
+      "minStakePledge": 1000000000000
     }
   },
   "alloc": {

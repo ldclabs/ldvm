@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -25,6 +24,7 @@ func TestBlock(t *testing.T) {
 		t.Fatalf("Marshal failed: %v", err)
 	}
 
+	sids := util.EthIDToStakeSymbol(address)
 	blk := &Block{
 		Parent:        ids.Empty,
 		Height:        0,
@@ -32,8 +32,8 @@ func TestBlock(t *testing.T) {
 		Gas:           1000,
 		GasPrice:      1000,
 		GasRebateRate: 100,
-		Miner:         constants.GenesisAccount,
-		Shares:        []util.EthID{address},
+		Miner:         sids[0],
+		Shares:        sids,
 		Txs:           []*Transaction{tx},
 	}
 	data, err := blk.Marshal()

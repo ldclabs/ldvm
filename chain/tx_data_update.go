@@ -6,18 +6,21 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type TxUpdateData struct {
 	TxBase
-	exSigners []util.EthID
+	exSigners util.EthIDs
 	data      *ld.TxUpdater
 	dm        *ld.DataMeta
 	prevDM    *ld.DataMeta
@@ -26,7 +29,7 @@ type TxUpdateData struct {
 
 func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -67,7 +70,7 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateData SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty ||
+	if tx.data.ID == nil ||
 		tx.data.Version == 0 {
 		return fmt.Errorf("TxUpdateData invalid TxUpdater for TxUpdateData")
 	}
@@ -80,7 +83,7 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
+	tx.dm, err = bs.LoadData(*tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data failed: %v", err)
 	}
@@ -93,12 +96,20 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 	}
 
 	tx.prevDM = tx.dm.Copy()
-	switch util.ModelID(tx.dm.ModelID) {
+	switch tx.dm.ModelID {
 	case constants.RawModelID:
 		tx.dm.Version++
 		tx.dm.Data = tx.data.Data
 		return nil
-	case constants.JsonModelID:
+	case constants.CBORModelID:
+		// TODO cbor patch
+		if err = cbor.Valid(tx.data.Data); err != nil {
+			return fmt.Errorf("TxUpdateData invalid CBOR encoding data: %v", err)
+		}
+		tx.dm.Version++
+		tx.dm.Data = tx.data.Data
+		return nil
+	case constants.JSONModelID:
 		tx.jsonPatch, err = jsonpatch.DecodePatch(tx.data.Data)
 		if err != nil {
 			return fmt.Errorf("TxUpdateData invalid JSON patch: %v", err)
@@ -116,32 +127,46 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 	if err != nil {
 		return fmt.Errorf("TxUpdateData load data model failed: %v", err)
 	}
-
 	if !util.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
 		return fmt.Errorf("TxUpdateData need more exSignatures")
 	}
-	// TODO: apply patch operations
-	// tx.data.Validate(mm.SchemaType)
-	if blk.ctx.Chain().IsNameService(tx.dm.ModelID) {
-		// TODO: should not update name
+
+	if tx.dm.Data, err = mm.Model().ApplyPatch(tx.dm.Data, tx.data.Data); err != nil {
+		return fmt.Errorf("TxUpdateData apply patch error: %v", err)
 	}
+	tx.dm.Version++
+	if blk.ctx.Chain().IsNameService(tx.dm.ModelID) {
+		n1, err := service.GetName(tx.prevDM.Data)
+		if err != nil {
+			return err
+		}
+		n2, err := service.GetName(tx.dm.Data)
+		if err != nil {
+			return err
+		}
+		if n1 != n2 {
+			return fmt.Errorf("TxUpdateData should not update name, expected %s, got %s",
+				strconv.Quote(n1), strconv.Quote(n2))
+		}
+	}
+
 	return nil
 }
 
 func (tx *TxUpdateData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	if err = bs.SavePrevData(util.DataID(tx.data.ID), tx.prevDM); err != nil {
+	if err = bs.SavePrevData(*tx.data.ID, tx.prevDM); err != nil {
 		return err
 	}
-	if err = bs.SaveData(util.DataID(tx.data.ID), tx.dm); err != nil {
+	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)
 }
 
 func (tx *TxUpdateData) Event(ts int64) *Event {
-	e := NewEvent(tx.data.ID, SrcData, ActionUpdate)
+	e := NewEvent(ids.ShortID(*tx.data.ID), SrcData, ActionUpdate)
 	e.Time = ts
 	return nil
 }

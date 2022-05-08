@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -21,7 +20,7 @@ type TxUpdateModelKeepers struct {
 
 func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -55,11 +54,11 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateModelKeepers SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty {
+	if tx.data.ModelID == nil {
 		return fmt.Errorf("TxUpdateModelKeepers invalid TxUpdater")
 	}
-	if len(tx.data.Keepers) == 0 {
-		return fmt.Errorf("TxUpdateModelKeepers no keepers")
+	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil {
+		return fmt.Errorf("TxUpdateModelKeepers no keepers nor approver")
 	}
 	return nil
 }
@@ -70,7 +69,7 @@ func (tx *TxUpdateModelKeepers) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.mm, err = bs.LoadModel(util.ModelID(tx.data.ID))
+	tx.mm, err = bs.LoadModel(*tx.data.ModelID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateModelKeepers load model failed: %v", err)
 	}
@@ -78,18 +77,27 @@ func (tx *TxUpdateModelKeepers) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateModelKeepers need more signatures")
 	}
+	if tx.mm.Approver != nil && !tx.signers.Has(*tx.mm.Approver) {
+		return fmt.Errorf("TxUpdateModelKeepers no approver signing")
+	}
 	return nil
 }
 
 func (tx *TxUpdateModelKeepers) Accept(blk *Block, bs BlockState) error {
 	var err error
 
-	tx.mm.Threshold = tx.data.Threshold
-	tx.mm.Keepers = tx.data.Keepers
-	if err = tx.mm.SyntacticVerify(); err != nil {
-		return err
+	if tx.data.Approver != nil {
+		if *tx.data.Approver == util.EthIDEmpty {
+			tx.mm.Approver = nil
+		} else {
+			tx.mm.Approver = tx.data.Approver
+		}
 	}
-	if err = bs.SaveModel(util.ModelID(tx.data.ID), tx.mm); err != nil {
+	if len(tx.data.Keepers) > 0 {
+		tx.mm.Threshold = tx.data.Threshold
+		tx.mm.Keepers = tx.data.Keepers
+	}
+	if err = bs.SaveModel(*tx.data.ModelID, tx.mm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

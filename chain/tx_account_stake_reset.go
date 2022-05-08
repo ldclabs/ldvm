@@ -19,7 +19,7 @@ type TxResetStakeAccount struct {
 
 func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -42,8 +42,8 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	if tx.ld.Token != constants.NativeToken {
 		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
-	if !util.ValidStakeAddress(tx.ld.From) {
-		return fmt.Errorf("TxResetStakeAccount invalid stake address: %s", tx.ld.From)
+	if token := util.StakeSymbol(tx.ld.From); !token.Valid() {
+		return fmt.Errorf("TxResetStakeAccount invalid stake address: %s", token.GoString())
 	}
 	if tx.ld.Amount == nil || tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxResetStakeAccount invalid amount")

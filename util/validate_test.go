@@ -10,37 +10,47 @@ import (
 )
 
 func TestValidName(t *testing.T) {
-	assert.False(t, ValidName(""))
+	assert := assert.New(t)
 
-	assert.True(t, ValidName("a"))
-	assert.True(t, ValidName("a正"))
-	assert.True(t, ValidName("a🀄️"))
-	assert.True(t, ValidName("Hello world!"))
+	assert.False(ValidName(""))
 
-	assert.False(t, ValidName(" a"))
-	assert.False(t, ValidName("a "))
-	assert.False(t, ValidName("a\na"))
-	assert.False(t, ValidName("a\bb"))
-	assert.False(t, ValidName("a  a"))
-	assert.False(t, ValidName("a\ta"))
+	assert.True(ValidName("a"))
+	assert.True(ValidName("a正"))
+	assert.True(ValidName("a🀄️"))
+	assert.True(ValidName("Hello world!"))
+
+	assert.False(ValidName(" a"))
+	assert.False(ValidName("a "))
+	assert.False(ValidName("a\na"))
+	assert.False(ValidName("a\bb"))
+	assert.False(ValidName("a  a"))
+	assert.False(ValidName("a\ta"))
+	assert.False(ValidName("Hello‍ world!"))
 }
 
 func TestValidLink(t *testing.T) {
-	assert.True(t, ValidLink(""))
-	assert.True(t, ValidLink("0x0000000000000000000000000000000000000000"))
-	assert.True(t, ValidLink("LM1111111111111111111Ax1asG"))
-	assert.True(t, ValidLink("mail:to"))
-	assert.True(t, ValidLink("https://hello.com/abc"))
+	assert := assert.New(t)
 
-	assert.False(t, ValidLink("正"))
-	assert.False(t, ValidLink("https://hello.com/ab%c"))
+	assert.True(ValidLink(""))
+	assert.True(ValidLink("0x0000000000000000000000000000000000000000"))
+	assert.True(ValidLink("LM1111111111111111111Ax1asG"))
+	assert.True(ValidLink("mail:to"))
+	assert.True(ValidLink("https://hello.com/abc"))
+
+	assert.False(ValidLink("正"))
+	assert.False(ValidLink("mail:‍to"))
+	assert.False(ValidLink("https://hello.com/ab%c"))
 }
 
-func TestValidMID(t *testing.T) {
-	assert.True(t, ValidMID(""))
-	assert.True(t, ValidMID("LM1111111111111111111Ax1asG"))
+func TestValidMessage(t *testing.T) {
+	assert := assert.New(t)
 
-	assert.False(t, ValidMID("LD1111111111111111111Ax1asG"))
-	assert.False(t, ValidMID("0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"))
-	assert.False(t, ValidMID("FFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"))
+	assert.True(ValidMessage(""))
+	assert.True(ValidMessage("Hello, world!"))
+	assert.True(ValidMessage("你好👋"))
+
+	assert.False(ValidMessage("‍"))              // Zero Width Joiner, https://emojipedia.org/zero-width-joiner/
+	assert.False(ValidMessage("Hello‍, world!")) // with Zero Width Joiner
+	assert.False(ValidMessage(" Hello, world!"))
+	assert.False(ValidMessage("\nHello, world!"))
 }

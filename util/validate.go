@@ -38,19 +38,14 @@ func ValidLink(link string) bool {
 	if link == "" {
 		return true
 	}
+	if !ValidMessage(link) {
+		return false
+	}
 	u, err := url.Parse(link)
 	if err != nil {
 		return false
 	}
-	return u.String() == link && len(link) < 512 && utf8.ValidString(link)
-}
-
-func ValidMID(mid string) bool {
-	if mid == "" {
-		return true
-	}
-	_, err := ModelIDFromString(mid)
-	return err == nil
+	return u.String() == link && len(link) < 512
 }
 
 func ValidMessage(msg string) bool {
@@ -64,8 +59,4 @@ func ValidMessage(msg string) bool {
 	}
 
 	return len(msg) <= 1024 && utf8.ValidString(msg)
-}
-
-func ValidStakeAddress(id EthID) bool {
-	return id[0] == '$'
 }

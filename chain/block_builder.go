@@ -78,7 +78,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	}
 
 	feeCfg := ctx.Chain().Fee(parentHeight + 1)
-	shares := make([]util.EthID, 0)
+	shares := make([]util.StakeSymbol, 0)
 	if ctx.ValidatorState != nil {
 		// TODO, get validators
 	}
@@ -87,7 +87,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasRebateRate: feeCfg.GasRebateRate,
-		Miner:         util.NodeIDToStakeAddress(util.EthID(ctx.NodeID))[0],
+		Miner:         util.EthID(ctx.NodeID).ToStakeSymbol(),
 		Shares:        shares,
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}

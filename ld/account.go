@@ -17,7 +17,7 @@ type AccountType uint8
 const (
 	NativeAccount AccountType = iota
 	TokenAccount              // The first 10 bytes of account address must be 0
-	StakeAccount              // The first byte of account address must be $
+	StakeAccount              // The first byte of account address must be @
 )
 
 type Account struct {
@@ -31,14 +31,15 @@ type Account struct {
 	Threshold uint8 `cbor:"th" json:"threshold"`
 	// keepers who can use this account, no more than 255
 	// the account id must be one of them.
-	Keepers        []util.EthID                  `cbor:"kp" json:"keepers"`
-	NonceTable     map[uint64][]uint64           `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
-	Tokens         map[util.TokenSymbol]*big.Int `cbor:"tk" json:"tokens"`
-	MaxTotalSupply *big.Int                      `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"` // only used with TokenAccount
-	Stake          *StakeConfig                  `cbor:"st,omitempty" json:"stake,omitempty"`
-	StakeLedger    Ledger                        `cbor:"stl,omitempty" json:"stakeLedger,omitempty"`
-	Lending        *LendingConfig                `cbor:"le,omitempty" json:"lending,omitempty"`
-	LendingLedger  Ledger                        `cbor:"lel,omitempty" json:"lendingLedger,omitempty"`
+	Keepers    []util.EthID                  `cbor:"kp" json:"keepers"`
+	Tokens     map[util.TokenSymbol]*big.Int `cbor:"tk" json:"tokens"`
+	NonceTable map[uint64][]uint64           `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
+	// MaxTotalSupply only used with TokenAccount
+	MaxTotalSupply *big.Int                         `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
+	Stake          *StakeConfig                     `cbor:"st,omitempty" json:"stake,omitempty"`
+	StakeLedger    map[util.EthID]*StakeLedgerEntry `cbor:"stl,omitempty" json:"stakeLedger,omitempty"`
+	Lending        *LendingConfig                   `cbor:"le,omitempty" json:"lending,omitempty"`
+	LendingLedger  map[util.EthID]*LedgerEntry      `cbor:"lel,omitempty" json:"lendingLedger,omitempty"`
 
 	// external assignment
 	Height    uint64     `cbor:"-" json:"height"`    // block's timestamp
@@ -46,8 +47,6 @@ type Account struct {
 	ID        util.EthID `cbor:"-" json:"address"`
 	raw       []byte     `cbor:"-" json:"-"`
 }
-
-type Ledger map[util.EthID]*LedgerEntry
 
 type LedgerEntry struct {
 	_ struct{} `cbor:",toarray"`
@@ -57,12 +56,18 @@ type LedgerEntry struct {
 	DueTime  uint64   `json:"dueTime,omitempty"`
 }
 
+type StakeLedgerEntry struct {
+	_ struct{} `cbor:",toarray"`
+
+	Amount   *big.Int    `json:"amount"`
+	Approver *util.EthID `json:"approver,omitempty"`
+}
+
 type StakeConfig struct {
 	_ struct{} `cbor:",toarray"`
 	// 0: account keepers can not use stake token
 	// 1: account keepers can take a stake in other stake account
 	// 2: in addition to 1, account keepers can transfer stake token to other account
-	// 3: in addition to 2, account keepers can liquidate shareholder (use with lending)
 	Type        uint8    `json:"type"`
 	Token       string   `json:"token"`
 	LockTime    uint64   `json:"lockTime"`
@@ -92,10 +97,10 @@ func (c *StakeConfig) SyntacticVerify() error {
 	if c == nil {
 		return fmt.Errorf("invalid StakeConfig")
 	}
-	if c.Type > 3 {
+	if c.Type > 2 {
 		return fmt.Errorf("invalid StakeConfig type")
 	}
-	token, err := util.NewSymbol(c.Token)
+	token, err := util.NewToken(c.Token)
 	if err != nil {
 		return err
 	}
@@ -127,7 +132,7 @@ func (c *LendingConfig) SyntacticVerify() error {
 	if c == nil {
 		return fmt.Errorf("invalid LendingConfig")
 	}
-	token, err := util.NewSymbol(c.Token)
+	token, err := util.NewToken(c.Token)
 	if err != nil {
 		return err
 	}
@@ -225,8 +230,33 @@ func (a *Account) SyntacticVerify() error {
 		if a.Stake == nil || a.StakeLedger == nil {
 			return fmt.Errorf("invalid stake on StakeAccount")
 		}
+		if err := a.Stake.SyntacticVerify(); err != nil {
+			return err
+		}
+		for _, entry := range a.StakeLedger {
+			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
+				return fmt.Errorf("invalid Amount on StakeLedgerEntry")
+			}
+			if entry.Approver != nil && *entry.Approver == util.EthIDEmpty {
+				return fmt.Errorf("invalid Approver on StakeLedgerEntry")
+			}
+		}
 	default:
 		return fmt.Errorf("invalid type")
+	}
+
+	if a.Lending != nil {
+		if a.LendingLedger == nil {
+			return fmt.Errorf("invalid LendingLedger on account")
+		}
+		if err := a.Lending.SyntacticVerify(); err != nil {
+			return err
+		}
+		for _, entry := range a.LendingLedger {
+			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
+				return fmt.Errorf("invalid Amount on StakeLedgerEntry")
+			}
+		}
 	}
 
 	if _, err := a.Marshal(); err != nil {

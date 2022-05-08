@@ -20,7 +20,7 @@ type TxCreateTokenAccount struct {
 
 func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -44,8 +44,8 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
 	}
 
-	if token := util.TokenSymbol(tx.ld.To); token.String() == "" {
-		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", token)
+	if token := util.TokenSymbol(tx.ld.To); !token.Valid() {
+		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", token.GoString())
 	}
 
 	if len(tx.ld.Data) == 0 {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -17,13 +16,13 @@ import (
 // TxTransferCash{Nonce, From, Amount, Expire[, Token, To, Data]}
 // TxTakeStake{Nonce, From, To, Amount, Expire[, Data]}
 type TxTransfer struct {
-	Nonce  uint64           `cbor:"n" json:"nonce,omitempty"`  // sender's nonce
-	Token  util.TokenSymbol `cbor:"tk" json:"token,omitempty"` // token symbol, default is NativeToken
-	From   util.EthID       `cbor:"fr" json:"from,omitempty"`  // amount sender
-	To     util.EthID       `cbor:"to" json:"to,omitempty"`    // amount recipient
-	Amount *big.Int         `cbor:"a" json:"amount,omitempty"` // transfer amount
-	Expire uint64           `cbor:"e" json:"expire,omitempty"`
-	Data   RawData          `cbor:"d" json:"data,omitempty"`
+	Nonce  uint64            `cbor:"n,omitempty" json:"nonce,omitempty"`  // sender's nonce
+	Token  *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
+	From   *util.EthID       `cbor:"fr,omitempty" json:"from,omitempty"`  // amount sender
+	To     *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // amount recipient
+	Amount *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
+	Expire uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
+	Data   RawData           `cbor:"d,omitempty" json:"data,omitempty"`
 }
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
@@ -31,17 +30,10 @@ func (t *TxTransfer) SyntacticVerify() error {
 	if t == nil {
 		return fmt.Errorf("invalid TxTransfer")
 	}
-
-	if t.Nonce == 0 {
-		return fmt.Errorf("invalid nonce")
-	}
-	if t.Token != constants.NativeToken && t.Token.String() == "" {
+	if t.Token != nil && !t.Token.Valid() {
 		return fmt.Errorf("invalid token symbol")
 	}
-	if t.From == util.EthIDEmpty {
-		return fmt.Errorf("invalid from")
-	}
-	if t.Amount == nil || t.Amount.Sign() < 0 {
+	if t.Amount != nil && t.Amount.Sign() < 0 {
 		return fmt.Errorf("invalid amount")
 	}
 	if _, err := t.Marshal(); err != nil {

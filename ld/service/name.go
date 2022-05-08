@@ -10,21 +10,32 @@ import (
 
 	"golang.org/x/net/idna"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type Name struct {
-	Name    string      `cbor:"n" json:"name"`     // should be ASCII form (IDNA2008)
-	Linked  util.DataID `cbor:"l" json:"linked"`   // optional, linked (ProfileService) data id
-	Records []string    `cbor:"rs" json:"records"` // DNS resource records
+	Name    string       `cbor:"n" json:"name"`                       // should be ASCII form (IDNA2008)
+	Linked  *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"` // optional, linked (ProfileService) data id
+	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
 
 	// external assignment
 	DisplayName string `cbor:"-" json:"display"` // Unicode form
 }
 
-func NameSchema() (string, []byte) {
-	return nameLDBuilder.Name(), nameLDBuilder.Schema()
+type lazyName struct {
+	Name    string          `cbor:"n"`
+	Linked  cbor.RawMessage `cbor:"l,omitempty"`
+	Records cbor.RawMessage `cbor:"rs"`
+}
+
+func GetName(data []byte) (string, error) {
+	n := &lazyName{}
+	if err := ld.DecMode.Unmarshal(data, n); err != nil {
+		return "", err
+	}
+	return n.Name, nil
 }
 
 // SyntacticVerify verifies that a *Name is well-formed.
@@ -69,46 +80,7 @@ func (n *Name) Marshal() ([]byte, error) {
 	return data, nil
 }
 
-// func (n *Name) Unmarshal(data []byte) error {
-// 	p, err := nameLDBuilder.Unmarshal(data)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if v, ok := p.(*bindName); ok {
-// 		n.Name = v.Name
-// 		n.Records = v.Records
-// 		linked, err := ld.PtrToShortID(v.Linked)
-// 		if err != nil {
-// 			return fmt.Errorf("unmarshal error: %v", err)
-// 		}
-// 		n.Linked = util.DataID(linked)
-// 		n.raw = data
-// 		return nil
-// 	}
-// 	return fmt.Errorf("unmarshal error: expected *Name")
-// }
-
-// func (n *Name) Marshal() ([]byte, error) {
-// 	v := &bindName{
-// 		Name:    n.Name,
-// 		Linked:  ld.PtrFromShortID(ids.ShortID(n.Linked)),
-// 		Records: n.Records,
-// 	}
-// 	data, err := nameLDBuilder.Marshal(v)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	n.raw = data
-// 	return data, nil
-// }
-
-type bindName struct {
-	Name    string
-	Linked  *[]byte
-	Records []string
-}
-
-var nameLDBuilder *ld.LDBuilder
+var NameModel *ld.IPLDModel
 
 func init() {
 	sch := `
@@ -119,9 +91,9 @@ func init() {
 		records [String]      (rename "rs")
 	}
 `
-	builder, err := ld.NewLDBuilder("NameService", []byte(sch), (*bindName)(nil))
+	var err error
+	NameModel, err = ld.NewIPLDModel("NameService", []byte(sch))
 	if err != nil {
 		panic(err)
 	}
-	nameLDBuilder = builder
 }

@@ -21,7 +21,7 @@ type TxExchanger struct {
 	Price   *big.Int         `cbor:"p" json:"price"`    // receive token amount = Quota * Price
 	Expire  uint64           `cbor:"e" json:"expire"`
 	Seller  util.EthID       `cbor:"sl" json:"payee"`
-	To      util.EthID       `cbor:"to" json:"to,omitempty"` // optional designated purchaser
+	To      *util.EthID      `cbor:"to,omitempty" json:"to,omitempty"` // optional designated purchaser
 }
 
 // SyntacticVerify verifies that a *TxExchanger is well-formed.

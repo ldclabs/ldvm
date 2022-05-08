@@ -13,13 +13,13 @@ import (
 
 type TxTakeStake struct {
 	TxBase
-	exSigners []util.EthID
+	exSigners util.EthIDs
 	data      *ld.TxTransfer
 }
 
 func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -39,8 +39,8 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 		return err
 	}
 
-	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxTakeStake invalid stake address: %s", tx.ld.To)
+	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
+		return fmt.Errorf("TxTakeStake invalid stake address: %s", token.GoString())
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxTakeStake invalid")
@@ -57,19 +57,19 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTakeStake SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Token != tx.ld.Token {
+	if tx.data.Token == nil || *tx.data.Token != tx.ld.Token {
 		return fmt.Errorf("TxTakeStake invalid token")
 	}
-	if tx.data.From != tx.ld.From {
+	if tx.data.From == nil || *tx.data.From != tx.ld.From {
 		return fmt.Errorf("TxTakeStake invalid sender")
 	}
-	if tx.data.To != tx.ld.To {
+	if tx.data.To == nil || *tx.data.To != tx.ld.To {
 		return fmt.Errorf("TxTakeStake invalid recipient")
 	}
 	if tx.data.Expire < tx.ld.Timestamp {
 		return fmt.Errorf("TxTakeStake expired")
 	}
-	if tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
+	if tx.data.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
 		return fmt.Errorf("TxTransferCash invalid amount")
 	}
 	return nil

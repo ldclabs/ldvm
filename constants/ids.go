@@ -24,8 +24,13 @@ var (
 	// LM111111111111111111116DBWJs
 	RawModelID = util.ModelID(ids.ShortEmpty)
 	// LM1111111111111111111Ax1asG
-	JsonModelID = util.ModelID{
+	CBORModelID = util.ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	}
+	// LM1111111111111111111L17Xp3
+	JSONModelID = util.ModelID{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
 	}
 )

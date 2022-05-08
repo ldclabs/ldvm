@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-func TestBuilder(t *testing.T) {
+func TestIPLDModel(t *testing.T) {
 	sch := `
 	type SomeModel {String:Any}
 	`
-	_, err := NewLDBuilder("SomeModel", []byte(sch), nil)
+	_, err := NewIPLDModel("SomeModel", []byte(sch))
 	if err != nil {
 		t.Fatalf("NewLDBuilder failed: %v", err)
 	}

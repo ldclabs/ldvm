@@ -29,11 +29,11 @@ type Block struct {
 	// The address of validator (convert to valid StakeAccount) who build this block.
 	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Miner util.EthID `cbor:"mn" json:"miner"`
+	Miner util.StakeSymbol `cbor:"mn" json:"miner"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Shares []util.EthID   `cbor:"sh" json:"shares"`
-	Txs    []*Transaction `cbor:"txs" json:"-"`
+	Shares []util.StakeSymbol `cbor:"sh" json:"shares"`
+	Txs    []*Transaction     `cbor:"txs" json:"-"`
 
 	// external assignment
 	ID     ids.ID            `cbor:"-" json:"id"`
@@ -44,7 +44,7 @@ type Block struct {
 func (b *Block) Copy() *Block {
 	x := new(Block)
 	*x = *b
-	x.Shares = make([]util.EthID, len(b.Shares))
+	x.Shares = make([]util.StakeSymbol, len(b.Shares))
 	copy(x.Shares, x.Shares)
 	x.Txs = make([]*Transaction, len(b.Txs))
 	for i := range b.Txs {
@@ -66,9 +66,12 @@ func (b *Block) SyntacticVerify() error {
 	if b.GasRebateRate > 1000 {
 		return fmt.Errorf("invalid gasRebateRate")
 	}
+	if b.Miner != util.StakeEmpty && !b.Miner.Valid() {
+		return fmt.Errorf("invalid miner address %s", b.Miner.GoString())
+	}
 	for _, a := range b.Shares {
-		if a == util.EthIDEmpty {
-			return fmt.Errorf("invalid miner address")
+		if !a.Valid() {
+			return fmt.Errorf("invalid share address %s", a.GoString())
 		}
 	}
 	if len(b.Txs) == 0 {
@@ -147,7 +150,7 @@ func (b *Block) FeeCost() *big.Int {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	b.ID = util.IDFromBytes(data)
+	b.ID = util.IDFromData(data)
 	b.raw = data
 	return DecMode.Unmarshal(data, b)
 }
@@ -157,7 +160,7 @@ func (b *Block) Marshal() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b.ID = util.IDFromBytes(data)
+	b.ID = util.IDFromData(data)
 	b.raw = data
 	return data, nil
 }

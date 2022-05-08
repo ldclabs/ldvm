@@ -18,6 +18,7 @@ import (
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/util"
 )
 
 var (
@@ -146,7 +147,11 @@ func (b *Block) ID() ids.ID { return b.ld.ID }
 func (b *Block) Miner() (*Account, error) {
 	var err error
 	if b.miner == nil {
-		b.miner, err = b.bs.LoadAccount(b.ld.Miner)
+		miner := util.EthID(b.ld.Miner)
+		if !b.ld.Miner.Valid() {
+			miner = constants.GenesisAccount
+		}
+		b.miner, err = b.bs.LoadAccount(miner)
 		if err != nil {
 			return nil, err
 		}
@@ -433,7 +438,7 @@ func (b *Block) mintFee() error {
 
 	shares := make([]*Account, 0, len(b.ld.Shares))
 	for _, id := range b.ld.Shares {
-		sc, err := b.bs.LoadAccount(id)
+		sc, err := b.bs.LoadAccount(util.EthID(id))
 		if err != nil {
 			return err
 		}
