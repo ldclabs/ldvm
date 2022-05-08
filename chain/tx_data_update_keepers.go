@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -21,7 +20,7 @@ type TxUpdateDataKeepers struct {
 
 func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -54,12 +53,12 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty ||
+	if tx.data.ID == nil ||
 		tx.data.Version == 0 {
 		return fmt.Errorf("TxUpdateDataKeepers invalid txUpdater")
 	}
-	if len(tx.data.Keepers) == 0 {
-		return fmt.Errorf("TxUpdateDataKeepers no keepers")
+	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil {
+		return fmt.Errorf("TxUpdateDataKeepers no keepers nor approver")
 	}
 	return nil
 }
@@ -70,7 +69,7 @@ func (tx *TxUpdateDataKeepers) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
+	tx.dm, err = bs.LoadData(*tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers load data failed: %v", err)
 	}
@@ -81,6 +80,9 @@ func (tx *TxUpdateDataKeepers) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateDataKeepers need more signatures")
 	}
+	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxUpdateDataKeepers no approver signing")
+	}
 	return nil
 }
 
@@ -88,12 +90,18 @@ func (tx *TxUpdateDataKeepers) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Version++
-	tx.dm.Threshold = tx.data.Threshold
-	tx.dm.Keepers = tx.data.Keepers
-	if err = tx.dm.SyntacticVerify(); err != nil {
-		return err
+	if tx.data.Approver != nil {
+		if *tx.data.Approver == util.EthIDEmpty {
+			tx.dm.Approver = nil
+		} else {
+			tx.dm.Approver = tx.data.Approver
+		}
 	}
-	if err = bs.SaveData(util.DataID(tx.data.ID), tx.dm); err != nil {
+	if len(tx.data.Keepers) > 0 {
+		tx.dm.Threshold = tx.data.Threshold
+		tx.dm.Keepers = tx.data.Keepers
+	}
+	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

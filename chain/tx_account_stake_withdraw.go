@@ -19,7 +19,7 @@ type TxWithdrawStake struct {
 
 func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -46,8 +46,8 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxWithdrawStake invalid amount")
 	}
-	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxWithdrawStake invalid stake address: %s", tx.ld.To)
+	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
+		return fmt.Errorf("TxWithdrawStake invalid stake address: %s", token.GoString())
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxWithdrawStake invalid")
@@ -71,12 +71,12 @@ func (tx *TxWithdrawStake) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	_, err = tx.to.CheckWithdrawStake(tx.ld.Token, tx.ld.From, tx.data.Amount)
+	_, err = tx.to.CheckWithdrawStake(tx.ld.Token, tx.ld.From, tx.signers, tx.data.Amount)
 	return err
 }
 
 func (tx *TxWithdrawStake) Accept(blk *Block, bs BlockState) error {
-	withdraw, err := tx.to.WithdrawStake(tx.ld.Token, tx.ld.From, tx.data.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.ld.Token, tx.ld.From, tx.signers, tx.data.Amount)
 	if err != nil {
 		return err
 	}

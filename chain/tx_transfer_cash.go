@@ -14,13 +14,13 @@ import (
 type TxTransferCash struct {
 	TxBase
 	issuer    *Account
-	exSigners []util.EthID
+	exSigners util.EthIDs
 	data      *ld.TxTransfer
 }
 
 func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -59,13 +59,13 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTransferCash SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Token != tx.ld.Token {
+	if tx.data.Token != nil && *tx.data.Token != tx.ld.Token {
 		return fmt.Errorf("TxTransferCash invalid token")
 	}
-	if tx.data.To != tx.ld.From {
+	if tx.data.To == nil || *tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferCash invalid recipient")
 	}
-	if tx.data.From != tx.ld.To {
+	if tx.data.From == nil || *tx.data.From != tx.ld.To {
 		return fmt.Errorf("TxTransferCash invalid issuer")
 	}
 
@@ -73,7 +73,7 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 		return fmt.Errorf("TxTransferCash expired")
 	}
 
-	if tx.data.Amount == nil || tx.data.Amount.Sign() <= 0 {
+	if tx.data.Amount == nil {
 		return fmt.Errorf("TxTransferCash invalid data amount")
 	}
 	return nil

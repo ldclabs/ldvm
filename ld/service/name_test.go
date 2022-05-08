@@ -17,7 +17,7 @@ func TestName(t *testing.T) {
 	address := util.DataID{1, 2, 3, 4}
 	name := &Name{
 		Name:    "xn--vuq70b.com",
-		Linked:  address,
+		Linked:  &address,
 		Records: []string{},
 	}
 	data, err := name.Marshal()
@@ -40,6 +40,8 @@ func TestName(t *testing.T) {
 
 	jsonStr := `{"name":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"display":"公信.com"}`
 	assert.Equal(jsonStr, string(data))
+
+	assert.Nil(NameModel.Valid(data2))
 
 	name3 := &Name{}
 	err = name3.Unmarshal(data2)

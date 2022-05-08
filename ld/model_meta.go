@@ -8,7 +8,6 @@ import (
 	"math"
 	"regexp"
 
-	"github.com/ipld/go-ipld-prime/schema"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -24,17 +23,18 @@ type ModelMeta struct {
 	// keepers who owned this model, no more than 255
 	// Creating data using this model requires keepers to sign.
 	// no keepers or threshold is 0 means don't need sign.
-	Keepers []util.EthID `cbor:"kp" json:"keepers"`
-	Data    RawData      `cbor:"d" json:"data"`
+	Keepers  util.EthIDs `cbor:"kp" json:"keepers"`
+	Approver *util.EthID `cbor:"ap" json:"approver,omitempty"`
+	Data     RawData     `cbor:"d" json:"data"`
 
 	// external assignment
-	ID  util.ModelID `cbor:"-" json:"id"`
-	st  schema.Type  `cbor:"-" json:"-"`
-	raw []byte       `cbor:"-" json:"-"`
+	ID    util.ModelID `cbor:"-" json:"id"`
+	model *IPLDModel   `cbor:"-" json:"-"`
+	raw   []byte       `cbor:"-" json:"-"`
 }
 
-func (t *ModelMeta) SchemaType() schema.Type {
-	return t.st
+func (t *ModelMeta) Model() *IPLDModel {
+	return t.model
 }
 
 // SyntacticVerify verifies that a *ModelMeta is well-formed.
@@ -57,12 +57,15 @@ func (t *ModelMeta) SyntacticVerify() error {
 			return fmt.Errorf("invalid model keeper")
 		}
 	}
+	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
+		return fmt.Errorf("invalid approver")
+	}
 	if len(t.Data) < 10 {
-		return fmt.Errorf("invalid data, bytes should >= %d", 10)
+		return fmt.Errorf("invalid data bytes")
 	}
 
 	var err error
-	if t.st, err = NewSchemaType(t.Name, t.Data); err != nil {
+	if t.model, err = NewIPLDModel(t.Name, t.Data); err != nil {
 		return fmt.Errorf("parse ipld schema error: %v", err)
 	}
 	if _, err = t.Marshal(); err != nil {

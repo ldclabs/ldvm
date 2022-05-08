@@ -146,8 +146,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	if err != nil {
 		return nil, err
 	}
+	mid := util.ModelID(constants.JSONModelID)
 	cfgData := &ld.TxUpdater{
-		ID:        ids.ShortID(constants.JsonModelID),
+		ModelID:   &mid,
 		Version:   1,
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
@@ -163,12 +164,11 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs = append(txs, tx)
 
 	// name app tx
-	name, sch := service.NameSchema()
 	nameModel := &ld.ModelMeta{
-		Name:      name,
+		Name:      service.NameModel.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      sch,
+		Data:      service.NameModel.Schema(),
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
@@ -180,12 +180,11 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs = append(txs, tx)
 
 	// Profile app tx
-	name, sch = service.ProfileSchema()
 	profileModel := &ld.ModelMeta{
-		Name:      name,
+		Name:      service.ProfileModel.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      sch,
+		Data:      service.ProfileModel.Schema(),
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,

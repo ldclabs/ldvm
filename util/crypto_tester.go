@@ -20,7 +20,7 @@ type Signer struct {
 }
 
 func (s *Signer) Sign(data []byte) (Signature, error) {
-	return SignData(data, s.pk)
+	return Sign(data, s.pk)
 }
 
 func (s *Signer) Address() EthID {

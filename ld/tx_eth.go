@@ -41,7 +41,7 @@ type TxEth struct {
 
 func (t *TxEth) MarshalJSON() ([]byte, error) {
 	if t == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	return json.Marshal(t.ToTransaction())
 }

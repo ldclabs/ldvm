@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -15,14 +14,14 @@ import (
 
 type TxUpdateDataKeepersByAuth struct {
 	TxBase
-	exSigners []util.EthID
+	exSigners util.EthIDs
 	data      *ld.TxUpdater
 	dm        *ld.DataMeta
 }
 
 func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -61,12 +60,16 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth syntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty ||
+	if tx.data.ID == nil ||
 		tx.data.Version == 0 ||
 		tx.data.Amount == nil ||
 		tx.data.Amount.Cmp(tx.ld.Amount) != 0 ||
-		tx.data.To != tx.ld.To {
+		tx.data.To == nil ||
+		*tx.data.To != tx.ld.To {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater")
+	}
+	if tx.data.Token != nil && *tx.data.Token != tx.ld.Token {
+		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater token")
 	}
 	return nil
 }
@@ -77,7 +80,7 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
+	tx.dm, err = bs.LoadData(*tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
 	}
@@ -88,6 +91,9 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block, bs BlockState) error {
 	// verify seller's signatures
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners) {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth need more exSignatures")
+	}
+	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxUpdateDataKeepersByAuth no approver signing")
 	}
 	return nil
 }
@@ -102,10 +108,14 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block, bs BlockState) error {
 		tx.dm.Threshold = tx.from.Threshold()
 		tx.dm.Keepers = tx.from.Keepers()
 	}
-	if err = tx.dm.SyntacticVerify(); err != nil {
-		return err
+	if tx.data.Approver != nil {
+		if *tx.data.Approver == util.EthIDEmpty {
+			tx.dm.Approver = nil
+		} else {
+			tx.dm.Approver = tx.data.Approver
+		}
 	}
-	if err = bs.SaveData(util.DataID(tx.data.ID), tx.dm); err != nil {
+	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

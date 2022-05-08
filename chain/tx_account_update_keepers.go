@@ -10,7 +10,6 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
 )
 
 type TxUpdateAccountKeepers struct {
@@ -20,7 +19,7 @@ type TxUpdateAccountKeepers struct {
 
 func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {

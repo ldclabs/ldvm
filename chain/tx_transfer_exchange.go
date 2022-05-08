@@ -15,14 +15,14 @@ import (
 
 type TxTransferExchange struct {
 	TxBase
-	exSigners []util.EthID
+	exSigners util.EthIDs
 	data      *ld.TxExchanger
 	quantity  *big.Int
 }
 
 func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -64,7 +64,7 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	if tx.data.Seller != tx.ld.To {
 		return fmt.Errorf("TxTransferExchange invalid to")
 	}
-	if tx.data.To != util.EthIDEmpty && tx.data.To != tx.ld.From {
+	if tx.data.To != nil && *tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferExchange invalid from")
 	}
 	if tx.data.Receive != tx.ld.Token {

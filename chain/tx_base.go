@@ -21,7 +21,7 @@ type TxBase struct {
 	miner   *Account
 	from    *Account
 	to      *Account
-	signers []util.EthID
+	signers util.EthIDs
 	status  choices.Status
 	fee     *big.Int
 	tip     *big.Int
@@ -30,7 +30,7 @@ type TxBase struct {
 
 func (tx *TxBase) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 
 	return json.Marshal(tx.ld)
@@ -64,8 +64,8 @@ func (tx *TxBase) SyntacticVerify() error {
 	if tx == nil || tx.ld == nil {
 		return fmt.Errorf("tx is nil")
 	}
-	if tx.ld.Token != constants.NativeToken && tx.ld.Token.String() == "" {
-		return fmt.Errorf("invalid token %s", tx.ld.Token)
+	if tx.ld.Token != constants.NativeToken && !tx.ld.Token.Valid() {
+		return fmt.Errorf("invalid token %s", tx.ld.Token.GoString())
 	}
 	if tx.ld.From == util.EthIDEmpty {
 		return fmt.Errorf("invalid from")
@@ -107,8 +107,14 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
 		return err
 	}
+	if err = tx.from.CheckAsFrom(tx.ld.Type); err != nil {
+		return err
+	}
 	if tx.ld.To != util.EthIDEmpty {
 		if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
+			return err
+		}
+		if err = tx.to.CheckAsTo(tx.ld.Type); err != nil {
 			return err
 		}
 	}
@@ -119,42 +125,6 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	if tx.ld.Nonce != tx.from.Nonce() {
 		return fmt.Errorf("sender account nonce not matching, expected %d, got %d",
 			tx.from.Nonce(), tx.ld.Nonce)
-	}
-
-	switch tx.from.Type() {
-	case ld.TokenAccount:
-		switch tx.ld.Type {
-		case ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount, ld.TypeTransfer:
-			// just go ahead
-		default:
-			return fmt.Errorf("invalid from account for %s", ld.TxTypeString(tx.ld.Type))
-		}
-	case ld.StakeAccount:
-		switch tx.ld.Type {
-		case ld.TypeUpdateAccountKeepers, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeResetStakeAccount:
-			// just go ahead
-		default:
-			return fmt.Errorf("invalid from account for %s", ld.TxTypeString(tx.ld.Type))
-		}
-	}
-
-	if tx.to != nil {
-		switch tx.to.Type() {
-		case ld.TokenAccount:
-			switch tx.ld.Type {
-			case ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateTokenAccount:
-				// just go ahead
-			default:
-				return fmt.Errorf("invalid to account for %s", ld.TxTypeString(tx.ld.Type))
-			}
-		case ld.StakeAccount:
-			switch tx.ld.Type {
-			case ld.TypeCreateStakeAccount, ld.TypeTakeStake, ld.TypeWithdrawStake:
-				// just go ahead
-			default:
-				return fmt.Errorf("invalid to account for %s", ld.TxTypeString(tx.ld.Type))
-			}
-		}
 	}
 
 	switch tx.ld.Token {

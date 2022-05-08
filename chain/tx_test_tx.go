@@ -10,7 +10,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTest struct {
@@ -20,7 +19,7 @@ type TxTest struct {
 
 func (tx *TxTest) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 
 	return json.Marshal(tx.ld)

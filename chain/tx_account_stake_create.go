@@ -20,7 +20,7 @@ type TxCreateStakeAccount struct {
 
 func (tx *TxCreateStakeAccount) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
@@ -44,8 +44,8 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 	if tx.ld.Token != constants.NativeToken {
 		return fmt.Errorf("TxCreateStakeAccount invalid token %s, required LDC", tx.ld.Token)
 	}
-	if !util.ValidStakeAddress(tx.ld.To) {
-		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", tx.ld.To)
+	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
+		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", token.GoString())
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid")

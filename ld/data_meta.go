@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/ipld/go-ipld-prime/schema"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -21,10 +20,11 @@ type DataMeta struct {
 	// the maximum value is len(keepers)
 	Threshold uint8 `cbor:"th" json:"threshold"`
 	// keepers who owned this data, no more than 255
-	Keepers []util.EthID    `cbor:"kp" json:"keepers"`
-	KSig    util.Signature  `cbor:"ks" json:"kSig"`                     // full data signature signing by Data Keeper
-	SSig    *util.Signature `cbor:"ss,omitempty" json:"sSig,omitempty"` // full data signature signing by Service Authority
-	Data    RawData         `cbor:"d" json:"data"`
+	Keepers  []util.EthID    `cbor:"kp" json:"keepers"`
+	Approver *util.EthID     `cbor:"ap" json:"approver,omitempty"`
+	KSig     util.Signature  `cbor:"ks" json:"kSig"`                     // full data signature signing by Data Keeper
+	MSig     *util.Signature `cbor:"ms,omitempty" json:"mSig,omitempty"` // full data signature signing by Service Authority
+	Data     RawData         `cbor:"d" json:"data"`
 
 	// external assignment
 	ID  util.DataID `cbor:"-" json:"id"`
@@ -48,6 +48,9 @@ func (t *DataMeta) SyntacticVerify() error {
 			return fmt.Errorf("invalid keeper")
 		}
 	}
+	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
+		return fmt.Errorf("invalid approver")
+	}
 	if _, err := t.Marshal(); err != nil {
 		return fmt.Errorf("DataMeta marshal error: %v", err)
 	}
@@ -61,10 +64,10 @@ func (t *DataMeta) Copy() *DataMeta {
 	copy(x.Keepers, t.Keepers)
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
-	if t.SSig != nil {
-		sSig := util.Signature{}
-		copy(sSig[:], (*t.SSig)[:])
-		x.SSig = &sSig
+	if t.MSig != nil {
+		mSig := util.Signature{}
+		copy(mSig[:], (*t.MSig)[:])
+		x.MSig = &mSig
 	}
 	x.raw = nil
 	return x
@@ -75,11 +78,6 @@ func (t *DataMeta) Bytes() []byte {
 		MustMarshal(t)
 	}
 	return t.raw
-}
-
-func (t *DataMeta) Validate(st schema.Type) error {
-	// TODO: validate data with schema.Type
-	return nil
 }
 
 func (t *DataMeta) Unmarshal(data []byte) error {

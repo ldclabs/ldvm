@@ -10,7 +10,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
 )
 
 type TxPunish struct {
@@ -21,7 +20,7 @@ type TxPunish struct {
 
 func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -57,7 +56,7 @@ func (tx *TxPunish) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxPunish SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty {
+	if tx.data.ID == nil {
 		return fmt.Errorf("TxPunish invalid TxUpdater")
 	}
 	return nil
@@ -69,7 +68,7 @@ func (tx *TxPunish) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
+	tx.dm, err = bs.LoadData(*tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxPunish load data failed: %v", err)
 	}
@@ -80,14 +79,14 @@ func (tx *TxPunish) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Data = tx.data.Data
-	if err = bs.DeleteData(util.DataID(tx.data.ID), tx.dm); err != nil {
+	if err = bs.DeleteData(*tx.data.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)
 }
 
 func (tx *TxPunish) Event(ts int64) *Event {
-	e := NewEvent(tx.data.ID, SrcData, ActionDelete)
+	e := NewEvent(ids.ShortID(*tx.data.ID), SrcData, ActionDelete)
 	e.Time = ts
 	return e
 }

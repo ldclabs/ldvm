@@ -21,7 +21,7 @@ type TxDeleteData struct {
 
 func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {
@@ -54,7 +54,7 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxDeleteData SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == ids.ShortEmpty ||
+	if tx.data.ID == nil ||
 		tx.data.Version == 0 {
 		return fmt.Errorf("TxDeleteData invalid TxUpdater")
 	}
@@ -67,7 +67,7 @@ func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(util.DataID(tx.data.ID))
+	tx.dm, err = bs.LoadData(*tx.data.ID)
 	if err != nil {
 		return fmt.Errorf("TxDeleteData load data failed: %v", err)
 	}
@@ -78,6 +78,9 @@ func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
 		return fmt.Errorf("TxDeleteData need more signatures")
 	}
+	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxDeleteData no approver signing")
+	}
 	return nil
 }
 
@@ -85,14 +88,14 @@ func (tx *TxDeleteData) Accept(blk *Block, bs BlockState) error {
 	var err error
 
 	tx.dm.Data = tx.data.Data
-	if err = bs.DeleteData(util.DataID(tx.data.ID), tx.dm); err != nil {
+	if err = bs.DeleteData(*tx.data.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)
 }
 
 func (tx *TxDeleteData) Event(ts int64) *Event {
-	e := NewEvent(tx.data.ID, SrcData, ActionDelete)
+	e := NewEvent(ids.ShortID(*tx.data.ID), SrcData, ActionDelete)
 	e.Time = ts
 	return e
 }

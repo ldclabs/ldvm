@@ -19,7 +19,7 @@ type TxAddAccountNonceTable struct {
 
 func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.data == nil {

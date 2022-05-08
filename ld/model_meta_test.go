@@ -7,9 +7,13 @@ import (
 	"testing"
 
 	"github.com/ldclabs/ldvm/util"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestModelMeta(t *testing.T) {
+	assert := assert.New(t)
+
 	address := util.EthID{1, 2, 3, 4}
 	mm := &ModelMeta{
 		Name:      "ModelMeta",
@@ -18,15 +22,12 @@ func TestModelMeta(t *testing.T) {
 		Data:      []byte("testdata"),
 	}
 	data, err := mm.Marshal()
-	if err != nil {
-		t.Fatalf("Marshal failed: %v", err)
-	}
+	assert.Nil(err)
+	assert.Nil(DecMode.Valid(data))
 
 	mm2 := &ModelMeta{}
 	err = mm2.Unmarshal(data)
-	if err != nil {
-		t.Fatalf("Unmarshal failed: %v", err)
-	}
+	assert.Nil(err)
 	// if !mm2.Equal(mm) {
 	// 	t.Fatalf("should equal")
 	// }

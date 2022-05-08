@@ -20,7 +20,7 @@ type TxCreateModel struct {
 
 func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
-		return util.Null, nil
+		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
 	if tx.mm == nil {
@@ -83,7 +83,6 @@ func (tx *TxCreateModel) VerifyGenesis(blk *Block, bs BlockState) error {
 
 func (tx *TxCreateModel) Accept(blk *Block, bs BlockState) error {
 	var err error
-
 	if err = bs.SaveModel(util.ModelID(tx.ld.ShortID()), tx.mm); err != nil {
 		return err
 	}
