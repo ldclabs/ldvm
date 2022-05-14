@@ -28,7 +28,7 @@ type IPLDModel struct {
 
 func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
 	b := &IPLDModel{name: name, sch: sch, buf: new(bytes.Buffer)}
-	err := Recover("NewIPLDModel "+name, func() error {
+	err := Recover("NewIPLDModel "+strconv.Quote(name), func() error {
 		ts, err := ipld.LoadSchemaBytes(sch)
 		if err != nil {
 			return err
@@ -36,8 +36,10 @@ func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
 		b.schemaType = ts.TypeByName(name)
 		switch typ := b.schemaType.(type) {
 		case *schema.TypeMap, *schema.TypeList, *schema.TypeStruct:
+		case nil:
+			return fmt.Errorf("type not found")
 		default:
-			return fmt.Errorf("model should be a map, list or struct, but got %v", typ)
+			return fmt.Errorf("should be a map, list or struct, but got %s", typ.TypeKind())
 		}
 
 		b.prototype = bindnode.Prototype(nil, b.schemaType)
@@ -65,7 +67,7 @@ func (l *IPLDModel) Type() schema.Type {
 func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
 	// defer l.builder.Reset() TODO: not supported yet
 
-	err = Recover("IPLDModel "+l.name, func() error {
+	err = Recover("IPLDModel "+strconv.Quote(l.name), func() error {
 		builder := l.prototype.Representation().NewBuilder()
 		if er := dagcbor.Decode(builder, bytes.NewReader(data)); er != nil {
 			return er
@@ -77,13 +79,13 @@ func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
 		return nil
 	})
 	if err == nil && node == nil {
-		err = fmt.Errorf("IPLDModel %s decode node error: %d bytes return nil", l.name, len(data))
+		err = fmt.Errorf("IPLDModel %s decode error: %d bytes return nil", strconv.Quote(l.name), len(data))
 	}
 	return
 }
 
 func (l *IPLDModel) ApplyPatch(original, patch []byte) ([]byte, error) {
-	return nil, fmt.Errorf("*IPLDModel.ApplyPatch TODO")
+	return nil, fmt.Errorf("IPLDModel.ApplyPatch TODO")
 }
 
 func (l *IPLDModel) Valid(data []byte) error {
@@ -104,24 +106,8 @@ func (l *IPLDModel) Valid(data []byte) error {
 	}
 	d := l.buf.Bytes()
 	if !bytes.Equal(data, d) {
-		err = fmt.Errorf("Model(%s) valid data failed, data length expected %v, got %v",
+		err = fmt.Errorf("IPLDModel.Valid %s failed, data length expected %v, got %v",
 			strconv.Quote(l.name), len(data), len(d))
 	}
 	return err
-}
-
-func NewSchemaType(name string, sch []byte) (schema.Type, error) {
-	var st schema.Type
-	err := Recover("build "+name, func() error {
-		ts, er := ipld.LoadSchemaBytes(sch)
-		if er != nil {
-			return er
-		}
-		st = ts.TypeByName(name)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return st, nil
 }

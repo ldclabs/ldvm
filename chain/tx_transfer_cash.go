@@ -39,6 +39,10 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxTransferCash invalid to")
+	}
+
 	if tx.ld.Amount != nil {
 		return fmt.Errorf("TxTransferCash invalid amount")
 	}
@@ -47,7 +51,7 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 		return fmt.Errorf("TxTransferCash invalid")
 	}
 
-	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
 		return fmt.Errorf("TxTransferCash invalid exSignatures: %v", err)
 	}
@@ -59,13 +63,13 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTransferCash SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Token != nil && *tx.data.Token != tx.ld.Token {
+	if tx.data.Token != nil && *tx.data.Token != tx.token {
 		return fmt.Errorf("TxTransferCash invalid token")
 	}
 	if tx.data.To == nil || *tx.data.To != tx.ld.From {
 		return fmt.Errorf("TxTransferCash invalid recipient")
 	}
-	if tx.data.From == nil || *tx.data.From != tx.ld.To {
+	if tx.data.From == nil || *tx.data.From != *tx.ld.To {
 		return fmt.Errorf("TxTransferCash invalid issuer")
 	}
 
@@ -90,7 +94,7 @@ func (tx *TxTransferCash) Verify(blk *Block, bs BlockState) error {
 		return fmt.Errorf("TxTransferCash account issuer need more signers")
 	}
 
-	if err = tx.to.CheckSubByNonceTable(tx.ld.Token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
+	if err = tx.to.CheckSubByNonceTable(tx.token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
 		return err
 	}
 	return err
@@ -98,10 +102,10 @@ func (tx *TxTransferCash) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxTransferCash) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.SubByNonceTable(tx.ld.Token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
+	if err = tx.to.SubByNonceTable(tx.token, tx.data.Expire, tx.data.Nonce, tx.data.Amount); err != nil {
 		return err
 	}
-	if err = tx.from.Add(tx.ld.Token, tx.data.Amount); err != nil {
+	if err = tx.from.Add(tx.token, tx.data.Amount); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

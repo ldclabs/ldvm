@@ -20,10 +20,13 @@ func (tx *TxTransfer) SyntacticVerify() error {
 		return err
 	}
 
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxTransfer invalid to")
+	}
+
 	if tx.ld.Amount == nil {
 		return fmt.Errorf("TxTransfer invalid amount")
 	}
-
 	return nil
 }
 
@@ -45,6 +48,6 @@ func (tx *TxTransfer) VerifyGenesis(blk *Block, bs BlockState) error {
 	if tx.miner, err = blk.Miner(); err != nil {
 		return err
 	}
-	tx.to, err = bs.LoadAccount(tx.ld.To)
+	tx.to, err = bs.LoadAccount(*tx.ld.To)
 	return err
 }

@@ -4,49 +4,59 @@
 package service
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestProfile(t *testing.T) {
-	_ = assert.New(t)
+	assert := assert.New(t)
 
-	// address := util.DataID{1, 2, 3, 4}
-	// p1 := &Profile{
-	// 	Name:    "lvdm",
-	// 	Follows: []util.DataID{address},
-	// 	Extra:   new(ld.MapStringAny),
-	// }
+	var p *Profile
+	assert.ErrorContains(p.SyntacticVerify(), "nil pointer")
 
-	// p1.Extra.Set("name", basicnode.NewString("张三"))
-	// p1.Extra.Set("age", basicnode.NewInt(21))
-	// // i.Extra.Set("field", ipld.Null)
+	p = &Profile{Type: "LDC"}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid type "LDC"`)
 
-	// assert.Equal(p1.Extra.Keys, []string{"age", "name"})
+	p = &Profile{Type: "Thing", Name: ""}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid name ""`)
 
-	// data, err := p1.Marshal()
-	// assert.Nil(err)
+	p = &Profile{Type: "Thing", Name: "a\na"}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid name "a\na"`)
 
-	// p2 := &Profile{}
-	// err = p2.Unmarshal(data)
-	// assert.Nil(err)
-	// assert.True(p2.Equal(p1))
+	p = &Profile{Type: "Thing", Name: "LDC", Image: "a\na"}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid image "a\na"`)
 
-	// p1.Extra.Set("eth", basicnode.NewString(util.EthID(address).String()))
-	// p1.URL = "http://127.0.0.1"
-	// data2, err := p1.Marshal()
-	// assert.Nil(err)
-	// assert.NotEqual(data, data2)
+	p = &Profile{Type: "Thing", Name: "LDC", URL: "a\na"}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid url "a\na"`)
 
-	// data, err = p1.MarshalJSON()
-	// assert.Nil(err)
+	p = &Profile{Type: "Thing", Name: "LDC"}
+	assert.ErrorContains(p.SyntacticVerify(), "nil follows")
+	p = &Profile{Type: "Thing", Name: "LDC", Follows: []util.DataID{util.DataIDEmpty}}
+	assert.ErrorContains(p.SyntacticVerify(), "invalid follow address")
 
-	// jsonStr := `{"@type":"","name":"lvdm","image":"","url":"http://127.0.0.1","kyc":"","follows":["LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ"],"exmID":"","extra":{"age":21,"eth":"0x0102030400000000000000000000000000000000","name":"张三"}}`
-	// assert.Equal(jsonStr, string(data))
+	p = &Profile{Type: "Thing", Name: "LDC", Follows: []util.DataID{}}
+	assert.ErrorContains(p.SyntacticVerify(), "nil extra")
 
-	// p3 := &Profile{}
-	// err = p3.Unmarshal(data2)
-	// assert.Nil(err)
-	// assert.True(p3.Equal(p1))
+	p = &Profile{
+		Type:    "Person",
+		Name:    "LDC",
+		Follows: []util.DataID{},
+		Extra: map[string]interface{}{
+			"age": 23,
+		},
+	}
+	assert.NoError(p.SyntacticVerify())
+	data, err := json.Marshal(p)
+	assert.NoError(err)
+
+	jsonStr := `{"@type":"Person","name":"LDC","image":"","url":"","follows":[],"extra":{"age":23}}`
+	assert.Equal(jsonStr, string(data))
+
+	p2 := &Profile{}
+	assert.NoError(p2.Unmarshal(p.Bytes()))
+	assert.NoError(p2.SyntacticVerify())
+	assert.Equal(p.Bytes(), p2.Bytes())
 }

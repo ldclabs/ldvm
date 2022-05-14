@@ -20,8 +20,21 @@ type Name struct {
 	Linked  *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"` // optional, linked (ProfileService) data id
 	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
 
-	// external assignment
-	DisplayName string `cbor:"-" json:"display"` // Unicode form
+	// external assignment fields
+	DisplayName string `cbor:"-" json:"displayName"` // Unicode form
+	raw         []byte `cbor:"-" json:"-"`
+}
+
+func NameModel() (*ld.IPLDModel, error) {
+	sch := `
+	type ID20 bytes
+	type NameService struct {
+		name    String        (rename "n")
+		linked  nullable ID20 (rename "l")
+		records [String]      (rename "rs")
+	}
+`
+	return ld.NewIPLDModel("NameService", []byte(sch))
 }
 
 type lazyName struct {
@@ -41,31 +54,41 @@ func GetName(data []byte) (string, error) {
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
 	if n == nil {
-		return fmt.Errorf("invalid Name")
+		return fmt.Errorf("Name.SyntacticVerify failed: nil pointer")
 	}
 	dn, err := idna.Registration.ToASCII(n.Name)
 	if err != nil {
-		return fmt.Errorf("invalid name %s, error: %v",
+		return fmt.Errorf("Name.SyntacticVerify failed: converts %s error: %v",
 			strconv.Quote(n.Name), err)
 	}
 	if dn != n.Name {
-		return fmt.Errorf("invalid name %s, should be ASCII form (IDNA2008)",
+		return fmt.Errorf("Name.SyntacticVerify failed: %s is not ASCII form (IDNA2008)",
 			strconv.Quote(n.Name))
 	}
 	name, err := idna.Registration.ToUnicode(n.Name)
 	if err != nil {
-		return fmt.Errorf("invalid name %s, error: %v", strconv.Quote(n.Name), err)
+		return fmt.Errorf("Name.SyntacticVerify failed: converts %s error: %v", strconv.Quote(n.Name), err)
 	}
 	n.DisplayName = name
+	if n.Records == nil {
+		return fmt.Errorf("Name.SyntacticVerify failed: nil records")
+	}
 	for _, s := range n.Records {
 		if !utf8.ValidString(s) {
-			return fmt.Errorf("invalid utf8 record %s", strconv.Quote(s))
+			return fmt.Errorf("Name.SyntacticVerify failed: invalid utf8 record %s", strconv.Quote(s))
 		}
 	}
-	if _, err := n.Marshal(); err != nil {
-		return fmt.Errorf("Name marshal error: %v", err)
+	if n.raw, err = n.Marshal(); err != nil {
+		return fmt.Errorf("Name.SyntacticVerify marshal error: %v", err)
 	}
 	return nil
+}
+
+func (n *Name) Bytes() []byte {
+	if len(n.raw) == 0 {
+		n.raw = ld.MustMarshal(n)
+	}
+	return n.raw
 }
 
 func (n *Name) Unmarshal(data []byte) error {
@@ -73,27 +96,5 @@ func (n *Name) Unmarshal(data []byte) error {
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	data, err := ld.EncMode.Marshal(n)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-var NameModel *ld.IPLDModel
-
-func init() {
-	sch := `
-	type ID20 bytes
-	type NameService struct {
-		name    String        (rename "n")
-		linked  nullable ID20 (rename "l")
-		records [String]      (rename "rs")
-	}
-`
-	var err error
-	NameModel, err = ld.NewIPLDModel("NameService", []byte(sch))
-	if err != nil {
-		panic(err)
-	}
+	return ld.EncMode.Marshal(n)
 }

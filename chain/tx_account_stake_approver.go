@@ -13,7 +13,7 @@ import (
 
 type TxUpdateStakeApprover struct {
 	TxBase
-	data *ld.TxUpdater
+	data *ld.TxAccounter
 }
 
 func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
@@ -37,9 +37,12 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxUpdateStakeApprover invalid to")
+	}
 
-	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
-		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", token.GoString())
+	if token := util.StakeSymbol(*tx.ld.To); !token.Valid() {
+		return fmt.Errorf("TxUpdateStakeApprover invalid stake address: %s", token.GoString())
 	}
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxUpdateStakeApprover invalid amount")
@@ -47,7 +50,7 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateStakeApprover invalid")
 	}
-	tx.data = &ld.TxUpdater{}
+	tx.data = &ld.TxAccounter{}
 	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateStakeApprover unmarshal data failed: %v", err)
 	}

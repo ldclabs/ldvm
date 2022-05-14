@@ -16,15 +16,15 @@ import (
 var Signer1, Signer2 *Signer
 
 type Signer struct {
-	pk *ecdsa.PrivateKey
+	PK *ecdsa.PrivateKey
 }
 
 func (s *Signer) Sign(data []byte) (Signature, error) {
-	return Sign(data, s.pk)
+	return Sign(data, s.PK)
 }
 
 func (s *Signer) Address() EthID {
-	return EthID(crypto.PubkeyToAddress(s.pk.PublicKey))
+	return EthID(crypto.PubkeyToAddress(s.PK.PublicKey))
 }
 
 func init() {

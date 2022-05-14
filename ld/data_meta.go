@@ -20,76 +20,94 @@ type DataMeta struct {
 	// the maximum value is len(keepers)
 	Threshold uint8 `cbor:"th" json:"threshold"`
 	// keepers who owned this data, no more than 255
-	Keepers  []util.EthID    `cbor:"kp" json:"keepers"`
-	Approver *util.EthID     `cbor:"ap" json:"approver,omitempty"`
-	KSig     util.Signature  `cbor:"ks" json:"kSig"`                     // full data signature signing by Data Keeper
-	MSig     *util.Signature `cbor:"ms,omitempty" json:"mSig,omitempty"` // full data signature signing by Service Authority
-	Data     RawData         `cbor:"d" json:"data"`
+	Keepers     util.EthIDs `cbor:"kp" json:"keepers"`
+	Approver    *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList []TxType    `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Data        RawData     `cbor:"d" json:"data"`
+	// full data signature signing by Data Keeper
+	KSig util.Signature `cbor:"ks" json:"kSig"`
+	// full data signature signing by ModelService Authority
+	MSig *util.Signature `cbor:"ms,omitempty" json:"mSig,omitempty"`
 
-	// external assignment
+	// external assignment fields
 	ID  util.DataID `cbor:"-" json:"id"`
 	raw []byte      `cbor:"-" json:"-"`
 }
 
-// SyntacticVerify verifies that a *DataMeta is well-formed.
-func (t *DataMeta) SyntacticVerify() error {
-	if t == nil {
-		return fmt.Errorf("invalid DataMeta")
-	}
-
-	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("invalid keepers, too many")
-	}
-	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("invalid threshold")
-	}
-	for _, id := range t.Keepers {
-		if id == util.EthIDEmpty {
-			return fmt.Errorf("invalid keeper")
-		}
-	}
-	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
-		return fmt.Errorf("invalid approver")
-	}
-	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("DataMeta marshal error: %v", err)
-	}
-	return nil
-}
-
-func (t *DataMeta) Copy() *DataMeta {
+func (t *DataMeta) Clone() *DataMeta {
 	x := new(DataMeta)
 	*x = *t
 	x.Keepers = make([]util.EthID, len(t.Keepers))
 	copy(x.Keepers, t.Keepers)
+	if t.Approver != nil {
+		id := *t.Approver
+		x.Approver = &id
+	}
+	if t.ApproveList != nil {
+		x.ApproveList = make([]TxType, len(t.ApproveList))
+		copy(x.ApproveList, t.ApproveList)
+	}
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
 	if t.MSig != nil {
-		mSig := util.Signature{}
-		copy(mSig[:], (*t.MSig)[:])
+		mSig := *t.MSig
 		x.MSig = &mSig
 	}
 	x.raw = nil
 	return x
 }
 
+// SyntacticVerify verifies that a *DataMeta is well-formed.
+func (t *DataMeta) SyntacticVerify() error {
+	if t == nil {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: nil pointer")
+	}
+
+	if len(t.Keepers) > math.MaxUint8 {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: too many keepers")
+	}
+	if int(t.Threshold) > len(t.Keepers) {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid threshold")
+	}
+	for _, id := range t.Keepers {
+		if id == util.EthIDEmpty {
+			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid keeper")
+		}
+	}
+	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid approver")
+	}
+	if t.ApproveList != nil {
+		for _, ty := range t.ApproveList {
+			if ty > TypeDeleteData || ty < TypeCreateData {
+				return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid TxType %d in approveList", ty)
+			}
+		}
+	}
+	kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
+	if err != nil {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: %v", err)
+	}
+	if !t.Keepers.Has(kSigner) {
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid kSig")
+	}
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("DataMeta.SyntacticVerify marshal error: %v", err)
+	}
+	return nil
+}
+
 func (t *DataMeta) Bytes() []byte {
 	if len(t.raw) == 0 {
-		MustMarshal(t)
+		t.raw = MustMarshal(t)
 	}
 	return t.raw
 }
 
 func (t *DataMeta) Unmarshal(data []byte) error {
-	t.raw = data
 	return DecMode.Unmarshal(data, t)
 }
 
 func (t *DataMeta) Marshal() ([]byte, error) {
-	data, err := EncMode.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	t.raw = data
-	return data, nil
+	return EncMode.Marshal(t)
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -40,11 +41,15 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
+	}
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxCreateTokenAccount invalid to")
 	}
 
-	if token := util.TokenSymbol(tx.ld.To); !token.Valid() {
+	if token := util.TokenSymbol(*tx.ld.To); !token.Valid() {
 		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", token.GoString())
 	}
 
@@ -82,7 +87,7 @@ func (tx *TxCreateTokenAccount) Verify(blk *Block, bs BlockState) error {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
 			feeCfg.MinTokenPledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateToken(util.TokenSymbol(tx.ld.To), tx.data)
+	return tx.to.CheckCreateToken(util.TokenSymbol(*tx.ld.To), tx.data)
 }
 
 // VerifyGenesis skipping signature verification
@@ -112,13 +117,13 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 	if tx.miner, err = blk.Miner(); err != nil {
 		return err
 	}
-	tx.to, err = bs.LoadAccount(tx.ld.To)
+	tx.to, err = bs.LoadAccount(*tx.ld.To)
 	return nil
 }
 
 func (tx *TxCreateTokenAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.CreateToken(util.TokenSymbol(tx.ld.To), tx.data); err != nil {
+	if err = tx.to.CreateToken(util.TokenSymbol(*tx.ld.To), tx.data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -32,135 +31,79 @@ type Block struct {
 	Miner util.StakeSymbol `cbor:"mn" json:"miner"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Shares []util.StakeSymbol `cbor:"sh" json:"shares"`
-	Txs    []*Transaction     `cbor:"txs" json:"-"`
+	Shares []util.StakeSymbol `cbor:"shs" json:"shares"`
+	Txs    Txs                `cbor:"txs" json:"-"`
 
-	// external assignment
+	// external assignment fields
 	ID     ids.ID            `cbor:"-" json:"id"`
 	RawTxs []json.RawMessage `cbor:"-" json:"txs"`
 	raw    []byte            `cbor:"-" json:"-"` // the block's raw bytes
 }
 
-func (b *Block) Copy() *Block {
-	x := new(Block)
-	*x = *b
-	x.Shares = make([]util.StakeSymbol, len(b.Shares))
-	copy(x.Shares, x.Shares)
-	x.Txs = make([]*Transaction, len(b.Txs))
-	for i := range b.Txs {
-		x.Txs[i] = b.Txs[i].Copy()
+func (b *Block) MarshalTxsJSON() error {
+	b.RawTxs = make([]json.RawMessage, len(b.Txs))
+	for i, tx := range b.Txs {
+		d, err := json.Marshal(tx)
+		if err != nil {
+			return err
+		}
+		b.RawTxs[i] = d
 	}
-	x.raw = nil
-	return x
+	return nil
 }
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
 	if b == nil {
-		return fmt.Errorf("invalid Block")
+		return fmt.Errorf("Block.SyntacticVerify failed: nil pointer")
 	}
 
 	if b.Timestamp > uint64(time.Now().Add(futureBound).Unix()) {
-		return fmt.Errorf("invalid timestamp")
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid timestamp")
 	}
 	if b.GasRebateRate > 1000 {
-		return fmt.Errorf("invalid gasRebateRate")
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid gasRebateRate")
 	}
 	if b.Miner != util.StakeEmpty && !b.Miner.Valid() {
-		return fmt.Errorf("invalid miner address %s", b.Miner.GoString())
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid miner address %s", b.Miner.GoString())
 	}
 	for _, a := range b.Shares {
 		if !a.Valid() {
-			return fmt.Errorf("invalid share address %s", a.GoString())
+			return fmt.Errorf("Block.SyntacticVerify failed: invalid share address %s", a.GoString())
 		}
 	}
 	if len(b.Txs) == 0 {
-		return fmt.Errorf("invalid block, no txs")
+		return fmt.Errorf("Block.SyntacticVerify failed: no txs")
 	}
+	var err error
 	for _, tx := range b.Txs {
-		if tx == nil {
-			return fmt.Errorf("invalid transaction")
-		}
-		if err := tx.SyntacticVerify(); err != nil {
-			return fmt.Errorf("invalid transaction, SyntacticVerify error: %v", err)
+		if err = tx.SyntacticVerify(); err != nil {
+			return fmt.Errorf("Block.SyntacticVerify failed: %v", err)
 		}
 	}
-	if _, err := b.Marshal(); err != nil {
-		return fmt.Errorf("Block marshal error: %v", err)
+	if b.raw, err = b.Marshal(); err != nil {
+		return fmt.Errorf("Block.SyntacticVerify marshal error: %v", err)
 	}
+
+	b.ID = util.IDFromData(b.raw)
 	return nil
-}
-
-func (b *Block) Equal(o *Block) bool {
-	if o == nil {
-		return false
-	}
-	if len(o.raw) > 0 && len(b.raw) > 0 {
-		return bytes.Equal(o.raw, b.raw)
-	}
-	if o.Parent != b.Parent {
-		return false
-	}
-	if o.Height != b.Height {
-		return false
-	}
-	if o.Timestamp != b.Timestamp {
-		return false
-	}
-	if o.Gas != b.Gas {
-		return false
-	}
-	if o.GasPrice != b.GasPrice {
-		return false
-	}
-	if o.GasRebateRate != b.GasRebateRate {
-		return false
-	}
-	if o.Miner != b.Miner {
-		return false
-	}
-	if len(o.Shares) != len(b.Shares) {
-		return false
-	}
-	for i := range b.Shares {
-		if o.Shares[i] != b.Shares[i] {
-			return false
-		}
-	}
-	if len(o.Txs) != len(b.Txs) {
-		return false
-	}
-	for i := range b.Txs {
-		if !o.Txs[i].Equal(b.Txs[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func (b *Block) Bytes() []byte {
-	if len(b.raw) == 0 {
-		MustMarshal(b)
-	}
-	return b.raw
 }
 
 func (b *Block) FeeCost() *big.Int {
 	return new(big.Int).Mul(new(big.Int).SetUint64(b.Gas), new(big.Int).SetUint64(b.GasPrice))
 }
 
+func (b *Block) Bytes() []byte {
+	if len(b.raw) == 0 {
+		b.raw = MustMarshal(b)
+	}
+	return b.raw
+}
+
 func (b *Block) Unmarshal(data []byte) error {
-	b.ID = util.IDFromData(data)
-	b.raw = data
 	return DecMode.Unmarshal(data, b)
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	data, err := EncMode.Marshal(b)
-	if err != nil {
-		return nil, err
-	}
-	b.ID = util.IDFromData(data)
-	b.raw = data
-	return data, nil
+	return EncMode.Marshal(b)
 }

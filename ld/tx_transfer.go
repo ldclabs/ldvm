@@ -6,6 +6,7 @@ package ld
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -23,23 +24,34 @@ type TxTransfer struct {
 	Amount *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
 	Expire uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
 	Data   RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+
+	// external assignment fields
+	raw []byte `cbor:"-" json:"-"`
 }
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
 func (t *TxTransfer) SyntacticVerify() error {
 	if t == nil {
-		return fmt.Errorf("invalid TxTransfer")
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: nil pointer")
 	}
 	if t.Token != nil && !t.Token.Valid() {
-		return fmt.Errorf("invalid token symbol")
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
 	}
-	if t.Amount != nil && t.Amount.Sign() < 0 {
-		return fmt.Errorf("invalid amount")
+	if t.Amount != nil && t.Amount.Sign() < 1 {
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
 	}
-	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("TxTransfer marshal error: %v", err)
+	var err error
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("TxTransfer.SyntacticVerify marshal failed error: %v", err)
 	}
 	return nil
+}
+
+func (t *TxTransfer) Bytes() []byte {
+	if len(t.raw) == 0 {
+		t.raw = MustMarshal(t)
+	}
+	return t.raw
 }
 
 func (t *TxTransfer) Unmarshal(data []byte) error {
@@ -47,9 +59,5 @@ func (t *TxTransfer) Unmarshal(data []byte) error {
 }
 
 func (t *TxTransfer) Marshal() ([]byte, error) {
-	data, err := EncMode.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return EncMode.Marshal(t)
 }

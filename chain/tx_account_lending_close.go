@@ -5,9 +5,7 @@ package chain
 
 import (
 	"fmt"
-
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
+	"strconv"
 )
 
 type TxCloseLending struct {
@@ -20,12 +18,12 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required native LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
-
-	if tx.ld.To != util.EthIDEmpty {
-		return fmt.Errorf("TxCloseLending invalid to: %s", tx.ld.To)
+	if tx.ld.To != nil {
+		return fmt.Errorf("TxCloseLending invalid to")
 	}
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxCloseLending invalid amount, expected 0, got %v", tx.ld.Amount)

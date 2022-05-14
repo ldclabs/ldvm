@@ -67,7 +67,7 @@ type TransactionArgs struct {
 	GasTip    uint64          `json:"gasTip"`
 	GasFeeCap uint64          `json:"gasFeeCap"`
 	From      util.EthID      `json:"from"`
-	To        util.EthID      `json:"to"`
+	To        *util.EthID     `json:"to"`
 	Amount    *big.Int        `json:"amount"`
 	Data      json.RawMessage `json:"data"`
 }

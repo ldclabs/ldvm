@@ -42,11 +42,15 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 		return err
 	}
 
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxTransferExchange invalid to")
+	}
+
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxTransferExchange invalid")
 	}
 
-	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
 		return fmt.Errorf("TxTransferExchange invalid exSignatures: %v", err)
 	}
@@ -61,13 +65,13 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	if tx.data.Nonce == 0 {
 		return fmt.Errorf("TxTransferExchange invalid nonce")
 	}
-	if tx.data.Seller != tx.ld.To {
+	if tx.data.Payee != *tx.ld.To {
 		return fmt.Errorf("TxTransferExchange invalid to")
 	}
-	if tx.data.To != nil && *tx.data.To != tx.ld.From {
+	if tx.data.Purchaser != nil && *tx.data.Purchaser != tx.ld.From {
 		return fmt.Errorf("TxTransferExchange invalid from")
 	}
-	if tx.data.Receive != tx.ld.Token {
+	if tx.data.Receive != tx.token {
 		return fmt.Errorf("TxTransferExchange invalid token")
 	}
 	if tx.ld.Amount == nil || tx.ld.Amount.Sign() < 1 {

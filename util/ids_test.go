@@ -40,7 +40,7 @@ func TestEthID(t *testing.T) {
 	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
 	assert.Nil(err)
 	var id4 EthID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id4), "invalid length bytes: 32")
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &id4), "invalid bytes length")
 
 	cbordata, err = cbor.Marshal(id)
 	assert.Nil(err)
@@ -100,7 +100,7 @@ func TestModelID(t *testing.T) {
 	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
 	assert.Nil(err)
 	var id2 ModelID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid length bytes: 32")
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
 
 	cbordata, err = cbor.Marshal(id)
 	assert.Nil(err)
@@ -152,7 +152,7 @@ func TestDataID(t *testing.T) {
 	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
 	assert.Nil(err)
 	var id2 DataID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid length bytes: 32")
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
 
 	cbordata, err = cbor.Marshal(id)
 	assert.Nil(err)
@@ -208,7 +208,7 @@ func TestTokenSymbol(t *testing.T) {
 	cbordata, err := cbor.Marshal(ids.ID{'L', 'D', 'C'})
 	assert.Nil(err)
 	var id2 TokenSymbol
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid length bytes: 32")
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
 
 	cbordata, err = cbor.Marshal(id)
 	assert.Nil(err)
@@ -373,7 +373,7 @@ func TestStakeSymbol(t *testing.T) {
 	cbordata, err := cbor.Marshal(ids.ID{'@', 'L', 'D', 'C'})
 	assert.Nil(err)
 	var id2 StakeSymbol
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid length bytes: 32")
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
 
 	cbordata, err = cbor.Marshal(id)
 	assert.Nil(err)
@@ -484,7 +484,6 @@ func TestStakeSymbol(t *testing.T) {
 		switch {
 		case c.shouldErr:
 			assert.Equal("", c.token.String())
-			assert.False(c.token.Valid())
 			if c.symbol != "" {
 				_, err := NewStake(c.symbol)
 				assert.NotNil(err)
@@ -513,8 +512,8 @@ func TestEthIDToStakeSymbol(t *testing.T) {
 	ss := EthIDToStakeSymbol(ids...)
 	assert.Equal(ldc, ss[0])
 	assert.Equal("@LDC", ss[0].String())
-	assert.Equal("@6NUDZHR5VGT7SA4XOZZ", ss[1].String())
-	assert.Equal("@6NUDZHR5VGT7SA4XOZZ", string(ss[1][:]))
+	assert.Equal("", ss[1].String())
+	assert.Equal(string(EthIDEmpty[:]), string(ss[1][:]))
 	assert.Equal("@BLDQHR4QOJZMNIC5Q5U", ss[2].String())
 	assert.Equal("@BLDQHR4QOJZMNIC5Q5U", string(ss[2][:]))
 	assert.Equal("@GWLGDBWNPCOAN55PCUX", ss[3].String())

@@ -92,7 +92,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
-	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize), feeCfg.ThresholdGas)
+	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize), feeCfg.ThresholdGas, ts)
 	blk.GasPrice = preferred.GasPrice().Uint64()
 	if b.txPool.Len() > len(txs) {
 		blk.GasPrice = uint64(float64(blk.GasPrice) * math.SqrtPhi)
@@ -131,7 +131,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 				nblk.originTxs = append(nblk.originTxs, tx)
 			}
 		}
-		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas)
+		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas, ts)
 	}
 
 	if len(blk.Txs) == 0 {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -91,15 +92,15 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
 	minter := &ld.TxAccounter{
-		Amount:  g.Chain.MaxTotalSupply,
-		Name:    "Linked Data Chain",
-		Message: g.Chain.Message,
+		Amount: g.Chain.MaxTotalSupply,
+		Name:   "Linked Data Chain",
+		Data:   []byte(strconv.Quote(g.Chain.Message)),
 	}
 	tx := &ld.Transaction{
 		Type:    ld.TypeCreateTokenAccount,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		To:      constants.LDCAccount,
+		To:      &constants.LDCAccount,
 		Amount:  g.Chain.MaxTotalSupply,
 		Data:    ld.MustMarshal(minter),
 	}
@@ -114,12 +115,13 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	ids.SortShortIDs(list)
 	for _, id := range list {
 		v := g.Alloc[util.EthID(id)]
+		to := util.EthID(id)
 		tx := &ld.Transaction{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
 			Nonce:   nonce,
 			From:    constants.LDCAccount,
-			To:      util.EthID(id),
+			To:      &to,
 			Amount:  v.Balance,
 		}
 		nonce++
@@ -164,33 +166,41 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	txs = append(txs, tx)
 
 	// name app tx
-	nameModel := &ld.ModelMeta{
-		Name:      service.NameModel.Name(),
+	nm, err := service.NameModel()
+	if err != nil {
+		return nil, err
+	}
+	ns := &ld.ModelMeta{
+		Name:      nm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      service.NameModel.Schema(),
+		Data:      nm.Schema(),
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		Data:    ld.MustMarshal(nameModel),
+		Data:    ld.MustMarshal(ns),
 	}
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// Profile app tx
-	profileModel := &ld.ModelMeta{
-		Name:      service.ProfileModel.Name(),
+	pm, err := service.ProfileModel()
+	if err != nil {
+		return nil, err
+	}
+	ps := &ld.ModelMeta{
+		Name:      pm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      service.ProfileModel.Schema(),
+		Data:      pm.Schema(),
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
-		Data:    ld.MustMarshal(profileModel),
+		Data:    ld.MustMarshal(ps),
 	}
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)

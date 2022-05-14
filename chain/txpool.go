@@ -4,10 +4,7 @@
 package chain
 
 import (
-	"bytes"
-	"sort"
 	"sync"
-	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
@@ -30,7 +27,7 @@ type TxPool interface {
 	Remove(txID ids.ID)
 	Add(txs ...*ld.Transaction) error
 	Get(txID ids.ID) Transaction
-	PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction
+	PopTxsBySize(askSize int, threshold, now uint64) []*ld.Transaction
 	Reject(*ld.Transaction)
 }
 
@@ -45,7 +42,7 @@ func NewTxPool() *txPool {
 type txPool struct {
 	mu         sync.RWMutex
 	txQueueSet ids.Set
-	txQueue    []*ld.Transaction
+	txQueue    ld.Txs
 	rejected   *collections.TTLMap
 }
 
@@ -136,7 +133,7 @@ func (p *txPool) Reject(tx *ld.Transaction) {
 	p.rejected.Set(string(tx.ID[:]), tx, rejectedTxsTTL)
 }
 
-func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
+func (p *txPool) PopTxsBySize(askSize int, threshold, now uint64) []*ld.Transaction {
 	if uint64(askSize) < threshold {
 		return []*ld.Transaction{}
 	}
@@ -145,20 +142,8 @@ func (p *txPool) PopTxsBySize(askSize int, threshold uint64) []*ld.Transaction {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	now := uint64(time.Now().Unix())
-	for _, tx := range p.txQueue {
-		tx.SetPriority(threshold, now)
-	}
-
-	sort.SliceStable(p.txQueue, func(i, j int) bool {
-		if p.txQueue[i].From == p.txQueue[j].From {
-			return p.txQueue[i].Nonce < p.txQueue[j].Nonce
-		}
-		if p.txQueue[i].Priority == p.txQueue[j].Priority {
-			return bytes.Compare(p.txQueue[i].Bytes(), p.txQueue[j].Bytes()) == -1
-		}
-		return p.txQueue[i].Priority > p.txQueue[j].Priority
-	})
+	p.txQueue.UpdatePriority(threshold, now)
+	p.txQueue.Sort()
 
 	total := 0
 	n := 0

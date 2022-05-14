@@ -14,38 +14,38 @@ import (
 func TestName(t *testing.T) {
 	assert := assert.New(t)
 
+	var name *Name
+	assert.ErrorContains(name.SyntacticVerify(), "nil pointer")
+
+	name = &Name{Name: "ab=c"}
+	assert.ErrorContains(name.SyntacticVerify(), `converts "ab=c" error: idna: disallowed rune`)
+
+	name = &Name{Name: "你好"}
+	assert.ErrorContains(name.SyntacticVerify(), `"你好" is not ASCII form (IDNA2008)`)
+
 	address := util.DataID{1, 2, 3, 4}
-	name := &Name{
+	name = &Name{
 		Name:    "xn--vuq70b.com",
 		Linked:  &address,
 		Records: []string{},
 	}
-	data, err := name.Marshal()
-	assert.Nil(err)
+	assert.NoError(name.SyntacticVerify())
 
 	name2 := &Name{}
-	err = name2.Unmarshal(data)
-	assert.Nil(err)
-	assert.Equal(name, name2)
+	assert.NoError(name2.Unmarshal(name.Bytes()))
+	assert.Equal(name.Bytes(), name2.Bytes())
 
 	name.Records = append(name.Records, "xn--vuq70b.com. IN A 10.0.0.1")
-	data2, err := name.Marshal()
-	assert.Nil(err)
+	assert.NoError(name.SyntacticVerify())
+	assert.NotEqual(name.Bytes(), name2.Bytes())
 
-	assert.NotEqual(data, data2)
+	data, err := json.Marshal(name)
+	assert.NoError(err)
 
-	assert.Nil(name.SyntacticVerify())
-	data, err = json.Marshal(name)
-	assert.Nil(err)
-
-	jsonStr := `{"name":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"display":"公信.com"}`
+	jsonStr := `{"name":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"displayName":"公信.com"}`
 	assert.Equal(jsonStr, string(data))
 
-	assert.Nil(NameModel.Valid(data2))
-
-	name3 := &Name{}
-	err = name3.Unmarshal(data2)
-	assert.Nil(err)
-	assert.Nil(name3.SyntacticVerify())
-	assert.Equal(name, name3)
+	nm, err := NameModel()
+	assert.NoError(err)
+	assert.NoError(nm.Valid(name.Bytes()))
 }

@@ -148,14 +148,14 @@ func (b *Block) Miner() (*Account, error) {
 	var err error
 	if b.miner == nil {
 		miner := util.EthID(b.ld.Miner)
-		if !b.ld.Miner.Valid() {
+		if b.ld.Miner == util.StakeEmpty || !b.ld.Miner.Valid() {
 			miner = constants.GenesisAccount
 		}
 		b.miner, err = b.bs.LoadAccount(miner)
 		if err != nil {
 			return nil, err
 		}
-		if !b.miner.Valid(ld.StakeAccount) {
+		if miner != constants.GenesisAccount && !b.miner.Valid(ld.StakeAccount) {
 			logging.Log.Warn("Block.Miner %s not valid, used genesis account", b.ld.Miner)
 			b.miner, err = b.bs.LoadAccount(constants.GenesisAccount)
 		}
@@ -222,7 +222,7 @@ func (b *Block) TryVerifyTxs(txs ...*ld.Transaction) error {
 			if tx.GasFeeCap < b.ld.GasPrice {
 				return fmt.Errorf("need more gasFeeCap, expected %d, got %d", b.ld.GasPrice, tx.GasFeeCap)
 			}
-			tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
+			tx.Gas = tx.RequiredGas(feeCfg.ThresholdGas)
 			if tx.Gas > feeCfg.MaxTxGas {
 				return fmt.Errorf("gas too large, expected %d, got %d", feeCfg.MaxTxGas, tx.Gas)
 			}
@@ -258,7 +258,7 @@ func (b *Block) TryVerifyAndAddTxs(txs ...*ld.Transaction) choices.Status {
 			if tx.GasFeeCap < b.ld.GasPrice {
 				return choices.Unknown
 			}
-			tx.Gas = tx.RequireGas(feeCfg.ThresholdGas)
+			tx.Gas = tx.RequiredGas(feeCfg.ThresholdGas)
 			if tx.Gas > feeCfg.MaxTxGas {
 				tx.Err = fmt.Errorf("gas too large, expected %d, got %d", feeCfg.MaxTxGas, tx.Gas)
 				return choices.Rejected

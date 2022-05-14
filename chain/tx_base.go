@@ -21,6 +21,7 @@ type TxBase struct {
 	miner   *Account
 	from    *Account
 	to      *Account
+	token   util.TokenSymbol
 	signers util.EthIDs
 	status  choices.Status
 	fee     *big.Int
@@ -64,18 +65,20 @@ func (tx *TxBase) SyntacticVerify() error {
 	if tx == nil || tx.ld == nil {
 		return fmt.Errorf("tx is nil")
 	}
-	if tx.ld.Token != constants.NativeToken && !tx.ld.Token.Valid() {
-		return fmt.Errorf("invalid token %s", tx.ld.Token.GoString())
+	if tx.ld.Token != nil {
+		if tx.token = *tx.ld.Token; !tx.token.Valid() {
+			return fmt.Errorf("invalid token %s", tx.token.GoString())
+		}
 	}
 	if tx.ld.From == util.EthIDEmpty {
 		return fmt.Errorf("invalid from")
 	}
-	if tx.ld.From == tx.ld.To {
+	if tx.ld.To != nil && tx.ld.From == *tx.ld.To {
 		return fmt.Errorf("invalid to")
 	}
 
 	var err error
-	tx.signers, err = util.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.Signatures)
+	tx.signers, err = tx.ld.Signers()
 	if err != nil {
 		return fmt.Errorf("invalid signatures: %v", err)
 	}
@@ -85,7 +88,7 @@ func (tx *TxBase) SyntacticVerify() error {
 // call after SyntacticVerify
 func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	feeCfg := blk.FeeConfig()
-	requireGas := tx.ld.RequireGas(feeCfg.ThresholdGas)
+	requireGas := tx.ld.RequiredGas(feeCfg.ThresholdGas)
 	if price := blk.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
 		return fmt.Errorf("tx gasFeeCap not matching, require %d", price)
 	}
@@ -110,8 +113,8 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	if err = tx.from.CheckAsFrom(tx.ld.Type); err != nil {
 		return err
 	}
-	if tx.ld.To != util.EthIDEmpty {
-		if tx.to, err = bs.LoadAccount(tx.ld.To); err != nil {
+	if tx.ld.To != nil {
+		if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
 			return err
 		}
 		if err = tx.to.CheckAsTo(tx.ld.Type); err != nil {
@@ -122,12 +125,15 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	if !tx.from.SatisfySigning(tx.signers) {
 		return fmt.Errorf("sender account need more signers")
 	}
+	if tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) && !tx.signers.Has(*tx.from.ld.Approver) {
+		return fmt.Errorf("TxBase.Verify: no approver signing")
+	}
 	if tx.ld.Nonce != tx.from.Nonce() {
 		return fmt.Errorf("sender account nonce not matching, expected %d, got %d",
 			tx.from.Nonce(), tx.ld.Nonce)
 	}
 
-	switch tx.ld.Token {
+	switch tx.token {
 	case constants.NativeToken:
 		if err = tx.from.CheckBalance(constants.NativeToken, new(big.Int).Add(tx.ld.Amount, tx.cost)); err != nil {
 			return err
@@ -136,7 +142,7 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost); err != nil {
 			return fmt.Errorf("check fee failed: %v", err)
 		}
-		if err = tx.from.CheckBalance(tx.ld.Token, tx.ld.Amount); err != nil {
+		if err = tx.from.CheckBalance(tx.token, tx.ld.Amount); err != nil {
 			return err
 		}
 	}
@@ -150,10 +156,10 @@ func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 	}
 
 	if tx.ld.Amount.Sign() > 0 {
-		if err = tx.from.Sub(tx.ld.Token, tx.ld.Amount); err != nil {
+		if err = tx.from.Sub(tx.token, tx.ld.Amount); err != nil {
 			return err
 		}
-		if err = tx.to.Add(tx.ld.Token, tx.ld.Amount); err != nil {
+		if err = tx.to.Add(tx.token, tx.ld.Amount); err != nil {
 			return err
 		}
 	}

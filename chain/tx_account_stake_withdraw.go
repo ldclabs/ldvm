@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -39,14 +38,14 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxWithdrawStake invalid to")
 	}
 
 	if tx.ld.Amount.Sign() != 0 {
 		return fmt.Errorf("TxWithdrawStake invalid amount")
 	}
-	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
+	if token := util.StakeSymbol(*tx.ld.To); !token.Valid() {
 		return fmt.Errorf("TxWithdrawStake invalid stake address: %s", token.GoString())
 	}
 	if len(tx.ld.Data) == 0 {
@@ -71,19 +70,19 @@ func (tx *TxWithdrawStake) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	_, err = tx.to.CheckWithdrawStake(tx.ld.Token, tx.ld.From, tx.signers, tx.data.Amount)
+	_, err = tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
 	return err
 }
 
 func (tx *TxWithdrawStake) Accept(blk *Block, bs BlockState) error {
-	withdraw, err := tx.to.WithdrawStake(tx.ld.Token, tx.ld.From, tx.signers, tx.data.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
 	if err != nil {
 		return err
 	}
-	if err = tx.to.Sub(tx.ld.Token, withdraw); err != nil {
+	if err = tx.to.Sub(tx.token, withdraw); err != nil {
 		return err
 	}
-	if err = tx.from.Add(tx.ld.Token, withdraw); err != nil {
+	if err = tx.from.Add(tx.token, withdraw); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

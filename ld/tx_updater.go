@@ -7,63 +7,82 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
 
 // TxUpdater is a hybrid data model for:
 //
-// TxCreateData{ModelID, Version, Threshold, Keepers, Data, KSig} no model keepers
-// TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, KSig, MSig, Expire} with model keepers
+// TxCreateData{ModelID, Version, Threshold, Keepers, Data, KSig[, Approver, ApproveList]} no model keepers
+// TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, KSig, MSig, Expire[, Approver, ApproveList]} with model keepers
 // TxUpdateData{ID, Version, Data, KSig} no model keepers
 // TxUpdateData{ID, Version, To, Amount, Data, KSig, MSig, Expire} with model keepers
 // TxDeleteData{ID, Version[, Data]}
-// TxUpdateDataKeepers{ID, Version, Threshold, Keepers, KSig[, Approver, Data]}
-// TxUpdateDataKeepersByAuth{ID, Version, To, Amount, Threshold, Keepers, KSig, Expire[, Approver, Token, Data]}
+// TxUpdateDataKeepers{ID, Version, Threshold, Keepers, KSig[, Approver, ApproveList, Data]}
+// TxUpdateDataKeepersByAuth{ID, Version, To, Amount, Threshold, Keepers, KSig, Expire[, Approver, ApproveList, Token, Data]}
 // TxUpdateModelKeepers{ModelID, Threshold, Keepers[, Approver, Data]}
-// TxUpdateStakeApprover{Approver}
 type TxUpdater struct {
-	ID        *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
-	ModelID   *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
-	Version   uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
-	Threshold uint8             `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers   util.EthIDs       `cbor:"kp,omitempty" json:"keepers,omitempty"`
-	Approver  *util.EthID       `cbor:"ap" json:"approver,omitempty"`
-	Token     *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
-	To        *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
-	Amount    *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
-	KSig      *util.Signature   `cbor:"ks,omitempty" json:"kSig,omitempty"`  // full data signature signing by Data Keeper
-	MSig      *util.Signature   `cbor:"ms,omitempty" json:"mSig,omitempty"`  // full data signature signing by Model Service Authority
-	Expire    uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
-	Data      RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	ID          *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
+	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
+	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
+	Threshold   uint8             `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Keepers     util.EthIDs       `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList []TxType          `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
+	To          *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
+	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
+	KSig        *util.Signature   `cbor:"ks,omitempty" json:"kSig,omitempty"`  // full data signature signing by Data Keeper
+	MSig        *util.Signature   `cbor:"ms,omitempty" json:"mSig,omitempty"`  // full data signature signing by Model Service Authority
+	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
+	Data        RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+
+	// external assignment fields
+	raw []byte `cbor:"-" json:"-"`
 }
 
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
 	if t == nil {
-		return fmt.Errorf("invalid TxUpdater")
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil pointer")
 	}
 	if t.Token != nil && !t.Token.Valid() {
-		return fmt.Errorf("invalid token symbol")
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
 	}
-	if t.Amount != nil && t.Amount.Sign() < 0 {
-		return fmt.Errorf("invalid amount")
+	if t.Amount != nil && t.Amount.Sign() < 1 {
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid amount")
 	}
 	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("invalid keepers, too many")
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: too many keepers")
 	}
 	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("invalid threshold")
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid threshold")
 	}
 	for _, id := range t.Keepers {
 		if id == util.EthIDEmpty {
-			return fmt.Errorf("invalid data keeper")
+			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
 		}
 	}
-	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("TxUpdater marshal error: %v", err)
+	if t.ApproveList != nil {
+		for _, ty := range t.ApproveList {
+			if ty > TypeDeleteData || ty < TypeCreateData {
+				return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid TxType %d in approveList", ty)
+			}
+		}
+	}
+	var err error
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("TxUpdater.SyntacticVerify marshal error: %v", err)
 	}
 	return nil
+}
+
+func (t *TxUpdater) Bytes() []byte {
+	if len(t.raw) == 0 {
+		t.raw = MustMarshal(t)
+	}
+	return t.raw
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
@@ -71,9 +90,5 @@ func (t *TxUpdater) Unmarshal(data []byte) error {
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	data, err := EncMode.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return EncMode.Marshal(t)
 }
