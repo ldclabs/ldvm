@@ -39,15 +39,19 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 		return err
 	}
 
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxTransferPay invalid to")
+	}
+
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxTransferPay invalid")
 	}
 
-	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
 		return fmt.Errorf("TxTransferPay invalid exSignatures: %v", err)
 	}
-	if !tx.exSigners.Has(tx.ld.To) {
+	if !tx.exSigners.Has(*tx.ld.To) {
 		return fmt.Errorf("TxTransferPay invalid exSignatures, not from recipient")
 	}
 
@@ -58,7 +62,7 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	if err = tx.data.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxTransferPay SyntacticVerify failed: %v", err)
 	}
-	if tx.data.To == nil || *tx.data.To != tx.ld.To {
+	if tx.data.To == nil || *tx.data.To != *tx.ld.To {
 		return fmt.Errorf("TxTransferPay invalid recipient")
 	}
 	if tx.data.Expire < tx.ld.Timestamp {

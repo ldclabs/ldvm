@@ -11,7 +11,6 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-// from CoreDetEncOptions()
 var EncOpts = cbor.EncOptions{
 	Sort:          cbor.SortLengthFirst,
 	Time:          cbor.TimeUnix,
@@ -41,25 +40,6 @@ func (r *RawData) UnmarshalJSON(b []byte) error {
 		return errors.New("RawData: UnmarshalJSON on nil pointer")
 	}
 	data := util.JSONUnmarshalData(b)
-	*r = append((*r)[0:0], data...)
-	return nil
-}
-
-func (r RawData) MarshalCBOR() ([]byte, error) {
-	switch {
-	case len(r) == 0:
-		return []byte{0xf6}, nil
-	case DecMode.Valid(r) == nil:
-		return r, nil
-	}
-	return EncMode.Marshal([]byte(r))
-}
-
-func (r *RawData) UnmarshalCBOR(data []byte) error {
-	if r == nil {
-		return errors.New("RawData: UnmarshalCBOR on nil pointer")
-	}
-
 	*r = append((*r)[0:0], data...)
 	return nil
 }

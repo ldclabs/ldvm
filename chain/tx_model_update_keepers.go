@@ -6,8 +6,8 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -40,8 +40,9 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateModelKeepers invalid")
@@ -77,8 +78,9 @@ func (tx *TxUpdateModelKeepers) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateModelKeepers need more signatures")
 	}
-	if tx.mm.Approver != nil && !tx.signers.Has(*tx.mm.Approver) {
-		return fmt.Errorf("TxUpdateModelKeepers no approver signing")
+
+	if tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver) {
+		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: no approver signing")
 	}
 	return nil
 }

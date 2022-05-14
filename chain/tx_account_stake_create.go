@@ -6,8 +6,8 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -41,10 +41,14 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("TxCreateStakeAccount invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
-	if token := util.StakeSymbol(tx.ld.To); !token.Valid() {
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxCreateStakeAccount invalid to")
+	}
+	if token := util.StakeSymbol(*tx.ld.To); !token.Valid() {
 		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", token.GoString())
 	}
 	if len(tx.ld.Data) == 0 {
@@ -65,7 +69,7 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 	if len(tx.data.Keepers) == 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid keepers")
 	}
-	if tx.data.Amount.Sign() != 0 {
+	if tx.data.Amount != nil {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, please take stake after created")
 	}
 

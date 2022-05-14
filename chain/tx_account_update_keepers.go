@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -40,8 +41,9 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateAccountKeepers invalid")
@@ -56,6 +58,9 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	if len(tx.data.Keepers) == 0 ||
 		tx.data.Threshold == 0 {
 		return fmt.Errorf("TxUpdateAccountKeepers invalid keepers")
+	}
+	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil && tx.data.ApproveList == nil {
+		return fmt.Errorf("TxUpdateAccountKeepers no keepers nor approver")
 	}
 	return nil
 }
@@ -97,7 +102,7 @@ func (tx *TxUpdateAccountKeepers) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxUpdateAccountKeepers) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.from.UpdateKeepers(tx.data.Threshold, tx.data.Keepers); err != nil {
+	if err = tx.from.UpdateKeepers(tx.data.Threshold, tx.data.Keepers, tx.data.Approver, tx.data.ApproveList); err != nil {
 		return err
 	}
 

@@ -8,17 +8,17 @@ import (
 	"runtime"
 )
 
-func Recover(errfmt string, fn func() error) (err error) {
+func Recover(errName string, fn func() error) (err error) {
 	defer func() {
 		if re := recover(); re != nil {
 			buf := make([]byte, 2048)
 			buf = buf[:runtime.Stack(buf, false)]
-			err = fmt.Errorf("%s panic: %v, stack: %s", errfmt, re, string(buf))
+			err = fmt.Errorf("%s panic: %v, stack: %s", errName, re, string(buf))
 		}
 	}()
 
 	if err = fn(); err != nil {
-		return fmt.Errorf("%s error: %v", errfmt, err)
+		return fmt.Errorf("%s error: %v", errName, err)
 	}
 	return nil
 }

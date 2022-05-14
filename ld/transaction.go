@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -60,6 +61,8 @@ const (
 
 const (
 	MinThresholdGas = uint64(1000)
+	// gasTipPerSec: A delay of 1 seconds is equivalent to 100 gasTip
+	GasTipPerSec = uint64(100)
 )
 
 // gChainID will be updated by SetChainID when VM.Initialize
@@ -73,7 +76,7 @@ func (t TxType) Gas() uint64 {
 	case TypeTest:
 		return 0
 	case TypePunish:
-		return 200
+		return 42
 	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
 		TypeExchange, TypeAddNonceTable:
 		return 42
@@ -85,7 +88,7 @@ func (t TxType) Gas() uint64 {
 	case TypeOpenLending, TypeCloseLending:
 		return 1000
 	case TypeBorrow, TypeRepay:
-		return 100
+		return 500
 	case TypeCreateModel, TypeUpdateModelKeepers:
 		return 500
 	case TypeCreateData, TypeUpdateData, TypeUpdateDataKeepers:
@@ -158,57 +161,334 @@ func (t TxType) String() string {
 	}
 }
 
-type Transaction struct {
-	Type         TxType           `cbor:"t" json:"type"`
-	ChainID      uint64           `cbor:"c" json:"chainID"`
-	Nonce        uint64           `cbor:"n" json:"nonce"`
-	Gas          uint64           `cbor:"g" json:"gas"` // calculate when build block.
-	GasTip       uint64           `cbor:"gt" json:"gasTip"`
-	GasFeeCap    uint64           `cbor:"gf" json:"gasFeeCap"`
-	Token        util.TokenSymbol `cbor:"tk" json:"token,omitempty"`
-	From         util.EthID       `cbor:"fr" json:"from"`
-	To           util.EthID       `cbor:"to" json:"to"`
-	Amount       *big.Int         `cbor:"a" json:"amount"`
-	Data         RawData          `cbor:"d" json:"data"`
-	Signatures   []util.Signature `cbor:"ss" json:"signatures"`
-	ExSignatures []util.Signature `cbor:"es" json:"exSignatures"`
+// TxData represents a complete transaction issued from client
+type TxData struct {
+	Type         TxType            `cbor:"t" json:"type"`
+	ChainID      uint64            `cbor:"c" json:"chainID"`
+	Nonce        uint64            `cbor:"n" json:"nonce"`
+	GasTip       uint64            `cbor:"gt" json:"gasTip"`
+	GasFeeCap    uint64            `cbor:"gf" json:"gasFeeCap"`
+	From         util.EthID        `cbor:"fr" json:"from"`
+	To           *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`
+	Token        *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
+	Amount       *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
+	Data         RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	Signatures   []util.Signature  `cbor:"ss,omitempty" json:"signatures,omitempty"`
+	ExSignatures []util.Signature  `cbor:"es,omitempty" json:"exSignatures,omitempty"`
 
-	// external assignment
-	ID          ids.ID `cbor:"id" json:"id"`
-	Name        string `cbor:"-" json:"name"`
-	Err         error  `cbor:"-" json:"error,omitempty"`
-	gas         uint64 `cbor:"-" json:"-"`
-	unsignedRaw []byte `cbor:"-" json:"-"` // raw bytes for sign
-	raw         []byte `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
-	AddTime     uint64 `cbor:"-" json:"-"`
-	Priority    uint64 `cbor:"-" json:"-"`
-	Height      uint64 `cbor:"-" json:"-"` // block's timestamp
-	Timestamp   uint64 `cbor:"-" json:"-"` // block's timestamp
+	// external assignment fields
+	raw      []byte `cbor:"-" json:"-"`
+	unsigned []byte `cbor:"-" json:"-"`
+	eth      *TxEth `cbor:"-" json:"-"`
+}
+
+// SyntacticVerify verifies that a *Tx is well-formed.
+func (t *TxData) SyntacticVerify() error {
+	if t == nil {
+		return fmt.Errorf("TxData.SyntacticVerify failed: nil pointer")
+	}
+	if t.Type > TypeDeleteData {
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type")
+	}
+	if t.ChainID != gChainID {
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
+	}
+	if t.Token != nil && !t.Token.Valid() {
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
+	}
+	if t.Amount != nil && t.Amount.Sign() <= 0 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
+	}
+	if t.Data != nil && len(t.Data) == 0 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty data")
+	}
+	if t.Signatures != nil && len(t.Signatures) == 0 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty signatures")
+	}
+	if t.ExSignatures != nil && len(t.ExSignatures) == 0 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty exSignatures")
+	}
+	if len(t.Signatures) > math.MaxUint8 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: too many signatures")
+	}
+	if len(t.ExSignatures) > math.MaxUint8 {
+		return fmt.Errorf("TxData.SyntacticVerify failed: too many exSignatures")
+	}
+	var err error
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("TxData.SyntacticVerify marshal error: %v", err)
+	}
+	return nil
+}
+
+func (t *TxData) Bytes() []byte {
+	if len(t.raw) == 0 {
+		t.raw = MustMarshal(t)
+	}
+	return t.raw
+}
+
+func (t *TxData) Unmarshal(data []byte) error {
+	return DecMode.Unmarshal(data, t)
+}
+
+func (t *TxData) Marshal() ([]byte, error) {
+	return EncMode.Marshal(t)
+}
+
+func (t *TxData) ID() ids.ID {
+	return util.IDFromData(t.Bytes())
+}
+
+func (t *TxData) UnsignedBytes() []byte {
+	if len(t.unsigned) == 0 {
+		sigs := t.Signatures
+		exSigs := t.ExSignatures
+		t.Signatures = nil
+		t.ExSignatures = nil
+		t.unsigned = MustMarshal(t)
+		t.Signatures = sigs
+		t.ExSignatures = exSigs
+	}
+	return t.unsigned
+}
+
+func (t *TxData) RequiredGas(threshold uint64) uint64 {
+	if threshold < MinThresholdGas {
+		threshold = MinThresholdGas
+	}
+	gas := uint64(len(t.UnsignedBytes())) + t.Type.Gas()
+	if gas <= threshold {
+		return gas
+	}
+	return threshold + uint64(math.Pow(float64(gas-threshold), math.SqrtPhi))
+}
+
+func (t *TxData) ToTransaction() *Transaction {
+	tx := new(Transaction)
+	tx.readTxData(t)
+	return tx
+}
+
+type Transaction struct {
+	// same as Tx
+	Type         TxType            `cbor:"t" json:"type"`
+	ChainID      uint64            `cbor:"c" json:"chainID"`
+	Nonce        uint64            `cbor:"n" json:"nonce"`
+	GasTip       uint64            `cbor:"gt" json:"gasTip"`
+	GasFeeCap    uint64            `cbor:"gf" json:"gasFeeCap"`
+	From         util.EthID        `cbor:"fr" json:"from"`
+	To           *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`
+	Token        *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
+	Amount       *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
+	Data         RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	Signatures   []util.Signature  `cbor:"ss,omitempty" json:"signatures,omitempty"`
+	ExSignatures []util.Signature  `cbor:"es,omitempty" json:"exSignatures,omitempty"`
+
+	// external assignment fields
+	Gas       uint64  `cbor:"g" json:"gas"` // calculate when build block.
+	ID        ids.ID  `cbor:"id" json:"id"`
+	Name      string  `cbor:"-" json:"name"`
+	Err       error   `cbor:"-" json:"error,omitempty"`
+	AddedTime uint64  `cbor:"-" json:"-"`
+	Priority  uint64  `cbor:"-" json:"-"`
+	Height    uint64  `cbor:"-" json:"-"` // block's timestamp
+	Timestamp uint64  `cbor:"-" json:"-"` // block's timestamp
+	tx        *TxData `cbor:"-" json:"-"`
+	gas       uint64  `cbor:"-" json:"-"`
+	raw       []byte  `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
 	// support for batch transactions
 	// they are processed in the same block, one fail all fail
 	batch Txs `cbor:"-" json:"-"`
 }
 
-func NewBatchTx(txs []*Transaction) (*Transaction, error) {
-	if len(txs) <= 1 {
-		return nil, fmt.Errorf("not batch transactions")
+// SyntacticVerify verifies that a *Transaction is well-formed.
+func (t *Transaction) SyntacticVerify() error {
+	if t == nil {
+		return fmt.Errorf("Transaction.SyntacticVerify failed: nil pointer")
+	}
+	if t.tx == nil {
+		t.setTxData()
 	}
 
-	tx := &Transaction{}
-	maxSize := 0
 	var err error
+	if err = t.tx.SyntacticVerify(); err != nil {
+		return err
+	}
+	id := t.tx.ID()
+	if t.ID == ids.Empty {
+		t.ID = id
+	} else if t.ID != id {
+		return fmt.Errorf("Transaction.SyntacticVerify failed: invalid id, expected %s, got %s",
+			id, t.ID)
+	}
+	t.Name = t.Type.String()
+	t.gas = t.Gas
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("Transaction.SyntacticVerify marshal error: %v", err)
+	}
+	return nil
+}
+
+func (t *Transaction) Bytes() []byte {
+	if len(t.raw) == 0 || t.gas != t.Gas {
+		t.raw = MustMarshal(t)
+	}
+	return t.raw
+}
+
+func (t *Transaction) UnmarshalTx(data []byte) error {
+	tx := new(TxData)
+	if err := tx.Unmarshal(data); err != nil {
+		return err
+	}
+	t.readTxData(tx)
+	return nil
+}
+
+func (t *Transaction) readTxData(tx *TxData) {
+	t.Type = tx.Type
+	t.ChainID = tx.ChainID
+	t.Nonce = tx.Nonce
+	t.GasTip = tx.GasTip
+	t.GasFeeCap = tx.GasFeeCap
+	t.Token = tx.Token
+	t.From = tx.From
+	t.To = tx.To
+	t.Amount = tx.Amount
+	t.Data = tx.Data
+	t.Signatures = tx.Signatures
+	t.ExSignatures = tx.ExSignatures
+	t.tx = tx
+}
+
+func (t *Transaction) setTxData() {
+	tx := new(TxData)
+	tx.Type = t.Type
+	tx.ChainID = t.ChainID
+	tx.Nonce = t.Nonce
+	tx.GasTip = t.GasTip
+	tx.GasFeeCap = t.GasFeeCap
+	tx.Token = t.Token
+	tx.From = t.From
+	tx.To = t.To
+	tx.Amount = t.Amount
+	tx.Data = t.Data
+	tx.Signatures = t.Signatures
+	tx.ExSignatures = t.ExSignatures
+	t.tx = tx
+}
+
+func (t *Transaction) Unmarshal(data []byte) error {
+	return DecMode.Unmarshal(data, t)
+}
+
+func (t *Transaction) Marshal() ([]byte, error) {
+	return EncMode.Marshal(t)
+}
+
+func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
+	if threshold < MinThresholdGas {
+		threshold = MinThresholdGas
+	}
+	// tip fee as priority
+	priority := t.GasTip * threshold
+	gas := t.RequiredGas(threshold)
+	if v := t.GasTip * gas; v > priority {
+		priority = v
+	}
+	// Consider gossip network overhead, ignoring small time differences
+	// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
+	if du := nowSeconds - t.AddedTime; du > 3 && du <= 120 {
+		priority += du * GasTipPerSec * threshold
+	}
+	t.Priority = priority
+}
+
+func (t *Transaction) RequiredGas(threshold uint64) uint64 {
+	return t.tx.RequiredGas(threshold)
+}
+
+func (t *Transaction) GasUnits() *big.Int {
+	return new(big.Int).SetUint64(t.Gas)
+}
+
+func (t *Transaction) Signers() (util.EthIDs, error) {
+	switch t.Type {
+	case TypeEth:
+		if t.tx.eth == nil {
+			return nil, fmt.Errorf("Transaction.Signers invalid TypeEth tx")
+		}
+		return t.tx.eth.Signers()
+	}
+	return util.DeriveSigners(t.tx.UnsignedBytes(), t.Signatures)
+}
+
+func (t *Transaction) ExSigners() (util.EthIDs, error) {
+	return util.DeriveSigners(t.Data, t.ExSignatures)
+}
+
+func (t *Transaction) NeedApprove(approver *util.EthID, approveList []TxType) bool {
+	switch {
+	case approver == nil:
+		return false
+	case len(approveList) == 0:
+		return true
+	default:
+		for _, ty := range approveList {
+			if t.Type == ty {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func (t *Transaction) IsBatched() bool {
+	return len(t.batch) > 0
+}
+
+func (t *Transaction) Txs() Txs {
+	return t.batch
+}
+
+func (t *Transaction) ShortID() ids.ShortID {
+	sid := ids.ShortID{}
+	copy(sid[:], t.ID[:])
+	return sid
+}
+
+// Copy is not a deep copy, used for json.Marshaling
+func (t *Transaction) Copy() *Transaction {
+	x := new(Transaction)
+	*x = *t
+	x.tx = new(TxData)
+	*(x.tx) = *(t.tx)
+	return x
+}
+
+func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
+	if len(txs) <= 1 {
+		return nil, fmt.Errorf("NewBatchTx: not batch transactions")
+	}
+
+	maxSize := -1
+	var err error
+	var tx *Transaction
 	for i, t := range txs {
 		if t.Type == TypeTest {
 			continue
 		}
-
 		if err = t.SyntacticVerify(); err != nil {
 			return nil, err
 		}
-		if size := len(t.UnsignedBytes()); size > maxSize {
+		if size := len(t.tx.UnsignedBytes()); size > maxSize {
 			tx = txs[i] // find the max UnsignedBytes tx as batch transactions' container
 			maxSize = size
 		}
+	}
+	if maxSize == -1 {
+		return nil, fmt.Errorf("NewBatchTx: no invalid transaction")
 	}
 	tx = tx.Copy()
 	if err = tx.SyntacticVerify(); err != nil {
@@ -221,272 +501,28 @@ func NewBatchTx(txs []*Transaction) (*Transaction, error) {
 
 type Txs []*Transaction
 
-func MarshalTxs(txs []*Transaction) ([]byte, error) {
-	if len(txs) == 0 {
-		return nil, nil
-	}
+func (txs *Txs) Unmarshal(data []byte) error {
+	return DecMode.Unmarshal(data, txs)
+}
+
+func (txs Txs) Marshal() ([]byte, error) {
 	return EncMode.Marshal(txs)
 }
 
-func UnmarshalTxs(data []byte) ([]*Transaction, error) {
-	if len(data) == 0 {
-		return nil, nil
+func (txs Txs) UpdatePriority(threshold, nowSeconds uint64) {
+	for _, tx := range txs {
+		tx.SetPriority(threshold, nowSeconds)
 	}
-	txs := make([]*Transaction, 0)
-	if err := DecMode.Unmarshal(data, &txs); err != nil {
-		return nil, err
-	}
-	return txs, nil
 }
 
-func (t *Transaction) IsBatched() bool {
-	return len(t.batch) > 0
-}
-
-func (t *Transaction) Txs() []*Transaction {
-	return t.batch
-}
-
-func (t *Transaction) ShortID() ids.ShortID {
-	sid := ids.ShortID{}
-	copy(sid[:], t.ID[:])
-	return sid
-}
-
-func (t *Transaction) Copy() *Transaction {
-	x := new(Transaction)
-	*x = *t
-
-	x.Amount = new(big.Int).Set(t.Amount)
-	x.Data = make([]byte, len(t.Data))
-	copy(x.Data, t.Data)
-	x.Signatures = make([]util.Signature, len(t.Signatures))
-	copy(x.Signatures, t.Signatures)
-	x.ExSignatures = make([]util.Signature, len(t.ExSignatures))
-	copy(x.ExSignatures, t.ExSignatures)
-	if len(t.batch) > 0 {
-		x.batch = make([]*Transaction, len(t.batch))
-		for i := range t.batch {
-			x.batch[i] = t.batch[i].Copy()
+func (txs Txs) Sort() {
+	sort.SliceStable(txs, func(i, j int) bool {
+		if txs[i].From == txs[j].From {
+			return txs[i].Nonce < txs[j].Nonce
 		}
-		return x
-	}
-	x.unsignedRaw = nil
-	x.raw = nil
-	return x
-}
-
-// SyntacticVerify verifies that a *Transaction is well-formed.
-func (t *Transaction) SyntacticVerify() error {
-	if t == nil {
-		return fmt.Errorf("invalid Transaction")
-	}
-
-	if t.ChainID != gChainID {
-		return fmt.Errorf("invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
-	}
-
-	if t.Type > TypeDeleteData {
-		return fmt.Errorf("invalid type")
-	}
-	if t.Token != constants.NativeToken && t.Token.String() == "" {
-		return fmt.Errorf("invalid token symbol: %s", t.Token)
-	}
-	if t.Amount == nil || t.Amount.Sign() < 0 {
-		return fmt.Errorf("invalid amount")
-	}
-	if len(t.Signatures) > math.MaxUint8 {
-		return fmt.Errorf("invalid signatures, too many")
-	}
-	if len(t.ExSignatures) > math.MaxUint8 {
-		return fmt.Errorf("invalid exSignatures, too many")
-	}
-
-	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("Transaction marshal error: %v", err)
-	}
-	if _, err := t.calcID(); err != nil {
-		return err
-	}
-	if _, err := t.calcUnsignedBytes(); err != nil {
-		return err
-	}
-	t.Name = t.Type.String()
-	return nil
-}
-
-func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
-	priority := t.GasTip * threshold
-	gas := t.RequireGas(threshold)
-	if v := t.GasTip * gas; v > priority {
-		priority = v
-	}
-	// Consider gossip network overhead, ignoring small time differences
-	// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
-	if du := nowSeconds - t.AddTime; du > 3 && du <= 120 {
-		// A delay of 1 seconds is equivalent to 100 gasTip
-		priority += du * 100 * threshold
-	}
-	t.Priority = priority
-}
-
-func (t *Transaction) RequireGas(threshold uint64) uint64 {
-	return RequireGas(t.Type, uint64(len(t.UnsignedBytes())), threshold)
-}
-
-func RequireGas(ty TxType, unsignedBytes uint64, threshold uint64) uint64 {
-	if threshold < MinThresholdGas {
-		threshold = MinThresholdGas
-	}
-	gas := unsignedBytes + ty.Gas()
-	if gas <= threshold {
-		return gas
-	}
-	return threshold + uint64(math.Pow(float64(gas-threshold), math.SqrtPhi))
-}
-
-func (t *Transaction) GasUnits() *big.Int {
-	return new(big.Int).SetUint64(t.Gas)
-}
-
-func (t *Transaction) Equal(o *Transaction) bool {
-	if o == nil {
-		return false
-	}
-	if len(o.raw) > 0 && len(t.raw) > 0 {
-		return bytes.Equal(o.raw, t.raw)
-	}
-	if o.Type != t.Type {
-		return false
-	}
-	if o.ChainID != t.ChainID {
-		return false
-	}
-	if o.Nonce != t.Nonce {
-		return false
-	}
-	if o.Gas != t.Gas {
-		return false
-	}
-	if o.GasTip != t.GasTip {
-		return false
-	}
-	if o.GasFeeCap != t.GasFeeCap {
-		return false
-	}
-	if o.Token != t.Token {
-		return false
-	}
-	if o.From != t.From {
-		return false
-	}
-	if o.To != t.To {
-		return false
-	}
-	if o.Amount.Cmp(t.Amount) != 0 {
-		return false
-	}
-	if len(o.Signatures) != len(t.Signatures) {
-		return false
-	}
-	for i := range t.Signatures {
-		if o.Signatures[i] != t.Signatures[i] {
-			return false
+		if txs[i].Priority == txs[j].Priority {
+			return bytes.Compare(txs[i].ID[:], txs[j].ID[:]) == -1
 		}
-	}
-	if len(o.ExSignatures) != len(t.ExSignatures) {
-		return false
-	}
-	for i := range t.ExSignatures {
-		if o.ExSignatures[i] != t.ExSignatures[i] {
-			return false
-		}
-	}
-	return bytes.Equal(o.Data, t.Data)
-}
-
-func (t *Transaction) UnsignedBytes() []byte {
-	if len(t.unsignedRaw) == 0 {
-		if _, err := t.calcUnsignedBytes(); err != nil {
-			panic(err)
-		}
-	}
-	return t.unsignedRaw
-}
-
-func (t *Transaction) Bytes() []byte {
-	if len(t.raw) == 0 || t.gas != t.Gas {
-		MustMarshal(t)
-	}
-	return t.raw
-}
-
-func (t *Transaction) calcID() (ids.ID, error) {
-	if t.ID == ids.Empty {
-		gas := t.Gas
-		raw := t.raw
-		// clear gas
-		t.Gas = 0
-		b, err := t.Marshal()
-		t.raw = raw
-		t.gas = gas
-		t.Gas = gas
-
-		if err != nil {
-			return ids.Empty, err
-		}
-		t.ID = util.IDFromData(b)
-	}
-	return t.ID, nil
-}
-
-func (t *Transaction) calcUnsignedBytes() ([]byte, error) {
-	if len(t.unsignedRaw) == 0 {
-		id := t.ID
-		gas := t.Gas
-		raw := t.raw
-		sigs := t.Signatures
-		exSigs := t.ExSignatures
-		// clear gas, id, Signatures, ExSignatures
-		t.Gas = 0
-		t.ID = ids.Empty
-		t.Signatures = nil
-		t.ExSignatures = nil
-		b, err := t.Marshal()
-		t.ID = id
-		t.raw = raw
-		t.gas = gas
-		t.Gas = gas
-		t.Signatures = sigs
-		t.ExSignatures = exSigs
-
-		if err != nil {
-			return nil, err
-		}
-		t.unsignedRaw = b
-	}
-	return t.unsignedRaw, nil
-}
-
-func (t *Transaction) Unmarshal(data []byte) error {
-	if err := DecMode.Unmarshal(data, t); err != nil {
-		return err
-	}
-	t.gas = t.Gas
-	t.raw = data
-	return nil
-}
-
-func (t *Transaction) Marshal() ([]byte, error) {
-	if t.IsBatched() {
-		return nil, fmt.Errorf("can not marshal batch transactions")
-	}
-
-	data, err := EncMode.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	t.gas = t.Gas
-	t.raw = data
-	return data, nil
+		return txs[i].Priority > txs[j].Priority
+	})
 }

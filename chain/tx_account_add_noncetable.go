@@ -6,10 +6,9 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
 )
 
 type TxAddAccountNonceTable struct {
@@ -40,10 +39,11 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
-	if tx.ld.To != util.EthIDEmpty {
+	if tx.ld.To != nil {
 		return fmt.Errorf("TxAddAccountNonceTable invalid to")
 	}
 	if tx.ld.Amount != nil {

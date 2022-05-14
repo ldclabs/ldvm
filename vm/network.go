@@ -49,7 +49,7 @@ func (n *PushNetwork) sendTxs(txs ...*ld.Transaction) error {
 		return nil
 	}
 
-	data, err := ld.MarshalTxs(txs)
+	data, err := ld.Txs(txs).Marshal()
 	if err != nil {
 		n.vm.Log.Warn("PushNetwork marshal txs failed: %v", err)
 		return err
@@ -119,7 +119,8 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 // A node may gossip the same message multiple times. That is,
 // AppGossip([nodeID], [msg]) may be called multiple times.
 func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
-	txs, err := ld.UnmarshalTxs(msg)
+	txs := ld.Txs{}
+	err := txs.Unmarshal(msg)
 	if len(txs) > 0 {
 		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))
 		rt := make([]*ld.Transaction, 0, len(txs))

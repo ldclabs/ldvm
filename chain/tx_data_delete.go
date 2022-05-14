@@ -6,9 +6,9 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -41,8 +41,9 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxDeleteData invalid")
@@ -78,8 +79,8 @@ func (tx *TxDeleteData) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
 		return fmt.Errorf("TxDeleteData need more signatures")
 	}
-	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
-		return fmt.Errorf("TxDeleteData no approver signing")
+	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxDeleteData.Verify failed: no approver signing")
 	}
 	return nil
 }

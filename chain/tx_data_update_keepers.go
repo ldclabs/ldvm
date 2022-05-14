@@ -6,8 +6,8 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -40,8 +40,9 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateDataKeepers invalid")
@@ -57,8 +58,8 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 		tx.data.Version == 0 {
 		return fmt.Errorf("TxUpdateDataKeepers invalid txUpdater")
 	}
-	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil {
-		return fmt.Errorf("TxUpdateDataKeepers no keepers nor approver")
+	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil && tx.data.ApproveList == nil && tx.data.KSig == nil {
+		return fmt.Errorf("TxUpdateDataKeepers no thing to update")
 	}
 	return nil
 }
@@ -80,8 +81,21 @@ func (tx *TxUpdateDataKeepers) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateDataKeepers need more signatures")
 	}
-	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
-		return fmt.Errorf("TxUpdateDataKeepers no approver signing")
+	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: no approver signing")
+	}
+	if tx.data.KSig != nil {
+		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.data.KSig)[:])
+		if err != nil {
+			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig: %v", err)
+		}
+		keepers := tx.data.Keepers
+		if len(keepers) == 0 {
+			keepers = tx.dm.Keepers
+		}
+		if !keepers.Has(kSigner) {
+			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig")
+		}
 	}
 	return nil
 }
@@ -97,9 +111,15 @@ func (tx *TxUpdateDataKeepers) Accept(blk *Block, bs BlockState) error {
 			tx.dm.Approver = tx.data.Approver
 		}
 	}
+	if tx.data.ApproveList != nil {
+		tx.dm.ApproveList = tx.data.ApproveList
+	}
 	if len(tx.data.Keepers) > 0 {
 		tx.dm.Threshold = tx.data.Threshold
 		tx.dm.Keepers = tx.data.Keepers
+	}
+	if tx.data.KSig != nil {
+		tx.dm.KSig = *tx.data.KSig
 	}
 	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
 		return err

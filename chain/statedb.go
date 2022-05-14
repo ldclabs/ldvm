@@ -523,7 +523,7 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 	var err error
 	tx := txs[0]
 	if len(txs) > 1 {
-		tx, err = ld.NewBatchTx(txs)
+		tx, err = ld.NewBatchTx(txs...)
 		if err != nil {
 			return err
 		}
@@ -544,9 +544,9 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 
 func (s *stateDB) AddTxs(isNew bool, txs ...*ld.Transaction) {
 	if isNew {
-		addTime := uint64(time.Now().Unix())
+		now := uint64(time.Now().Unix())
 		for i := range txs {
-			txs[i].AddTime = addTime
+			txs[i].AddedTime = now
 		}
 	}
 	s.txPool.Add(txs...)

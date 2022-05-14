@@ -49,15 +49,16 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateData invalid")
 	}
 
 	if len(tx.ld.ExSignatures) > 0 {
-		tx.exSigners, err = util.DeriveSigners(tx.ld.UnsignedBytes(), tx.ld.ExSignatures)
+		tx.exSigners, err = tx.ld.ExSigners()
 		if err != nil {
 			return fmt.Errorf("TxUpdateData invalid exSignatures")
 		}
@@ -94,8 +95,11 @@ func (tx *TxUpdateData) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
 		return fmt.Errorf("TxUpdateData need more signatures")
 	}
+	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxUpdateData.Verify failed: no approver signing")
+	}
 
-	tx.prevDM = tx.dm.Copy()
+	tx.prevDM = tx.dm.Clone()
 	switch tx.dm.ModelID {
 	case constants.RawModelID:
 		tx.dm.Version++

@@ -6,8 +6,8 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -39,8 +39,9 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if token := util.StakeSymbol(tx.ld.From); !token.Valid() {
 		return fmt.Errorf("TxResetStakeAccount invalid stake address: %s", token.GoString())
@@ -50,7 +51,7 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	}
 
 	// reset stake account
-	if tx.ld.To == util.EthIDEmpty {
+	if tx.ld.To == nil {
 		if len(tx.ld.Data) == 0 {
 			return fmt.Errorf("TxResetStakeAccount invalid data")
 		}
@@ -76,8 +77,9 @@ func (tx *TxResetStakeAccount) Verify(blk *Block, bs BlockState) error {
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return fmt.Errorf("sender account need more signers")
 	}
+
 	switch tx.ld.To {
-	case util.EthIDEmpty:
+	case nil:
 		return tx.from.CheckResetStake(tx.data)
 	default:
 		return tx.from.CheckDestroyStake(tx.to)
@@ -90,7 +92,7 @@ func (tx *TxResetStakeAccount) Accept(blk *Block, bs BlockState) error {
 	}
 	// do it after TxBase.Accept
 	switch tx.ld.To {
-	case util.EthIDEmpty:
+	case nil:
 		return tx.from.ResetStake(tx.data)
 	default:
 		return tx.from.DestroyStake(tx.to)

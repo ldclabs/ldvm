@@ -5,8 +5,8 @@ package chain
 
 import (
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -19,10 +19,11 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
-	if tx.ld.To == util.EthIDEmpty {
+	if tx.ld.To == nil {
 		return fmt.Errorf("TxDestroyTokenAccount invalid recipient")
 	}
 	if token := util.TokenSymbol(tx.ld.From); !token.Valid() {

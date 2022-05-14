@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -41,14 +40,15 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.To == nil {
+		return fmt.Errorf("TxUpdateModelKeepers invalid to")
 	}
+
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateModelKeepers invalid")
 	}
 
-	tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
 		return fmt.Errorf("invalid exSignatures: %v", err)
 	}
@@ -65,10 +65,10 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 		tx.data.Amount == nil ||
 		tx.data.Amount.Cmp(tx.ld.Amount) != 0 ||
 		tx.data.To == nil ||
-		*tx.data.To != tx.ld.To {
+		*tx.data.To != *tx.ld.To {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater")
 	}
-	if tx.data.Token != nil && *tx.data.Token != tx.ld.Token {
+	if tx.data.Token != nil && *tx.data.Token != tx.token {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater token")
 	}
 	return nil
@@ -92,8 +92,21 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(blk *Block, bs BlockState) error {
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners) {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth need more exSignatures")
 	}
-	if tx.dm.Approver != nil && !tx.signers.Has(*tx.dm.Approver) {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth no approver signing")
+	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver) {
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: no approver signing")
+	}
+	if tx.data.KSig != nil {
+		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.data.KSig)[:])
+		if err != nil {
+			return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid kSig: %v", err)
+		}
+		keepers := tx.data.Keepers
+		if len(keepers) == 0 {
+			keepers = tx.dm.Keepers
+		}
+		if !keepers.Has(kSigner) {
+			return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid kSig")
+		}
 	}
 	return nil
 }
@@ -114,6 +127,12 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(blk *Block, bs BlockState) error {
 		} else {
 			tx.dm.Approver = tx.data.Approver
 		}
+	}
+	if tx.data.ApproveList != nil {
+		tx.dm.ApproveList = tx.data.ApproveList
+	}
+	if tx.data.KSig != nil {
+		tx.dm.KSig = *tx.data.KSig
 	}
 	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
 		return err

@@ -4,13 +4,12 @@
 package ld
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -34,9 +33,10 @@ type TxEth struct {
 	Data      []byte
 	Signature util.Signature
 
-	// external assignment
-	tx  *types.Transaction
-	raw []byte
+	// external assignment fields
+	tx      *types.Transaction
+	signers util.EthIDs
+	raw     []byte
 }
 
 func (t *TxEth) MarshalJSON() ([]byte, error) {
@@ -49,174 +49,103 @@ func (t *TxEth) MarshalJSON() ([]byte, error) {
 // SyntacticVerify verifies that a *TxEth is well-formed.
 func (t *TxEth) SyntacticVerify() error {
 	if t == nil {
-		return fmt.Errorf("invalid TxEth")
+		return fmt.Errorf("TxEth.SyntacticVerify failed: nil pointer")
 	}
 
 	if t.Nonce == 0 {
-		return fmt.Errorf("invalid nonce")
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid nonce")
 	}
 	if t.To == util.EthIDEmpty {
-		return fmt.Errorf("invalid recipient")
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid recipient")
 	}
 	if t.Value == nil || t.Value.Sign() < 1 {
-		return fmt.Errorf("invalid value")
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid value")
 	}
-	t.tx.WithSignature(EthSigner, t.Signature[:])
-	from, err := types.Sender(EthSigner, t.tx)
-	if err != nil {
-		return fmt.Errorf("invalid signature: %v", err)
-	}
-	t.From = util.EthID(from)
-	if _, err := t.Marshal(); err != nil {
-		return fmt.Errorf("TxEth marshal error: %v", err)
+	var err error
+	if t.raw, err = t.Marshal(); err != nil {
+		return fmt.Errorf("TxEth.SyntacticVerify marshal error: %v", err)
 	}
 	return nil
 }
 
 func (t *TxEth) Bytes() []byte {
 	if len(t.raw) == 0 {
-		MustMarshal(t)
+		t.raw = MustMarshal(t)
 	}
 	return t.raw
 }
 
-func (t *TxEth) ToTransaction() *Transaction {
-	return &Transaction{
-		Type:       TypeEth,
-		ChainID:    t.ChainID,
-		Nonce:      t.Nonce,
-		GasFeeCap:  t.GasFeeCap,
-		GasTip:     t.GasTipCap,
-		From:       t.From,
-		To:         t.To,
-		Amount:     t.Value,
-		Data:       t.Bytes(),
-		Signatures: []util.Signature{t.Signature},
-	}
-}
-
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
-	t.raw = data
 	if err := t.tx.UnmarshalBinary(data); err != nil {
 		return nil
 	}
 
 	if chainID := t.tx.ChainId().Uint64(); chainID > 0 && chainID != gChainID {
-		return fmt.Errorf("invalid EthTx chainId, expected %d, got %d", gChainID, chainID)
+		return fmt.Errorf("TxEth.Unmarshal failed: invalid chainId, expected %d, got %d", gChainID, chainID)
 	}
 	t.ChainID = gChainID
-
-	to := t.tx.To()
-	if to == nil {
-		return fmt.Errorf("invalid EthTx to")
-	}
-	t.To = util.EthID(*to)
 	t.Nonce = t.tx.Nonce()
 	t.Gas = t.tx.Gas()
 	t.GasTipCap = t.tx.GasTipCap().Uint64()
 	t.GasFeeCap = t.tx.GasFeeCap().Uint64()
 	t.Value = t.tx.Value()
 	t.Data = t.tx.Data()
+	t.Signature = encodeSignature(t.tx.RawSignatureValues())
+	to := t.tx.To()
+	if to == nil {
+		return fmt.Errorf("TxEth.Unmarshal failed: invalid to")
+	}
+	t.To = util.EthID(*to)
+	signers, err := t.Signers()
+	if err != nil {
+		return err
+	}
+	t.From = signers[0]
 	return nil
 }
 
 func (t *TxEth) Marshal() ([]byte, error) {
-	var td types.TxData
-	var buf bytes.Buffer
-
-	if t.tx == nil {
-		return nil, fmt.Errorf("invalid TxEth, inner tx missing")
-	}
-	switch t.tx.Type() {
-	case types.LegacyTxType:
-		td = &types.LegacyTx{
-			Nonce:    t.tx.Nonce(),
-			GasPrice: t.tx.GasPrice(),
-			Gas:      t.tx.Gas(),
-			To:       t.tx.To(),
-			Value:    t.tx.Value(),
-			Data:     t.tx.Data(),
-		}
-	case types.AccessListTxType:
-		td = &types.AccessListTx{
-			ChainID:    t.tx.ChainId(),
-			Nonce:      t.tx.Nonce(),
-			GasPrice:   t.tx.GasPrice(),
-			Gas:        t.tx.Gas(),
-			To:         t.tx.To(),
-			Value:      t.tx.Value(),
-			Data:       t.tx.Data(),
-			AccessList: t.tx.AccessList(),
-		}
-		buf.WriteByte(t.tx.Type())
-	case types.DynamicFeeTxType:
-		td = &types.DynamicFeeTx{
-			ChainID:    t.tx.ChainId(),
-			Nonce:      t.tx.Nonce(),
-			GasTipCap:  t.tx.GasTipCap(),
-			GasFeeCap:  t.tx.GasFeeCap(),
-			Gas:        t.tx.Gas(),
-			To:         t.tx.To(),
-			Value:      t.tx.Value(),
-			Data:       t.tx.Data(),
-			AccessList: t.tx.AccessList(),
-		}
-		buf.WriteByte(t.tx.Type())
-	default:
-		return nil, fmt.Errorf("TxEth Marshal error: invalid txType %d", t.tx.Type())
-	}
-
-	if err := rlp.Encode(&buf, td); err != nil {
-		return nil, err
-	}
-	t.raw = buf.Bytes()
-	return t.raw, nil
+	return t.tx.MarshalBinary()
 }
 
-func TxEthFromSigned(data []byte) (*TxEth, error) {
-	t := &TxEth{tx: new(types.Transaction)}
-	if err := t.tx.UnmarshalBinary(data); err != nil {
-		return nil, err
-	}
-
-	if chainID := t.tx.ChainId().Uint64(); chainID > 0 && chainID != gChainID {
-		return nil, fmt.Errorf("invalid EthTx chainId, expected %d, got %d", gChainID, chainID)
-	}
-	t.ChainID = gChainID
-
-	to := t.tx.To()
-	if to == nil {
-		return nil, fmt.Errorf("invalid EthTx to")
-	}
-	t.To = util.EthID(*to)
-	from, err := types.Sender(EthSigner, t.tx)
-	if err != nil {
-		return nil, fmt.Errorf("invalid EthTx signature: %v", err)
-	}
-	t.From = util.EthID(from)
-	t.Signature = encodeSignature(t.tx.RawSignatureValues())
-	t.Nonce = t.tx.Nonce()
-	t.Gas = t.tx.Gas()
-	t.GasTipCap = t.tx.GasTipCap().Uint64()
-	t.GasFeeCap = t.tx.GasFeeCap().Uint64()
-	t.Value = t.tx.Value()
-	t.Data = t.tx.Data()
-
-	if _, err = t.Marshal(); err != nil {
-		return nil, err
-	}
-	return t, nil
+func (t *TxEth) ToTransaction() *Transaction {
+	return (&TxData{
+		Type:       TypeEth,
+		ChainID:    t.ChainID,
+		Nonce:      t.Nonce,
+		GasFeeCap:  t.Gas,
+		GasTip:     t.GasTipCap,
+		From:       t.From,
+		To:         &t.To,
+		Amount:     t.Value,
+		Data:       t.Bytes(),
+		Signatures: []util.Signature{t.Signature},
+		eth:        t,
+	}).ToTransaction()
 }
 
-func encodeSignature(r, s, v *big.Int) util.Signature {
+func (t *TxEth) Signers() (util.EthIDs, error) {
+	if len(t.signers) == 0 {
+		from, err := types.Sender(EthSigner, t.tx)
+		if err != nil {
+			return nil, fmt.Errorf("TxEth.Signers failed: %v", err)
+		}
+		t.signers = util.EthIDs{util.EthID(from)}
+	}
+	return t.signers, nil
+}
+
+func encodeSignature(v, r, s *big.Int) util.Signature {
 	sig := util.Signature{}
-	copy(sig[:32], r.Bytes())
-	copy(sig[32:64], s.Bytes())
-	vv := uint8(v.Uint64())
-	if vv >= 27 {
-		vv -= 27
+	if v != nil && r != nil && s != nil {
+		copy(sig[:32], r.Bytes())
+		copy(sig[32:64], s.Bytes())
+		vv := uint8(v.Uint64())
+		if vv >= 27 {
+			vv -= 27
+		}
+		sig[64] = vv
 	}
-	sig[64] = vv
 	return sig
 }

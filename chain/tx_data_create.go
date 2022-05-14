@@ -53,7 +53,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	}
 
 	if len(tx.ld.ExSignatures) > 0 {
-		tx.exSigners, err = util.DeriveSigners(tx.ld.Data, tx.ld.ExSignatures)
+		tx.exSigners, err = tx.ld.ExSigners()
 		if err != nil {
 			return fmt.Errorf("TxCreateData invalid exSignatures: %v", err)
 		}
@@ -85,7 +85,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 
 	// with model keepers
 	if tx.data.To != nil {
-		if *tx.data.To != tx.ld.To {
+		if tx.ld.To == nil || *tx.data.To != *tx.ld.To {
 			return fmt.Errorf("TxCreateData invalid recipient")
 		}
 		if tx.data.Expire < tx.ld.Timestamp {
@@ -104,13 +104,15 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	}
 
 	tx.dm = &ld.DataMeta{
-		ModelID:   *tx.data.ModelID,
-		Version:   tx.data.Version,
-		Threshold: tx.data.Threshold,
-		Keepers:   tx.data.Keepers,
-		Data:      tx.data.Data,
-		KSig:      *tx.data.KSig,
-		MSig:      tx.data.MSig,
+		ModelID:     *tx.data.ModelID,
+		Version:     tx.data.Version,
+		Threshold:   tx.data.Threshold,
+		Keepers:     tx.data.Keepers,
+		Approver:    tx.data.Approver,
+		ApproveList: tx.data.ApproveList,
+		Data:        tx.data.Data,
+		KSig:        *tx.data.KSig,
+		MSig:        tx.data.MSig,
 	}
 	return nil
 }
@@ -123,8 +125,9 @@ func (tx *TxCreateData) Verify(blk *Block, bs BlockState) error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if tx.kSigner != util.EthIDEmpty && !tx.from.Keepers().Has(tx.kSigner) {
 		return fmt.Errorf("TxCreateData invalid kSig, no signer in account keepers")
@@ -161,6 +164,9 @@ func (tx *TxCreateData) Verify(blk *Block, bs BlockState) error {
 	if blk.ctx.Chain().IsNameService(tx.dm.ModelID) {
 		tx.name = &service.Name{}
 		if err = tx.name.Unmarshal(tx.dm.Data); err != nil {
+			return err
+		}
+		if err = tx.name.SyntacticVerify(); err != nil {
 			return err
 		}
 		_, err = bs.ResolveNameID(tx.name.Name)

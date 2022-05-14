@@ -6,8 +6,8 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -49,8 +49,9 @@ func (tx *TxEth) SyntacticVerify() error {
 	if err := tx.data.SyntacticVerify(); err != nil {
 		return err
 	}
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if tx.ld.ChainID != tx.data.ChainID {
 		return fmt.Errorf("TxEth invalid chainID")
@@ -67,7 +68,7 @@ func (tx *TxEth) SyntacticVerify() error {
 	if tx.ld.From != tx.data.From {
 		return fmt.Errorf("TxEth invalid from")
 	}
-	if tx.ld.To != tx.data.To {
+	if tx.ld.To == nil || *tx.ld.To != tx.data.To {
 		return fmt.Errorf("TxEth invalid to")
 	}
 	if tx.ld.Amount == nil || tx.data.Value == nil || tx.ld.Amount.Cmp(tx.data.Value) != 0 {

@@ -10,6 +10,9 @@ import (
 // TxTester TODO
 type TxTester struct {
 	Data string
+
+	// external assignment fields
+	raw []byte `cbor:"-" json:"-"`
 }
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
@@ -18,10 +21,18 @@ func (t *TxTester) SyntacticVerify() error {
 		return fmt.Errorf("invalid TxTester")
 	}
 
-	if _, err := t.Marshal(); err != nil {
+	var err error
+	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("TxTester marshal error: %v", err)
 	}
 	return nil
+}
+
+func (t *TxTester) Bytes() []byte {
+	if len(t.raw) == 0 {
+		t.raw = MustMarshal(t)
+	}
+	return t.raw
 }
 
 func (t *TxTester) Unmarshal(data []byte) error {
@@ -29,9 +40,5 @@ func (t *TxTester) Unmarshal(data []byte) error {
 }
 
 func (t *TxTester) Marshal() ([]byte, error) {
-	data, err := EncMode.Marshal(t)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
+	return EncMode.Marshal(t)
 }

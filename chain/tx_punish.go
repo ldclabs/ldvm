@@ -6,6 +6,7 @@ package chain
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -40,8 +41,9 @@ func (tx *TxPunish) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != constants.NativeToken {
-		return fmt.Errorf("invalid token %s, required LDC", tx.ld.Token)
+	if tx.ld.Token != nil {
+		return fmt.Errorf("invalid token, expected NativeToken, got %s",
+			strconv.Quote(tx.ld.Token.GoString()))
 	}
 	if tx.ld.From != constants.GenesisAccount {
 		return fmt.Errorf("TxPunish invalid from, expected GenesisAccount")
