@@ -41,8 +41,8 @@ func ProfileModel() (*ld.IPLDModel, error) {
 		image   String        (rename "i")
 		url     String        (rename "u")
 		follows [ID20]        (rename "fs")
-		kyc     nullable ID20 (rename "k")
-		exMID   nullable ID20 (rename "eid")
+		kyc     optional ID20 (rename "k")
+		exMID   optional ID20 (rename "eid")
 		extra   {String:Any}  (rename "ex")
 	}
 `
@@ -77,7 +77,8 @@ func (p *Profile) SyntacticVerify() error {
 	if p.Extra == nil {
 		return fmt.Errorf("Name.SyntacticVerify failed: nil extra")
 	}
-	if _, err := p.Marshal(); err != nil {
+	var err error
+	if p.raw, err = p.Marshal(); err != nil {
 		return fmt.Errorf("Name.SyntacticVerify marshal error: %v", err)
 	}
 	return nil

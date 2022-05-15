@@ -12,9 +12,9 @@ import (
 var _ database.KeyValueReaderWriterDeleter = (*PrefixDB)(nil)
 
 type ObjectCacher interface {
-	Get(key []byte) (interface{}, bool)
-	Set(key []byte, value interface{}, size int64)
-	Unmarshal([]byte) (interface{}, error)
+	GetObject(key []byte) (interface{}, bool)
+	SetObject(key []byte, value interface{}) error
+	UnmarshalObject(data []byte) (interface{}, error)
 }
 
 type PrefixDB struct {
@@ -65,26 +65,28 @@ func (p *PrefixDB) get(key []byte) ([]byte, error) {
 	return p.db.Get(p.keyBuf[:n+p.prefixLen])
 }
 
-func (p *PrefixDB) Load(key []byte, c ObjectCacher) (interface{}, error) {
-	if v, ok := c.Get(key); ok {
+func (p *PrefixDB) LoadObject(key []byte, c ObjectCacher) (interface{}, error) {
+	if v, ok := c.GetObject(key); ok {
 		return v, nil
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// try cache again
-	if v, ok := c.Get(key); ok {
+	if v, ok := c.GetObject(key); ok {
 		return v, nil
 	}
 	data, err := p.get(key)
 	if err != nil {
 		return nil, err
 	}
-	v, err := c.Unmarshal(data)
+	v, err := c.UnmarshalObject(data)
 	if err != nil {
 		return nil, err
 	}
-	c.Set(key, v, int64(len(data)))
+	if err = c.SetObject(key, v); err != nil {
+		return nil, err
+	}
 	return v, nil
 }
 

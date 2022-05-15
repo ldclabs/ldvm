@@ -17,14 +17,14 @@ import (
 )
 
 type Genesis struct {
-	Chain ChainConfig               `json:"chain"`
-	Alloc map[util.EthID]Allocation `json:"alloc"`
+	Chain ChainConfig                `json:"chain"`
+	Alloc map[util.EthID]*Allocation `json:"alloc"`
 }
 
 type Allocation struct {
-	Balance   *big.Int     `json:"balance"`
-	Threshold uint8        `json:"threshold"`
-	Keepers   []util.EthID `json:"keepers"`
+	Balance   *big.Int    `json:"balance"`
+	Threshold uint8       `json:"threshold"`
+	Keepers   util.EthIDs `json:"keepers"`
 }
 
 type ChainConfig struct {
@@ -34,28 +34,31 @@ type ChainConfig struct {
 	FeeConfigID      util.DataID  `json:"feeConfigID"`
 	NameServiceID    util.ModelID `json:"nameAppID"`
 	ProfileServiceID util.ModelID `json:"profileAppID"`
-	FeeConfig        FeeConfig    `json:"feeConfig"`
-	FeeConfigs       []FeeConfig  `json:"feeConfigs"`
+	FeeConfig        *FeeConfig   `json:"feeConfig"`
+	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
 }
 
 func (c *ChainConfig) IsNameService(id util.ModelID) bool {
 	return c.NameServiceID == id
 }
 
-func (c *ChainConfig) Fee(height uint64) FeeConfig {
+func (c *ChainConfig) Fee(height uint64) *FeeConfig {
+	// the first one is the latest.
 	for i, cfg := range c.FeeConfigs {
 		if cfg.StartHeight <= height {
 			return c.FeeConfigs[i]
 		}
 	}
-
 	return c.FeeConfig
 }
 
-func (c *ChainConfig) AddFeeConfig(data []byte) (FeeConfig, error) {
-	fee := FeeConfig{}
-	if err := json.Unmarshal(data, &fee); err != nil {
-		return fee, err
+func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
+	fee := new(FeeConfig)
+	if err := json.Unmarshal(data, fee); err != nil {
+		return nil, err
+	}
+	if err := fee.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	c.FeeConfigs = append(c.FeeConfigs, fee)
 	return fee, nil
@@ -73,17 +76,51 @@ type FeeConfig struct {
 	MinStakePledge  *big.Int `json:"minStakePledge"`
 }
 
+func (cfg *FeeConfig) SyntacticVerify() error {
+	if cfg == nil {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: nil pointer")
+	}
+	if cfg.ThresholdGas <= 500 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid thresholdGas")
+	}
+	if cfg.MinGasPrice <= 500 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minGasPrice")
+	}
+	if cfg.MaxGasPrice <= cfg.MinGasPrice {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxGasPrice")
+	}
+	if cfg.MaxTxGas <= 1000000 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxTxGas")
+	}
+	if cfg.MaxBlockTxsSize <= 1000000 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxBlockTxsSize")
+	}
+	if cfg.GasRebateRate > 1000 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid gasRebateRate")
+	}
+	if cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minTokenPledge")
+	}
+	if cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
+		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minStakePledge")
+	}
+	return nil
+}
+
 func FromJSON(data []byte) (*Genesis, error) {
 	g := new(Genesis)
 	if err := json.Unmarshal(data, g); err != nil {
 		return nil, err
 	}
-	g.Chain.FeeConfigs = []FeeConfig{g.Chain.FeeConfig}
+	if err := g.Chain.FeeConfig.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	g.Chain.FeeConfigs = []*FeeConfig{}
 	return g, nil
 }
 
 func (g *Genesis) ToBlock() (*ld.Block, error) {
-	genesisAccount, ok := g.Alloc[util.EthID(constants.GenesisAccount)]
+	genesisAccount, ok := g.Alloc[constants.GenesisAccount]
 	if !ok {
 		return nil, fmt.Errorf("genesis account not found")
 	}
@@ -97,7 +134,7 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		Data:   []byte(strconv.Quote(g.Chain.Message)),
 	}
 	tx := &ld.Transaction{
-		Type:    ld.TypeCreateTokenAccount,
+		Type:    ld.TypeCreateToken,
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
 		To:      &constants.LDCAccount,
@@ -162,6 +199,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(cfgData),
 	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
 	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
 	txs = append(txs, tx)
 
@@ -181,6 +221,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ns),
+	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
@@ -202,13 +245,20 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ps),
 	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
 	// build genesis block
-	return &ld.Block{
+	blk := &ld.Block{
 		GasPrice:      g.Chain.FeeConfig.MinGasPrice,
 		GasRebateRate: g.Chain.FeeConfig.GasRebateRate,
 		Txs:           txs,
-	}, nil
+	}
+	if err = blk.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	return blk, nil
 }

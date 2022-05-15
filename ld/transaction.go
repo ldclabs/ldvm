@@ -35,10 +35,10 @@ const (
 	// Account
 	TypeAddNonceTable        // add more nonce with expire time to account
 	TypeUpdateAccountKeepers // update account's Keepers and Threshold
-	TypeCreateTokenAccount   // create a token account
-	TypeDestroyTokenAccount  // destroy a token account
-	TypeCreateStakeAccount   // create a stake account
-	TypeResetStakeAccount    // reset or destroy a stake account
+	TypeCreateToken          // create a token account
+	TypeDestroyToken         // destroy a token account
+	TypeCreateStake          // create a stake account
+	TypeResetStake           // reset or destroy a stake account
 	TypeTakeStake            // take a stake in
 	TypeWithdrawStake        // withdraw stake
 	TypeUpdateStakeApprover
@@ -80,8 +80,8 @@ func (t TxType) Gas() uint64 {
 	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
 		TypeExchange, TypeAddNonceTable:
 		return 42
-	case TypeUpdateAccountKeepers, TypeCreateTokenAccount,
-		TypeDestroyTokenAccount, TypeCreateStakeAccount, TypeResetStakeAccount:
+	case TypeUpdateAccountKeepers, TypeCreateToken,
+		TypeDestroyToken, TypeCreateStake, TypeResetStake:
 		return 1000
 	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
 		return 500
@@ -120,14 +120,14 @@ func (t TxType) String() string {
 		return "TypeAddNonceTable"
 	case TypeUpdateAccountKeepers:
 		return "UpdateAccountKeepersTx"
-	case TypeCreateTokenAccount:
-		return "CreateTokenAccountTx"
-	case TypeDestroyTokenAccount:
-		return "DestroyTokenAccountTx"
-	case TypeCreateStakeAccount:
-		return "CreateStakeAccountTx"
-	case TypeResetStakeAccount:
-		return "ResetStakeAccountTx"
+	case TypeCreateToken:
+		return "CreateTokenTx"
+	case TypeDestroyToken:
+		return "DestroyTokenTx"
+	case TypeCreateStake:
+		return "CreateStakeTx"
+	case TypeResetStake:
+		return "ResetStakeTx"
 	case TypeTakeStake:
 		return "TakeStakeTx"
 	case TypeWithdrawStake:
@@ -287,8 +287,8 @@ type Transaction struct {
 
 	// external assignment fields
 	Gas       uint64  `cbor:"g" json:"gas"` // calculate when build block.
-	ID        ids.ID  `cbor:"id" json:"id"`
 	Name      string  `cbor:"-" json:"name"`
+	ID        ids.ID  `cbor:"id" json:"id"`
 	Err       error   `cbor:"-" json:"error,omitempty"`
 	AddedTime uint64  `cbor:"-" json:"-"`
 	Priority  uint64  `cbor:"-" json:"-"`

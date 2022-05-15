@@ -59,4 +59,12 @@ func TestProfile(t *testing.T) {
 	assert.NoError(p2.Unmarshal(p.Bytes()))
 	assert.NoError(p2.SyntacticVerify())
 	assert.Equal(p.Bytes(), p2.Bytes())
+
+	p.Extra["email"] = "ldc@example.com"
+	assert.NoError(p.SyntacticVerify())
+	assert.NotEqual(p.Bytes(), p2.Bytes())
+
+	pm, err := ProfileModel()
+	assert.NoError(err)
+	assert.NoError(pm.Valid(p.Bytes()))
 }

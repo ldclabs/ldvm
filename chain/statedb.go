@@ -192,25 +192,25 @@ func NewState(
 	s.lastAcceptedBlock.StoreV(emptyBlock.ld)
 	s.state.StoreV(0)
 
-	s.recentBlocks = db.NewCacher(10_000, 1024*1024*1024*4, time.Minute*10, func() db.Unmarshaler {
+	s.recentBlocks = db.NewCacher(10_000, 60*10, func() db.Objecter {
 		return new(Block)
 	})
-	s.recentHeights = db.NewCacher(10_000, 1024*1024*256, time.Minute*10, func() db.Unmarshaler {
+	s.recentHeights = db.NewCacher(10_000, 60*10, func() db.Objecter {
 		return new(db.RawObject)
 	})
-	s.recentModels = db.NewCacher(10_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+	s.recentModels = db.NewCacher(10_000, 60*20, func() db.Objecter {
 		return new(ld.ModelMeta)
 	})
-	s.recentData = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+	s.recentData = db.NewCacher(100_000, 60*20, func() db.Objecter {
 		return new(ld.DataMeta)
 	})
-	s.recentAccounts = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, func() db.Unmarshaler {
+	s.recentAccounts = db.NewCacher(100_000, 60*20, func() db.Objecter {
 		return new(ld.Account)
 	})
-	s.recentNames = db.NewCacher(100_000, 1024*1024*256, time.Minute*20, func() db.Unmarshaler {
+	s.recentNames = db.NewCacher(100_000, 60*20, func() db.Objecter {
 		return new(db.RawObject)
 	})
-	s.recentTxs = db.NewCacher(100_000, 1024*1024*1024, time.Minute*20, nil)
+	s.recentTxs = db.NewCacher(100_000, 60*20, nil)
 	return s
 }
 
@@ -302,17 +302,17 @@ func (s *stateDB) Bootstrap() error {
 	if err != nil {
 		return fmt.Errorf("load last fee config failed: %v", err)
 	}
-	cfg, err := s.genesis.Chain.AddFeeConfig(dm.Data)
+	cfg, err := s.genesis.Chain.AppendFeeConfig(dm.Data)
 	if err != nil {
 		return fmt.Errorf("unmarshal fee config failed: %v", err)
 	}
 
-	for dm.Version > 1 && cfg.StartHeight > lastAcceptedBlock.ld.Height {
+	for dm.Version > 1 && cfg.StartHeight >= lastAcceptedBlock.ld.Height {
 		dm, err = s.LoadPrevData(feeConfigID, dm.Version-1)
 		if err != nil {
 			return fmt.Errorf("load previous fee config failed: %v", err)
 		}
-		cfg, err = s.genesis.Chain.AddFeeConfig(dm.Data)
+		cfg, err = s.genesis.Chain.AppendFeeConfig(dm.Data)
 		if err != nil {
 			return fmt.Errorf("unmarshal fee config failed: %v", err)
 		}
@@ -404,7 +404,7 @@ func (s *stateDB) SetLastAccepted(blk *Block) error {
 		}
 	}
 
-	s.recentBlocks.Set(id[:], blk.ld, int64(len(blk.Bytes())))
+	s.recentBlocks.SetObject(id[:], blk)
 	go func() {
 		s.verifiedBlocks.Range(func(key, value any) bool {
 			if b, ok := value.(*Block); ok {
@@ -459,7 +459,7 @@ func (s *stateDB) BuildBlock() (*Block, error) {
 		return nil, err
 	}
 	id := blk.ID()
-	s.recentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
+	s.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
 }
 
@@ -476,7 +476,7 @@ func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
 	if blk.Context() == nil {
 		blk.SetContext(s.ctx)
 	}
-	s.recentBlocks.Set(id[:], blk, int64(len(blk.Bytes())))
+	s.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
 }
 
@@ -489,7 +489,7 @@ func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
 		return blk.(*Block), nil
 	}
 
-	obj, err := s.blockDB.Load(id[:], s.recentBlocks)
+	obj, err := s.blockDB.LoadObject(id[:], s.recentBlocks)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +505,7 @@ func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
 }
 
 func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	obj, err := s.heightDB.Load(database.PackUInt64(height), s.recentHeights)
+	obj, err := s.heightDB.LoadObject(database.PackUInt64(height), s.recentHeights)
 	if err != nil {
 		return ids.Empty, err
 	}
@@ -555,14 +555,14 @@ func (s *stateDB) AddTxs(isNew bool, txs ...*ld.Transaction) {
 func (s *stateDB) AddRecentTx(tx Transaction, status choices.Status) {
 	id := tx.ID()
 	tx.SetStatus(status)
-	s.recentTxs.Set(id[:], tx, int64(len(tx.Bytes())))
+	s.recentTxs.SetObject(id[:], tx)
 }
 
 func (s *stateDB) GetTx(id ids.ID) Transaction {
 	if tx := s.txPool.Get(id); tx != nil {
 		return tx
 	}
-	if tx, ok := s.recentTxs.Get(id[:]); ok {
+	if tx, ok := s.recentTxs.GetObject(id[:]); ok {
 		return tx.(Transaction)
 	}
 	return nil
@@ -573,7 +573,7 @@ func (s *stateDB) RemoveTx(id ids.ID) {
 }
 
 func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
-	obj, err := s.accountDB.Load(id[:], s.recentAccounts)
+	obj, err := s.accountDB.LoadObject(id[:], s.recentAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -591,7 +591,7 @@ func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
 		return nil, fmt.Errorf("invalid name %s, error: %v",
 			strconv.Quote(name), err)
 	}
-	obj, err := s.nameDB.Load([]byte(dn), s.recentNames)
+	obj, err := s.nameDB.LoadObject([]byte(dn), s.recentNames)
 	if err != nil {
 		return nil, err
 	}
@@ -605,7 +605,7 @@ func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
 }
 
 func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
-	obj, err := s.modelDB.Load(id[:], s.recentModels)
+	obj, err := s.modelDB.LoadObject(id[:], s.recentModels)
 	if err != nil {
 		return nil, err
 	}
@@ -615,7 +615,7 @@ func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 }
 
 func (s *stateDB) LoadData(id util.DataID) (*ld.DataMeta, error) {
-	obj, err := s.dataDB.Load(id[:], s.recentData)
+	obj, err := s.dataDB.LoadObject(id[:], s.recentData)
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +634,7 @@ func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, er
 	copy(key, id[:])
 	copy(key[20:], v)
 
-	obj, err := s.prevDataDB.Load(key, s.recentData)
+	obj, err := s.prevDataDB.LoadObject(key, s.recentData)
 	if err != nil {
 		return nil, err
 	}

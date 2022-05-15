@@ -143,7 +143,7 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 	switch a.ld.Type {
 	case ld.TokenAccount:
 		switch txType {
-		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeDestroyTokenAccount:
+		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeDestroyToken:
 			// just go ahead
 		default:
 			return fmt.Errorf("can not use TokenAccount as sender for %s", txType.String())
@@ -162,7 +162,7 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 		// 1: account keepers can take a stake in other stake account
 		// 2: in addition to 1, account keepers can transfer stake token to other account
 		switch txType {
-		case ld.TypeUpdateAccountKeepers, ld.TypeResetStakeAccount:
+		case ld.TypeUpdateAccountKeepers, ld.TypeResetStake:
 			// just go ahead
 		case ld.TypeTakeStake, ld.TypeWithdrawStake:
 			if ty < 1 {
@@ -185,14 +185,14 @@ func (a *Account) CheckAsTo(txType ld.TxType) error {
 	switch a.ld.Type {
 	case ld.TokenAccount:
 		switch txType {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateTokenAccount:
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateToken:
 			// just go ahead
 		default:
 			return fmt.Errorf("can not use TokenAccount as recipient for %s", txType.String())
 		}
 	case ld.StakeAccount:
 		switch txType {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStakeAccount, ld.TypeTakeStake, ld.TypeWithdrawStake:
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake:
 			// just go ahead
 		default:
 			return fmt.Errorf("can not use StakeAccount as recipient for %s", txType.String())

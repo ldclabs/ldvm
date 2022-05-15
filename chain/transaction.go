@@ -51,13 +51,13 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxAddAccountNonceTable{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
 		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
-	case ld.TypeCreateTokenAccount:
+	case ld.TypeCreateToken:
 		tt = &TxCreateTokenAccount{TxBase: TxBase{ld: tx}}
-	case ld.TypeDestroyTokenAccount:
+	case ld.TypeDestroyToken:
 		tt = &TxDestroyTokenAccount{TxBase: TxBase{ld: tx}}
-	case ld.TypeCreateStakeAccount:
+	case ld.TypeCreateStake:
 		tt = &TxCreateStakeAccount{TxBase: TxBase{ld: tx}}
-	case ld.TypeResetStakeAccount:
+	case ld.TypeResetStake:
 		tt = &TxResetStakeAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeTakeStake:
 		tt = &TxTakeStake{TxBase: TxBase{ld: tx}}
@@ -110,7 +110,7 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 		tt = &TxTransfer{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountKeepers:
 		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
-	case ld.TypeCreateTokenAccount:
+	case ld.TypeCreateToken:
 		tt = &TxCreateTokenAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateModel:
 		tt = &TxCreateModel{TxBase: TxBase{ld: tx}}

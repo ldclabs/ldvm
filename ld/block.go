@@ -40,7 +40,7 @@ type Block struct {
 	raw    []byte            `cbor:"-" json:"-"` // the block's raw bytes
 }
 
-func (b *Block) MarshalTxsJSON() error {
+func (b *Block) TxsMarshalJSON() error {
 	b.RawTxs = make([]json.RawMessage, len(b.Txs))
 	for i, tx := range b.Txs {
 		d, err := json.Marshal(tx)
