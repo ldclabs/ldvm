@@ -422,7 +422,7 @@ func (b *Block) reject() {
 	}
 }
 
-func (b *Block) FeeConfig() genesis.FeeConfig {
+func (b *Block) FeeConfig() *genesis.FeeConfig {
 	return b.ctx.Chain().Fee(b.ld.Height)
 }
 

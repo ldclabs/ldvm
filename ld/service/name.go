@@ -30,7 +30,7 @@ func NameModel() (*ld.IPLDModel, error) {
 	type ID20 bytes
 	type NameService struct {
 		name    String        (rename "n")
-		linked  nullable ID20 (rename "l")
+		linked  optional ID20 (rename "l")
 		records [String]      (rename "rs")
 	}
 `

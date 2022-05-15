@@ -5,37 +5,129 @@ package genesis
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 func TestGenesis(t *testing.T) {
 	assert := assert.New(t)
-	address1 := util.EthID(util.Signer1.Address())
-	address2 := util.EthID(util.Signer2.Address())
 
-	file := "./genesis_sample.json"
-	data, err := os.ReadFile(file)
-	assert.Nil(err)
+	address1 := util.Signer1.Address()
+	address2 := util.Signer2.Address()
 
-	gs, err := FromJSON(data)
-	assert.Nil(err)
+	file, err := os.ReadFile("./genesis_sample.json")
+	assert.NoError(err)
+
+	gs, err := FromJSON(file)
+	assert.NoError(err)
 
 	assert.Equal(uint64(2357), gs.Chain.ChainID)
 	assert.Equal(0, gs.Chain.MaxTotalSupply.Cmp(big.NewInt(1000000000000000000)))
-	assert.Equal(address2, gs.Alloc[address1].Keepers[1])
+	assert.Equal("Hello, LDVM!", gs.Chain.Message)
+
+	assert.Equal(0, len(gs.Chain.FeeConfigs))
+	assert.Equal(uint64(0), gs.Chain.FeeConfig.StartHeight)
+	assert.Equal(uint64(1000), gs.Chain.FeeConfig.ThresholdGas)
+	assert.Equal(uint64(10000), gs.Chain.FeeConfig.MinGasPrice)
+	assert.Equal(uint64(100000), gs.Chain.FeeConfig.MaxGasPrice)
+	assert.Equal(uint64(42000000), gs.Chain.FeeConfig.MaxTxGas)
+	assert.Equal(uint64(4200000), gs.Chain.FeeConfig.MaxBlockTxsSize)
+	assert.Equal(uint64(1000), gs.Chain.FeeConfig.GasRebateRate)
+	assert.Equal(0, gs.Chain.FeeConfig.MinTokenPledge.Cmp(big.NewInt(10000000000000)))
+	assert.Equal(0, gs.Chain.FeeConfig.MinStakePledge.Cmp(big.NewInt(1000000000000)))
+
+	alloc1 := gs.Alloc[constants.GenesisAccount]
+	assert.Equal(0, alloc1.Balance.Cmp(big.NewInt(400000000000000000)))
+	assert.Equal(uint8(2), alloc1.Threshold)
+	assert.True(alloc1.Keepers.Has(address1))
+	assert.True(alloc1.Keepers.Has(address2))
+
+	alloc2 := gs.Alloc[address1]
+	assert.Equal(0, alloc2.Balance.Cmp(big.NewInt(100000000000000000)))
+	assert.Equal(uint8(1), alloc2.Threshold)
+	assert.True(alloc2.Keepers.Has(address1))
+	assert.True(alloc2.Keepers.Has(address2))
+
+	_, err = gs.Chain.AppendFeeConfig([]byte{})
+	assert.ErrorContains(err, "JSON input")
+
+	_, err = gs.Chain.AppendFeeConfig([]byte(`{}`))
+	assert.ErrorContains(err, "invalid thresholdGas")
+
+	_, err = gs.Chain.AppendFeeConfig([]byte(`{
+		"startHeight": 0,
+		"thresholdGas": 1000,
+		"minGasPrice": 10000,
+		"maxGasPrice": 100000,
+		"maxTxGas": 42000000,
+		"maxBlockTxsSize": 4200000,
+		"gasRebateRate": 1000,
+		"minTokenPledge": 1000000,
+		"minStakePledge": 1000000
+	}`))
+	assert.ErrorContains(err, "invalid minTokenPledge")
+
+	_, err = gs.Chain.AppendFeeConfig([]byte(`{
+		"startHeight": 1000,
+		"thresholdGas": 9999,
+		"minGasPrice": 10000,
+		"maxGasPrice": 100000,
+		"maxTxGas": 42000000,
+		"maxBlockTxsSize": 4200000,
+		"gasRebateRate": 1000,
+		"minTokenPledge": 10000000000000,
+		"minStakePledge": 1000000000000
+	}`))
+	assert.NoError(err)
+	_, err = gs.Chain.AppendFeeConfig([]byte(`{
+		"startHeight": 100,
+		"thresholdGas": 88888,
+		"minGasPrice": 10000,
+		"maxGasPrice": 100000,
+		"maxTxGas": 42000000,
+		"maxBlockTxsSize": 4200000,
+		"gasRebateRate": 1000,
+		"minTokenPledge": 10000000000000,
+		"minStakePledge": 1000000000000
+	}`))
+	assert.NoError(err)
+	assert.Equal(uint64(1000), gs.Chain.Fee(10).ThresholdGas)
+	assert.Equal(uint64(88888), gs.Chain.Fee(100).ThresholdGas)
+	assert.Equal(uint64(88888), gs.Chain.Fee(999).ThresholdGas)
+	assert.Equal(uint64(9999), gs.Chain.Fee(1000).ThresholdGas)
+	assert.Equal(uint64(9999), gs.Chain.Fee(10000).ThresholdGas)
 
 	blk, err := gs.ToBlock()
-	assert.Nil(err)
+	assert.NoError(err)
+	assert.Equal("LD6xqTubBtKLzCtaokGE6CNFSdL7THe54Nr", gs.Chain.FeeConfigID.String())
+	assert.Equal("LM6ogwZUx6kHY7jnwiePg4AHUkhZquuUbQz", gs.Chain.NameServiceID.String())
+	assert.Equal("LM5p7r59mDaiNxrSd9hR1A4uGo9rNWBf5tP", gs.Chain.ProfileServiceID.String())
+	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
-	data, err = json.Marshal(blk)
-	assert.Nil(err)
-	fmt.Printf("\n%s\n", string(data))
-	// t.Fatalf("finish")
+	assert.NoError(blk.TxsMarshalJSON())
+	jsondata, err := json.Marshal(blk)
+	assert.NoError(err)
+
+	file, err = os.ReadFile("./genesis_sample_block.json")
+	assert.NoError(err)
+	// fmt.Println(string(jsondata))
+	assert.True(jsonpatch.Equal(jsondata, file))
+
+	blk2 := &ld.Block{}
+	assert.NoError(blk2.Unmarshal(blk.Bytes()))
+	assert.NoError(blk2.SyntacticVerify())
+	assert.NoError(blk2.TxsMarshalJSON())
+
+	assert.Equal(blk.Bytes(), blk2.Bytes())
+	jsondata, err = json.Marshal(blk2)
+	assert.NoError(err)
+	assert.True(jsonpatch.Equal(jsondata, file))
 }

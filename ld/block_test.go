@@ -63,7 +63,7 @@ func TestBlock(t *testing.T) {
 	assert.Equal(uint64(119000), blk.FeeCost().Uint64())
 	cbordata, err := blk.Marshal()
 	assert.NoError(err)
-	assert.NoError(blk.MarshalTxsJSON())
+	assert.NoError(blk.TxsMarshalJSON())
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
 
@@ -76,7 +76,7 @@ func TestBlock(t *testing.T) {
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))
 	assert.NoError(blk2.SyntacticVerify())
-	assert.NoError(blk2.MarshalTxsJSON())
+	assert.NoError(blk2.TxsMarshalJSON())
 
 	jsondata2, err := json.Marshal(blk2)
 	assert.NoError(err)

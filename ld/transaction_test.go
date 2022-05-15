@@ -133,7 +133,7 @@ func TestTransaction(t *testing.T) {
 
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["070a1d67010bfecec1309e0d30f62f9f73f339ad8fa726c3b70d43066089a92660a2104180dd0f2335fcd3c599f641ed8e9bc6ce88d7b1b71285120fb3fa1d1c01"],"gas":0,"id":"12sX66xsbsSAZCN6ZWv2bRgua9EXEwwyx5eeBrRC16hwjRnce","name":"TransferTx"}`, string(jsondata))
+	assert.Equal(`{"type":3,"chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["070a1d67010bfecec1309e0d30f62f9f73f339ad8fa726c3b70d43066089a92660a2104180dd0f2335fcd3c599f641ed8e9bc6ce88d7b1b71285120fb3fa1d1c01"],"gas":0,"name":"TransferTx","id":"12sX66xsbsSAZCN6ZWv2bRgua9EXEwwyx5eeBrRC16hwjRnce"}`, string(jsondata))
 
 	ctx := tx.Copy()
 	assert.NoError(ctx.SyntacticVerify())
