@@ -11,39 +11,58 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-var ProfileType = map[string]struct{}{
-	"Thing":        {},
-	"Person":       {},
-	"Organization": {},
+type ProfileType uint8
+
+func (pt ProfileType) String() string {
+	switch pt {
+	case 0:
+		return "Thing"
+	case 1:
+		return "Person"
+	case 2:
+		return "Organization"
+	default:
+		return fmt.Sprintf("UnknownType(%d)", pt)
+	}
+}
+
+func (pt ProfileType) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + pt.String() + "\""), nil
 }
 
 // https://schema.org/Thing
 type Profile struct {
-	Type    string                 `cbor:"t" json:"@type"`                       // Thing, Person, Organization...
-	Name    string                 `cbor:"n" json:"name"`                        // Thing property
-	Image   string                 `cbor:"i" json:"image"`                       // Thing property
-	URL     string                 `cbor:"u" json:"url"`                         // Thing property
-	Follows []util.DataID          `cbor:"fs" json:"follows"`                    // optional, other ProfileService data id
-	KYC     *util.DataID           `cbor:"k,omitempty" json:"kyc,omitempty"`     // optional, KYC (SomeKYCService) data id
-	ExMID   *util.ModelID          `cbor:"eid,omitempty" json:"exMid,omitempty"` // optional, extra model id
-	Extra   map[string]interface{} `cbor:"ex" json:"extra"`                      // optional, extra properties
+	Type       ProfileType   `cbor:"t" json:"@type"`                        // Thing, Person, Organization...
+	Name       string        `cbor:"n" json:"name"`                         // Thing property
+	Image      string        `cbor:"i" json:"image"`                        // Thing property
+	URL        string        `cbor:"u" json:"url"`                          // Thing property
+	KYC        *util.DataID  `cbor:"k,omitempty" json:"kyc,omitempty"`      // optional, KYC (SomeKYCService) data id
+	Follows    []util.DataID `cbor:"fs" json:"follows"`                     // optional, other ProfileService data id
+	Members    []util.DataID `cbor:"ms,omitempty" json:"members,omitempty"` // optional, other ProfileService data id
+	Extensions []*Extension  `cbor:"ex" json:"extensions"`                  // optional, extra properties
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
+}
+
+type Extension struct {
+	ModelID    util.ModelID           `cbor:"mid" json:"mid"` // model id
+	Title      string                 `cbor:"t" json:"title"` // model name
+	Properties map[string]interface{} `cbor:"ps" json:"properties"`
 }
 
 func ProfileModel() (*ld.IPLDModel, error) {
 	sch := `
 	type ID20 bytes
 	type ProfileService struct {
-		type    String        (rename "t")
-		name    String        (rename "n")
-		image   String        (rename "i")
-		url     String        (rename "u")
-		follows [ID20]        (rename "fs")
-		kyc     optional ID20 (rename "k")
-		exMID   optional ID20 (rename "eid")
-		extra   {String:Any}  (rename "ex")
+		type       Int             (rename "t")
+		name       String          (rename "n")
+		image      String          (rename "i")
+		url        String          (rename "u")
+		kyc        optional ID20   (rename "k")
+		follows    [ID20]          (rename "fs")
+		members    optional [ID20] (rename "ms")
+		extensions [Any]           (rename "ex")
 	}
 `
 	return ld.NewIPLDModel("ProfileService", []byte(sch))
@@ -53,9 +72,6 @@ func ProfileModel() (*ld.IPLDModel, error) {
 func (p *Profile) SyntacticVerify() error {
 	if p == nil {
 		return fmt.Errorf("Name.SyntacticVerify failed: nil pointer")
-	}
-	if _, ok := ProfileType[p.Type]; !ok {
-		return fmt.Errorf("Name.SyntacticVerify failed: invalid type %s", strconv.Quote(p.Type))
 	}
 	if !util.ValidName(p.Name) {
 		return fmt.Errorf("Name.SyntacticVerify failed: invalid name %s", strconv.Quote(p.Name))
@@ -74,8 +90,23 @@ func (p *Profile) SyntacticVerify() error {
 			return fmt.Errorf("Name.SyntacticVerify failed: invalid follow address")
 		}
 	}
-	if p.Extra == nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: nil extra")
+	for _, id := range p.Members {
+		if id == util.DataIDEmpty {
+			return fmt.Errorf("Name.SyntacticVerify failed: invalid member address")
+		}
+	}
+	if p.Extensions == nil {
+		return fmt.Errorf("Name.SyntacticVerify failed: nil extensions")
+	}
+	set := make(map[string]struct{}, len(p.Extensions))
+	for _, ex := range p.Extensions {
+		if !util.ValidName(ex.Title) {
+			return fmt.Errorf("Name.SyntacticVerify failed: invalid extension title %s", strconv.Quote(ex.Title))
+		}
+		if _, ok := set[ex.Title]; ok {
+			return fmt.Errorf("Name.SyntacticVerify failed: %s exists in extensions", strconv.Quote(ex.Title))
+		}
+		set[ex.Title] = struct{}{}
 	}
 	var err error
 	if p.raw, err = p.Marshal(); err != nil {

@@ -68,11 +68,11 @@ func (tx *TxUpdateStakeApprover) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	return tx.to.CheckUpdateApprover(tx.ld.From, *tx.data.Approver, tx.signers)
+	return tx.to.CheckUpdateStakeApprover(tx.ld.From, *tx.data.Approver, tx.signers)
 }
 
 func (tx *TxUpdateStakeApprover) Accept(blk *Block, bs BlockState) error {
-	err := tx.to.UpdateApprover(tx.ld.From, *tx.data.Approver, tx.signers)
+	err := tx.to.UpdateStakeApprover(tx.ld.From, *tx.data.Approver, tx.signers)
 	if err != nil {
 		return err
 	}

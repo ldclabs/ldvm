@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,42 +18,43 @@ func TestProfile(t *testing.T) {
 	var p *Profile
 	assert.ErrorContains(p.SyntacticVerify(), "nil pointer")
 
-	p = &Profile{Type: "LDC"}
-	assert.ErrorContains(p.SyntacticVerify(), `invalid type "LDC"`)
-
-	p = &Profile{Type: "Thing", Name: ""}
+	p = &Profile{Type: 0, Name: ""}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid name ""`)
 
-	p = &Profile{Type: "Thing", Name: "a\na"}
+	p = &Profile{Type: 0, Name: "a\na"}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid name "a\na"`)
 
-	p = &Profile{Type: "Thing", Name: "LDC", Image: "a\na"}
+	p = &Profile{Type: 0, Name: "LDC", Image: "a\na"}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid image "a\na"`)
 
-	p = &Profile{Type: "Thing", Name: "LDC", URL: "a\na"}
+	p = &Profile{Type: 0, Name: "LDC", URL: "a\na"}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid url "a\na"`)
 
-	p = &Profile{Type: "Thing", Name: "LDC"}
+	p = &Profile{Type: 0, Name: "LDC"}
 	assert.ErrorContains(p.SyntacticVerify(), "nil follows")
-	p = &Profile{Type: "Thing", Name: "LDC", Follows: []util.DataID{util.DataIDEmpty}}
+	p = &Profile{Type: 0, Name: "LDC", Follows: []util.DataID{util.DataIDEmpty}}
 	assert.ErrorContains(p.SyntacticVerify(), "invalid follow address")
 
-	p = &Profile{Type: "Thing", Name: "LDC", Follows: []util.DataID{}}
-	assert.ErrorContains(p.SyntacticVerify(), "nil extra")
+	p = &Profile{Type: 0, Name: "LDC", Follows: []util.DataID{}}
+	assert.ErrorContains(p.SyntacticVerify(), "nil extensions")
 
 	p = &Profile{
-		Type:    "Person",
+		Type:    1,
 		Name:    "LDC",
 		Follows: []util.DataID{},
-		Extra: map[string]interface{}{
-			"age": 23,
-		},
+		Extensions: []*Extension{{
+			ModelID: constants.JSONModelID,
+			Title:   "test",
+			Properties: map[string]interface{}{
+				"age": 23,
+			},
+		}},
 	}
 	assert.NoError(p.SyntacticVerify())
 	data, err := json.Marshal(p)
 	assert.NoError(err)
 
-	jsonStr := `{"@type":"Person","name":"LDC","image":"","url":"","follows":[],"extra":{"age":23}}`
+	jsonStr := `{"@type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`
 	assert.Equal(jsonStr, string(data))
 
 	p2 := &Profile{}
@@ -60,11 +62,24 @@ func TestProfile(t *testing.T) {
 	assert.NoError(p2.SyntacticVerify())
 	assert.Equal(p.Bytes(), p2.Bytes())
 
-	p.Extra["email"] = "ldc@example.com"
+	p.Extensions[0].Properties["email"] = "ldc@example.com"
 	assert.NoError(p.SyntacticVerify())
 	assert.NotEqual(p.Bytes(), p2.Bytes())
 
 	pm, err := ProfileModel()
 	assert.NoError(err)
 	assert.NoError(pm.Valid(p.Bytes()))
+
+	p.Members = []util.DataID{{1, 2, 3}}
+	assert.NoError(p.SyntacticVerify())
+	assert.NoError(pm.Valid(p.Bytes()))
+
+	p2 = &Profile{}
+	assert.NoError(p2.Unmarshal(p.Bytes()))
+	assert.NoError(p2.SyntacticVerify())
+	assert.Equal(p.Bytes(), p2.Bytes())
+
+	data, err = json.Marshal(p2)
+	assert.NoError(err)
+	assert.NotEqual(jsonStr, string(data))
 }

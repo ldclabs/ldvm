@@ -25,9 +25,9 @@ type TxPool interface {
 	Len() int
 	Has(txID ids.ID) bool
 	Remove(txID ids.ID)
-	Add(txs ...*ld.Transaction) error
+	Add(txs ...*ld.Transaction)
 	Get(txID ids.ID) Transaction
-	PopTxsBySize(askSize int, threshold, now uint64) []*ld.Transaction
+	PopTxsBySize(askSize int, threshold, now uint64) ld.Txs
 	Reject(*ld.Transaction)
 }
 
@@ -50,7 +50,20 @@ func (p *txPool) Len() int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	return len(p.txQueue)
+	n := 0
+	for _, tx := range p.txQueue {
+		switch {
+		case tx.IsBatched():
+			for _, tx2 := range tx.Txs() {
+				if tx2.Type != ld.TypeTest {
+					n += 1
+				}
+			}
+		default:
+			n += 1
+		}
+	}
+	return n
 }
 
 func (p *txPool) Has(txID ids.ID) bool {
@@ -115,50 +128,38 @@ func (p *txPool) Get(txID ids.ID) Transaction {
 }
 
 // txs should be syntactic verified before adding
-func (p *txPool) Add(txs ...*ld.Transaction) error {
+func (p *txPool) Add(txs ...*ld.Transaction) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for i, tx := range txs {
-		if !p.has(tx.ID) {
+		if tx.Type != ld.TypeTest && !p.has(tx.ID) {
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}
 	}
-	return nil
 }
 
 // Rejecte a tx that should not in pool.
 func (p *txPool) Reject(tx *ld.Transaction) {
+	p.Remove(tx.ID)
 	p.rejected.Set(string(tx.ID[:]), tx, rejectedTxsTTL)
 }
 
-func (p *txPool) PopTxsBySize(askSize int, threshold, now uint64) []*ld.Transaction {
+func (p *txPool) PopTxsBySize(askSize int, threshold, now uint64) ld.Txs {
 	if uint64(askSize) < threshold {
-		return []*ld.Transaction{}
+		return ld.Txs{}
 	}
 
-	rt := make([]*ld.Transaction, 0, 64)
+	rt := make(ld.Txs, 0, 64)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.txQueue.UpdatePriority(threshold, now)
-	p.txQueue.Sort()
-
+	p.txQueue.SortWith(threshold, now)
 	total := 0
 	n := 0
 	for i, tx := range p.txQueue {
-		switch {
-		case tx.IsBatched():
-			for _, tx2 := range tx.Txs() {
-				if tx2.Type != ld.TypeTest {
-					total += len(tx2.Bytes())
-				}
-			}
-		default:
-			total += len(tx.Bytes())
-		}
-
+		total += tx.BytesSize()
 		if total > askSize {
 			break
 		}

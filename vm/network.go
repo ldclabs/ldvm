@@ -130,7 +130,7 @@ func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 				rt = append(rt, txs[i])
 			}
 		}
-		v.state.AddTxs(true, rt...)
+		v.state.AddTxs(rt...)
 		return nil
 	}
 

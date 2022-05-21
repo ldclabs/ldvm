@@ -16,17 +16,17 @@ import (
 )
 
 type TxBase struct {
-	ld      *ld.Transaction
-	ldc     *Account // native token account
-	miner   *Account
-	from    *Account
-	to      *Account
-	token   util.TokenSymbol
-	signers util.EthIDs
-	status  choices.Status
-	fee     *big.Int
-	tip     *big.Int
-	cost    *big.Int // fee + tip + amount
+	ld         *ld.Transaction
+	genesisAcc *Account // native token account
+	miner      *Account
+	from       *Account
+	to         *Account
+	token      util.TokenSymbol
+	signers    util.EthIDs
+	status     choices.Status
+	fee        *big.Int
+	tip        *big.Int
+	cost       *big.Int // fee + tip + amount
 }
 
 func (tx *TxBase) MarshalJSON() ([]byte, error) {
@@ -101,7 +101,7 @@ func (tx *TxBase) Verify(blk *Block, bs BlockState) error {
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
 
 	var err error
-	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
+	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = blk.Miner(); err != nil {
@@ -166,8 +166,8 @@ func (tx *TxBase) Accept(blk *Block, bs BlockState) error {
 	if err = tx.miner.Add(constants.NativeToken, tx.tip); err != nil {
 		return err
 	}
-	// burn fee
-	if err = tx.ldc.Add(constants.NativeToken, tx.fee); err != nil {
+	// revoke fee to genesis account
+	if err = tx.genesisAcc.Add(constants.NativeToken, tx.fee); err != nil {
 		return err
 	}
 	return nil

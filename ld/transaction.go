@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -60,9 +60,8 @@ const (
 )
 
 const (
-	MinThresholdGas = uint64(1000)
-	// gasTipPerSec: A delay of 1 seconds is equivalent to 100 gasTip
-	GasTipPerSec = uint64(100)
+	// gasTipPerSec: A delay of 1 seconds is equivalent to 1000 gasTip
+	GasTipPerSec = constants.MicroLDC
 )
 
 // gChainID will be updated by SetChainID when VM.Initialize
@@ -254,9 +253,6 @@ func (t *TxData) UnsignedBytes() []byte {
 }
 
 func (t *TxData) RequiredGas(threshold uint64) uint64 {
-	if threshold < MinThresholdGas {
-		threshold = MinThresholdGas
-	}
 	gas := uint64(len(t.UnsignedBytes())) + t.Type.Gas()
 	if gas <= threshold {
 		return gas
@@ -291,9 +287,9 @@ type Transaction struct {
 	ID        ids.ID  `cbor:"id" json:"id"`
 	Err       error   `cbor:"-" json:"error,omitempty"`
 	AddedTime uint64  `cbor:"-" json:"-"`
-	Priority  uint64  `cbor:"-" json:"-"`
 	Height    uint64  `cbor:"-" json:"-"` // block's timestamp
 	Timestamp uint64  `cbor:"-" json:"-"` // block's timestamp
+	priority  uint64  `cbor:"-" json:"-"`
 	tx        *TxData `cbor:"-" json:"-"`
 	gas       uint64  `cbor:"-" json:"-"`
 	raw       []byte  `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
@@ -335,6 +331,19 @@ func (t *Transaction) Bytes() []byte {
 		t.raw = MustMarshal(t)
 	}
 	return t.raw
+}
+
+func (t *Transaction) BytesSize() int {
+	total := 0
+	switch {
+	case t.IsBatched():
+		for _, tx := range t.batch {
+			total += tx.BytesSize()
+		}
+	case t.Type != TypeTest:
+		total = len(t.Bytes())
+	}
+	return total
 }
 
 func (t *Transaction) UnmarshalTx(data []byte) error {
@@ -387,22 +396,33 @@ func (t *Transaction) Marshal() ([]byte, error) {
 	return EncMode.Marshal(t)
 }
 
-func (t *Transaction) SetPriority(threshold, nowSeconds uint64) {
-	if threshold < MinThresholdGas {
-		threshold = MinThresholdGas
+func (t *Transaction) SetPriority(threshold, delay uint64) {
+	switch {
+	case t.Type == TypeTest:
+		t.priority = 0
+	case t.IsBatched():
+		mx := uint64(0)
+		for _, tx := range t.batch {
+			tx.SetPriority(threshold, delay)
+			if mx < tx.priority {
+				mx = tx.priority
+			}
+		}
+		t.priority = mx
+	default:
+		// tip fee as priority
+		priority := t.GasTip * threshold
+		gas := t.RequiredGas(threshold)
+		if v := t.GasTip * gas; v > priority {
+			priority = v
+		}
+		// Consider gossip network overhead, ignoring small time differences
+		// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
+		if delay > 3 && delay <= 120 {
+			priority += delay * GasTipPerSec * threshold
+		}
+		t.priority = priority
 	}
-	// tip fee as priority
-	priority := t.GasTip * threshold
-	gas := t.RequiredGas(threshold)
-	if v := t.GasTip * gas; v > priority {
-		priority = v
-	}
-	// Consider gossip network overhead, ignoring small time differences
-	// not promote priority if not processed more than 120 seconds(tx maybe invalid...)
-	if du := nowSeconds - t.AddedTime; du > 3 && du <= 120 {
-		priority += du * GasTipPerSec * threshold
-	}
-	t.Priority = priority
 }
 
 func (t *Transaction) RequiredGas(threshold uint64) uint64 {
@@ -448,6 +468,7 @@ func (t *Transaction) IsBatched() bool {
 	return len(t.batch) > 0
 }
 
+// Txs in batch should keep origin order.
 func (t *Transaction) Txs() Txs {
 	return t.batch
 }
@@ -509,20 +530,71 @@ func (txs Txs) Marshal() ([]byte, error) {
 	return EncMode.Marshal(txs)
 }
 
-func (txs Txs) UpdatePriority(threshold, nowSeconds uint64) {
-	for _, tx := range txs {
-		tx.SetPriority(threshold, nowSeconds)
+type group struct {
+	ts Txs
+	ps uint64
+}
+
+type groupSet map[util.EthID]*group
+
+func (set groupSet) Add(txs ...*Transaction) {
+	for i := range txs {
+		tx := txs[i]
+		g := set[tx.From]
+		switch {
+		case tx.Type == TypeTest:
+			// nothing
+		case g == nil:
+			g = &group{ts: Txs{tx}, ps: tx.priority}
+			set[tx.From] = g
+		default:
+			// txs from the same sender share the priority
+			g.ps += tx.priority
+			g.ts = append(g.ts, tx)
+		}
 	}
 }
 
-func (txs Txs) Sort() {
+func (txs Txs) SortWith(threshold, nowSeconds uint64) {
+	// first: group by sender - tx.From
+	set := make(groupSet, len(txs))
+	for i := range txs {
+		tx := txs[i]
+		delay := uint64(0)
+		if nowSeconds > tx.AddedTime {
+			delay = nowSeconds - tx.AddedTime
+		}
+		tx.SetPriority(threshold, delay)
+		if tx.IsBatched() {
+			set.Add(tx.Txs()...)
+		} else {
+			set.Add(tx)
+		}
+	}
+	// then: rebalance the priority for the same sender, small nonce tx get larger priority.
+	for _, g := range set {
+		n := uint64(len(g.ts))
+		g.ps = n + g.ps/n
+		sort.SliceStable(g.ts, func(i, j int) bool {
+			return g.ts[i].Nonce < g.ts[j].Nonce
+		})
+		for i, tx := range g.ts {
+			tx.priority = g.ps - uint64(i)
+		}
+	}
+	// then: pick the max priority for batch txs again.
+	for _, tx := range txs {
+		if tx.IsBatched() {
+			tx.priority = 0
+			for _, ti := range tx.Txs() {
+				if tx.priority < ti.priority {
+					tx.priority = ti.priority
+				}
+			}
+		}
+	}
+	// last: all txs sort by priority
 	sort.SliceStable(txs, func(i, j int) bool {
-		if txs[i].From == txs[j].From {
-			return txs[i].Nonce < txs[j].Nonce
-		}
-		if txs[i].Priority == txs[j].Priority {
-			return bytes.Compare(txs[i].ID[:], txs[j].ID[:]) == -1
-		}
-		return txs[i].Priority > txs[j].Priority
+		return txs[i].priority > txs[j].priority
 	})
 }

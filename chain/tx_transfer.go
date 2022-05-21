@@ -42,7 +42,7 @@ func (tx *TxTransfer) VerifyGenesis(blk *Block, bs BlockState) error {
 	if err != nil {
 		return err
 	}
-	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
+	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = blk.Miner(); err != nil {

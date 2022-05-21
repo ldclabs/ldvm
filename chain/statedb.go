@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/ids"
@@ -73,7 +72,7 @@ type StateDB interface {
 
 	// txs state
 	SubmitTx(...*ld.Transaction) error
-	AddTxs(isNew bool, txs ...*ld.Transaction)
+	AddTxs(txs ...*ld.Transaction)
 	AddRecentTx(Transaction, choices.Status)
 	GetTx(ids.ID) Transaction
 	RemoveTx(ids.ID)
@@ -537,18 +536,13 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 		return err
 	}
 
-	s.AddTxs(true, tx)
+	tx.AddedTime = blk.ld.Timestamp
+	s.AddTxs(tx)
 	go s.notifyBuild()
 	return nil
 }
 
-func (s *stateDB) AddTxs(isNew bool, txs ...*ld.Transaction) {
-	if isNew {
-		now := uint64(time.Now().Unix())
-		for i := range txs {
-			txs[i].AddedTime = now
-		}
-	}
+func (s *stateDB) AddTxs(txs ...*ld.Transaction) {
 	s.txPool.Add(txs...)
 }
 

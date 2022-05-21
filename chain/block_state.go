@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
@@ -27,13 +26,6 @@ var (
 	_ BlockState = &blockState{}
 )
 
-var poolAccountCache = sync.Pool{
-	New: func() any {
-		v := make(map[util.EthID]*Account, 256)
-		return &v
-	},
-}
-
 type blockState struct {
 	ctx               *Context
 	height, timestamp uint64
@@ -49,7 +41,7 @@ type blockState struct {
 	prevDataDB     *db.PrefixDB
 	nameDB         *db.PrefixDB
 
-	accountCache map[util.EthID]*Account
+	accountCache accountCache
 	events       []*Event
 }
 
@@ -77,8 +69,6 @@ type BlockState interface {
 
 func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Database) *blockState {
 	vdb := versiondb.New(baseVDB)
-	accountCache := poolAccountCache.Get().(*map[util.EthID]*Account)
-
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
 		ctx:            ctx,
@@ -94,7 +84,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Data
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accountCache:   *accountCache,
+		accountCache:   getAccountCache(),
 	}
 }
 
@@ -102,7 +92,6 @@ func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Data
 func (bs *blockState) DeriveState() *blockState {
 	vdb := versiondb.New(bs.vdb)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
-	accountCache := poolAccountCache.Get().(*map[util.EthID]*Account)
 	return &blockState{
 		ctx:            bs.ctx,
 		height:         bs.height,
@@ -117,7 +106,7 @@ func (bs *blockState) DeriveState() *blockState {
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accountCache:   *accountCache,
+		accountCache:   getAccountCache(),
 	}
 }
 
@@ -141,16 +130,16 @@ func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
 			return nil, err
 		}
 
+		pledge := new(big.Int)
 		feeCfg := bs.ctx.Chain().Fee(bs.height)
 		switch {
 		case a.ld.Type == ld.TokenAccount && id != constants.LDCAccount:
-			a.Init(bs.accountDB, feeCfg.MinTokenPledge, bs.height, bs.timestamp)
+			pledge.Set(feeCfg.MinTokenPledge)
 		case a.ld.Type == ld.StakeAccount:
-			a.Init(bs.accountDB, feeCfg.MinStakePledge, bs.height, bs.timestamp)
-		default:
-			a.Init(bs.accountDB, new(big.Int), bs.height, bs.timestamp)
+			pledge.Set(feeCfg.MinStakePledge)
 		}
 
+		a.Init(pledge, bs.height, bs.timestamp)
 		bs.accountCache[id] = a
 	}
 
@@ -298,7 +287,7 @@ func (bs *blockState) Events() []*Event {
 
 func (bs *blockState) SaveBlock(blk *Block) error {
 	for _, a := range bs.accountCache {
-		if err := a.Commit(); err != nil {
+		if err := a.SaveTo(bs.accountDB); err != nil {
 			return err
 		}
 	}
@@ -327,9 +316,6 @@ func (bs *blockState) Commit() error {
 
 func (bs *blockState) free() {
 	logging.Log.Info("free blockState at height %d", bs.height)
-	for k := range bs.accountCache {
-		delete(bs.accountCache, k)
-	}
-	poolAccountCache.Put(&bs.accountCache)
+	putAccountCache(bs.accountCache)
 	bs.accountCache = nil
 }
