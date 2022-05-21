@@ -79,7 +79,7 @@ func (tx *TxUpdateAccountKeepers) VerifyGenesis(blk *Block, bs BlockState) error
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 
-	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
+	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = blk.Miner(); err != nil {

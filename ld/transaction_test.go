@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"bytes"
 	"encoding/json"
 	"math/big"
 	"testing"
@@ -130,6 +129,7 @@ func TestTransaction(t *testing.T) {
 	txData.Signatures = append(txData.Signatures, sig1)
 	tx = txData.ToTransaction()
 	assert.NoError(tx.SyntacticVerify())
+	assert.Equal(len(tx.Bytes()), tx.BytesSize())
 
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
@@ -181,6 +181,9 @@ func TestTxs(t *testing.T) {
 		ChainID: gChainID,
 	}).ToTransaction()
 
+	assert.NoError(testTx.SyntacticVerify())
+	assert.Equal(0, testTx.BytesSize())
+
 	_, err := NewBatchTx(testTx)
 	assert.ErrorContains(err, "NewBatchTx: not batch transactions")
 
@@ -222,6 +225,7 @@ func TestTxs(t *testing.T) {
 	assert.True(txs.IsBatched())
 	assert.Equal(tx2.ID, txs.ID)
 	assert.Equal(tx2.Bytes(), txs.Bytes())
+	assert.Equal(len(tx1.Bytes())+len(tx2.Bytes()), txs.BytesSize())
 
 	data, err := txs.Txs().Marshal()
 	assert.NoError(err)
@@ -236,99 +240,70 @@ func TestTxs(t *testing.T) {
 func TestTxsSort(t *testing.T) {
 	assert := assert.New(t)
 
-	to := util.Signer2.Address()
-	txData := &TxData{
-		Type:      TypeTransfer,
-		ChainID:   gChainID,
-		Nonce:     1,
-		GasTip:    200,
-		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
-		To:        &to,
-		Amount:    big.NewInt(1_000_000),
-		Data:      []byte(`"Hello, world!"`),
-	}
-	sig, err := util.Signer1.Sign(txData.UnsignedBytes())
-	assert.NoError(err)
-	txData.Signatures = append(txData.Signatures, sig)
-	tx1 := txData.ToTransaction()
-	assert.NoError(tx1.SyntacticVerify())
+	to := util.Signer1.Address()
+	s0 := util.NewSigner()
+	s1 := util.NewSigner()
+	s2 := util.NewSigner()
+	s3 := util.NewSigner()
 
-	txData = &TxData{
-		Type:      TypeTransfer,
-		ChainID:   gChainID,
-		Nonce:     2,
-		GasTip:    200,
-		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
-		To:        &to,
-		Amount:    big.NewInt(1_000_000),
-	}
-	sig, err = util.Signer1.Sign(txData.UnsignedBytes())
+	stx0 := MustNewTestTx(s0, TypeTest, nil, nil)
+	stx1 := MustNewTestTx(s0, TypeTransfer, &to, GenJSONData(100))
+	stx2 := MustNewTestTx(s1, TypeTransfer, &to, GenJSONData(200))
+	stx3 := MustNewTestTx(s2, TypeTransfer, &to, GenJSONData(1100))
+	stx4 := MustNewTestTx(s1, TypeTransfer, &to, GenJSONData(1000))
+	btx, err := NewBatchTx(stx0, stx1, stx2, stx3, stx4)
 	assert.NoError(err)
-	txData.Signatures = append(txData.Signatures, sig)
-	tx2 := txData.ToTransaction()
-	assert.NoError(tx2.SyntacticVerify())
+	assert.Equal(stx3.ID, btx.ID)
+	assert.Equal(stx3.RequiredGas(1000), btx.RequiredGas(1000))
+	assert.Equal(len(stx1.Bytes())+len(stx2.Bytes())+len(stx3.Bytes())+len(stx4.Bytes()), btx.BytesSize())
+	assert.Equal(uint64(0), stx0.priority)
+	assert.Equal(uint64(0), stx1.priority)
+	assert.Equal(uint64(0), stx2.priority)
+	assert.Equal(uint64(0), stx3.priority)
+	assert.Equal(uint64(0), stx4.priority)
+	assert.Equal(uint64(0), btx.priority)
 
-	data := [1024]byte{}
-	kSig, err := util.Signer2.Sign(data[:])
-	assert.NoError(err)
+	btx.SetPriority(1000, 0)
+	assert.Equal(uint64(0), stx0.priority)
+	assert.True(stx2.priority == stx1.priority, "small bytes size txs has the same priority")
+	assert.True(stx3.priority > stx2.priority)
+	assert.True(stx4.priority > stx2.priority)
+	assert.True(stx3.priority > stx4.priority)
+	assert.Equal(stx3.priority, btx.priority)
 
-	dm := &DataMeta{
-		Version:   1,
-		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      data[:],
-		KSig:      kSig,
-	}
-	assert.NoError(dm.SyntacticVerify())
-	cbordata, err := dm.Marshal()
-	assert.NoError(err)
-	txData = &TxData{
-		Type:      TypeCreateData,
-		ChainID:   gChainID,
-		Nonce:     1,
-		GasTip:    100,
-		GasFeeCap: 1000,
-		From:      util.Signer2.Address(),
-		Data:      cbordata,
-	}
-	sig, err = util.Signer2.Sign(txData.UnsignedBytes())
-	assert.NoError(err)
-	txData.Signatures = append(txData.Signatures, sig)
-	tx3 := txData.ToTransaction()
-	assert.NoError(tx3.SyntacticVerify())
-
-	txs := Txs{tx2, tx1, tx3}
-	txs.Sort()
-	assert.Equal(-1, bytes.Compare(tx3.ID[:], tx1.ID[:]))
+	tx0 := MustNewTestTx(s0, TypeTransfer, &to, nil)
+	tx1 := MustNewTestTx(s1, TypeTransfer, &to, GenJSONData(1000))
+	tx2 := MustNewTestTx(s2, TypeTransfer, &to, GenJSONData(1200))
+	tx3 := MustNewTestTx(s3, TypeTransfer, &to, GenJSONData(1500))
+	txs := Txs{tx0, tx1, tx2, tx3}
+	txs.SortWith(1000, 0)
 	assert.Equal(tx3.ID, txs[0].ID)
-	assert.Equal(tx1.ID, txs[1].ID)
-	assert.Equal(tx2.ID, txs[2].ID)
-
-	tx3.Priority = 1
-	tx1.Priority = 2
-	tx2.Priority = 3
-	txs.Sort()
-
-	assert.Equal(tx1.ID, txs[0].ID)
 	assert.Equal(tx2.ID, txs[1].ID)
-	assert.Equal(tx3.ID, txs[2].ID)
+	assert.Equal(tx1.ID, txs[2].ID)
+	assert.Equal(tx0.ID, txs[3].ID)
 
-	txs.UpdatePriority(1000, 3)
-	assert.True(tx3.Priority > tx2.Priority)
-	txs.Sort()
+	txs = append(txs, btx)
+	txs.SortWith(1000, 0)
 	assert.Equal(tx3.ID, txs[0].ID)
-	assert.Equal(tx1.ID, txs[1].ID)
+	assert.Equal(btx.ID, txs[1].ID)
 	assert.Equal(tx2.ID, txs[2].ID)
+	assert.Equal(tx1.ID, txs[3].ID)
+	assert.Equal(tx0.ID, txs[4].ID)
 
-	tx1.AddedTime = 10
-	tx2.AddedTime = 20
-	tx3.AddedTime = 110
-	txs.UpdatePriority(1000, 120)
-	assert.True(tx3.Priority < tx2.Priority)
-	txs.Sort()
-	assert.Equal(tx1.ID, txs[0].ID)
-	assert.Equal(tx2.ID, txs[1].ID)
-	assert.Equal(tx3.ID, txs[2].ID)
+	assert.Equal(stx0.ID, btx.batch[0].ID)
+	assert.Equal(stx1.ID, btx.batch[1].ID)
+	assert.Equal(stx2.ID, btx.batch[2].ID)
+	assert.Equal(stx3.ID, btx.batch[3].ID)
+	assert.Equal(stx4.ID, btx.batch[4].ID)
+
+	tx0.AddedTime = 121
+	tx1.AddedTime = 121
+	tx2.AddedTime = 121
+	tx3.AddedTime = 121
+	txs.SortWith(1000, 120)
+	assert.Equal(btx.ID, txs[0].ID, "delay should be feedback into priority")
+	assert.Equal(tx1.ID, txs[1].ID, "delay should be feedback into priority")
+	assert.Equal(tx2.ID, txs[2].ID, "delay should be feedback into priority")
+	assert.Equal(tx0.ID, txs[3].ID, "delay should be feedback into priority")
+	assert.Equal(tx3.ID, txs[4].ID)
 }

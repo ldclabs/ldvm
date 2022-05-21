@@ -87,7 +87,7 @@ func (tx *TxCreateTokenAccount) Verify(blk *Block, bs BlockState) error {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
 			feeCfg.MinTokenPledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateToken(util.TokenSymbol(*tx.ld.To), tx.data)
+	return tx.to.CheckCreateToken(tx.data)
 }
 
 // VerifyGenesis skipping signature verification
@@ -111,7 +111,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 	}
 
 	tx.from.Add(constants.NativeToken, blk.ctx.Chain().MaxTotalSupply)
-	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
+	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = blk.Miner(); err != nil {
@@ -123,7 +123,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 
 func (tx *TxCreateTokenAccount) Accept(blk *Block, bs BlockState) error {
 	var err error
-	if err = tx.to.CreateToken(util.TokenSymbol(*tx.ld.To), tx.data); err != nil {
+	if err = tx.to.CreateToken(tx.data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(blk, bs)

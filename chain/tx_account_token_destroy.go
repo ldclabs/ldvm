@@ -43,7 +43,7 @@ func (tx *TxDestroyTokenAccount) Verify(blk *Block, bs BlockState) error {
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return fmt.Errorf("sender account need more signers")
 	}
-	return tx.from.CheckDestroyToken(util.TokenSymbol(tx.ld.From), tx.to)
+	return tx.from.CheckDestroyToken(tx.to)
 }
 
 func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
@@ -51,5 +51,5 @@ func (tx *TxDestroyTokenAccount) Accept(blk *Block, bs BlockState) error {
 		return err
 	}
 	// DestroyToken after TxBase.Accept
-	return tx.from.DestroyToken(util.TokenSymbol(tx.ld.From), tx.to)
+	return tx.from.DestroyToken(tx.to)
 }

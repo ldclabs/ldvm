@@ -12,12 +12,12 @@ require (
 	github.com/hashicorp/go-plugin v1.4.4
 	github.com/ipfs/go-cid v0.2.0
 	github.com/ipld/go-ipld-prime v0.16.0
-	github.com/mailgun/holster/v4 v4.2.5
+	github.com/mailgun/holster/v4 v4.2.7
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.11.0
 	github.com/stretchr/testify v1.7.1
-	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9
-	golang.org/x/net v0.0.0-20220513224357-95641704303c
+	golang.org/x/crypto v0.0.0-20220518034528-6f7dac969898
+	golang.org/x/net v0.0.0-20220517181318-183a9ca12b87
 )
 
 require (
@@ -63,7 +63,7 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
-	github.com/linxGnu/grocksdb v1.7.1 // indirect
+	github.com/linxGnu/grocksdb v1.7.2 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -114,12 +114,12 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
-	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
+	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e // indirect
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	gonum.org/v1/gonum v0.11.0 // indirect
-	google.golang.org/genproto v0.0.0-20220505152158-f39f71e6c8f3 // indirect
+	google.golang.org/genproto v0.0.0-20220518221133-4f43b3371335 // indirect
 	google.golang.org/grpc v1.46.2 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect

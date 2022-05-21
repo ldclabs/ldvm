@@ -44,8 +44,8 @@ type Block struct {
 	bs        BlockState
 	tryBS     BlockState
 	status    choices.Status
-	txs       []Transaction
-	originTxs []*ld.Transaction
+	txs       []Transaction     // txs field will unfold batch tx
+	originTxs []*ld.Transaction // originTxs keep the original txs
 	miner     *Account
 	verified  bool
 }
@@ -59,8 +59,6 @@ func NewGenesisBlock(b *ld.Block, ctx *Context) (*Block, error) {
 	blk.txs = make([]Transaction, len(b.Txs))
 	for i := range b.Txs {
 		tx := b.Txs[i]
-		tx.Height = b.Height
-		tx.Timestamp = b.Timestamp
 		ntx, err := NewGenesisTx(tx)
 		if err != nil {
 			return nil, err
@@ -247,9 +245,9 @@ func (b *Block) TryVerifyTxs(txs ...*ld.Transaction) error {
 
 func (b *Block) TryVerifyAndAddTxs(txs ...*ld.Transaction) choices.Status {
 	feeCfg := b.FeeConfig()
-	gas := uint64(0)
 	ntxs := make([]Transaction, 0, len(txs)-1)
 	tryBS := b.tryBS.DeriveState()
+	gas := b.ld.Gas
 	for i := range txs {
 		tx := txs[i]
 		tx.Height = b.ld.Height
@@ -301,7 +299,7 @@ func (b *Block) TryVerifyAndAddTxs(txs ...*ld.Transaction) choices.Status {
 func (b *Block) TxsSize() int {
 	txsSize := 0
 	for _, tx := range b.ld.Txs {
-		txsSize += len(tx.Bytes())
+		txsSize += tx.BytesSize()
 	}
 	return txsSize
 }
@@ -418,7 +416,7 @@ func (b *Block) Reject() error {
 func (b *Block) reject() {
 	if b.status != choices.Rejected {
 		b.status = choices.Rejected
-		b.ctx.StateDB().AddTxs(false, b.originTxs...)
+		b.ctx.StateDB().AddTxs(b.originTxs...)
 	}
 }
 

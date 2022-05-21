@@ -24,7 +24,7 @@ var EncMode, _ = EncOpts.EncMode()
 var DecOpts = cbor.DecOptions{
 	DupMapKey:        cbor.DupMapKeyQuiet,
 	IndefLength:      cbor.IndefLengthForbidden,
-	MaxArrayElements: 10_000,
+	MaxArrayElements: 100_000,
 	MaxMapPairs:      1_000_000,
 }
 var DecMode, _ = DecOpts.DecMode()
