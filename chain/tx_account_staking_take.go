@@ -100,6 +100,7 @@ func (tx *TxTakeStake) Verify(blk *Block, bs BlockState) error {
 
 func (tx *TxTakeStake) Accept(blk *Block, bs BlockState) error {
 	var err error
+	// must TakeStake and then Accept
 	if err = tx.to.TakeStake(tx.token, tx.ld.From, tx.ld.Amount, tx.lockTime); err != nil {
 		return err
 	}

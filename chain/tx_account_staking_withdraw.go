@@ -70,11 +70,11 @@ func (tx *TxWithdrawStake) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	_, err = tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
-	return err
+	return tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
 }
 
 func (tx *TxWithdrawStake) Accept(blk *Block, bs BlockState) error {
+	// must WithdrawStake and then Accept
 	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
 	if err != nil {
 		return err
