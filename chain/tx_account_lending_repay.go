@@ -31,11 +31,7 @@ func (tx *TxRepay) Verify(blk *Block, bs BlockState) error {
 	if err = tx.TxBase.Verify(blk, bs); err != nil {
 		return err
 	}
-	_, err = tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount)
-	if err != nil {
-		return err
-	}
-	return nil
+	return tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount)
 }
 
 func (tx *TxRepay) Accept(blk *Block, bs BlockState) error {

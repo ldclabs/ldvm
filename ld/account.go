@@ -110,18 +110,22 @@ func (a *Account) SyntacticVerify() error {
 		if a.MaxTotalSupply != nil {
 			return fmt.Errorf("Account.SyntacticVerify failed: maxTotalSupply should be nil")
 		}
-		if a.Stake == nil || a.StakeLedger == nil {
+		if a.Stake == nil {
 			return fmt.Errorf("Account.SyntacticVerify failed: invalid stake on StakeAccount")
+		}
+		if a.StakeLedger == nil {
+			a.StakeLedger = make(map[util.EthID]*StakeEntry)
 		}
 		if err := a.Stake.SyntacticVerify(); err != nil {
 			return err
 		}
 		for _, entry := range a.StakeLedger {
-			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on LendingEntry")
+			if entry.Amount == nil || entry.Amount.Sign() < 0 ||
+				(entry.Amount.Sign() == 0 && entry.Approver == nil) {
+				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on StakeEntry")
 			}
 			if entry.Approver != nil && *entry.Approver == util.EthIDEmpty {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid approver on LendingEntry")
+				return fmt.Errorf("Account.SyntacticVerify failed: invalid approver on StakeEntry")
 			}
 		}
 	default:
@@ -130,14 +134,14 @@ func (a *Account) SyntacticVerify() error {
 
 	if a.Lending != nil {
 		if a.LendingLedger == nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: invalid lendingLedger on account")
+			a.LendingLedger = make(map[util.EthID]*LendingEntry)
 		}
 		if err := a.Lending.SyntacticVerify(); err != nil {
 			return err
 		}
 		for _, entry := range a.LendingLedger {
 			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on LendingEntry")
+				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on StakeEntry")
 			}
 		}
 	}

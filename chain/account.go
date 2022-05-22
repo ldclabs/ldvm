@@ -69,10 +69,11 @@ func ParseAccount(id util.EthID, data []byte) (*Account, error) {
 	return a, nil
 }
 
-func (a *Account) Init(pledge *big.Int, height, timestamp uint64) {
+func (a *Account) Init(pledge *big.Int, height, timestamp uint64) *Account {
 	a.pledge.Set(pledge)
 	a.ld.Height = height
 	a.ld.Timestamp = timestamp
+	return a
 }
 
 func (a *Account) Type() ld.AccountType {
@@ -433,7 +434,12 @@ func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error
 	return nil
 }
 
-func (a *Account) UpdateKeepers(threshold uint8, keepers []util.EthID, approver *util.EthID, approveList []ld.TxType) error {
+func (a *Account) UpdateKeepers(
+	threshold uint8,
+	keepers []util.EthID,
+	approver *util.EthID,
+	approveList []ld.TxType,
+) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -586,7 +592,7 @@ func (a *Account) createStake(
 		a.ld.MaxTotalSupply = nil
 		switch stake.Token {
 		case constants.NativeToken:
-			a.ld.StakeLedger[from] = &ld.StakeEntry{Amount: pledge}
+			a.ld.StakeLedger[from] = &ld.StakeEntry{Amount: new(big.Int).Set(pledge)}
 		default:
 			if b := a.ld.Tokens[stake.Token]; b == nil {
 				a.ld.Tokens[stake.Token] = new(big.Int)
@@ -627,9 +633,15 @@ func (a *Account) resetStake(stake *ld.StakeConfig, write bool) error {
 		return fmt.Errorf(
 			"Account.CheckResetStake failed: stake in lock, please retry after lockTime")
 	}
-	if len(a.ld.StakeLedger) > 1 {
+	holders := 0
+	for _, v := range a.ld.StakeLedger {
+		if v.Amount.Sign() > 0 {
+			holders++
+		}
+	}
+	if holders > 1 {
 		return fmt.Errorf(
-			"Account.CheckResetStake failed: stake ledger not empty, please withdraw all except holder")
+			"Account.CheckResetStake failed: stake holders should not more than 1")
 	}
 
 	if write {
@@ -669,11 +681,18 @@ func (a *Account) destroyStake(recipient *Account, write bool) error {
 			"Account.CheckDestroyStake failed: stake in lock, please retry after lockTime")
 	}
 
-	switch len(a.ld.StakeLedger) {
+	holders := 0
+	for _, v := range a.ld.StakeLedger {
+		if v.Amount.Sign() > 0 {
+			holders++
+		}
+	}
+
+	switch holders {
 	case 0:
 		// just go ahead
 	case 1:
-		if _, ok := a.ld.StakeLedger[recipient.id]; !ok {
+		if v, ok := a.ld.StakeLedger[recipient.id]; !ok || v.Amount.Sign() <= 0 {
 			return fmt.Errorf(
 				"Account.CheckDestroyStake failed: recipient not exists")
 		}
@@ -724,7 +743,7 @@ func (a *Account) takeStake(token util.TokenSymbol, from util.EthID, amount *big
 	if token != stake.Token {
 		return fmt.Errorf(
 			"Account.CheckTakeStake failed: invalid token, expected %s, got %s",
-			stake.Token, token)
+			stake.Token.GoString(), token.GoString())
 	}
 
 	if amount.Cmp(stake.MinAmount) < 0 {
@@ -738,8 +757,8 @@ func (a *Account) takeStake(token util.TokenSymbol, from util.EthID, amount *big
 	rate := a.calcStakeBonusRate()
 	if v != nil {
 		bonus, _ := new(big.Float).Mul(new(big.Float).SetInt(v.Amount), rate).Int(nil)
-		total = total.Add(total, v.Amount)
-		total = total.Add(total, bonus)
+		total.Add(total, v.Amount)
+		total.Add(total, bonus)
 	}
 	if total.Cmp(stake.MaxAmount) > 0 {
 		return fmt.Errorf(
@@ -786,7 +805,7 @@ func (a *Account) updateStakeApprover(
 	signers util.EthIDs,
 	write bool,
 ) error {
-	if a.valid(ld.StakeAccount) {
+	if !a.valid(ld.StakeAccount) {
 		return fmt.Errorf(
 			"Account.CheckUpdateStakeApprover failed: invalid stake account %s", a.id)
 	}
@@ -794,7 +813,7 @@ func (a *Account) updateStakeApprover(
 	v := a.ld.StakeLedger[from]
 	if v == nil {
 		return fmt.Errorf(
-			"Account.CheckUpdateStakeApprover failed: %s has no ledger to update",
+			"Account.CheckUpdateStakeApprover failed: %s has no stake ledger to update",
 			util.EthID(from))
 	}
 	if v.Approver != nil && !signers.Has(*v.Approver) {
@@ -817,11 +836,12 @@ func (a *Account) CheckWithdrawStake(
 	from util.EthID,
 	signers util.EthIDs,
 	amount *big.Int,
-) (*big.Int, error) {
+) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.withdrawStake(token, from, signers, amount, false)
+	_, err := a.withdrawStake(token, from, signers, amount, false)
+	return err
 }
 
 func (a *Account) WithdrawStake(
@@ -852,7 +872,7 @@ func (a *Account) withdrawStake(
 	if token != stake.Token {
 		return nil, fmt.Errorf(
 			"Account.CheckWithdrawStake failed: invalid token, expected %s, got %s",
-			stake.Token, token)
+			stake.Token.GoString(), token.GoString())
 	}
 	if stake.LockTime > a.ld.Timestamp {
 		return nil, fmt.Errorf(
@@ -863,7 +883,7 @@ func (a *Account) withdrawStake(
 	if v == nil {
 		return nil, fmt.Errorf(
 			"Account.CheckWithdrawStake failed: %s has no stake to withdraw",
-			util.EthID(from))
+			from)
 	}
 	if v.LockTime > a.ld.Timestamp {
 		return nil, fmt.Errorf(
@@ -872,7 +892,7 @@ func (a *Account) withdrawStake(
 	if v.Approver != nil && !signers.Has(*v.Approver) {
 		return nil, fmt.Errorf(
 			"Account.CheckWithdrawStake failed: %s need approver signing",
-			util.EthID(from))
+			from)
 	}
 	total := new(big.Int).Set(v.Amount)
 	rate := a.calcStakeBonusRate()
@@ -881,22 +901,39 @@ func (a *Account) withdrawStake(
 	if total.Cmp(amount) < 0 {
 		return nil, fmt.Errorf(
 			"Account.CheckWithdrawStake failed: %s has an insufficient stake to withdraw, expected %v, got %v",
-			util.EthID(from), amount, total)
+			from, amount, total)
 	}
 
-	ba := a.balanceOf(token)
-	if ba.Cmp(amount) < 0 {
+	if ba := a.balanceOf(token); ba.Cmp(amount) < 0 {
 		return nil, fmt.Errorf(
 			"Account.CheckWithdrawStake failed: %s has an insufficient balance for withdraw, expected %v, got %v",
-			a.id, amount, ba)
+			util.StakeSymbol(a.id).GoString(), amount, ba)
+	}
+	if !write {
+		return nil, nil
 	}
 
-	if write {
-		a.allocStakeBonus(rate)
-		v.Amount.Sub(v.Amount, amount)
+	a.allocStakeBonus(rate)
+	v.Amount.Sub(v.Amount, amount)
+	if v.Amount.Sign() <= 0 && v.Approver == nil {
+		delete(a.ld.StakeLedger, from)
 	}
-	withdraw := new(big.Int).Mul(amount, big.NewInt(1_000_000-int64(stake.WithdrawFee)))
-	return withdraw.Quo(withdraw, big.NewInt(1_000_000)), nil
+	withdraw := new(big.Int).Mul(amount, new(big.Int).SetUint64(stake.WithdrawFee))
+	return withdraw.Sub(amount, withdraw.Quo(withdraw, big.NewInt(1_000_000))), nil
+}
+
+func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.EthID) *big.Int {
+	total := new(big.Int)
+	stake := a.ld.Stake
+	if a.valid(ld.StakeAccount) && token == stake.Token {
+		if v := a.ld.StakeLedger[from]; v != nil && v.Amount.Sign() > 0 {
+			total.Set(v.Amount)
+			rate := a.calcStakeBonusRate()
+			bonus, _ := new(big.Float).Mul(new(big.Float).SetInt(total), rate).Int(nil)
+			total.Add(total, bonus)
+		}
+	}
+	return total
 }
 
 func (a *Account) calcStakeBonusRate() *big.Float {
@@ -940,8 +977,7 @@ func (a *Account) OpenLending(data *ld.LendingConfig) error {
 func (a *Account) openLending(data *ld.LendingConfig, write bool) error {
 	if a.ld.Lending != nil || a.ld.LendingLedger != nil {
 		return fmt.Errorf(
-			"Account.CheckOpenLending failed: lending exists: %v, %v",
-			a.ld.Lending, a.ld.LendingLedger)
+			"Account.CheckOpenLending failed: lending exists on %s", a.id)
 	}
 
 	if write {
@@ -968,8 +1004,7 @@ func (a *Account) CloseLending() error {
 func (a *Account) closeLending(write bool) error {
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return fmt.Errorf(
-			"Account.CheckCloseLending failed: invalid lending: %v, %v",
-			a.ld.Lending, a.ld.LendingLedger)
+			"Account.CheckCloseLending failed: invalid lending on %s", a.id)
 	}
 
 	if len(a.ld.LendingLedger) != 0 {
@@ -1001,14 +1036,18 @@ func (a *Account) Borrow(token util.TokenSymbol, from util.EthID, amount *big.In
 func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.Int, dueTime uint64, write bool) error {
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return fmt.Errorf(
-			"Account.CheckBorrow failed: invalid lending: %v, %v",
-			a.ld.Lending, a.ld.LendingLedger)
+			"Account.CheckBorrow failed: invalid lending on %s", a.id)
 	}
 
 	if a.ld.Lending.Token != token {
 		return fmt.Errorf(
 			"Account.CheckBorrow failed: invalid token, expected %s, got %s",
-			a.ld.Lending.Token, token)
+			a.ld.Lending.Token.GoString(), token.GoString())
+	}
+	if dueTime > 0 && dueTime <= a.ld.Timestamp {
+		return fmt.Errorf(
+			"Account.CheckBorrow failed: invalid dueTime, expected > %d, got %d",
+			a.ld.Timestamp, dueTime)
 	}
 	if amount.Cmp(a.ld.Lending.MinAmount) < 0 {
 		return fmt.Errorf(
@@ -1020,9 +1059,9 @@ func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.In
 	total := new(big.Int).Set(amount)
 	switch {
 	case e == nil:
-		e = &ld.LendingEntry{Amount: amount}
+		e = &ld.LendingEntry{Amount: new(big.Int).Set(amount)}
 	default:
-		total = total.Add(total, a.calcBorrowTotal(from))
+		total.Add(total, a.calcBorrowTotal(from))
 	}
 
 	if total.Cmp(a.ld.Lending.MaxAmount) > 0 {
@@ -1034,7 +1073,7 @@ func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.In
 	if ba.Cmp(amount) < 0 {
 		return fmt.Errorf(
 			"Account.CheckBorrow failed: %s has an insufficient %s balance, expected %v, got %v",
-			a.id, token, amount, ba)
+			a.id, token.GoString(), amount, ba)
 	}
 
 	if write {
@@ -1046,11 +1085,12 @@ func (a *Account) borrow(token util.TokenSymbol, from util.EthID, amount *big.In
 	return nil
 }
 
-func (a *Account) CheckRepay(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
+func (a *Account) CheckRepay(token util.TokenSymbol, from util.EthID, amount *big.Int) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.repay(token, from, amount, false)
+	_, err := a.repay(token, from, amount, false)
+	return err
 }
 
 func (a *Account) Repay(token util.TokenSymbol, from util.EthID, amount *big.Int) (*big.Int, error) {
@@ -1063,14 +1103,14 @@ func (a *Account) Repay(token util.TokenSymbol, from util.EthID, amount *big.Int
 func (a *Account) repay(token util.TokenSymbol, from util.EthID, amount *big.Int, write bool) (*big.Int, error) {
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return nil, fmt.Errorf(
-			"Account.CheckRepay failed: invalid lending: %v, %v",
-			a.ld.Lending, a.ld.LendingLedger)
+			"Account.CheckRepay failed: invalid lending on %s",
+			a.id)
 	}
 
 	if a.ld.Lending.Token != token {
 		return nil, fmt.Errorf(
 			"Account.CheckRepay failed: invalid token, expected %s, got %s",
-			a.ld.Lending.Token, token)
+			a.ld.Lending.Token.GoString(), token.GoString())
 	}
 
 	e := a.ld.LendingLedger[from]
@@ -1078,43 +1118,50 @@ func (a *Account) repay(token util.TokenSymbol, from util.EthID, amount *big.Int
 		return nil, fmt.Errorf("Account.CheckRepay failed: don't need to repay")
 	}
 
+	if !write {
+		return nil, nil
+	}
+
 	total := a.calcBorrowTotal(from)
 	actual := new(big.Int).Set(amount)
-	cleanup := amount.Cmp(total) >= 0
-	if cleanup {
+	if actual.Cmp(total) >= 0 {
 		actual.Set(total)
-	}
-	if write {
-		if cleanup {
-			delete(a.ld.LendingLedger, from)
-		} else {
-			e.Amount.Sub(total, amount)
-			e.UpdateAt = a.ld.Timestamp
-			a.ld.LendingLedger[from] = e
-		}
+		delete(a.ld.LendingLedger, from)
+	} else {
+		e.Amount.Sub(total, actual)
+		e.UpdateAt = a.ld.Timestamp
+		a.ld.LendingLedger[from] = e
 	}
 	return actual, nil
 }
 
-const day = 3600 * 24
+const daysecs = 3600 * 24
 
 func (a *Account) calcBorrowTotal(from util.EthID) *big.Int {
 	cfg := a.ld.Lending
-	e := a.ld.LendingLedger[from]
-	amount := new(big.Int).Set(e.Amount)
-	if sec := a.ld.Timestamp - e.UpdateAt; sec > 0 && amount.Sign() > 0 {
-		var rate float64
-		switch {
-		case e.DueTime == 0 || a.ld.Timestamp <= e.DueTime:
-			rate = math.Pow(1+float64(cfg.DailyInterest)/1_000_000, float64(sec)/day)
-		case e.UpdateAt >= e.DueTime:
-			rate = math.Pow(1+float64(cfg.DailyInterest+cfg.OverdueInterest)/1_000_000, float64(sec)/day)
-		default:
-			rate = math.Pow(1+float64(cfg.DailyInterest)/1_000_000, float64(e.DueTime-e.UpdateAt)/day)
-			rate = math.Pow(rate+float64(cfg.DailyInterest+cfg.OverdueInterest)/1_000_000, float64(a.ld.Timestamp-e.DueTime)/day)
+	amount := new(big.Int)
+	if e := a.ld.LendingLedger[from]; e != nil {
+		amount.Set(e.Amount)
+		if amount.Sign() > 0 && a.ld.Timestamp > e.UpdateAt {
+			var rate float64
+			sec := a.ld.Timestamp - e.UpdateAt
+			fa := new(big.Float).SetInt(amount)
+			switch {
+			case e.DueTime == 0 || a.ld.Timestamp <= e.DueTime:
+				rate = math.Pow(1+float64(cfg.DailyInterest)/1_000_000, float64(sec)/daysecs)
+				fa.Mul(fa, big.NewFloat(rate))
+			case e.UpdateAt >= e.DueTime:
+				rate = math.Pow(1+float64(cfg.DailyInterest+cfg.OverdueInterest)/1_000_000, float64(sec)/daysecs)
+				fa.Mul(fa, big.NewFloat(rate))
+			default:
+				rate = math.Pow(1+float64(cfg.DailyInterest)/1_000_000, float64(e.DueTime-e.UpdateAt)/daysecs)
+				fa.Mul(fa, big.NewFloat(rate))
+				rate = math.Pow(1+float64(cfg.DailyInterest+cfg.OverdueInterest)/1_000_000,
+					float64(a.ld.Timestamp-e.DueTime)/daysecs)
+				fa.Mul(fa, big.NewFloat(rate))
+			}
+			fa.Int(amount)
 		}
-
-		amount, _ = new(big.Float).Mul(new(big.Float).SetInt(amount), big.NewFloat(rate)).Int(nil)
 	}
 	return amount
 }

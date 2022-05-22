@@ -239,7 +239,8 @@ func TestAccount(t *testing.T) {
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on StakeAccount")
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid withdrawFee, should be in [1, 200_000]")
+	assert.NotNil(acc.StakeLedger)
 
 	acc = &Account{
 		Type:        StakeAccount,
@@ -266,7 +267,7 @@ func TestAccount(t *testing.T) {
 			constants.GenesisAccount: {Amount: nil},
 		},
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on LendingEntry")
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	acc = &Account{
 		Type:       StakeAccount,
@@ -287,7 +288,8 @@ func TestAccount(t *testing.T) {
 			MaxAmount:       new(big.Int).SetUint64(100),
 		},
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid lendingLedger on account")
+	assert.NoError(acc.SyntacticVerify())
+	assert.NotNil(acc.LendingLedger)
 
 	acc = &Account{
 		Type:       StakeAccount,
@@ -311,7 +313,7 @@ func TestAccount(t *testing.T) {
 			constants.GenesisAccount: {Amount: nil},
 		},
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on LendingEntry")
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	acc = &Account{
 		Type:       StakeAccount,
