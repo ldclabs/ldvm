@@ -18,11 +18,13 @@ const (
 )
 
 type Block struct {
-	Parent    ids.ID `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
-	Height    uint64 `cbor:"h" json:"height"`     // The genesis block is at 0.
-	Timestamp uint64 `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
-	Gas       uint64 `cbor:"g" json:"gas"`        // This block's total gas units.
-	GasPrice  uint64 `cbor:"gp" json:"gasPrice"`  // This block's gas price
+	Parent      ids.ID `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
+	Height      uint64 `cbor:"h" json:"height"`     // The genesis block is at 0.
+	Timestamp   uint64 `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
+	ParentState ids.ID `cbor:"ps" json:"parentState"`
+	State       ids.ID `cbor:"s" json:"state"`
+	Gas         uint64 `cbor:"g" json:"gas"`       // This block's total gas units.
+	GasPrice    uint64 `cbor:"gp" json:"gasPrice"` // This block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
 	GasRebateRate uint64 `cbor:"gr" json:"gasRebateRate"`
 	// The address of validator (convert to valid StakeAccount) who build this block.
@@ -31,8 +33,9 @@ type Block struct {
 	Miner util.StakeSymbol `cbor:"mn" json:"miner"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Shares []util.StakeSymbol `cbor:"shs" json:"shares"`
-	Txs    Txs                `cbor:"txs" json:"-"`
+	Validators []util.StakeSymbol `cbor:"vs" json:"validators"`
+	PCHeight   uint64             `cbor:"ph" json:"PChainHeight"`
+	Txs        Txs                `cbor:"txs" json:"-"`
 
 	// external assignment fields
 	ID     ids.ID            `cbor:"-" json:"id"`
@@ -58,6 +61,19 @@ func (b *Block) SyntacticVerify() error {
 		return fmt.Errorf("Block.SyntacticVerify failed: nil pointer")
 	}
 
+	if b.Height > 0 {
+		if b.Parent == ids.Empty {
+			return fmt.Errorf("Block.SyntacticVerify failed: invalid parent %s", b.Parent)
+		}
+
+		if b.ParentState == ids.Empty {
+			return fmt.Errorf("Block.SyntacticVerify failed: invalid parent state %s", b.ParentState)
+		}
+	}
+	if b.State == ids.Empty || b.State == b.ParentState {
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid state %s", b.State)
+	}
+
 	if b.Timestamp > uint64(time.Now().Add(futureBound).Unix()) {
 		return fmt.Errorf("Block.SyntacticVerify failed: invalid timestamp")
 	}
@@ -67,9 +83,12 @@ func (b *Block) SyntacticVerify() error {
 	if b.Miner != util.StakeEmpty && !b.Miner.Valid() {
 		return fmt.Errorf("Block.SyntacticVerify failed: invalid miner address %s", b.Miner.GoString())
 	}
-	for _, a := range b.Shares {
-		if !a.Valid() {
-			return fmt.Errorf("Block.SyntacticVerify failed: invalid share address %s", a.GoString())
+	if len(b.Validators) > 256 {
+		return fmt.Errorf("Block.SyntacticVerify failed: too many validators")
+	}
+	for _, s := range b.Validators {
+		if !s.Valid() {
+			return fmt.Errorf("Block.SyntacticVerify failed: invalid validator address %s", s.GoString())
 		}
 	}
 	if len(b.Txs) == 0 {

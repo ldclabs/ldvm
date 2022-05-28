@@ -29,27 +29,30 @@ var (
 type blockState struct {
 	ctx               *Context
 	height, timestamp uint64
-	state             StateDB
-
-	vdb            *versiondb.Database
-	blockDB        *db.PrefixDB
-	heightDB       *db.PrefixDB
-	lastAcceptedDB *db.PrefixDB
-	accountDB      *db.PrefixDB
-	modelDB        *db.PrefixDB
-	dataDB         *db.PrefixDB
-	prevDataDB     *db.PrefixDB
-	nameDB         *db.PrefixDB
+	s                 *ld.State
+	sdb               StateDB
+	vdb               *versiondb.Database
+	blockDB           *db.PrefixDB
+	heightDB          *db.PrefixDB
+	lastAcceptedDB    *db.PrefixDB
+	accountDB         *db.PrefixDB
+	modelDB           *db.PrefixDB
+	dataDB            *db.PrefixDB
+	prevDataDB        *db.PrefixDB
+	stateDB           *db.PrefixDB
+	nameDB            *db.PrefixDB
 
 	accountCache accountCache
 	events       []*Event
 }
 
 type BlockState interface {
-	DeriveState() *blockState
 	VersionDB() *versiondb.Database
 
+	DeriveState() (*blockState, error)
 	LoadAccount(util.EthID) (*Account, error)
+	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *Account)
+	LoadMiner(util.StakeSymbol) (*Account, error)
 	ResolveNameID(name string) (util.DataID, error)
 	ResolveName(name string) (*ld.DataMeta, error)
 	SetName(name string, id util.DataID) error
@@ -63,18 +66,19 @@ type BlockState interface {
 	AddEvent(*Event)
 	Events() []*Event
 
-	SaveBlock(*Block) error
+	SaveBlock(*ld.Block) error
 	Commit() error
 }
 
-func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Database) *blockState {
+func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseVDB database.Database) *blockState {
 	vdb := versiondb.New(baseVDB)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
 		ctx:            ctx,
 		height:         height,
 		timestamp:      timestamp,
-		state:          ctx.StateDB(),
+		sdb:            ctx.StateDB(),
+		s:              ld.NewState(parentState),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
@@ -83,20 +87,29 @@ func newBlockState(ctx *Context, height, timestamp uint64, baseVDB database.Data
 		modelDB:        pdb.With(modelDBPrefix),
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
+		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
 		accountCache:   getAccountCache(),
 	}
 }
 
 // DeriveState for the given block
-func (bs *blockState) DeriveState() *blockState {
-	vdb := versiondb.New(bs.vdb)
+func (bs *blockState) DeriveState() (*blockState, error) {
+	vdb := versiondb.New(bs.vdb.GetDatabase())
+	batch, err := bs.vdb.CommitBatch()
+	if err != nil {
+		return nil, err
+	}
+	if err = batch.Replay(vdb); err != nil {
+		return nil, err
+	}
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
-	return &blockState{
+	nbs := &blockState{
 		ctx:            bs.ctx,
 		height:         bs.height,
 		timestamp:      bs.timestamp,
-		state:          bs.ctx.StateDB(),
+		s:              bs.s.Clone(),
+		sdb:            bs.ctx.StateDB(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
@@ -105,9 +118,21 @@ func (bs *blockState) DeriveState() *blockState {
 		modelDB:        pdb.With(modelDBPrefix),
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
+		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
 		accountCache:   getAccountCache(),
 	}
+	for _, a := range bs.accountCache {
+		data, err := a.Marshal()
+		if err == nil {
+			nbs.s.UpdateAccount(a.id, data)
+			err = nbs.accountDB.Put(a.id[:], data)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nbs, nil
 }
 
 func (bs *blockState) VersionDB() *versiondb.Database {
@@ -144,6 +169,23 @@ func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
 	}
 
 	return bs.accountCache[id], nil
+}
+
+func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *Account) {
+	id := util.EthID(nodeID).ToStakeSymbol()
+	acc, err := bs.LoadAccount(util.EthID(id))
+	if err != nil || !acc.Valid(ld.StakeAccount) {
+		return util.StakeEmpty, nil
+	}
+	return id, acc
+}
+
+func (bs *blockState) LoadMiner(id util.StakeSymbol) (*Account, error) {
+	miner := constants.GenesisAccount
+	if id != util.StakeEmpty && id.Valid() {
+		miner = util.EthID(id)
+	}
+	return bs.LoadAccount(miner)
 }
 
 func (bs *blockState) SetName(name string, id util.DataID) error {
@@ -206,9 +248,7 @@ func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
-	if ok, _ := bs.modelDB.Has(id[:]); ok {
-		return fmt.Errorf("SaveModel error: model %s exists", util.ModelID(id).String())
-	}
+	bs.s.UpdateModel(id, mm.Bytes())
 	return bs.modelDB.Put(id[:], mm.Bytes())
 }
 
@@ -235,11 +275,7 @@ func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
-	if dm.Version == 1 {
-		if ok, _ := bs.dataDB.Has(id[:]); ok {
-			return fmt.Errorf("SaveData error: data %s exists", util.DataID(id).String())
-		}
-	}
+	bs.s.UpdateData(id, dm.Bytes())
 	return bs.dataDB.Put(id[:], dm.Bytes())
 }
 
@@ -285,30 +321,38 @@ func (bs *blockState) Events() []*Event {
 	return bs.events
 }
 
-func (bs *blockState) SaveBlock(blk *Block) error {
+func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	for _, a := range bs.accountCache {
-		if err := a.SaveTo(bs.accountDB); err != nil {
+		data, err := a.Marshal()
+		if err == nil {
+			bs.s.UpdateAccount(a.id, data)
+			err = bs.accountDB.Put(a.id[:], data)
+		}
+		if err != nil {
 			return err
 		}
 	}
-	id := blk.ID()
-	if ok, _ := bs.blockDB.Has(id[:]); ok {
-		return fmt.Errorf("SaveBlock error: block %s at height %d exists", id.String(), blk.Height())
-	}
-	if err := bs.blockDB.Put(id[:], blk.Bytes()); err != nil {
+	if err := bs.s.SyntacticVerify(); err != nil {
 		return err
 	}
-	hKey := database.PackUInt64(blk.Height())
-	if ok, _ := bs.heightDB.Has(hKey); ok {
-		return fmt.Errorf("SaveBlock height error: block %s at height %d exists", id.String(), blk.Height())
+	blk.State = bs.s.ID
+	if err := blk.SyntacticVerify(); err != nil {
+		return err
 	}
-	return bs.heightDB.Put(hKey, id[:])
+	if err := bs.blockDB.Put(blk.ID[:], blk.Bytes()); err != nil {
+		return err
+	}
+	hKey := database.PackUInt64(blk.Height)
+	if ok, _ := bs.heightDB.Has(hKey); ok {
+		return fmt.Errorf("SaveBlock height error: block %s at height %d exists", blk.ID, blk.Height)
+	}
+	return bs.heightDB.Put(hKey, blk.ID[:])
 }
 
 // Commit when accept
 func (bs *blockState) Commit() error {
 	defer bs.free()
-	if err := bs.vdb.SetDatabase(bs.state.DB()); err != nil {
+	if err := bs.vdb.SetDatabase(bs.sdb.DB()); err != nil {
 		return err
 	}
 	return bs.vdb.Commit()

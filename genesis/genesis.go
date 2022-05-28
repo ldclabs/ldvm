@@ -119,12 +119,13 @@ func FromJSON(data []byte) (*Genesis, error) {
 	return g, nil
 }
 
-func (g *Genesis) ToBlock() (*ld.Block, error) {
+func (g *Genesis) ToTxs() (ld.Txs, error) {
 	genesisAccount, ok := g.Alloc[constants.GenesisAccount]
 	if !ok {
-		return nil, fmt.Errorf("genesis account not found")
+		return nil, fmt.Errorf("Genesis.ToTxs failed: genesis account not found")
 	}
 
+	var err error
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
@@ -140,6 +141,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 		To:      &constants.LDCAccount,
 		Amount:  g.Chain.MaxTotalSupply,
 		Data:    ld.MustMarshal(minter),
+	}
+	if err = tx.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	txs = append(txs, tx)
 
@@ -161,6 +165,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 			To:      &to,
 			Amount:  v.Balance,
 		}
+		if err = tx.SyntacticVerify(); err != nil {
+			return nil, err
+		}
 		nonce++
 		txs = append(txs, tx)
 
@@ -175,6 +182,9 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 				ChainID: g.Chain.ChainID,
 				From:    util.EthID(id),
 				Data:    ld.MustMarshal(update),
+			}
+			if err = tx.SyntacticVerify(); err != nil {
+				return nil, err
 			}
 			txs = append(txs, tx)
 		}
@@ -250,15 +260,5 @@ func (g *Genesis) ToBlock() (*ld.Block, error) {
 	}
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
-
-	// build genesis block
-	blk := &ld.Block{
-		GasPrice:      g.Chain.FeeConfig.MinGasPrice,
-		GasRebateRate: g.Chain.FeeConfig.GasRebateRate,
-		Txs:           txs,
-	}
-	if err = blk.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-	return blk, nil
+	return txs, nil
 }

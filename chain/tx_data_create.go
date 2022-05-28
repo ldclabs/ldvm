@@ -203,7 +203,7 @@ func (tx *TxCreateData) VerifyGenesis(blk *Block, bs BlockState) error {
 	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
-	if tx.miner, err = blk.Miner(); err != nil {
+	if tx.miner, err = bs.LoadMiner(blk.ld.Miner); err != nil {
 		return err
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)

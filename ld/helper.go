@@ -5,15 +5,15 @@ package ld
 
 import (
 	"fmt"
-	"runtime"
+	"runtime/debug"
+	"strconv"
 )
 
 func Recover(errName string, fn func() error) (err error) {
 	defer func() {
 		if re := recover(); re != nil {
-			buf := make([]byte, 2048)
-			buf = buf[:runtime.Stack(buf, false)]
-			err = fmt.Errorf("%s panic: %v, stack: %s", errName, re, string(buf))
+			buf := debug.Stack()
+			err = fmt.Errorf("%s panic: %v, stack: %s", errName, re, strconv.Quote(string(buf)))
 		}
 	}()
 

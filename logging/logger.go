@@ -7,12 +7,14 @@ import (
 	"runtime"
 
 	avalogging "github.com/ava-labs/avalanchego/utils/logging"
+
+	"github.com/ldclabs/ldvm/config"
 )
 
 var Log avalogging.Logger = &avalogging.NoLog{}
 
 func init() {
-	logFactory := avalogging.NewFactory(avalogging.DefaultConfig)
+	logFactory := avalogging.NewFactory(config.DefaultLoggingConfig)
 	Log, _ = logFactory.Make("ldvm")
 }
 

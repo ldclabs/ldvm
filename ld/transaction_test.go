@@ -85,7 +85,7 @@ func TestTxData(t *testing.T) {
 
 	txx := tx.ToTransaction()
 	assert.NoError(txx.SyntacticVerify())
-	assert.Equal(tx.ID(), txx.ID)
+	assert.Equal(tx.ID, txx.ID)
 
 	jsondata, err := json.Marshal(txx)
 	assert.NoError(err)
@@ -148,17 +148,25 @@ func TestTransaction(t *testing.T) {
 	tx2 := &Transaction{}
 	assert.NoError(tx2.UnmarshalTx(txData.Bytes()))
 	assert.NoError(tx2.SyntacticVerify())
+	assert.Equal(tx.ID, tx2.ID)
 	assert.Equal(tx.Bytes(), tx2.Bytes())
 	assert.Equal(tx.ShortID(), tx2.ShortID())
 
 	tx3 := &Transaction{}
 	assert.NoError(tx3.Unmarshal(tx2.Bytes()))
 	assert.NoError(tx3.SyntacticVerify())
+	assert.Equal(tx.ID, tx3.ID)
 	assert.Equal(tx.Bytes(), tx3.Bytes())
 	assert.Equal(tx.ShortID(), tx3.ShortID())
 
 	assert.Equal(uint64(119), tx.RequiredGas(1000))
 	assert.Equal(uint64(0), tx.GasUnits().Uint64())
+
+	tx3.GasFeeCap++
+	assert.NoError(tx3.SyntacticVerify())
+	assert.NotEqual(tx.ID, tx3.ID)
+	assert.NotEqual(tx.Bytes(), tx3.Bytes())
+	assert.NotEqual(tx.ShortID(), tx3.ShortID())
 
 	signers, err := tx.Signers()
 	assert.NoError(err)

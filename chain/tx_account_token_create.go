@@ -114,7 +114,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(blk *Block, bs BlockState) error {
 	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
 		return err
 	}
-	if tx.miner, err = blk.Miner(); err != nil {
+	if tx.miner, err = bs.LoadMiner(blk.ld.Miner); err != nil {
 		return err
 	}
 	tx.to, err = bs.LoadAccount(*tx.ld.To)

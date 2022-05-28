@@ -78,17 +78,11 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	}
 
 	feeCfg := ctx.Chain().Fee(parentHeight + 1)
-	shares := make([]util.StakeSymbol, 0)
-	if ctx.ValidatorState != nil {
-		// TODO, get validators
-	}
 	blk := &ld.Block{
 		Parent:        preferred.ID(),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasRebateRate: feeCfg.GasRebateRate,
-		Miner:         util.EthID(ctx.NodeID).ToStakeSymbol(),
-		Shares:        shares,
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
@@ -108,18 +102,30 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 
 	nblk := NewBlock(blk, preferred.Context())
 	nblk.InitState(preferred.State().VersionDB(), false)
+	vbs, err := nblk.State().DeriveState()
+	if err != nil {
+		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+	}
 
+	// 1. BuildMiner
+	nblk.BuildMiner(vbs)
+	// 2. TryBuildTxs
 	var status choices.Status
 	for len(txs) > 0 {
 		for i := range txs {
+			nvbs, err := vbs.DeriveState()
+			if err != nil {
+				return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+			}
 			tx := txs[i]
 			switch {
-			case tx.IsBatched():
-				status = nblk.TryVerifyAndAddTxs(tx.Txs()...)
-			case tx.Type == ld.TypeTest: // TextTx should be in Batch
+			case tx.Type == ld.TypeTest:
+				tx.Err = fmt.Errorf("BlockBuilder.Build failed: TextTx should be in Batch Tx")
 				status = choices.Rejected
+			case tx.IsBatched():
+				status = nblk.BuildTxs(nvbs, tx.Txs()...)
 			default:
-				status = nblk.TryVerifyAndAddTxs(tx)
+				status = nblk.BuildTxs(nvbs, tx)
 			}
 
 			switch status {
@@ -128,16 +134,24 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 			case choices.Rejected:
 				b.txPool.Reject(tx)
 			default:
+				vbs = nvbs
 				nblk.originTxs = append(nblk.originTxs, tx)
 			}
 		}
 		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas, ts)
 	}
-
 	if len(blk.Txs) == 0 {
-		return nil, fmt.Errorf("no txs to build")
+		return nil, fmt.Errorf("BlockBuilder.Build failed: no txs to build")
 	}
 
+	// 3. BuildMinerFee
+	if err := nblk.BuildMinerFee(vbs); err != nil {
+		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+	}
+	// 4. BuildState
+	if err := nblk.BuildState(vbs); err != nil {
+		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+	}
 	b.lastBuildHeight = blk.Height
 	logging.Log.Info("Build block %s at %d", blk.ID, blk.Height)
 	return nblk, nil
