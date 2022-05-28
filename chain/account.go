@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/database"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -1166,13 +1165,12 @@ func (a *Account) calcBorrowTotal(from util.EthID) *big.Int {
 	return amount
 }
 
-// Commit will be called when blockState.SaveBlock
-func (a *Account) SaveTo(db database.KeyValueWriter) error {
+func (a *Account) Marshal() ([]byte, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if err := a.ld.SyntacticVerify(); err != nil {
-		return err
+		return nil, err
 	}
-	return db.Put(a.id[:], a.ld.Bytes())
+	return a.ld.Bytes(), nil
 }

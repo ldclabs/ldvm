@@ -5,7 +5,6 @@ package genesis
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -106,29 +105,26 @@ func TestGenesis(t *testing.T) {
 	assert.Equal(uint64(9999), gs.Chain.Fee(1000).ThresholdGas)
 	assert.Equal(uint64(9999), gs.Chain.Fee(10000).ThresholdGas)
 
-	blk, err := gs.ToBlock()
+	txs, err := gs.ToTxs()
 	assert.NoError(err)
 	assert.Equal("LD6xqTubBtKLzCtaokGE6CNFSdL7THe54Nr", gs.Chain.FeeConfigID.String())
 	assert.Equal("LM6ogwZUx6kHY7jnwiePg4AHUkhZquuUbQz", gs.Chain.NameServiceID.String())
 	assert.Equal("LMvYNiYmNXQq1kFTZcLanKDh97wFhjL9Tj", gs.Chain.ProfileServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
-	assert.NoError(blk.TxsMarshalJSON())
-	jsondata, err := json.Marshal(blk)
+	jsondata, err := json.Marshal(txs)
 	assert.NoError(err)
 
-	file, err = os.ReadFile("./genesis_sample_block.json")
+	file, err = os.ReadFile("./genesis_sample_txs.json")
 	assert.NoError(err)
-	fmt.Println(string(jsondata))
+	// fmt.Println(string(jsondata))
 	assert.True(jsonpatch.Equal(jsondata, file))
 
-	blk2 := &ld.Block{}
-	assert.NoError(blk2.Unmarshal(blk.Bytes()))
-	assert.NoError(blk2.SyntacticVerify())
-	assert.NoError(blk2.TxsMarshalJSON())
-
-	assert.Equal(blk.Bytes(), blk2.Bytes())
-	jsondata, err = json.Marshal(blk2)
+	cbordata, err := txs.Marshal()
 	assert.NoError(err)
-	assert.True(jsonpatch.Equal(jsondata, file))
+	txs2 := ld.Txs{}
+	assert.NoError(txs2.Unmarshal(cbordata))
+	cbordata2, err := txs2.Marshal()
+	assert.NoError(err)
+	assert.Equal(cbordata, cbordata2)
 }

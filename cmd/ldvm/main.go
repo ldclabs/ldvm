@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/ulimit"
 	"github.com/ava-labs/avalanchego/vms/rpcchainvm"
 	"github.com/hashicorp/go-plugin"
 
+	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/vm"
 )
 
@@ -31,7 +31,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := ulimit.Set(ulimit.DefaultFDLimit, (*logging.Log)(nil)); err != nil {
+	if err := ulimit.Set(ulimit.DefaultFDLimit, logging.Log); err != nil {
 		fmt.Printf("failed to set fd limit correctly due to: %s", err)
 		os.Exit(1)
 	}

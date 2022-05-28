@@ -41,6 +41,7 @@ var (
 	modelDBPrefix        = []byte{'M'}
 	dataDBPrefix         = []byte{'D'}
 	prevDataDBPrefix     = []byte{'P'}
+	stateDBPrefix        = []byte{'S'}
 	nameDBPrefix         = []byte{'N'} // inverted index
 
 	lastAcceptedKey = []byte("last_accepted_key")
@@ -222,13 +223,13 @@ func (s *stateDB) Context() *Context {
 }
 
 func (s *stateDB) Bootstrap() error {
-	genesisLdBlock, err := s.genesis.ToBlock()
+	txs, err := s.genesis.ToTxs()
 	if err != nil {
-		logging.Log.Error("Bootstrap genesis.ToBlock error: %v", err)
+		logging.Log.Error("stateDB.Bootstrap failed: %v", err)
 		return err
 	}
 
-	genesisBlock, err := NewGenesisBlock(genesisLdBlock, s.ctx)
+	genesisBlock, err := NewGenesisBlock(s.ctx, txs)
 	if err != nil {
 		logging.Log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err
@@ -245,14 +246,8 @@ func (s *stateDB) Bootstrap() error {
 	// create genesis block
 	if err == database.ErrNotFound {
 		logging.Log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
-		genesisBlock.InitState(s.db, false)
 		data, _ := genesisBlock.MarshalJSON()
 		logging.Log.Info("genesisBlock:\n%s", string(data))
-		if err := genesisBlock.VerifyGenesis(); err != nil {
-			logging.Log.Error("VerifyGenesis block error: %v", err)
-			return fmt.Errorf("VerifyGenesis block error: %v", err)
-		}
-
 		logging.Log.Info("Bootstrap commit Genesis Block")
 		if err := genesisBlock.Accept(); err != nil {
 			logging.Log.Error("Accept genesis block: %v", err)
@@ -532,7 +527,7 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 		return fmt.Errorf("TestTx should be in a batch transactions.")
 	}
 	blk := s.preferred.LoadV()
-	if err := blk.TryVerifyTxs(txs...); err != nil {
+	if err := blk.TryBuildTxs(txs...); err != nil {
 		return err
 	}
 

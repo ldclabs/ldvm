@@ -176,6 +176,7 @@ type TxData struct {
 	ExSignatures []util.Signature  `cbor:"es,omitempty" json:"exSignatures,omitempty"`
 
 	// external assignment fields
+	ID       ids.ID `cbor:"-" json:"-"`
 	raw      []byte `cbor:"-" json:"-"`
 	unsigned []byte `cbor:"-" json:"-"`
 	eth      *TxEth `cbor:"-" json:"-"`
@@ -217,6 +218,7 @@ func (t *TxData) SyntacticVerify() error {
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("TxData.SyntacticVerify marshal error: %v", err)
 	}
+	t.ID = util.IDFromData(t.Bytes())
 	return nil
 }
 
@@ -233,10 +235,6 @@ func (t *TxData) Unmarshal(data []byte) error {
 
 func (t *TxData) Marshal() ([]byte, error) {
 	return EncMode.Marshal(t)
-}
-
-func (t *TxData) ID() ids.ID {
-	return util.IDFromData(t.Bytes())
 }
 
 func (t *TxData) UnsignedBytes() []byte {
@@ -262,12 +260,12 @@ func (t *TxData) RequiredGas(threshold uint64) uint64 {
 
 func (t *TxData) ToTransaction() *Transaction {
 	tx := new(Transaction)
-	tx.readTxData(t)
+	tx.setTxData(t)
 	return tx
 }
 
 type Transaction struct {
-	// same as Tx
+	// same as TxData
 	Type         TxType            `cbor:"t" json:"type"`
 	ChainID      uint64            `cbor:"c" json:"chainID"`
 	Nonce        uint64            `cbor:"n" json:"nonce"`
@@ -303,21 +301,14 @@ func (t *Transaction) SyntacticVerify() error {
 	if t == nil {
 		return fmt.Errorf("Transaction.SyntacticVerify failed: nil pointer")
 	}
-	if t.tx == nil {
-		t.setTxData()
-	}
 
+	t.tx = t.TxData(t.tx)
 	var err error
 	if err = t.tx.SyntacticVerify(); err != nil {
 		return err
 	}
-	id := t.tx.ID()
-	if t.ID == ids.Empty {
-		t.ID = id
-	} else if t.ID != id {
-		return fmt.Errorf("Transaction.SyntacticVerify failed: invalid id, expected %s, got %s",
-			id, t.ID)
-	}
+
+	t.ID = t.tx.ID
 	t.Name = t.Type.String()
 	t.gas = t.Gas
 	if t.raw, err = t.Marshal(); err != nil {
@@ -351,11 +342,11 @@ func (t *Transaction) UnmarshalTx(data []byte) error {
 	if err := tx.Unmarshal(data); err != nil {
 		return err
 	}
-	t.readTxData(tx)
+	t.setTxData(tx)
 	return nil
 }
 
-func (t *Transaction) readTxData(tx *TxData) {
+func (t *Transaction) setTxData(tx *TxData) {
 	t.Type = tx.Type
 	t.ChainID = tx.ChainID
 	t.Nonce = tx.Nonce
@@ -371,8 +362,10 @@ func (t *Transaction) readTxData(tx *TxData) {
 	t.tx = tx
 }
 
-func (t *Transaction) setTxData() {
-	tx := new(TxData)
+func (t *Transaction) TxData(tx *TxData) *TxData {
+	if tx == nil {
+		tx = new(TxData)
+	}
 	tx.Type = t.Type
 	tx.ChainID = t.ChainID
 	tx.Nonce = t.Nonce
@@ -385,7 +378,7 @@ func (t *Transaction) setTxData() {
 	tx.Data = t.Data
 	tx.Signatures = t.Signatures
 	tx.ExSignatures = t.ExSignatures
-	t.tx = tx
+	return tx
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
