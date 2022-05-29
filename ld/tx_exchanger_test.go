@@ -17,7 +17,7 @@ import (
 func TestTxExchanger(t *testing.T) {
 	assert := assert.New(t)
 
-	token, _ := util.NewToken("USD")
+	token, _ := util.NewToken("$USD")
 
 	var tx *TxExchanger
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
@@ -53,7 +53,7 @@ func TestTxExchanger(t *testing.T) {
 	assert.NoError(err)
 	assert.Contains(string(jsondata), `"payee":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"`)
 	assert.Contains(string(jsondata), `"receive":""`)
-	assert.Contains(string(jsondata), `"sell":"USD"`)
+	assert.Contains(string(jsondata), `"sell":"$USD"`)
 	assert.NotContains(string(jsondata), `"from":`)
 
 	tx2 := &TxExchanger{}

@@ -30,19 +30,17 @@ var (
 
 var poolAccountCache = sync.Pool{
 	New: func() any {
-		v := make(accountCache, 256)
+		v := make(transaction.AccountCache, 256)
 		return &v
 	},
 }
 
-type accountCache map[util.EthID]*transaction.Account
-
-func getAccountCache() accountCache {
-	ac := poolAccountCache.Get().(*accountCache)
+func getAccountCache() transaction.AccountCache {
+	ac := poolAccountCache.Get().(*transaction.AccountCache)
 	return *ac
 }
 
-func putAccountCache(cc accountCache) {
+func putAccountCache(cc transaction.AccountCache) {
 	for k := range cc {
 		delete(cc, k)
 	}
@@ -64,8 +62,7 @@ type blockState struct {
 	prevDataDB        *db.PrefixDB
 	stateDB           *db.PrefixDB
 	nameDB            *db.PrefixDB
-
-	accountCache accountCache
+	accountCache      transaction.AccountCache
 }
 
 type BlockState interface {
@@ -148,15 +145,15 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 }
 
 func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
-	a := bs.accountCache[id]
-	if a == nil {
+	acc := bs.accountCache[id]
+	if acc == nil {
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
-			a, err = transaction.ParseAccount(id, data)
+			acc, err = transaction.ParseAccount(id, data)
 		case database.ErrNotFound:
 			err = nil
-			a = transaction.NewAccount(id)
+			acc = transaction.NewAccount(id)
 		}
 
 		if err != nil {
@@ -166,14 +163,14 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 		pledge := new(big.Int)
 		feeCfg := bs.ctx.Chain().Fee(bs.height)
 		switch {
-		case a.Type() == ld.TokenAccount && id != constants.LDCAccount:
+		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
 			pledge.Set(feeCfg.MinTokenPledge)
-		case a.Type() == ld.StakeAccount:
+		case acc.Type() == ld.StakeAccount:
 			pledge.Set(feeCfg.MinStakePledge)
 		}
 
-		a.Init(pledge, bs.height, bs.timestamp)
-		bs.accountCache[id] = a
+		acc.Init(pledge, bs.height, bs.timestamp)
+		bs.accountCache[id] = acc
 	}
 
 	return bs.accountCache[id], nil

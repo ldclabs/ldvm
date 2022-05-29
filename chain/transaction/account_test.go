@@ -18,7 +18,7 @@ import (
 func TestNativeAccount(t *testing.T) {
 	assert := assert.New(t)
 
-	token := ld.MustNewToken("TEST")
+	token := ld.MustNewToken("$TEST")
 	acc := NewAccount(util.Signer1.Address())
 	acc.Init(big.NewInt(0), 1, 1)
 
@@ -41,7 +41,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(-1)), "invalid amount -1")
 	assert.ErrorContains(acc.checkBalance(token, big.NewInt(-1)), "invalid amount -1")
 	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(1)), "insufficient NativeLDC balance")
-	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1)), "insufficient TEST balance")
+	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1)), "insufficient $TEST balance")
 
 	var ty ld.TxType
 	for ; ty <= ld.TypeDeleteData; ty++ {
@@ -103,7 +103,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.ErrorContains(acc.Sub(constants.NativeToken, big.NewInt(100)),
 		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient NativeLDC balance, expected 100, got 90")
 	assert.ErrorContains(acc.Sub(token, big.NewInt(100)),
-		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient TEST balance, expected 100, got 90")
+		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient $TEST balance, expected 100, got 90")
 
 	// SubByNonce
 	assert.ErrorContains(acc.SubByNonce(token, 1, big.NewInt(10)),
@@ -115,7 +115,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.ErrorContains(acc.SubByNonce(constants.NativeToken, 2, big.NewInt(100)),
 		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient NativeLDC balance, expected 100, got 80")
 	assert.ErrorContains(acc.SubByNonce(token, 2, big.NewInt(100)),
-		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient TEST balance, expected 100, got 80")
+		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient $TEST balance, expected 100, got 80")
 
 	// NonceTable
 	assert.ErrorContains(acc.CheckSubByNonceTable(constants.NativeToken, 12345, 1000, big.NewInt(10)),
@@ -241,7 +241,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(nativeToken.ld.Bytes(), acc2.ld.Bytes())
 
-	token := ld.MustNewToken("TEST")
+	token := ld.MustNewToken("$TEST")
 	testToken := NewAccount(util.EthID(token))
 	testToken.Init(big.NewInt(100), 0, 0)
 	assert.NoError(testToken.CheckCreateToken(cfg))
@@ -360,7 +360,7 @@ func TestStakeAccount(t *testing.T) {
 	assert.ErrorContains(acc.ResetStake(scfg),
 		"ccount.CheckResetStake failed: invalid stake account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
-	stake := ld.MustNewStake("@TEST")
+	stake := ld.MustNewStake("#TEST")
 	testStake := NewAccount(util.EthID(stake))
 	testStake.Init(big.NewInt(100), 1, 1)
 	assert.NoError(testStake.CheckCreateStake(util.Signer1.Address(), pledge, cfg, scfg))
@@ -411,7 +411,7 @@ func TestStakeAccount(t *testing.T) {
 	assert.NoError(testStake.CloseLending())
 
 	// Reset & Destroy
-	token := ld.MustNewToken("TEST")
+	token := ld.MustNewToken("$TEST")
 	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
 		Type:        1,
 		WithdrawFee: 10_000,
@@ -472,12 +472,12 @@ func TestStakeAccount(t *testing.T) {
 
 	// Destroy again
 	assert.ErrorContains(testStake.CheckDestroyStake(acc),
-		"Account.CheckDestroyStake failed: invalid stake account 0x0000000000000000000000000000004054455354")
+		"Account.CheckDestroyStake failed: invalid stake account 0x0000000000000000000000000000002354455354")
 	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account.CheckResetStake failed: invalid stake account 0x0000000000000000000000000000004054455354")
+	}), "Account.CheckResetStake failed: invalid stake account 0x0000000000000000000000000000002354455354")
 
 	// Marshal again
 	data, err = testStake.Marshal()
@@ -505,9 +505,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	ldc := new(big.Int).SetUint64(constants.LDC)
 	ldcf := float64(constants.LDC)
 	pledge := new(big.Int).SetUint64(constants.LDC * 10)
-	token := ld.MustNewToken("LDC")
+	token := ld.MustNewToken("$LDC")
 	withdrawFee := uint64(100_000)
-	sa := NewAccount(util.EthID(ld.MustNewStake("@LDC"))).Init(pledge, 1, 1)
+	sa := NewAccount(util.EthID(ld.MustNewStake("#LDC"))).Init(pledge, 1, 1)
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
@@ -527,7 +527,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.ErrorContains(sk.CheckTakeStake(constants.NativeToken, addr1, big.NewInt(1000), 0),
 		"Account.CheckTakeStake failed: invalid stake account")
 	assert.ErrorContains(sa.CheckTakeStake(token, addr2, big.NewInt(1000), 0),
-		"Account.CheckTakeStake failed: invalid token, expected NativeLDC, got LDC")
+		"Account.CheckTakeStake failed: invalid token, expected NativeLDC, got $LDC")
 	assert.ErrorContains(sa.CheckTakeStake(constants.NativeToken, addr3, big.NewInt(1000), 0),
 		"Account.CheckTakeStake failed: invalid amount, expected >= 1000000000, got 1000")
 
@@ -585,7 +585,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		"Account.CheckWithdrawStake failed: invalid stake account")
 	assert.ErrorContains(
 		sa.CheckWithdrawStake(token, addr0, util.EthIDs{}, big.NewInt(1000)),
-		"Account.CheckWithdrawStake failed: invalid token, expected NativeLDC, got LDC")
+		"Account.CheckWithdrawStake failed: invalid token, expected NativeLDC, got $LDC")
 	assert.ErrorContains(
 		sa.CheckWithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(1000)),
 		"Account.CheckWithdrawStake failed: stake in lock, please retry after lockTime")
@@ -668,7 +668,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	am, err = sa.WithdrawStake(constants.NativeToken, util.Signer1.Address(),
 		util.EthIDs{}, new(big.Int).SetUint64(total))
 	assert.ErrorContains(err,
-		"Account.CheckWithdrawStake failed: @LDC has an insufficient balance for withdraw")
+		"Account.CheckWithdrawStake failed: #LDC has an insufficient balance for withdraw")
 
 	// Marshal again
 	data, err = sa.Marshal()
@@ -751,7 +751,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		"Account.CheckTakeStake failed: invalid total amount, expected <= 10000000000, got 11000000000")
 
 	// sa take a stake in sc
-	sc := NewAccount(util.EthID(ld.MustNewStake("@HODLING"))).Init(pledge, 1, 1)
+	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
 	assert.NoError(sc.CreateStake(util.Signer2.Address(), pledge, &ld.TxAccounter{
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -783,7 +783,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	assert.ErrorContains(sa.CheckWithdrawStake(token, addr1,
 		util.EthIDs{}, pledge),
-		"Account.CheckWithdrawStake failed: @LDC has an insufficient balance for withdraw")
+		"Account.CheckWithdrawStake failed: #LDC has an insufficient balance for withdraw")
 
 	// Marshal again
 	data, err = sa.Marshal()
@@ -860,7 +860,7 @@ func TestLending(t *testing.T) {
 
 	// Lending
 	ldc := new(big.Int).SetUint64(constants.LDC)
-	token := ld.MustNewToken("LDC")
+	token := ld.MustNewToken("$LDC")
 	lcfg := &ld.LendingConfig{
 		DailyInterest:   10_000,
 		OverdueInterest: 10_000,
@@ -885,11 +885,11 @@ func TestLending(t *testing.T) {
 		"Account.CheckOpenLending failed: lending exists on 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	assert.ErrorContains(na.CheckBorrow(token, addr0, ldc, 0),
-		"Account.CheckBorrow failed: invalid token, expected NativeLDC, got LDC")
+		"Account.CheckBorrow failed: invalid token, expected NativeLDC, got $LDC")
 	assert.ErrorContains(na.Borrow(token, addr0, ldc, 0),
-		"Account.CheckBorrow failed: invalid token, expected NativeLDC, got LDC")
+		"Account.CheckBorrow failed: invalid token, expected NativeLDC, got $LDC")
 	assert.ErrorContains(na.CheckRepay(token, addr0, ldc),
-		"Account.CheckRepay failed: invalid token, expected NativeLDC, got LDC")
+		"Account.CheckRepay failed: invalid token, expected NativeLDC, got $LDC")
 	assert.ErrorContains(na.CheckRepay(constants.NativeToken, addr0, ldc),
 		"Account.CheckRepay failed: don't need to repay")
 
@@ -987,12 +987,12 @@ func TestLending(t *testing.T) {
 	}))
 
 	assert.ErrorContains(na.CheckBorrow(constants.NativeToken, addr0, ldc, 0),
-		"Account.CheckBorrow failed: invalid token, expected LDC, got NativeLDC")
+		"Account.CheckBorrow failed: invalid token, expected $LDC, got NativeLDC")
 	assert.ErrorContains(na.CheckBorrow(token, addr0,
 		new(big.Int).SetUint64(constants.LDC-1), 0),
 		"Account.CheckBorrow failed: invalid amount, expected >= 1000000000, got 999999999")
 	assert.ErrorContains(na.CheckBorrow(token, addr0, ldc, 0),
-		"Account.CheckBorrow failed: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient LDC balance, expected 1000000000, got 0")
+		"Account.CheckBorrow failed: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient $LDC balance, expected 1000000000, got 0")
 
 	na.ld.Timestamp = uint64(daysecs * 5)
 	na.Add(token, new(big.Int).SetUint64(constants.LDC*10))

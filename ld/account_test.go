@@ -86,7 +86,7 @@ func TestLendingConfig(t *testing.T) {
 		MinAmount: new(big.Int).SetUint64(100), MaxAmount: new(big.Int).SetUint64(99)}
 	assert.ErrorContains(cfg.SyntacticVerify(), "invalid maxAmount")
 
-	token, _ := util.NewToken("LDC")
+	token, _ := util.NewToken("$LDC")
 	cfg = &LendingConfig{
 		Token:           token,
 		DailyInterest:   10,
@@ -100,7 +100,7 @@ func TestLendingConfig(t *testing.T) {
 	jsondata, err := json.Marshal(cfg)
 	assert.NoError(err)
 
-	assert.Equal(`{"token":"LDC","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100}`,
+	assert.Equal(`{"token":"$LDC","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100}`,
 		string(jsondata))
 
 	cfg2 := &LendingConfig{}

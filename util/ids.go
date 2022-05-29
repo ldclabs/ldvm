@@ -114,10 +114,12 @@ func (id *EthID) UnmarshalCBOR(data []byte) error {
 
 func (id EthID) ToStakeSymbol() (s StakeSymbol) {
 	switch {
+	case id == EthIDEmpty:
+		// Empty
 	case StakeSymbol(id).Valid():
 		copy(s[:], id[:])
 	default:
-		s[0] = '@'
+		s[0] = '#'
 		h := sha3.Sum256(id[:])
 		copy(s[1:], []byte(base32.StdEncoding.EncodeToString(h[:])))
 	}
@@ -307,7 +309,7 @@ func NewToken(s string) (TokenSymbol, error) {
 	switch {
 	case l == 0:
 		return NativeToken, nil
-	case l > 1 && l <= 10:
+	case l > 1 && l <= 20:
 		copy(symbol[20-l:], []byte(s))
 		if symbol.String() == s {
 			return symbol, nil
@@ -318,23 +320,22 @@ func NewToken(s string) (TokenSymbol, error) {
 }
 
 func (id TokenSymbol) String() string {
-	start := 0
+	start := -1
 	for i, r := range id[:] {
 		switch {
 		case r == 0:
-			if start > 0 || i == 18 {
+			if start >= 0 || i == 18 {
 				return ""
 			}
-		case r >= 48 && r <= 57:
-			if start == 0 {
-				return ""
-			}
-		case r >= 65 && r <= 90:
-			if i < 10 {
-				return ""
-			}
-			if start == 0 {
+		case r == '$':
+			if start == -1 {
 				start = i
+			} else {
+				return ""
+			}
+		case (r >= 48 && r <= 57) || (r >= 65 && r <= 90):
+			if start == -1 {
+				return ""
 			}
 		default:
 			return ""
@@ -451,7 +452,7 @@ func (id StakeSymbol) String() string {
 			if start >= 0 || i == 18 {
 				return ""
 			}
-		case r == '@':
+		case r == '#':
 			if start == -1 {
 				start = i
 			} else {
@@ -469,7 +470,7 @@ func (id StakeSymbol) String() string {
 }
 
 func (id StakeSymbol) Valid() bool {
-	return id == StakeEmpty || id.String() != ""
+	return id.String() != ""
 }
 
 func (id StakeSymbol) GoString() string {
@@ -538,7 +539,7 @@ func (id *StakeSymbol) UnmarshalCBOR(data []byte) error {
 		return fmt.Errorf("StakeSymbol.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
-	if !id.Valid() {
+	if *id != StakeEmpty && !id.Valid() {
 		return fmt.Errorf("StakeSymbol.UnmarshalCBOR failed: invalid StakeSymbol: %s", id.GoString())
 	}
 	return nil

@@ -43,7 +43,7 @@ func NodeIDToStakeAddress(nodeIDs ...EthID) []EthID {
 	rt := make([]EthID, len(nodeIDs))
 	for i, id := range nodeIDs {
 		rt[i] = id
-		rt[i][0] = '@'
+		rt[i][0] = '#'
 	}
 	return rt
 }
