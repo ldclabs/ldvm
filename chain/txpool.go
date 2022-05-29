@@ -10,6 +10,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/mailgun/holster/v4/collections"
 
+	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/ld"
 )
 
@@ -26,7 +27,7 @@ type TxPool interface {
 	Has(txID ids.ID) bool
 	Remove(txID ids.ID)
 	Add(txs ...*ld.Transaction)
-	Get(txID ids.ID) Transaction
+	Get(txID ids.ID) transaction.Transaction
 	PopTxsBySize(askSize int, threshold, now uint64) ld.Txs
 	Reject(*ld.Transaction)
 }
@@ -101,12 +102,12 @@ func (p *txPool) has(txID ids.ID) bool {
 	return ok
 }
 
-func (p *txPool) Get(txID ids.ID) Transaction {
+func (p *txPool) Get(txID ids.ID) transaction.Transaction {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	if v, ok := p.rejected.Get(string(txID[:])); ok {
-		if tx, _ := NewTx(v.(*ld.Transaction), false); tx != nil {
+		if tx, _ := transaction.NewTx(v.(*ld.Transaction), false); tx != nil {
 			tx.SetStatus(choices.Rejected)
 			return tx
 		}
@@ -116,7 +117,7 @@ func (p *txPool) Get(txID ids.ID) Transaction {
 	if p.txQueueSet.Contains(txID) {
 		for _, tx := range p.txQueue {
 			if tx.ID == txID {
-				if ntx, _ := NewTx(tx, false); ntx != nil {
+				if ntx, _ := transaction.NewTx(tx, false); ntx != nil {
 					ntx.SetStatus(choices.Unknown)
 					return ntx
 				}
