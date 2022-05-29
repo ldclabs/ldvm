@@ -38,12 +38,9 @@ func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Tr
 	if err = txData.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-
-	sig, err := signer.Sign(txData.UnsignedBytes())
-	if err != nil {
+	if err := txData.SignWith(signer); err != nil {
 		return nil, err
 	}
-	txData.Signatures = append(txData.Signatures, sig)
 	tx := txData.ToTransaction()
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, err

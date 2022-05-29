@@ -46,6 +46,7 @@ func (s *Signer) Sign(data []byte) (Signature, error) {
 func (s *Signer) Address() EthID {
 	return EthID(crypto.PubkeyToAddress(s.PK.PublicKey))
 }
+
 func (s *Signer) Nonce() uint64 {
 	s.nonce++
 	return s.nonce

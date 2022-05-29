@@ -31,6 +31,9 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(1)}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid to")
+
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: RawData{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
 
@@ -172,7 +175,7 @@ func TestTransaction(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, signers)
 	_, err = tx.ExSigners()
-	assert.ErrorContains(err, `DeriveSigners: empty data or signature`)
+	assert.ErrorContains(err, `DeriveSigners: empty data`)
 
 	assert.False(tx.IsBatched())
 	assert.False(tx.NeedApprove(nil, nil))

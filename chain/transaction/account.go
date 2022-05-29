@@ -69,7 +69,7 @@ func (a *Account) Type() ld.AccountType {
 }
 
 func (a *Account) isEmpty() bool {
-	return len(a.ld.Keepers) == 0 && a.ld.Balance.Sign() == 0
+	return len(a.ld.Keepers) == 0
 }
 
 func (a *Account) Valid(t ld.AccountType) bool {
@@ -85,7 +85,7 @@ func (a *Account) valid(t ld.AccountType) bool {
 		return false
 	case t == ld.NativeAccount && a.ld.Balance.Sign() >= 0:
 		return true
-	case a.isEmpty() || a.ld.Balance.Cmp(a.pledge) < 0:
+	case (a.isEmpty() && a.id != util.EthIDEmpty) || a.ld.Balance.Cmp(a.pledge) < 0:
 		return false
 	case t == ld.TokenAccount && (a.ld.MaxTotalSupply == nil || a.ld.MaxTotalSupply.Sign() <= 0):
 		return false
@@ -156,7 +156,7 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 	switch a.ld.Type {
 	case ld.TokenAccount:
 		switch txType {
-		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeDestroyToken:
+		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeDestroyToken, ld.TypeOpenLending, ld.TypeCloseLending:
 			// just go ahead
 		default:
 			return fmt.Errorf(
@@ -180,9 +180,9 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 		// 1: account keepers can take a stake in other stake account
 		// 2: in addition to 1, account keepers can transfer stake token to other account
 		switch txType {
-		case ld.TypeUpdateAccountKeepers, ld.TypeResetStake:
+		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay:
 			// just go ahead
-		case ld.TypeTakeStake, ld.TypeWithdrawStake:
+		case ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending:
 			if ty < 1 {
 				return fmt.Errorf(
 					"Account.CheckAsFrom failed: can't use type %d StakeAccount as sender for %s",
@@ -216,7 +216,7 @@ func (a *Account) CheckAsTo(txType ld.TxType) error {
 		}
 	case ld.StakeAccount:
 		switch txType {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake:
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
 			// just go ahead
 		default:
 			return fmt.Errorf(
@@ -536,84 +536,90 @@ func (a *Account) CheckCreateStake(
 	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
-	stake *ld.StakeConfig,
+	cfg *ld.StakeConfig,
 ) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.createStake(from, pledge, acc, stake, false)
+	return a.createStake(from, pledge, acc, cfg, false)
 }
 
 func (a *Account) CreateStake(
 	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
-	stake *ld.StakeConfig,
+	cfg *ld.StakeConfig,
 ) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.createStake(from, pledge, acc, stake, true)
+	return a.createStake(from, pledge, acc, cfg, true)
 }
 
 func (a *Account) createStake(
 	from util.EthID,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
-	stake *ld.StakeConfig,
+	cfg *ld.StakeConfig,
 	write bool,
 ) error {
 	if !a.isEmpty() {
 		return fmt.Errorf(
 			"Account.CheckCreateStake failed: stake account %s exists", a.id)
 	}
-	if token := util.StakeSymbol(a.id); !token.Valid() {
+	if stake := util.StakeSymbol(a.id); !stake.Valid() {
 		return fmt.Errorf(
-			"Account.CheckCreateStake failed: invalid stake account %s", token.GoString())
+			"Account.CheckCreateStake failed: invalid stake account %s", stake.GoString())
+	}
+	if err := cfg.SyntacticVerify(); err != nil {
+		return err
 	}
 	if write {
 		a.ld.Type = ld.StakeAccount
 		a.ld.Threshold = acc.Threshold
 		a.ld.Keepers = acc.Keepers
-		a.ld.Stake = stake
+		a.ld.Stake = cfg
 		a.ld.StakeLedger = make(map[util.EthID]*ld.StakeEntry)
 		a.ld.MaxTotalSupply = nil
-		switch stake.Token {
+		switch cfg.Token {
 		case constants.NativeToken:
 			a.ld.StakeLedger[from] = &ld.StakeEntry{Amount: new(big.Int).Set(pledge)}
 		default:
-			if b := a.ld.Tokens[stake.Token]; b == nil {
-				a.ld.Tokens[stake.Token] = new(big.Int)
+			if b := a.ld.Tokens[cfg.Token]; b == nil {
+				a.ld.Tokens[cfg.Token] = new(big.Int)
 			}
 		}
 	}
 	return nil
 }
 
-func (a *Account) CheckResetStake(stake *ld.StakeConfig) error {
+func (a *Account) CheckResetStake(cfg *ld.StakeConfig) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.resetStake(stake, false)
+	return a.resetStake(cfg, false)
 }
 
-func (a *Account) ResetStake(stake *ld.StakeConfig) error {
+func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.resetStake(stake, true)
+	return a.resetStake(cfg, true)
 }
 
-func (a *Account) resetStake(stake *ld.StakeConfig, write bool) error {
+func (a *Account) resetStake(cfg *ld.StakeConfig, write bool) error {
 	if !a.valid(ld.StakeAccount) {
 		return fmt.Errorf(
 			"Account.CheckResetStake failed: invalid stake account %s", a.id)
 	}
-	if stake.Type != a.ld.Stake.Type {
+	if err := cfg.SyntacticVerify(); err != nil {
+		return err
+	}
+	if cfg.Type != a.ld.Stake.Type {
 		return fmt.Errorf(
 			"Account.CheckResetStake failed: can't change stake type")
 	}
-	if stake.Token != a.ld.Stake.Token {
+	if cfg.Token != a.ld.Stake.Token {
 		return fmt.Errorf(
 			"Account.CheckResetStake failed: can't change stake token")
 	}
@@ -633,13 +639,13 @@ func (a *Account) resetStake(stake *ld.StakeConfig, write bool) error {
 	}
 
 	if write {
-		a.ld.Stake.LockTime = stake.LockTime
-		a.ld.Stake.WithdrawFee = stake.WithdrawFee
-		if stake.MinAmount.Sign() > 0 {
-			a.ld.Stake.MinAmount.Set(stake.MinAmount)
+		a.ld.Stake.LockTime = cfg.LockTime
+		a.ld.Stake.WithdrawFee = cfg.WithdrawFee
+		if cfg.MinAmount.Sign() > 0 {
+			a.ld.Stake.MinAmount.Set(cfg.MinAmount)
 		}
-		if stake.MaxAmount.Sign() > 0 {
-			a.ld.Stake.MaxAmount.Set(stake.MaxAmount)
+		if cfg.MaxAmount.Sign() > 0 {
+			a.ld.Stake.MaxAmount.Set(cfg.MaxAmount)
 		}
 	}
 	return nil
@@ -948,28 +954,30 @@ func (a *Account) allocStakeBonus(rate *big.Float) {
 	}
 }
 
-func (a *Account) CheckOpenLending(data *ld.LendingConfig) error {
+func (a *Account) CheckOpenLending(cfg *ld.LendingConfig) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.openLending(data, false)
+	return a.openLending(cfg, false)
 }
 
-func (a *Account) OpenLending(data *ld.LendingConfig) error {
+func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.openLending(data, true)
+	return a.openLending(cfg, true)
 }
 
-func (a *Account) openLending(data *ld.LendingConfig, write bool) error {
+func (a *Account) openLending(cfg *ld.LendingConfig, write bool) error {
 	if a.ld.Lending != nil || a.ld.LendingLedger != nil {
 		return fmt.Errorf(
 			"Account.CheckOpenLending failed: lending exists on %s", a.id)
 	}
-
+	if err := cfg.SyntacticVerify(); err != nil {
+		return err
+	}
 	if write {
-		a.ld.Lending = data
+		a.ld.Lending = cfg
 		a.ld.LendingLedger = make(map[util.EthID]*ld.LendingEntry)
 	}
 	return nil

@@ -21,11 +21,11 @@ func (tx *TxTransfer) SyntacticVerify() error {
 	}
 
 	if tx.ld.To == nil {
-		return fmt.Errorf("TxTransfer invalid to")
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid to")
 	}
 
 	if tx.ld.Amount == nil {
-		return fmt.Errorf("TxTransfer invalid amount")
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
 	}
 	return nil
 }
@@ -33,21 +33,22 @@ func (tx *TxTransfer) SyntacticVerify() error {
 // VerifyGenesis skipping signature verification
 func (tx *TxTransfer) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
+	tx.amount = new(big.Int).Set(tx.ld.Amount)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
-	tx.cost = tx.cost.Add(tx.cost, tx.ld.Amount)
-
-	tx.from, err = bs.LoadAccount(tx.ld.From)
-	if err != nil {
-		return err
-	}
-	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
+	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
 		return err
 	}
-	tx.to, err = bs.LoadAccount(*tx.ld.To)
-	return err
+	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
+		return err
+	}
+
+	if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
+		return err
+	}
+	return nil
 }

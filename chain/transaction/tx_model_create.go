@@ -73,7 +73,7 @@ func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 
-	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
+	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {

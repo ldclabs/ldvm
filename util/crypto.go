@@ -127,8 +127,11 @@ func SignHash(datahash []byte, priv *ecdsa.PrivateKey) (Signature, error) {
 }
 
 func DeriveSigner(data []byte, sig []byte) (EthID, error) {
-	if len(data) == 0 || len(sig) != crypto.SignatureLength {
-		return EthIDEmpty, fmt.Errorf("DeriveSigner: empty data or signature")
+	if len(data) == 0 {
+		return EthIDEmpty, fmt.Errorf("DeriveSigner: empty data")
+	}
+	if len(sig) != crypto.SignatureLength {
+		return EthIDEmpty, fmt.Errorf("DeriveSigner: invalid signature")
 	}
 	dh := sha3.Sum256(data)
 	pk, err := DerivePublicKey(dh[:], sig)
@@ -139,8 +142,11 @@ func DeriveSigner(data []byte, sig []byte) (EthID, error) {
 }
 
 func DeriveSigners(data []byte, sigs []Signature) ([]EthID, error) {
-	if len(data) == 0 || len(sigs) == 0 {
-		return nil, fmt.Errorf("DeriveSigners: empty data or signature")
+	if len(data) == 0 {
+		return nil, fmt.Errorf("DeriveSigners: empty data")
+	}
+	if len(sigs) == 0 {
+		return nil, fmt.Errorf("DeriveSigners: no signature")
 	}
 	signers := make([]EthID, len(sigs))
 	dh := sha3.Sum256(data)
