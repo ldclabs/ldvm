@@ -393,7 +393,6 @@ func (b *Block) verify() error {
 
 	gas := uint64(0)
 	txsSize := 0
-	ts := b.Timestamp().Unix()
 	for i := range b.ld.Txs {
 		tx := b.txs[i]
 		if err := tx.Verify(b, b.bs); err != nil {
@@ -407,7 +406,6 @@ func (b *Block) verify() error {
 		txsSize += len(b.ld.Txs[i].Bytes())
 
 		b.ctx.StateDB().AddRecentTx(tx, choices.Processing)
-		b.bs.AddEvent(tx.Event(ts))
 	}
 
 	if gas != b.ld.Gas {

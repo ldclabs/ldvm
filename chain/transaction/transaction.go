@@ -21,7 +21,6 @@ type Transaction interface {
 	SyntacticVerify() error
 	Verify(bctx BlockContext, bs BlockState) error
 	Accept(bctx BlockContext, bs BlockState) error
-	Event(ts int64) *Event
 	MarshalJSON() ([]byte, error)
 }
 

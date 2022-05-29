@@ -172,7 +172,3 @@ func (tx *TxBase) Accept(bctx BlockContext, bs BlockState) error {
 	}
 	return nil
 }
-
-func (tx *TxBase) Event(ts int64) *Event {
-	return nil
-}

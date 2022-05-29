@@ -84,9 +84,6 @@ type StateDB interface {
 	LoadModel(util.ModelID) (*ld.ModelMeta, error)
 	LoadData(util.DataID) (*ld.DataMeta, error)
 	LoadPrevData(util.DataID, uint64) (*ld.DataMeta, error)
-
-	// events
-	QueryEvents() []*transaction.Event
 }
 
 type atomicBlock atomic.Value
@@ -141,7 +138,6 @@ type stateDB struct {
 	state             *atomicState
 
 	verifiedBlocks *sync.Map
-	eventsCache    *transaction.EventsCache
 	recentBlocks   *db.Cacher
 	recentModels   *db.Cacher
 	recentData     *db.Cacher
@@ -175,7 +171,6 @@ func NewState(
 		preferred:         new(atomicBlock),
 		lastAcceptedBlock: new(atomicLDBlock),
 		state:             new(atomicState),
-		eventsCache:       transaction.NewEventsCache(cfg.EventCacheSize),
 		verifiedBlocks:    new(sync.Map),
 		blockDB:           pdb.With(blockDBPrefix),
 		heightDB:          pdb.With(heightDBPrefix),
@@ -409,7 +404,6 @@ func (s *stateDB) SetLastAccepted(blk *Block) error {
 			}
 			return true
 		})
-		s.eventsCache.Add(blk.State().Events()...)
 	}()
 	return nil
 }
@@ -631,8 +625,4 @@ func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, er
 	rt := obj.(*ld.DataMeta)
 	rt.ID = id
 	return rt, nil
-}
-
-func (s *stateDB) QueryEvents() []*transaction.Event {
-	return s.eventsCache.Query()
 }

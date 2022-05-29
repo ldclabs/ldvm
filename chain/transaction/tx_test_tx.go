@@ -64,7 +64,3 @@ func (tx *TxTest) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxTest) Accept(bctx BlockContext, bs BlockState) error {
 	return nil
 }
-
-func (tx *TxTest) Event(ts int64) *Event {
-	return nil
-}
