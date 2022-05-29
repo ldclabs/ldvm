@@ -16,6 +16,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 
+	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
@@ -24,7 +25,8 @@ import (
 )
 
 var (
-	_ snowman.Block = &Block{}
+	_ snowman.Block            = &Block{}
+	_ transaction.BlockContext = &Block{}
 
 	emptyBlock = &Block{ld: &ld.Block{}}
 )
@@ -44,8 +46,8 @@ type Block struct {
 	ctx       *Context
 	bs        BlockState
 	status    choices.Status
-	txs       []Transaction     // txs field will unfold batch tx
-	originTxs []*ld.Transaction // originTxs keep the original txs
+	txs       []transaction.Transaction // txs field will unfold batch tx
+	originTxs []*ld.Transaction         // originTxs keep the original txs
 	verified  bool
 }
 
@@ -58,10 +60,10 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 	}, ctx)
 	blk.InitState(ctx.StateDB().DB(), false)
 	blk.status = choices.Processing
-	blk.txs = make([]Transaction, len(blk.ld.Txs))
+	blk.txs = make([]transaction.Transaction, len(blk.ld.Txs))
 	for i := range blk.ld.Txs {
 		tx := blk.ld.Txs[i]
-		ntx, err := NewGenesisTx(tx)
+		ntx, err := transaction.NewGenesisTx(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -99,12 +101,12 @@ func (b *Block) Unmarshal(data []byte) error {
 	if err := b.SyntacticVerify(); err != nil {
 		return err
 	}
-	b.txs = make([]Transaction, len(b.ld.Txs))
+	b.txs = make([]transaction.Transaction, len(b.ld.Txs))
 	for i := range b.ld.Txs {
 		tx := b.ld.Txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		ntx, err := NewTx(tx, false)
+		ntx, err := transaction.NewTx(tx, false)
 		if err != nil {
 			return err
 		}
@@ -147,6 +149,8 @@ func (b *Block) State() BlockState { return b.bs }
 // ID returns a unique ID for this element.
 func (b *Block) ID() ids.ID { return b.ld.ID }
 
+func (b *Block) Miner() util.StakeSymbol { return b.ld.Miner }
+
 func (b *Block) BuildMiner(vbs BlockState) {
 	b.ld.Miner, _ = vbs.LoadStakeAccountByNodeID(b.ctx.NodeID)
 }
@@ -167,7 +171,7 @@ func (b *Block) TryBuildTxs(txs ...*ld.Transaction) error {
 func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (choices.Status, error) {
 	feeCfg := b.FeeConfig()
 	gas := b.ld.Gas
-	ntxs := make([]Transaction, 0, len(txs))
+	ntxs := make([]transaction.Transaction, 0, len(txs))
 
 	for i := range txs {
 		tx := txs[i]
@@ -189,7 +193,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		}
 
 		// syntacticVerify again after gas calculation
-		ntx, err := NewTx(tx, true)
+		ntx, err := transaction.NewTx(tx, true)
 		if err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
@@ -238,7 +242,7 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 		}
 	}
 
-	shares := make([]*Account, 0)
+	shares := make([]*transaction.Account, 0)
 	if b.ctx.ValidatorState != nil {
 		var err error
 		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight()
@@ -262,7 +266,7 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 		})
 
 		b.ld.Validators = make([]util.StakeSymbol, 0, len(vs))
-		shares = make([]*Account, 0, len(vs))
+		shares = make([]*transaction.Account, 0, len(vs))
 		for _, nid := range vv {
 			if id, acc := vbs.LoadStakeAccountByNodeID(nid); acc != nil {
 				b.ld.Validators = append(b.ld.Validators, id)
@@ -310,7 +314,7 @@ func (b *Block) BuildState(vbs BlockState) error {
 
 func (b *Block) VerifyGenesis() error {
 	for i := range b.ld.Txs {
-		tx, ok := b.txs[i].(GenesisTx)
+		tx, ok := b.txs[i].(transaction.GenesisTx)
 		if !ok {
 			return fmt.Errorf("invalid genesis tx")
 		}
@@ -473,6 +477,10 @@ func (b *Block) reject() {
 		b.status = choices.Rejected
 		b.ctx.StateDB().AddTxs(b.originTxs...)
 	}
+}
+
+func (b *Block) Chain() *genesis.ChainConfig {
+	return b.ctx.Chain()
 }
 
 func (b *Block) FeeConfig() *genesis.FeeConfig {

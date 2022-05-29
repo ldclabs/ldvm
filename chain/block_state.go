@@ -9,12 +9,14 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
 	"golang.org/x/net/idna"
 
+	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
@@ -25,6 +27,27 @@ import (
 var (
 	_ BlockState = &blockState{}
 )
+
+var poolAccountCache = sync.Pool{
+	New: func() any {
+		v := make(accountCache, 256)
+		return &v
+	},
+}
+
+type accountCache map[util.EthID]*transaction.Account
+
+func getAccountCache() accountCache {
+	ac := poolAccountCache.Get().(*accountCache)
+	return *ac
+}
+
+func putAccountCache(cc accountCache) {
+	for k := range cc {
+		delete(cc, k)
+	}
+	poolAccountCache.Put(&cc)
+}
 
 type blockState struct {
 	ctx               *Context
@@ -43,31 +66,19 @@ type blockState struct {
 	nameDB            *db.PrefixDB
 
 	accountCache accountCache
-	events       []*Event
+	events       []*transaction.Event
 }
 
 type BlockState interface {
 	VersionDB() *versiondb.Database
-
-	DeriveState() (*blockState, error)
-	LoadAccount(util.EthID) (*Account, error)
-	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *Account)
-	LoadMiner(util.StakeSymbol) (*Account, error)
-	ResolveNameID(name string) (util.DataID, error)
-	ResolveName(name string) (*ld.DataMeta, error)
-	SetName(name string, id util.DataID) error
-	LoadModel(util.ModelID) (*ld.ModelMeta, error)
-	SaveModel(util.ModelID, *ld.ModelMeta) error
-	LoadData(util.DataID) (*ld.DataMeta, error)
-	SaveData(util.DataID, *ld.DataMeta) error
-	SavePrevData(util.DataID, *ld.DataMeta) error
-	DeleteData(util.DataID, *ld.DataMeta) error
-
-	AddEvent(*Event)
-	Events() []*Event
-
+	DeriveState() (BlockState, error)
+	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transaction.Account)
+	AddEvent(*transaction.Event)
+	Events() []*transaction.Event
 	SaveBlock(*ld.Block) error
 	Commit() error
+
+	transaction.BlockState
 }
 
 func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseVDB database.Database) *blockState {
@@ -94,7 +105,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 }
 
 // DeriveState for the given block
-func (bs *blockState) DeriveState() (*blockState, error) {
+func (bs *blockState) DeriveState() (BlockState, error) {
 	vdb := versiondb.New(bs.vdb.GetDatabase())
 	batch, err := bs.vdb.CommitBatch()
 	if err != nil {
@@ -125,8 +136,8 @@ func (bs *blockState) DeriveState() (*blockState, error) {
 	for _, a := range bs.accountCache {
 		data, err := a.Marshal()
 		if err == nil {
-			nbs.s.UpdateAccount(a.id, data)
-			err = nbs.accountDB.Put(a.id[:], data)
+			nbs.s.UpdateAccount(a.ID(), data)
+			err = nbs.accountDB.Put(a.IDBytes(), data)
 		}
 		if err != nil {
 			return nil, err
@@ -139,16 +150,16 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
+func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 	a := bs.accountCache[id]
 	if a == nil {
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
-			a, err = ParseAccount(id, data)
+			a, err = transaction.ParseAccount(id, data)
 		case database.ErrNotFound:
 			err = nil
-			a = NewAccount(id)
+			a = transaction.NewAccount(id)
 		}
 
 		if err != nil {
@@ -158,9 +169,9 @@ func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
 		pledge := new(big.Int)
 		feeCfg := bs.ctx.Chain().Fee(bs.height)
 		switch {
-		case a.ld.Type == ld.TokenAccount && id != constants.LDCAccount:
+		case a.Type() == ld.TokenAccount && id != constants.LDCAccount:
 			pledge.Set(feeCfg.MinTokenPledge)
-		case a.ld.Type == ld.StakeAccount:
+		case a.Type() == ld.StakeAccount:
 			pledge.Set(feeCfg.MinStakePledge)
 		}
 
@@ -171,7 +182,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*Account, error) {
 	return bs.accountCache[id], nil
 }
 
-func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *Account) {
+func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transaction.Account) {
 	id := util.EthID(nodeID).ToStakeSymbol()
 	acc, err := bs.LoadAccount(util.EthID(id))
 	if err != nil || !acc.Valid(ld.StakeAccount) {
@@ -180,7 +191,7 @@ func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSym
 	return id, acc
 }
 
-func (bs *blockState) LoadMiner(id util.StakeSymbol) (*Account, error) {
+func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
 		miner = util.EthID(id)
@@ -311,13 +322,13 @@ func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta) error {
 	return nil
 }
 
-func (bs *blockState) AddEvent(e *Event) {
+func (bs *blockState) AddEvent(e *transaction.Event) {
 	if e != nil {
 		bs.events = append(bs.events, e)
 	}
 }
 
-func (bs *blockState) Events() []*Event {
+func (bs *blockState) Events() []*transaction.Event {
 	return bs.events
 }
 
@@ -325,8 +336,8 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	for _, a := range bs.accountCache {
 		data, err := a.Marshal()
 		if err == nil {
-			bs.s.UpdateAccount(a.id, data)
-			err = bs.accountDB.Put(a.id[:], data)
+			bs.s.UpdateAccount(a.ID(), data)
+			err = bs.accountDB.Put(a.IDBytes(), data)
 		}
 		if err != nil {
 			return err

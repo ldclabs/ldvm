@@ -16,6 +16,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"golang.org/x/net/idna"
 
+	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
@@ -74,8 +75,8 @@ type StateDB interface {
 	// txs state
 	SubmitTx(...*ld.Transaction) error
 	AddTxs(txs ...*ld.Transaction)
-	AddRecentTx(Transaction, choices.Status)
-	GetTx(ids.ID) Transaction
+	AddRecentTx(transaction.Transaction, choices.Status)
+	GetTx(ids.ID) transaction.Transaction
 	RemoveTx(ids.ID)
 
 	LoadAccount(util.EthID) (*ld.Account, error)
@@ -85,7 +86,7 @@ type StateDB interface {
 	LoadPrevData(util.DataID, uint64) (*ld.DataMeta, error)
 
 	// events
-	QueryEvents() []*Event
+	QueryEvents() []*transaction.Event
 }
 
 type atomicBlock atomic.Value
@@ -140,7 +141,7 @@ type stateDB struct {
 	state             *atomicState
 
 	verifiedBlocks *sync.Map
-	eventsCache    *EventsCache
+	eventsCache    *transaction.EventsCache
 	recentBlocks   *db.Cacher
 	recentModels   *db.Cacher
 	recentData     *db.Cacher
@@ -174,7 +175,7 @@ func NewState(
 		preferred:         new(atomicBlock),
 		lastAcceptedBlock: new(atomicLDBlock),
 		state:             new(atomicState),
-		eventsCache:       NewEventsCache(cfg.EventCacheSize),
+		eventsCache:       transaction.NewEventsCache(cfg.EventCacheSize),
 		verifiedBlocks:    new(sync.Map),
 		blockDB:           pdb.With(blockDBPrefix),
 		heightDB:          pdb.With(heightDBPrefix),
@@ -541,18 +542,18 @@ func (s *stateDB) AddTxs(txs ...*ld.Transaction) {
 	s.txPool.Add(txs...)
 }
 
-func (s *stateDB) AddRecentTx(tx Transaction, status choices.Status) {
+func (s *stateDB) AddRecentTx(tx transaction.Transaction, status choices.Status) {
 	id := tx.ID()
 	tx.SetStatus(status)
 	s.recentTxs.SetObject(id[:], tx)
 }
 
-func (s *stateDB) GetTx(id ids.ID) Transaction {
+func (s *stateDB) GetTx(id ids.ID) transaction.Transaction {
 	if tx := s.txPool.Get(id); tx != nil {
 		return tx
 	}
 	if tx, ok := s.recentTxs.GetObject(id[:]); ok {
-		return tx.(Transaction)
+		return tx.(transaction.Transaction)
 	}
 	return nil
 }
@@ -632,6 +633,6 @@ func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, er
 	return rt, nil
 }
 
-func (s *stateDB) QueryEvents() []*Event {
+func (s *stateDB) QueryEvents() []*transaction.Event {
 	return s.eventsCache.Query()
 }
