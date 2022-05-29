@@ -16,41 +16,42 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type MBCtx struct {
-	ChainConfig *genesis.ChainConfig
-	Price       uint64
-	MinerID     util.StakeSymbol
+type MockBCtx struct {
+	ChainConfig       *genesis.ChainConfig
+	Height, Timestamp uint64
+	Price             uint64
+	MinerID           util.StakeSymbol
 }
 
-func NewMBCtx() *MBCtx {
+func NewMockBCtx() *MockBCtx {
 	cfg, err := genesis.FromJSON([]byte(genesis.LocalGenesisConfigJSON))
 	if err != nil {
 		panic(err)
 	}
-	return &MBCtx{
+	return &MockBCtx{
 		ChainConfig: &cfg.Chain,
 		Price:       1000,
 		MinerID:     ld.MustNewStake("#LDC"),
 	}
 }
 
-func (m *MBCtx) Chain() *genesis.ChainConfig {
+func (m *MockBCtx) Chain() *genesis.ChainConfig {
 	return m.ChainConfig
 }
 
-func (m *MBCtx) FeeConfig() *genesis.FeeConfig {
+func (m *MockBCtx) FeeConfig() *genesis.FeeConfig {
 	return m.ChainConfig.FeeConfig
 }
 
-func (m *MBCtx) GasPrice() *big.Int {
+func (m *MockBCtx) GasPrice() *big.Int {
 	return new(big.Int).SetUint64(m.Price)
 }
 
-func (m *MBCtx) Miner() util.StakeSymbol {
+func (m *MockBCtx) Miner() util.StakeSymbol {
 	return m.MinerID
 }
 
-type MBS struct {
+type MockBS struct {
 	Height, Timestamp uint64
 	Fee               *genesis.FeeConfig
 	AC                AccountCache
@@ -60,22 +61,20 @@ type MBS struct {
 	PDC               map[util.DataID]*ld.DataMeta
 }
 
-func NewMBS() *MBS {
-	cfg, err := genesis.FromJSON([]byte(genesis.LocalGenesisConfigJSON))
-	if err != nil {
-		panic(err)
-	}
-	return &MBS{
-		Fee: cfg.Chain.FeeConfig,
-		AC:  make(AccountCache),
-		NC:  make(map[string]util.DataID),
-		MC:  make(map[util.ModelID]*ld.ModelMeta),
-		DC:  make(map[util.DataID]*ld.DataMeta),
-		PDC: make(map[util.DataID]*ld.DataMeta),
+func NewMockBS(m *MockBCtx) *MockBS {
+	return &MockBS{
+		Height:    m.Height,
+		Timestamp: m.Timestamp,
+		Fee:       m.ChainConfig.FeeConfig,
+		AC:        make(AccountCache),
+		NC:        make(map[string]util.DataID),
+		MC:        make(map[util.ModelID]*ld.ModelMeta),
+		DC:        make(map[util.DataID]*ld.DataMeta),
+		PDC:       make(map[util.DataID]*ld.DataMeta),
 	}
 }
 
-func (m *MBS) LoadAccount(id util.EthID) (*Account, error) {
+func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
 	acc := m.AC[id]
 	if acc == nil {
 		acc = NewAccount(id)
@@ -94,7 +93,7 @@ func (m *MBS) LoadAccount(id util.EthID) (*Account, error) {
 	return m.AC[id], nil
 }
 
-func (m *MBS) LoadMiner(id util.StakeSymbol) (*Account, error) {
+func (m *MockBS) LoadMiner(id util.StakeSymbol) (*Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
 		miner = util.EthID(id)
@@ -102,7 +101,7 @@ func (m *MBS) LoadMiner(id util.StakeSymbol) (*Account, error) {
 	return m.LoadAccount(miner)
 }
 
-func (m *MBS) ResolveNameID(name string) (util.DataID, error) {
+func (m *MockBS) ResolveNameID(name string) (util.DataID, error) {
 	id, ok := m.NC[name]
 	if !ok {
 		return util.DataIDEmpty, fmt.Errorf("MBS.ResolveNameID: %s not found", strconv.Quote(name))
@@ -110,7 +109,7 @@ func (m *MBS) ResolveNameID(name string) (util.DataID, error) {
 	return id, nil
 }
 
-func (m *MBS) ResolveName(name string) (*ld.DataMeta, error) {
+func (m *MockBS) ResolveName(name string) (*ld.DataMeta, error) {
 	id, err := m.ResolveNameID(name)
 	if err != nil {
 		return nil, err
@@ -118,12 +117,12 @@ func (m *MBS) ResolveName(name string) (*ld.DataMeta, error) {
 	return m.LoadData(id)
 }
 
-func (m *MBS) SetName(name string, id util.DataID) error {
+func (m *MockBS) SetName(name string, id util.DataID) error {
 	m.NC[name] = id
 	return nil
 }
 
-func (m *MBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
+func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	mm, ok := m.MC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadModel: %s not found", id)
@@ -131,12 +130,12 @@ func (m *MBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	return mm, nil
 }
 
-func (m *MBS) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
+func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
 	m.MC[id] = mm
 	return nil
 }
 
-func (m *MBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
+func (m *MockBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	dm, ok := m.DC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadData: %s not found", id)
@@ -144,17 +143,17 @@ func (m *MBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	return dm, nil
 }
 
-func (m *MBS) SaveData(id util.DataID, dm *ld.DataMeta) error {
+func (m *MockBS) SaveData(id util.DataID, dm *ld.DataMeta) error {
 	m.DC[id] = dm
 	return nil
 }
 
-func (m *MBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
+func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	m.PDC[id] = dm
 	return nil
 }
 
-func (m *MBS) DeleteData(id util.DataID, dm *ld.DataMeta) error {
+func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataMeta) error {
 	dm.Version = 0
 	m.DC[id] = dm
 	delete(m.PDC, id)

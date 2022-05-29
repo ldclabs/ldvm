@@ -103,6 +103,10 @@ type GenesisTx interface {
 }
 
 func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
+	if err := tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+
 	var tt Transaction
 	switch tx.Type {
 	case ld.TypeTransfer:

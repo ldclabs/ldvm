@@ -234,6 +234,25 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(big.NewInt(900).Uint64(), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(big.NewInt(100).Uint64(), acc.balanceOf(constants.NativeToken).Uint64())
 
+	// CheckAsFrom
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeDestroyToken, ld.TypeOpenLending, ld.TypeCloseLending:
+			assert.NoError(nativeToken.CheckAsFrom(ty))
+		default:
+			assert.Error(nativeToken.CheckAsFrom(ty))
+		}
+	}
+	// CheckAsTo
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeEth, ld.TypeTransfer, ld.TypeTest, ld.TypeExchange, ld.TypeCreateToken:
+			assert.NoError(nativeToken.CheckAsTo(ty))
+		default:
+			assert.Error(nativeToken.CheckAsTo(ty))
+		}
+	}
+
 	// Marshal
 	data, err := nativeToken.Marshal()
 	assert.NoError(err)
@@ -489,6 +508,116 @@ func TestStakeAccount(t *testing.T) {
 	// Create again
 	assert.NoError(testStake.CheckCreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg))
+}
+
+func TestStakeFromAndTo(t *testing.T) {
+	assert := assert.New(t)
+
+	acc := NewAccount(util.Signer1.Address())
+	acc.Init(big.NewInt(0), 0, 0)
+	pledge := big.NewInt(1000)
+	cfg := &ld.TxAccounter{
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+	}
+
+	stake := ld.MustNewStake("#TEST")
+	testStake := NewAccount(util.EthID(stake))
+	testStake.Init(big.NewInt(100), 1, 1)
+	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, &ld.StakeConfig{
+		Type:        0,
+		LockTime:    0,
+		WithdrawFee: 100_000,
+		MinAmount:   big.NewInt(100),
+		MaxAmount:   big.NewInt(1000),
+	}))
+	testStake.Add(constants.NativeToken, big.NewInt(1000))
+
+	// CheckAsFrom
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay:
+			assert.NoError(testStake.CheckAsFrom(ty))
+		default:
+			assert.Error(testStake.CheckAsFrom(ty))
+		}
+	}
+	// CheckAsTo
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+			assert.NoError(testStake.CheckAsTo(ty))
+		default:
+			assert.Error(testStake.CheckAsTo(ty))
+		}
+	}
+
+	assert.NoError(testStake.DestroyStake(acc))
+	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, &ld.StakeConfig{
+		Type:        1,
+		LockTime:    0,
+		WithdrawFee: 100_000,
+		MinAmount:   big.NewInt(100),
+		MaxAmount:   big.NewInt(1000),
+	}))
+	testStake.Add(constants.NativeToken, big.NewInt(1000))
+
+	// CheckAsFrom
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending:
+			assert.NoError(testStake.CheckAsFrom(ty))
+		default:
+			assert.Error(testStake.CheckAsFrom(ty))
+		}
+	}
+	// CheckAsTo
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+			assert.NoError(testStake.CheckAsTo(ty))
+		default:
+			assert.Error(testStake.CheckAsTo(ty))
+		}
+	}
+
+	assert.NoError(testStake.DestroyStake(acc))
+	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, &ld.StakeConfig{
+		Type:        2,
+		LockTime:    0,
+		WithdrawFee: 100_000,
+		MinAmount:   big.NewInt(100),
+		MaxAmount:   big.NewInt(1000),
+	}))
+	testStake.Add(constants.NativeToken, big.NewInt(1000))
+
+	// CheckAsFrom
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending, ld.TypeEth, ld.TypeTransfer:
+			assert.NoError(testStake.CheckAsFrom(ty))
+		default:
+			assert.Error(testStake.CheckAsFrom(ty))
+		}
+	}
+	// CheckAsTo
+	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
+		switch ty {
+		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+			assert.NoError(testStake.CheckAsTo(ty))
+		default:
+			assert.Error(testStake.CheckAsTo(ty))
+		}
+	}
+
+	assert.NoError(testStake.DestroyStake(acc))
+	assert.Error(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, &ld.StakeConfig{
+		Type:        3,
+		LockTime:    0,
+		WithdrawFee: 100_000,
+		MinAmount:   big.NewInt(100),
+		MaxAmount:   big.NewInt(1000),
+	}))
 }
 
 func TestTakeStakeAndWithdraw(t *testing.T) {

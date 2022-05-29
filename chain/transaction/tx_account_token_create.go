@@ -111,7 +111,7 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(bctx BlockContext, bs BlockState) 
 	}
 
 	tx.from.Add(constants.NativeToken, bctx.Chain().MaxTotalSupply)
-	if tx.genesisAcc, err = bs.LoadAccount(constants.GenesisAccount); err != nil {
+	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {

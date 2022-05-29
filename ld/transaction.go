@@ -160,6 +160,10 @@ func (t TxType) String() string {
 	}
 }
 
+type Signer interface {
+	Sign(data []byte) (util.Signature, error)
+}
+
 // TxData represents a complete transaction issued from client
 type TxData struct {
 	Type         TxType            `cbor:"t" json:"type"`
@@ -191,13 +195,20 @@ func (t *TxData) SyntacticVerify() error {
 		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type")
 	}
 	if t.ChainID != gChainID {
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d",
+			gChainID, t.ChainID)
 	}
 	if t.Token != nil && !t.Token.Valid() {
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid token symbol %s",
+			strconv.Quote(t.Token.GoString()))
 	}
-	if t.Amount != nil && t.Amount.Sign() <= 0 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
+	if t.Amount != nil {
+		if t.Amount.Sign() <= 0 {
+			return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
+		}
+		if t.To == nil {
+			return fmt.Errorf("TxData.SyntacticVerify failed: invalid to")
+		}
 	}
 	if t.Data != nil && len(t.Data) == 0 {
 		return fmt.Errorf("TxData.SyntacticVerify failed: empty data")
@@ -256,6 +267,29 @@ func (t *TxData) RequiredGas(threshold uint64) uint64 {
 		return gas
 	}
 	return threshold + uint64(math.Pow(float64(gas-threshold), math.SqrtPhi))
+}
+
+func (t *TxData) SignWith(signers ...Signer) error {
+	data := t.UnsignedBytes()
+	for _, signer := range signers {
+		sig, err := signer.Sign(data)
+		if err != nil {
+			return err
+		}
+		t.Signatures = append(t.Signatures, sig)
+	}
+	return nil
+}
+
+func (t *TxData) ExSignWith(signers ...Signer) error {
+	for _, signer := range signers {
+		sig, err := signer.Sign(t.Data)
+		if err != nil {
+			return err
+		}
+		t.ExSignatures = append(t.ExSignatures, sig)
+	}
+	return nil
 }
 
 func (t *TxData) ToTransaction() *Transaction {
