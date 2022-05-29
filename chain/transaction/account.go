@@ -14,6 +14,8 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
+type AccountCache map[util.EthID]*Account
+
 type Account struct {
 	ld     *ld.Account
 	mu     sync.RWMutex

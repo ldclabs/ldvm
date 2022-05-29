@@ -197,15 +197,15 @@ func TestDataID(t *testing.T) {
 func TestTokenSymbol(t *testing.T) {
 	assert := assert.New(t)
 
-	token := "LDC"
+	token := "$LDC"
 	id, err := NewToken(token)
 	assert.Nil(err)
 
 	assert.Equal(
 		TokenSymbol{0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 'L', 'D', 'C'}, id)
+			0, 0, 0, 0, 0, 0, '$', 'L', 'D', 'C'}, id)
 
-	cbordata, err := cbor.Marshal(ids.ID{'L', 'D', 'C'})
+	cbordata, err := cbor.Marshal(ids.ID{'$', 'L', 'D', 'C'})
 	assert.Nil(err)
 	var id2 TokenSymbol
 	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
@@ -217,7 +217,7 @@ func TestTokenSymbol(t *testing.T) {
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"LDC"`, string(data))
+	assert.Equal(`"$LDC"`, string(data))
 
 	id, err = NewToken("")
 	assert.Nil(err)
@@ -234,30 +234,35 @@ func TestTokenSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: false, symbol: "LD",
+		{shouldErr: false, symbol: "$D",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 'L', 'D',
+				0, 0, 0, 0, 0, 0, 0, 0, '$', 'D',
 			}},
-		{shouldErr: false, symbol: "USD",
+		{shouldErr: false, symbol: "$USD",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 'U', 'S', 'D',
+				0, 0, 0, 0, 0, 0, '$', 'U', 'S', 'D',
 			}},
-		{shouldErr: false, symbol: "U1D",
+		{shouldErr: false, symbol: "$1D",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 'U', '1', 'D',
+				0, 0, 0, 0, 0, 0, 0, '$', '1', 'D',
 			}},
-		{shouldErr: false, symbol: "USD1",
+		{shouldErr: false, symbol: "$USD1",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 'U', 'S', 'D', '1',
+				0, 0, 0, 0, 0, '$', 'U', 'S', 'D', '1',
 			}},
-		{shouldErr: false, symbol: "L012345678",
+		{shouldErr: false, symbol: "$012345678",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				'L', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+				'$', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+			}},
+		{shouldErr: false, symbol: "$ABCDEFGHIJ012345678",
+			token: TokenSymbol{
+				'$', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+				'J', '0', '1', '2', '3', '4', '5', '6', '7', '8',
 			}},
 		{shouldErr: true, symbol: "",
 			token: TokenSymbol{
@@ -272,29 +277,34 @@ func TestTokenSymbol(t *testing.T) {
 		{shouldErr: true, symbol: "",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, '$',
+			}},
+		{shouldErr: true, symbol: "",
+			token: TokenSymbol{
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, '0', 'L', 'D', 'C',
 			}},
 		{shouldErr: true, symbol: "",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 'L', 0, 'c',
+				0, 0, 0, 0, 0, 0, 0, '$', 0, 'c',
 			}},
 		{shouldErr: true, symbol: "",
 			token: TokenSymbol{
 				0, 0, 0, 'L', 'L', 'L', 'L', 'L', 'L', 'L',
 				'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L',
 			}},
-		{shouldErr: true, symbol: "LDc",
+		{shouldErr: true, symbol: "$LDc",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "L_C",
+		{shouldErr: true, symbol: "$L_C",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "L C",
+		{shouldErr: true, symbol: "$L C",
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -309,7 +319,7 @@ func TestTokenSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "LD‍C", // with Zero Width Joiner
+		{shouldErr: true, symbol: "$LD‍C", // with Zero Width Joiner
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -339,10 +349,10 @@ func TestTokenSymbol(t *testing.T) {
 func FuzzTokenSymbol(f *testing.F) {
 	for _, seed := range []string{
 		"",
-		"AVAX",
+		"$AVAX",
 		"abc",
-		"A100",
-		"ABCDEFGHIJKLMNOPQRST",
+		"$A100",
+		"$ABCDEFGHIJKLMNOPQRST",
 	} {
 		f.Add(seed)
 	}
@@ -362,15 +372,15 @@ func FuzzTokenSymbol(f *testing.F) {
 func TestStakeSymbol(t *testing.T) {
 	assert := assert.New(t)
 
-	token := "@LDC"
+	token := "#LDC"
 	id, err := NewStake(token)
 	assert.Nil(err)
 
 	assert.Equal(
 		StakeSymbol{0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, '@', 'L', 'D', 'C'}, id)
+			0, 0, 0, 0, 0, 0, '#', 'L', 'D', 'C'}, id)
 
-	cbordata, err := cbor.Marshal(ids.ID{'@', 'L', 'D', 'C'})
+	cbordata, err := cbor.Marshal(ids.ID{'#', 'L', 'D', 'C'})
 	assert.Nil(err)
 	var id2 StakeSymbol
 	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
@@ -382,7 +392,7 @@ func TestStakeSymbol(t *testing.T) {
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"@LDC"`, string(data))
+	assert.Equal(`"#LDC"`, string(data))
 
 	id, err = NewStake("")
 	assert.Nil(err)
@@ -399,30 +409,30 @@ func TestStakeSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: false, symbol: "@D",
+		{shouldErr: false, symbol: "#D",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, '@', 'D',
+				0, 0, 0, 0, 0, 0, 0, 0, '#', 'D',
 			}},
-		{shouldErr: false, symbol: "@USD",
+		{shouldErr: false, symbol: "#USD",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, '@', 'U', 'S', 'D',
+				0, 0, 0, 0, 0, 0, '#', 'U', 'S', 'D',
 			}},
-		{shouldErr: false, symbol: "@1D",
+		{shouldErr: false, symbol: "#1D",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, '@', '1', 'D',
+				0, 0, 0, 0, 0, 0, 0, '#', '1', 'D',
 			}},
-		{shouldErr: false, symbol: "@USD1",
+		{shouldErr: false, symbol: "#USD1",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, '@', 'U', 'S', 'D', '1',
+				0, 0, 0, 0, 0, '#', 'U', 'S', 'D', '1',
 			}},
-		{shouldErr: false, symbol: "@012345678",
+		{shouldErr: false, symbol: "#012345678",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				'@', '0', '1', '2', '3', '4', '5', '6', '7', '8',
+				'#', '0', '1', '2', '3', '4', '5', '6', '7', '8',
 			}},
 		{shouldErr: true, symbol: "",
 			token: StakeSymbol{
@@ -432,7 +442,7 @@ func TestStakeSymbol(t *testing.T) {
 		{shouldErr: true, symbol: "",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, '@',
+				0, 0, 0, 0, 0, 0, 0, 0, 0, '#',
 			}},
 		{shouldErr: true, symbol: "",
 			token: StakeSymbol{
@@ -442,24 +452,24 @@ func TestStakeSymbol(t *testing.T) {
 		{shouldErr: true, symbol: "",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, '@', 'L', 'D', 'c',
+				0, 0, 0, 0, 0, 0, '#', 'L', 'D', 'c',
 			}},
 		{shouldErr: true, symbol: "",
 			token: StakeSymbol{
-				'@', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L',
+				'#', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L',
 				'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'l',
 			}},
-		{shouldErr: true, symbol: "@LDc",
+		{shouldErr: true, symbol: "#LDc",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "@L_C",
+		{shouldErr: true, symbol: "#L_C",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "@L C",
+		{shouldErr: true, symbol: "#L C",
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -474,7 +484,7 @@ func TestStakeSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "@LD‍C", // with Zero Width Joiner
+		{shouldErr: true, symbol: "#LD‍C", // with Zero Width Joiner
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -501,7 +511,7 @@ func TestStakeSymbol(t *testing.T) {
 func TestEthIDToStakeSymbol(t *testing.T) {
 	assert := assert.New(t)
 
-	ldc, err := NewStake("@LDC")
+	ldc, err := NewStake("#LDC")
 	assert.Nil(err)
 	ids := []EthID{
 		EthID(ldc),
@@ -511,11 +521,11 @@ func TestEthIDToStakeSymbol(t *testing.T) {
 	}
 	ss := EthIDToStakeSymbol(ids...)
 	assert.Equal(ldc, ss[0])
-	assert.Equal("@LDC", ss[0].String())
+	assert.Equal("#LDC", ss[0].String())
 	assert.Equal("", ss[1].String())
 	assert.Equal(string(EthIDEmpty[:]), string(ss[1][:]))
-	assert.Equal("@BLDQHR4QOJZMNIC5Q5U", ss[2].String())
-	assert.Equal("@BLDQHR4QOJZMNIC5Q5U", string(ss[2][:]))
-	assert.Equal("@GWLGDBWNPCOAN55PCUX", ss[3].String())
-	assert.Equal("@GWLGDBWNPCOAN55PCUX", string(ss[3][:]))
+	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", ss[2].String())
+	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", string(ss[2][:]))
+	assert.Equal("#GWLGDBWNPCOAN55PCUX", ss[3].String())
+	assert.Equal("#GWLGDBWNPCOAN55PCUX", string(ss[3][:]))
 }

@@ -16,8 +16,8 @@ type AccountType uint8
 
 const (
 	NativeAccount AccountType = iota
-	TokenAccount              // The first 10 bytes of account address must be 0
-	StakeAccount              // The first byte of account address must be @
+	TokenAccount              // The first byte of account address must be $
+	StakeAccount              // The first byte of account address must be #
 )
 
 type Account struct {
