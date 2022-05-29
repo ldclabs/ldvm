@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 )
@@ -85,10 +84,4 @@ func (tx *TxPunish) Accept(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)
-}
-
-func (tx *TxPunish) Event(ts int64) *Event {
-	e := NewEvent(ids.ShortID(*tx.data.ID), SrcData, ActionDelete)
-	e.Time = ts
-	return e
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 
 	"github.com/ldclabs/ldvm/chain"
-	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
@@ -41,12 +40,6 @@ func (api *BlockChainAPI) GetChainConfig(_ *http.Request, _ *NoArgs, reply *gene
 // GetTotalSupply
 func (api *BlockChainAPI) GetTotalSupply(_ *http.Request, _ *NoArgs, reply *GetBalanceReply) error {
 	reply.Balance = api.state.TotalSupply()
-	return nil
-}
-
-// GetRecentEvents
-func (api *BlockChainAPI) GetRecentEvents(_ *http.Request, _ *NoArgs, reply *[]*transaction.Event) error {
-	*reply = api.state.QueryEvents()
 	return nil
 }
 

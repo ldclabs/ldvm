@@ -90,9 +90,3 @@ func (tx *TxCreateModel) Accept(bctx BlockContext, bs BlockState) error {
 	}
 	return tx.TxBase.Accept(bctx, bs)
 }
-
-func (tx *TxCreateModel) Event(ts int64) *Event {
-	e := NewEvent(tx.ld.ShortID(), SrcModel, ActionAdd)
-	e.Time = ts
-	return e
-}

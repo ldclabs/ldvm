@@ -66,15 +66,12 @@ type blockState struct {
 	nameDB            *db.PrefixDB
 
 	accountCache accountCache
-	events       []*transaction.Event
 }
 
 type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
 	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transaction.Account)
-	AddEvent(*transaction.Event)
-	Events() []*transaction.Event
 	SaveBlock(*ld.Block) error
 	Commit() error
 
@@ -320,16 +317,6 @@ func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta) error {
 		bs.prevDataDB.Delete(key)
 	}
 	return nil
-}
-
-func (bs *blockState) AddEvent(e *transaction.Event) {
-	if e != nil {
-		bs.events = append(bs.events, e)
-	}
-}
-
-func (bs *blockState) Events() []*transaction.Event {
-	return bs.events
 }
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {

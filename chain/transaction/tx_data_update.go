@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/ava-labs/avalanchego/ids"
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/fxamacker/cbor/v2"
 
@@ -167,10 +166,4 @@ func (tx *TxUpdateData) Accept(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)
-}
-
-func (tx *TxUpdateData) Event(ts int64) *Event {
-	e := NewEvent(ids.ShortID(*tx.data.ID), SrcData, ActionUpdate)
-	e.Time = ts
-	return nil
 }

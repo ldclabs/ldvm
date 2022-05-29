@@ -224,15 +224,3 @@ func (tx *TxCreateData) Accept(bctx BlockContext, bs BlockState) error {
 	}
 	return tx.TxBase.Accept(bctx, bs)
 }
-
-func (tx *TxCreateData) Event(ts int64) *Event {
-	var e *Event
-	if tx.name != nil {
-		e = NewEvent(tx.ld.ShortID(), SrcName, ActionAdd)
-		e.Subject = tx.name.Name
-	} else {
-		e = NewEvent(tx.ld.ShortID(), SrcData, ActionAdd)
-	}
-	e.Time = ts
-	return e
-}
