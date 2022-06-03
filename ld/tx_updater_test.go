@@ -26,10 +26,13 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxUpdater{Threshold: 1}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
-
-	tx = &TxUpdater{Keepers: []util.EthID{util.EthIDEmpty}}
+	tx = &TxUpdater{Keepers: util.EthIDs{}}
+	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
+	tx = &TxUpdater{Threshold: Uint8Ptr(1)}
+	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
+	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: []util.EthID{}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
+	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: []util.EthID{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
 
 	tx = &TxUpdater{ApproveList: []TxType{TypeCreateData - 1}}
@@ -44,7 +47,7 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
-		Threshold: 1,
+		Threshold: Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Approver:  &util.EthIDEmpty,
 		Token:     &util.NativeToken,

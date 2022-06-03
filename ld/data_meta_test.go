@@ -30,10 +30,16 @@ func TestDataMeta(t *testing.T) {
 	tx = &DataMeta{ApproveList: []TxType{TypeDeleteData + 1}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
 	tx = &DataMeta{
-		Data: []byte(`42`),
-		KSig: util.Signature{1, 2, 3},
+		Version: 1,
+		Data:    []byte(`42`),
+		KSig:    util.Signature{1, 2, 3},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigner: recovery failed")
+	tx = &DataMeta{
+		Version: 0,
+		Data:    []byte(`42`),
+	}
+	assert.NoError(tx.SyntacticVerify())
 
 	kSig, err := util.Signer1.Sign([]byte(`42`))
 	assert.NoError(err)
@@ -64,4 +70,21 @@ func TestDataMeta(t *testing.T) {
 	jsondata2, err := json.Marshal(tx2)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
+
+	assert.NoError(tx.MarkDeleted(nil))
+	assert.Equal(uint64(0), tx.Version)
+	assert.Equal(util.SignatureEmpty, tx.KSig)
+	assert.Equal(tx2.Data, tx.Data)
+	cbordata, err = tx.Marshal()
+	assert.NoError(err)
+	tx2 = &DataMeta{}
+	assert.NoError(tx2.Unmarshal(cbordata))
+	assert.NoError(tx2.SyntacticVerify())
+	cbordata2 = tx2.Bytes()
+	assert.Equal(cbordata, cbordata2)
+
+	assert.NoError(tx2.MarkDeleted([]byte(`"test"`)))
+	assert.Equal(uint64(0), tx.Version)
+	assert.Equal(util.SignatureEmpty, tx.KSig)
+	assert.Equal([]byte(`"test"`), []byte(tx2.Data))
 }

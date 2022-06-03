@@ -146,7 +146,7 @@ func (a *Account) checkBalance(token util.TokenSymbol, amount *big.Int) error {
 		if ba := a.balanceOf(token); amount.Cmp(ba) > 0 {
 			return fmt.Errorf(
 				"Account.CheckBalance failed: %s has an insufficient %s balance, expected %v, got %v",
-				a.id, token.GoString(), amount, a.ld.Balance)
+				a.id, token.GoString(), amount, ba)
 		}
 	}
 	return nil
@@ -155,8 +155,8 @@ func (a *Account) checkBalance(token util.TokenSymbol, amount *big.Int) error {
 func (a *Account) CheckAsFrom(txType ld.TxType) error {
 	switch a.ld.Type {
 	case ld.TokenAccount:
-		switch txType {
-		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeDestroyToken, ld.TypeOpenLending, ld.TypeCloseLending:
+		switch {
+		case ld.TokenFromTxTypes.Has(txType):
 			// just go ahead
 		default:
 			return fmt.Errorf(
@@ -179,16 +179,16 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 		// 0: account keepers can not use stake token
 		// 1: account keepers can take a stake in other stake account
 		// 2: in addition to 1, account keepers can transfer stake token to other account
-		switch txType {
-		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay:
+		switch {
+		case ld.StakeFromTxTypes0.Has(txType):
 			// just go ahead
-		case ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending:
+		case ld.StakeFromTxTypes1.Has(txType):
 			if ty < 1 {
 				return fmt.Errorf(
 					"Account.CheckAsFrom failed: can't use type %d StakeAccount as sender for %s",
 					ty, txType.String())
 			}
-		case ld.TypeEth, ld.TypeTransfer:
+		case ld.StakeFromTxTypes2.Has(txType):
 			if ty < 2 {
 				return fmt.Errorf(
 					"Account.CheckAsFrom failed: can't use type %d StakeAccount as sender for %s",
@@ -206,8 +206,8 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 func (a *Account) CheckAsTo(txType ld.TxType) error {
 	switch a.ld.Type {
 	case ld.TokenAccount:
-		switch txType {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeExchange, ld.TypeCreateToken:
+		switch {
+		case ld.TokenToTxTypes.Has(txType):
 			// just go ahead
 		default:
 			return fmt.Errorf(
@@ -215,8 +215,8 @@ func (a *Account) CheckAsTo(txType ld.TxType) error {
 				txType.String())
 		}
 	case ld.StakeAccount:
-		switch txType {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+		switch {
+		case ld.StakeToTxTypes.Has(txType):
 			// just go ahead
 		default:
 			return fmt.Errorf(
@@ -423,7 +423,7 @@ func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error
 }
 
 func (a *Account) UpdateKeepers(
-	threshold uint8,
+	threshold *uint8,
 	keepers []util.EthID,
 	approver *util.EthID,
 	approveList []ld.TxType,
@@ -434,6 +434,7 @@ func (a *Account) UpdateKeepers(
 	if approver != nil {
 		if *approver == util.EthIDEmpty {
 			a.ld.Approver = nil
+			a.ld.ApproveList = nil
 		} else {
 			a.ld.Approver = approver
 		}
@@ -441,8 +442,8 @@ func (a *Account) UpdateKeepers(
 	if approveList != nil {
 		a.ld.ApproveList = approveList
 	}
-	if len(keepers) > 0 {
-		a.ld.Threshold = threshold
+	if threshold != nil {
+		a.ld.Threshold = *threshold
 		a.ld.Keepers = keepers
 	}
 	return nil
@@ -482,7 +483,7 @@ func (a *Account) createToken(data *ld.TxAccounter, write bool) error {
 		case constants.NativeToken: // NativeToken created by genesis tx
 			a.ld.Balance.Set(data.Amount)
 		default:
-			a.ld.Threshold = data.Threshold
+			a.ld.Threshold = *data.Threshold
 			a.ld.Keepers = data.Keepers
 			a.ld.Tokens[token] = new(big.Int).Set(data.Amount)
 		}
@@ -576,7 +577,7 @@ func (a *Account) createStake(
 	}
 	if write {
 		a.ld.Type = ld.StakeAccount
-		a.ld.Threshold = acc.Threshold
+		a.ld.Threshold = *acc.Threshold
 		a.ld.Keepers = acc.Keepers
 		a.ld.Stake = cfg
 		a.ld.StakeLedger = make(map[util.EthID]*ld.StakeEntry)

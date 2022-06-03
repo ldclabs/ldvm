@@ -14,7 +14,7 @@ import (
 
 // TxAccounter
 type TxAccounter struct {
-	Threshold   uint8        `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Threshold   *uint8       `cbor:"th,omitempty" json:"threshold,omitempty"`
 	Keepers     []util.EthID `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList []TxType     `cbor:"apl,omitempty" json:"approveList,omitempty"`
@@ -38,15 +38,25 @@ func (t *TxAccounter) SyntacticVerify() error {
 	if t.Amount != nil && t.Amount.Sign() < 1 {
 		return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid amount")
 	}
-	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("TxAccounter.SyntacticVerify failed: too many keepers")
-	}
-	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid threshold")
-	}
-	for _, id := range t.Keepers {
-		if id == util.EthIDEmpty {
-			return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid keeper")
+	if t.Keepers != nil || t.Threshold != nil {
+		l := len(t.Keepers)
+		switch {
+		case t.Threshold == nil:
+			return fmt.Errorf("TxAccounter.SyntacticVerify failed: nil threshold")
+		case t.Keepers == nil:
+			return fmt.Errorf("TxAccounter.SyntacticVerify failed: nil keepers")
+		case int(*t.Threshold) > l:
+			return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid threshold, expected <= %d, got %d",
+				l, *t.Threshold)
+		case l > math.MaxUint8:
+			return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid keepers, expected <= %d, got %d",
+				math.MaxUint8, l)
+		}
+
+		for _, id := range t.Keepers {
+			if id == util.EthIDEmpty {
+				return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
+			}
 		}
 	}
 	if t.ApproveList != nil {

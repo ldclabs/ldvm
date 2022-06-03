@@ -21,17 +21,20 @@ func TestTxAccounter(t *testing.T) {
 	tx = &TxAccounter{Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxAccounter{Threshold: 1}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
-
-	tx = &TxAccounter{Keepers: []util.EthID{util.EthIDEmpty}}
+	tx = &TxAccounter{Keepers: util.EthIDs{}}
+	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
+	tx = &TxAccounter{Threshold: Uint8Ptr(1)}
+	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
+	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: []util.EthID{}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
+	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: []util.EthID{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
 
 	tx = &TxAccounter{ApproveList: []TxType{TypeDeleteData + 1}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
 
 	tx = &TxAccounter{
-		Threshold: 1,
+		Threshold: Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),

@@ -26,7 +26,7 @@ type TxUpdater struct {
 	ID          *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
 	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
 	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
-	Threshold   uint8             `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Threshold   *uint8            `cbor:"th,omitempty" json:"threshold,omitempty"`
 	Keepers     util.EthIDs       `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList []TxType          `cbor:"apl,omitempty" json:"approveList,omitempty"`
@@ -53,15 +53,25 @@ func (t *TxUpdater) SyntacticVerify() error {
 	if t.Amount != nil && t.Amount.Sign() < 1 {
 		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid amount")
 	}
-	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: too many keepers")
-	}
-	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid threshold")
-	}
-	for _, id := range t.Keepers {
-		if id == util.EthIDEmpty {
-			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
+	if t.Keepers != nil || t.Threshold != nil {
+		l := len(t.Keepers)
+		switch {
+		case t.Threshold == nil:
+			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil threshold")
+		case t.Keepers == nil:
+			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil keepers")
+		case int(*t.Threshold) > l:
+			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid threshold, expected <= %d, got %d",
+				l, *t.Threshold)
+		case l > math.MaxUint8:
+			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keepers, expected <= %d, got %d",
+				math.MaxUint8, l)
+		}
+
+		for _, id := range t.Keepers {
+			if id == util.EthIDEmpty {
+				return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
+			}
 		}
 	}
 	if t.ApproveList != nil {

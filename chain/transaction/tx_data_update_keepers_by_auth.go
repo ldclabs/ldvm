@@ -14,7 +14,7 @@ import (
 type TxUpdateDataKeepersByAuth struct {
 	TxBase
 	exSigners util.EthIDs
-	data      *ld.TxUpdater
+	input     *ld.TxUpdater
 	dm        *ld.DataMeta
 }
 
@@ -23,10 +23,10 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -53,22 +53,22 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 		return fmt.Errorf("invalid exSignatures: %v", err)
 	}
 
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth syntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == nil ||
-		tx.data.Version == 0 ||
-		tx.data.Amount == nil ||
-		tx.data.Amount.Cmp(tx.ld.Amount) != 0 ||
-		tx.data.To == nil ||
-		*tx.data.To != *tx.ld.To {
+	if tx.input.ID == nil ||
+		tx.input.Version == 0 ||
+		tx.input.Amount == nil ||
+		tx.input.Amount.Cmp(tx.ld.Amount) != 0 ||
+		tx.input.To == nil ||
+		*tx.input.To != *tx.ld.To {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater")
 	}
-	if tx.data.Token != nil && *tx.data.Token != tx.token {
+	if tx.input.Token != nil && *tx.input.Token != tx.token {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater token")
 	}
 	return nil
@@ -80,13 +80,13 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(*tx.data.ID)
+	tx.dm, err = bs.LoadData(*tx.input.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
 	}
-	if tx.dm.Version != tx.data.Version {
+	if tx.dm.Version != tx.input.Version {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth version mismatch, expected %v, got %v",
-			tx.dm.Version, tx.data.Version)
+			tx.dm.Version, tx.input.Version)
 	}
 	// verify seller's signatures
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners) {
@@ -95,12 +95,12 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver) {
 		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: no approver signing")
 	}
-	if tx.data.KSig != nil {
-		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.data.KSig)[:])
+	if tx.input.KSig != nil {
+		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.input.KSig)[:])
 		if err != nil {
 			return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid kSig: %v", err)
 		}
-		keepers := tx.data.Keepers
+		keepers := tx.input.Keepers
 		if len(keepers) == 0 {
 			keepers = tx.dm.Keepers
 		}
@@ -115,26 +115,27 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) er
 	var err error
 
 	tx.dm.Version++
-	tx.dm.Threshold = tx.data.Threshold
-	tx.dm.Keepers = tx.data.Keepers
+	tx.dm.Threshold = *tx.input.Threshold
+	tx.dm.Keepers = tx.input.Keepers
 	if len(tx.dm.Keepers) == 0 {
 		tx.dm.Threshold = tx.from.Threshold()
 		tx.dm.Keepers = tx.from.Keepers()
 	}
-	if tx.data.Approver != nil {
-		if *tx.data.Approver == util.EthIDEmpty {
+	if tx.input.Approver != nil {
+		if *tx.input.Approver == util.EthIDEmpty {
 			tx.dm.Approver = nil
+			tx.dm.ApproveList = nil
 		} else {
-			tx.dm.Approver = tx.data.Approver
+			tx.dm.Approver = tx.input.Approver
 		}
 	}
-	if tx.data.ApproveList != nil {
-		tx.dm.ApproveList = tx.data.ApproveList
+	if tx.input.ApproveList != nil {
+		tx.dm.ApproveList = tx.input.ApproveList
 	}
-	if tx.data.KSig != nil {
-		tx.dm.KSig = *tx.data.KSig
+	if tx.input.KSig != nil {
+		tx.dm.KSig = *tx.input.KSig
 	}
-	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
+	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

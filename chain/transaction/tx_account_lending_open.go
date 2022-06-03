@@ -13,7 +13,7 @@ import (
 
 type TxOpenLending struct {
 	TxBase
-	data *ld.LendingConfig
+	input *ld.LendingConfig
 }
 
 func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
@@ -21,10 +21,10 @@ func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +52,11 @@ func (tx *TxOpenLending) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxOpenLending invalid")
 	}
-	tx.data = &ld.LendingConfig{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.LendingConfig{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxOpenLending unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxOpenLending SyntacticVerify failed: %v", err)
 	}
 	return nil
@@ -67,12 +67,12 @@ func (tx *TxOpenLending) Verify(bctx BlockContext, bs BlockState) error {
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
 		return err
 	}
-	return tx.from.CheckOpenLending(tx.data)
+	return tx.from.CheckOpenLending(tx.input)
 }
 
 func (tx *TxOpenLending) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.from.OpenLending(tx.data); err != nil {
+	if err = tx.from.OpenLending(tx.input); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

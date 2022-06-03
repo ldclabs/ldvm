@@ -29,5 +29,5 @@ type BlockState interface {
 	LoadData(util.DataID) (*ld.DataMeta, error)
 	SaveData(util.DataID, *ld.DataMeta) error
 	SavePrevData(util.DataID, *ld.DataMeta) error
-	DeleteData(util.DataID, *ld.DataMeta) error
+	DeleteData(util.DataID, *ld.DataMeta, []byte) error
 }

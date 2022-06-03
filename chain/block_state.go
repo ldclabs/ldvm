@@ -247,9 +247,6 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 }
 
 func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
-	if mm == nil {
-		return fmt.Errorf("SaveData with nil ModelMeta")
-	}
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -274,9 +271,6 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataMeta, error) {
 }
 
 func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
-	if dm == nil {
-		return fmt.Errorf("SaveData with nil DataMeta")
-	}
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -285,9 +279,6 @@ func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
 }
 
 func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
-	if dm == nil {
-		return fmt.Errorf("SavePrevData with nil DataMeta")
-	}
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -299,9 +290,11 @@ func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	return bs.prevDataDB.Put(key, dm.Bytes())
 }
 
-func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta) error {
+func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta, message []byte) error {
 	version := dm.Version
-	dm.Version = 0 // mark dropped
+	if err := dm.MarkDeleted(message); err != nil {
+		return err
+	}
 	if err := bs.SaveData(id, dm); err != nil {
 		return err
 	}

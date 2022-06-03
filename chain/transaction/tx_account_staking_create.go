@@ -14,7 +14,7 @@ import (
 
 type TxCreateStakeAccount struct {
 	TxBase
-	data  *ld.TxAccounter
+	input *ld.TxAccounter
 	stake *ld.StakeConfig
 }
 
@@ -24,10 +24,10 @@ func (tx *TxCreateStakeAccount) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -55,26 +55,26 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 		return fmt.Errorf("TxCreateStakeAccount invalid")
 	}
 
-	tx.data = &ld.TxAccounter{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxAccounter{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxCreateStakeAccount SyntacticVerify failed: %v", err)
 	}
 
-	if tx.data.Threshold == 0 {
+	if tx.input.Threshold == nil {
 		return fmt.Errorf("TxCreateStakeAccount invalid threshold")
 	}
-	if len(tx.data.Keepers) == 0 {
+	if len(tx.input.Keepers) == 0 {
 		return fmt.Errorf("TxCreateStakeAccount invalid keepers")
 	}
-	if tx.data.Amount != nil {
+	if tx.input.Amount != nil {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, please take stake after created")
 	}
 
 	tx.stake = &ld.StakeConfig{}
-	if err = tx.stake.Unmarshal(tx.data.Data); err != nil {
+	if err = tx.stake.Unmarshal(tx.input.Data); err != nil {
 		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
 	}
 	if err = tx.stake.SyntacticVerify(); err != nil {
@@ -97,12 +97,12 @@ func (tx *TxCreateStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
 			feeCfg.MinStakePledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateStake(tx.ld.From, tx.ld.Amount, tx.data, tx.stake)
+	return tx.to.CheckCreateStake(tx.ld.From, tx.ld.Amount, tx.input, tx.stake)
 }
 
 func (tx *TxCreateStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.to.CreateStake(tx.ld.From, tx.ld.Amount, tx.data, tx.stake); err != nil {
+	if err = tx.to.CreateStake(tx.ld.From, tx.ld.Amount, tx.input, tx.stake); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

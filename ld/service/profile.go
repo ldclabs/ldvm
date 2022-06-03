@@ -47,7 +47,7 @@ type Profile struct {
 
 type Extension struct {
 	ModelID    util.ModelID           `cbor:"mid" json:"mid"` // model id
-	Title      string                 `cbor:"t" json:"title"` // model name
+	Title      string                 `cbor:"t" json:"title"` // extension title
 	Properties map[string]interface{} `cbor:"ps" json:"properties"`
 }
 

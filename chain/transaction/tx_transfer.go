@@ -20,11 +20,10 @@ func (tx *TxTransfer) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.To == nil {
+	switch {
+	case tx.ld.To == nil:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid to")
-	}
-
-	if tx.ld.Amount == nil {
+	case tx.ld.Amount == nil:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
 	}
 	return nil

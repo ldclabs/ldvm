@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -14,8 +13,8 @@ import (
 
 type TxUpdateModelKeepers struct {
 	TxBase
-	data *ld.TxUpdater
-	mm   *ld.ModelMeta
+	input *ld.TxUpdater
+	mm    *ld.ModelMeta
 }
 
 func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
@@ -23,10 +22,10 @@ func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+	if tx.input == nil {
+		return nil, fmt.Errorf("TxUpdateModelKeepers.MarshalJSON failed: invalid tx.input")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -40,26 +39,30 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
-	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxUpdateModelKeepers invalid")
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid to, should be nil")
+	case tx.ld.Token != nil:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid token, should be nil")
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid amount, should be nil")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid data")
 	}
 
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers unmarshal data failed: %v", err)
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers SyntacticVerify failed: %v", err)
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ModelID == nil {
-		return fmt.Errorf("TxUpdateModelKeepers invalid TxUpdater")
-	}
-	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil {
-		return fmt.Errorf("TxUpdateModelKeepers no keepers nor approver")
+
+	switch {
+	case tx.input.ModelID == nil || *tx.input.ModelID == util.ModelIDEmpty:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid mid")
+	case tx.input.Threshold == nil && tx.input.Approver == nil:
+		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: nothing to update")
 	}
 	return nil
 }
@@ -70,17 +73,17 @@ func (tx *TxUpdateModelKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 
-	tx.mm, err = bs.LoadModel(*tx.data.ModelID)
+	tx.mm, err = bs.LoadModel(*tx.input.ModelID)
 	if err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers load model failed: %v", err)
+		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: %v", err)
 	}
 
 	if !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers) {
-		return fmt.Errorf("TxUpdateModelKeepers need more signatures")
+		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: invalid signature for keepers")
 	}
 
 	if tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver) {
-		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: no approver signing")
+		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: invalid signature for approver")
 	}
 	return nil
 }
@@ -88,18 +91,18 @@ func (tx *TxUpdateModelKeepers) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxUpdateModelKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	if tx.data.Approver != nil {
-		if *tx.data.Approver == util.EthIDEmpty {
+	if tx.input.Approver != nil {
+		if *tx.input.Approver == util.EthIDEmpty {
 			tx.mm.Approver = nil
 		} else {
-			tx.mm.Approver = tx.data.Approver
+			tx.mm.Approver = tx.input.Approver
 		}
 	}
-	if len(tx.data.Keepers) > 0 {
-		tx.mm.Threshold = tx.data.Threshold
-		tx.mm.Keepers = tx.data.Keepers
+	if tx.input.Threshold != nil {
+		tx.mm.Threshold = *tx.input.Threshold
+		tx.mm.Keepers = tx.input.Keepers
 	}
-	if err = bs.SaveModel(*tx.data.ModelID, tx.mm); err != nil {
+	if err = bs.SaveModel(*tx.input.ModelID, tx.mm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

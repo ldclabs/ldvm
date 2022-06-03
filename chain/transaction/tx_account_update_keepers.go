@@ -15,7 +15,7 @@ import (
 
 type TxUpdateAccountKeepers struct {
 	TxBase
-	data *ld.TxAccounter
+	input *ld.TxAccounter
 }
 
 func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
@@ -23,10 +23,10 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -48,18 +48,14 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateAccountKeepers invalid")
 	}
-	tx.data = &ld.TxAccounter{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxAccounter{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
 	}
-	if len(tx.data.Keepers) == 0 ||
-		tx.data.Threshold == 0 {
-		return fmt.Errorf("TxUpdateAccountKeepers invalid keepers")
-	}
-	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil && tx.data.ApproveList == nil {
+	if tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil {
 		return fmt.Errorf("TxUpdateAccountKeepers no keepers nor approver")
 	}
 	return nil
@@ -67,11 +63,11 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 
 func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	tx.data = &ld.TxAccounter{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxAccounter{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
 	}
 
@@ -102,7 +98,8 @@ func (tx *TxUpdateAccountKeepers) Verify(bctx BlockContext, bs BlockState) error
 
 func (tx *TxUpdateAccountKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.from.UpdateKeepers(tx.data.Threshold, tx.data.Keepers, tx.data.Approver, tx.data.ApproveList); err != nil {
+	if err = tx.from.UpdateKeepers(
+		tx.input.Threshold, tx.input.Keepers, tx.input.Approver, tx.input.ApproveList); err != nil {
 		return err
 	}
 

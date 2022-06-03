@@ -16,149 +16,12 @@ import (
 )
 
 const (
-	// The "test" transaction tests that a value of data at the target location
-	// is equal to a specified value. test transaction will not write to the block.
-	// It should be in a batch transactions.
-	TypeTest TxType = iota
-
-	// punish transaction can be issued by genesisAccount
-	// we can only punish illegal data
-	TypePunish
-
-	// Transfer
-	TypeEth          // send given amount of NanoLDC to a address in ETH transaction
-	TypeTransfer     // send given amount of NanoLDC to a address
-	TypeTransferPay  // send given amount of NanoLDC to the address who request payment
-	TypeTransferCash // cash given amount of NanoLDC to sender, like cash a check.
-	TypeExchange     // exchange tokens
-
-	// Account
-	TypeAddNonceTable        // add more nonce with expire time to account
-	TypeUpdateAccountKeepers // update account's Keepers and Threshold
-	TypeCreateToken          // create a token account
-	TypeDestroyToken         // destroy a token account
-	TypeCreateStake          // create a stake account
-	TypeResetStake           // reset or destroy a stake account
-	TypeTakeStake            // take a stake in
-	TypeWithdrawStake        // withdraw stake
-	TypeUpdateStakeApprover
-	TypeOpenLending
-	TypeCloseLending
-	TypeBorrow
-	TypeRepay
-
-	// Model
-	TypeCreateModel        // create a data model
-	TypeUpdateModelKeepers // update data model's Keepers and Threshold
-
-	// Data
-	TypeCreateData              // create a data from the model
-	TypeUpdateData              // update the data's Data
-	TypeUpdateDataKeepers       // update data's Keepers and Threshold
-	TypeUpdateDataKeepersByAuth // update data's Keepers and Threshold by authorization
-	TypeDeleteData              // delete the data
-)
-
-const (
 	// gasTipPerSec: A delay of 1 seconds is equivalent to 1000 gasTip
 	GasTipPerSec = constants.MicroLDC
 )
 
 // gChainID will be updated by SetChainID when VM.Initialize
 var gChainID = uint64(2357)
-
-// TxType is an uint8 representing the type of the tx
-type TxType uint8
-
-func (t TxType) Gas() uint64 {
-	switch t {
-	case TypeTest:
-		return 0
-	case TypePunish:
-		return 42
-	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
-		TypeExchange, TypeAddNonceTable:
-		return 42
-	case TypeUpdateAccountKeepers, TypeCreateToken,
-		TypeDestroyToken, TypeCreateStake, TypeResetStake:
-		return 1000
-	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
-		return 500
-	case TypeOpenLending, TypeCloseLending:
-		return 1000
-	case TypeBorrow, TypeRepay:
-		return 500
-	case TypeCreateModel, TypeUpdateModelKeepers:
-		return 500
-	case TypeCreateData, TypeUpdateData, TypeUpdateDataKeepers:
-		return 100
-	case TypeUpdateDataKeepersByAuth, TypeDeleteData:
-		return 200
-	default:
-		return 1000
-	}
-}
-
-func (t TxType) String() string {
-	switch t {
-	case TypeTest:
-		return "TestTx"
-	case TypePunish:
-		return "PunishTx"
-	case TypeEth:
-		return "EthTx"
-	case TypeTransfer:
-		return "TransferTx"
-	case TypeTransferPay:
-		return "TransferPayTx"
-	case TypeTransferCash:
-		return "TransferCashTx"
-	case TypeExchange:
-		return "ExchangeTx"
-	case TypeAddNonceTable:
-		return "TypeAddNonceTable"
-	case TypeUpdateAccountKeepers:
-		return "UpdateAccountKeepersTx"
-	case TypeCreateToken:
-		return "CreateTokenTx"
-	case TypeDestroyToken:
-		return "DestroyTokenTx"
-	case TypeCreateStake:
-		return "CreateStakeTx"
-	case TypeResetStake:
-		return "ResetStakeTx"
-	case TypeTakeStake:
-		return "TakeStakeTx"
-	case TypeWithdrawStake:
-		return "WithdrawStakeTx"
-	case TypeUpdateStakeApprover:
-		return "TypeUpdateStakeApprover"
-	case TypeOpenLending:
-		return "OpenLendingTx"
-	case TypeCloseLending:
-		return "CloseLendingTx"
-	case TypeBorrow:
-		return "BorrowTx"
-	case TypeRepay:
-		return "RepayTx"
-	case TypeCreateModel:
-		return "CreateModelTx"
-	case TypeUpdateModelKeepers:
-		return "UpdateModelKeepersTx"
-	case TypeCreateData:
-		return "CreateDataTx"
-	case TypeUpdateData:
-		return "UpdateDataTx"
-	case TypeUpdateDataKeepers:
-		return "UpdateDataKeepersTx"
-	case TypeUpdateDataKeepersByAuth:
-		return "UpdateDataKeepersByAuthTx"
-	case TypeDeleteData:
-		return "DeleteDataTx"
-	default:
-		return "UnknownTx"
-	}
-}
 
 type Signer interface {
 	Sign(data []byte) (util.Signature, error)
@@ -191,8 +54,8 @@ func (t *TxData) SyntacticVerify() error {
 	if t == nil {
 		return fmt.Errorf("TxData.SyntacticVerify failed: nil pointer")
 	}
-	if t.Type > TypeDeleteData {
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type")
+	if !AllTxTypes.Has(t.Type) {
+		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type %d", t.Type)
 	}
 	if t.ChainID != gChainID {
 		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d",
@@ -229,6 +92,7 @@ func (t *TxData) SyntacticVerify() error {
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("TxData.SyntacticVerify marshal error: %v", err)
 	}
+	t.unsigned = t.calcUnsignedBytes()
 	t.ID = util.IDFromData(t.Bytes())
 	return nil
 }
@@ -240,25 +104,30 @@ func (t *TxData) Bytes() []byte {
 	return t.raw
 }
 
+func (t *TxData) UnsignedBytes() []byte {
+	if len(t.unsigned) == 0 {
+		t.unsigned = t.calcUnsignedBytes()
+	}
+	return t.unsigned
+}
+
+func (t *TxData) calcUnsignedBytes() []byte {
+	sigs := t.Signatures
+	exSigs := t.ExSignatures
+	t.Signatures = nil
+	t.ExSignatures = nil
+	unsigned := MustMarshal(t)
+	t.Signatures = sigs
+	t.ExSignatures = exSigs
+	return unsigned
+}
+
 func (t *TxData) Unmarshal(data []byte) error {
 	return DecMode.Unmarshal(data, t)
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
 	return EncMode.Marshal(t)
-}
-
-func (t *TxData) UnsignedBytes() []byte {
-	if len(t.unsigned) == 0 {
-		sigs := t.Signatures
-		exSigs := t.ExSignatures
-		t.Signatures = nil
-		t.ExSignatures = nil
-		t.unsigned = MustMarshal(t)
-		t.Signatures = sigs
-		t.ExSignatures = exSigs
-	}
-	return t.unsigned
 }
 
 func (t *TxData) RequiredGas(threshold uint64) uint64 {

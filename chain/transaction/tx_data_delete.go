@@ -14,8 +14,8 @@ import (
 
 type TxDeleteData struct {
 	TxBase
-	data *ld.TxUpdater
-	dm   *ld.DataMeta
+	input *ld.TxUpdater
+	dm    *ld.DataMeta
 }
 
 func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
@@ -23,10 +23,10 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -47,15 +47,15 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxDeleteData invalid")
 	}
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxDeleteData SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == nil ||
-		tx.data.Version == 0 {
+	if tx.input.ID == nil ||
+		tx.input.Version == 0 {
 		return fmt.Errorf("TxDeleteData invalid TxUpdater")
 	}
 	return nil
@@ -67,13 +67,13 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(*tx.data.ID)
+	tx.dm, err = bs.LoadData(*tx.input.ID)
 	if err != nil {
 		return fmt.Errorf("TxDeleteData load data failed: %v", err)
 	}
-	if tx.dm.Version != tx.data.Version {
+	if tx.dm.Version != tx.input.Version {
 		return fmt.Errorf("TxDeleteData version mismatch, expected %v, got %v",
-			tx.dm.Version, tx.data.Version)
+			tx.dm.Version, tx.input.Version)
 	}
 	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
 		return fmt.Errorf("TxDeleteData need more signatures")
@@ -87,8 +87,7 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxDeleteData) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	tx.dm.Data = tx.data.Data
-	if err = bs.DeleteData(*tx.data.ID, tx.dm); err != nil {
+	if err = bs.DeleteData(*tx.input.ID, tx.dm, tx.input.Data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

@@ -58,7 +58,7 @@ func (tx *TxTest) SyntacticVerify() error {
 
 // call after SyntacticVerify
 func (tx *TxTest) Verify(bctx BlockContext, bs BlockState) error {
-	return fmt.Errorf("TODO: not implemented")
+	return fmt.Errorf("TxTest.Verify failed: not implemented, TODO")
 }
 
 func (tx *TxTest) Accept(bctx BlockContext, bs BlockState) error {

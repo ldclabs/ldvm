@@ -19,7 +19,7 @@ import (
 type TxCreateData struct {
 	TxBase
 	exSigners util.EthIDs
-	data      *ld.TxUpdater
+	input     *ld.TxUpdater
 	dm        *ld.DataMeta
 	name      *service.Name
 	kSigner   util.EthID
@@ -31,10 +31,10 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -59,60 +59,60 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		}
 	}
 
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxCreateData SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Version != 1 {
+	if tx.input.Version != 1 {
 		return fmt.Errorf("TxCreateData version must be 1")
 	}
-	if len(tx.data.Keepers) == 0 {
+	if len(tx.input.Keepers) == 0 {
 		return fmt.Errorf("TxCreateData should have at least one keeper")
 	}
-	if tx.data.ModelID == nil {
+	if tx.input.ModelID == nil {
 		return fmt.Errorf("TxCreateData TxUpdater invalid modelID")
 	}
-	if tx.data.KSig == nil {
+	if tx.input.KSig == nil {
 		return fmt.Errorf("TxCreateData TxUpdater invalid kSig")
 	}
-	tx.kSigner, err = util.DeriveSigner(tx.data.Data, (*tx.data.KSig)[:])
+	tx.kSigner, err = util.DeriveSigner(tx.input.Data, (*tx.input.KSig)[:])
 	if err != nil {
 		return fmt.Errorf("TxCreateData TxUpdater invalid kSig: %v", err)
 	}
 
 	// with model keepers
-	if tx.data.To != nil {
-		if tx.ld.To == nil || *tx.data.To != *tx.ld.To {
+	if tx.input.To != nil {
+		if tx.ld.To == nil || *tx.input.To != *tx.ld.To {
 			return fmt.Errorf("TxCreateData invalid recipient")
 		}
-		if tx.data.Expire < tx.ld.Timestamp {
+		if tx.input.Expire < tx.ld.Timestamp {
 			return fmt.Errorf("TxCreateData expired")
 		}
-		if tx.data.Amount == nil || tx.ld.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
+		if tx.input.Amount == nil || tx.ld.Amount == nil || tx.input.Amount.Cmp(tx.ld.Amount) != 0 {
 			return fmt.Errorf("TxCreateData invalid amount")
 		}
-		if tx.data.MSig == nil {
+		if tx.input.MSig == nil {
 			return fmt.Errorf("TxCreateData TxUpdater mSig invalid")
 		}
-		tx.mSigner, err = util.DeriveSigner(tx.data.Data, (*tx.data.MSig)[:])
+		tx.mSigner, err = util.DeriveSigner(tx.input.Data, (*tx.input.MSig)[:])
 		if err != nil {
 			return fmt.Errorf("TxCreateData invalid mSig: %v", err)
 		}
 	}
 
 	tx.dm = &ld.DataMeta{
-		ModelID:     *tx.data.ModelID,
-		Version:     tx.data.Version,
-		Threshold:   tx.data.Threshold,
-		Keepers:     tx.data.Keepers,
-		Approver:    tx.data.Approver,
-		ApproveList: tx.data.ApproveList,
-		Data:        tx.data.Data,
-		KSig:        *tx.data.KSig,
-		MSig:        tx.data.MSig,
+		ModelID:     *tx.input.ModelID,
+		Version:     tx.input.Version,
+		Threshold:   *tx.input.Threshold,
+		Keepers:     tx.input.Keepers,
+		Approver:    tx.input.Approver,
+		ApproveList: tx.input.ApproveList,
+		Data:        tx.input.Data,
+		KSig:        *tx.input.KSig,
+		MSig:        tx.input.MSig,
 	}
 	return nil
 }
@@ -136,12 +136,12 @@ func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
 	case constants.RawModelID:
 		return nil
 	case constants.CBORModelID:
-		if err = cbor.Valid(tx.data.Data); err != nil {
+		if err = cbor.Valid(tx.input.Data); err != nil {
 			return fmt.Errorf("TxCreateData invalid CBOR encoding data: %v", err)
 		}
 		return nil
 	case constants.JSONModelID:
-		if !json.Valid(tx.data.Data) {
+		if !json.Valid(tx.input.Data) {
 			return fmt.Errorf("TxCreateData invalid JSON encoding data")
 		}
 		return nil
@@ -181,19 +181,19 @@ func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateData unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxCreateData SyntacticVerify failed: %v", err)
 	}
 	tx.dm = &ld.DataMeta{
-		ModelID:   *tx.data.ModelID,
-		Version:   tx.data.Version,
-		Threshold: tx.data.Threshold,
-		Keepers:   tx.data.Keepers,
-		Data:      tx.data.Data,
+		ModelID:   *tx.input.ModelID,
+		Version:   tx.input.Version,
+		Threshold: *tx.input.Threshold,
+		Keepers:   tx.input.Keepers,
+		Data:      tx.input.Data,
 	}
 
 	tx.tip = new(big.Int)
