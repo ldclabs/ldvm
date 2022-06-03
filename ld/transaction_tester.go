@@ -8,6 +8,8 @@ package ld
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -46,6 +48,27 @@ func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Tr
 		return nil, err
 	}
 	return tx, nil
+}
+
+func NewEthTx(innerTx *types.AccessListTx) (*TxEth, error) {
+	eip2718Tx := types.NewTx(innerTx)
+	signedEip2718Tx, err := types.SignTx(eip2718Tx, EthSigner, util.Signer1.PK)
+	if err != nil {
+		return nil, err
+	}
+	signedEip2718TxBinary, err := signedEip2718Tx.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	txe := &TxEth{}
+	if err = txe.Unmarshal(signedEip2718TxBinary); err != nil {
+		return nil, err
+	}
+	if err = txe.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	return txe, nil
 }
 
 func GenJSONData(n int) []byte {

@@ -14,7 +14,7 @@ import (
 
 type TxResetStakeAccount struct {
 	TxBase
-	data *ld.StakeConfig
+	input *ld.StakeConfig
 }
 
 func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
@@ -22,10 +22,10 @@ func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +55,14 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 		if len(tx.ld.Data) == 0 {
 			return fmt.Errorf("TxResetStakeAccount invalid data")
 		}
-		tx.data = &ld.StakeConfig{}
-		if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+		tx.input = &ld.StakeConfig{}
+		if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 			return fmt.Errorf("TxResetStakeAccount unmarshal data failed: %v", err)
 		}
-		if err = tx.data.SyntacticVerify(); err != nil {
+		if err = tx.input.SyntacticVerify(); err != nil {
 			return fmt.Errorf("TxResetStakeAccount SyntacticVerify failed: %v", err)
 		}
-		if tx.data.LockTime < tx.ld.Timestamp {
+		if tx.input.LockTime < tx.ld.Timestamp {
 			return fmt.Errorf("TxResetStakeAccount invalid lockTime")
 		}
 	}
@@ -80,7 +80,7 @@ func (tx *TxResetStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 
 	switch tx.ld.To {
 	case nil:
-		return tx.from.CheckResetStake(tx.data)
+		return tx.from.CheckResetStake(tx.input)
 	default:
 		return tx.from.CheckDestroyStake(tx.to)
 	}
@@ -93,7 +93,7 @@ func (tx *TxResetStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
 	// do it after TxBase.Accept
 	switch tx.ld.To {
 	case nil:
-		return tx.from.ResetStake(tx.data)
+		return tx.from.ResetStake(tx.input)
 	default:
 		return tx.from.DestroyStake(tx.to)
 	}

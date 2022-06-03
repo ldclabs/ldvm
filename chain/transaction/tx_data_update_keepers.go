@@ -14,8 +14,8 @@ import (
 
 type TxUpdateDataKeepers struct {
 	TxBase
-	data *ld.TxUpdater
-	dm   *ld.DataMeta
+	input *ld.TxUpdater
+	dm    *ld.DataMeta
 }
 
 func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
@@ -23,10 +23,10 @@ func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -47,18 +47,18 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateDataKeepers invalid")
 	}
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers SyntacticVerify failed: %v", err)
 	}
-	if tx.data.ID == nil ||
-		tx.data.Version == 0 {
+	if tx.input.ID == nil ||
+		tx.input.Version == 0 {
 		return fmt.Errorf("TxUpdateDataKeepers invalid txUpdater")
 	}
-	if len(tx.data.Keepers) == 0 && tx.data.Approver == nil && tx.data.ApproveList == nil && tx.data.KSig == nil {
+	if tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil && tx.input.KSig == nil {
 		return fmt.Errorf("TxUpdateDataKeepers no thing to update")
 	}
 	return nil
@@ -70,13 +70,13 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(*tx.data.ID)
+	tx.dm, err = bs.LoadData(*tx.input.ID)
 	if err != nil {
 		return fmt.Errorf("TxUpdateDataKeepers load data failed: %v", err)
 	}
-	if tx.dm.Version != tx.data.Version {
+	if tx.dm.Version != tx.input.Version {
 		return fmt.Errorf("TxUpdateDataKeepers version mismatch, expected %v, got %v",
-			tx.dm.Version, tx.data.Version)
+			tx.dm.Version, tx.input.Version)
 	}
 	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers) {
 		return fmt.Errorf("TxUpdateDataKeepers need more signatures")
@@ -84,12 +84,12 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver) {
 		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: no approver signing")
 	}
-	if tx.data.KSig != nil {
-		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.data.KSig)[:])
+	if tx.input.KSig != nil {
+		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.input.KSig)[:])
 		if err != nil {
 			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig: %v", err)
 		}
-		keepers := tx.data.Keepers
+		keepers := tx.input.Keepers
 		if len(keepers) == 0 {
 			keepers = tx.dm.Keepers
 		}
@@ -104,24 +104,24 @@ func (tx *TxUpdateDataKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
 	tx.dm.Version++
-	if tx.data.Approver != nil {
-		if *tx.data.Approver == util.EthIDEmpty {
+	if tx.input.Approver != nil {
+		if *tx.input.Approver == util.EthIDEmpty {
 			tx.dm.Approver = nil
 		} else {
-			tx.dm.Approver = tx.data.Approver
+			tx.dm.Approver = tx.input.Approver
 		}
 	}
-	if tx.data.ApproveList != nil {
-		tx.dm.ApproveList = tx.data.ApproveList
+	if tx.input.ApproveList != nil {
+		tx.dm.ApproveList = tx.input.ApproveList
 	}
-	if len(tx.data.Keepers) > 0 {
-		tx.dm.Threshold = tx.data.Threshold
-		tx.dm.Keepers = tx.data.Keepers
+	if tx.input.Threshold != nil {
+		tx.dm.Threshold = *tx.input.Threshold
+		tx.dm.Keepers = tx.input.Keepers
 	}
-	if tx.data.KSig != nil {
-		tx.dm.KSig = *tx.data.KSig
+	if tx.input.KSig != nil {
+		tx.dm.KSig = *tx.input.KSig
 	}
-	if err = bs.SaveData(*tx.data.ID, tx.dm); err != nil {
+	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

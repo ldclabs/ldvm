@@ -6,16 +6,16 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxPunish struct {
 	TxBase
-	data *ld.TxUpdater
-	dm   *ld.DataMeta
+	input *ld.TxUpdater
+	dm    *ld.DataMeta
 }
 
 func (tx *TxPunish) MarshalJSON() ([]byte, error) {
@@ -23,10 +23,10 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+	if tx.input == nil {
+		return nil, fmt.Errorf("TxPunish.MarshalJSON failed: invalid tx.input")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -39,26 +39,33 @@ func (tx *TxPunish) SyntacticVerify() error {
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
+	switch {
+	case tx.ld.From != constants.GenesisAccount:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid from, expected GenesisAccount, got %s",
+			tx.ld.From)
+	case tx.ld.To != nil:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid to, should be nil")
+	case tx.ld.Token != nil:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid token, should be nil")
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid amount, should be nil")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid data")
+	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	tx.input = &ld.TxUpdater{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: %v", err)
 	}
-	if tx.ld.From != constants.GenesisAccount {
-		return fmt.Errorf("TxPunish invalid from, expected GenesisAccount")
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: %v", err)
 	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxPunish invalid")
-	}
-	tx.data = &ld.TxUpdater{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxPunish unmarshal data failed: %v", err)
-	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxPunish SyntacticVerify failed: %v", err)
-	}
-	if tx.data.ID == nil {
-		return fmt.Errorf("TxPunish invalid TxUpdater")
+
+	switch {
+	case tx.input.ID == nil:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: nil data id")
+	case *tx.input.ID == util.DataIDEmpty:
+		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid data id")
 	}
 	return nil
 }
@@ -69,9 +76,9 @@ func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 
-	tx.dm, err = bs.LoadData(*tx.data.ID)
+	tx.dm, err = bs.LoadData(*tx.input.ID)
 	if err != nil {
-		return fmt.Errorf("TxPunish load data failed: %v", err)
+		return fmt.Errorf("TxPunish.Verify failed: %v", err)
 	}
 	return nil
 }
@@ -79,8 +86,7 @@ func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxPunish) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	tx.dm.Data = tx.data.Data
-	if err = bs.DeleteData(*tx.data.ID, tx.dm); err != nil {
+	if err = bs.DeleteData(*tx.input.ID, tx.dm, tx.input.Data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

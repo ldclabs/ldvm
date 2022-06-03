@@ -16,7 +16,7 @@ import (
 type TxTransferExchange struct {
 	TxBase
 	exSigners util.EthIDs
-	data      *ld.TxExchanger
+	input     *ld.TxExchanger
 	quantity  *big.Int
 }
 
@@ -25,10 +25,10 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+	if tx.input == nil {
+		return nil, fmt.Errorf("TxTransferExchange.MarshalJSON failed: invalid tx.input")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -42,47 +42,60 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxTransferExchange invalid to")
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid to")
+	case tx.ld.Amount == nil:
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid amount")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid data")
 	}
 
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxTransferExchange invalid")
+	tx.input = &ld.TxExchanger{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: %v", err)
+	}
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: %v", err)
+	}
+
+	// quantity = amount * 1_000_000_000 / price
+	tx.quantity = new(big.Int).SetUint64(constants.LDC)
+	tx.quantity.Mul(tx.quantity, tx.ld.Amount)
+	tx.quantity.Quo(tx.quantity, tx.input.Price)
+
+	switch {
+	case tx.quantity.Cmp(tx.input.Minimum) < 0:
+		min := new(big.Int).Mul(tx.input.Minimum, tx.input.Price)
+		min.Quo(min, new(big.Int).SetUint64(constants.LDC))
+		return fmt.Errorf(
+			"TxTransferExchange.SyntacticVerify failed: invalid amount, expected >=%v, got %v",
+			min, tx.ld.Amount)
+	case tx.quantity.Cmp(tx.input.Quota) > 0:
+		max := new(big.Int).Mul(tx.input.Quota, tx.input.Price)
+		max.Quo(max, new(big.Int).SetUint64(constants.LDC))
+		return fmt.Errorf(
+			"TxTransferExchange.SyntacticVerify failed: invalid amount, expected <=%v, got %v",
+			max, tx.ld.Amount)
+	case tx.input.Purchaser != nil && *tx.input.Purchaser != tx.ld.From:
+		return fmt.Errorf(
+			"TxTransferExchange.SyntacticVerify failed: invalid from, expected %s, got %s",
+			*tx.input.Purchaser, tx.ld.From)
+	case tx.input.Payee != *tx.ld.To:
+		return fmt.Errorf(
+			"TxTransferExchange.SyntacticVerify failed: invalid to, expected %s, got %s",
+			tx.input.Payee, tx.ld.To)
+	case tx.input.Receive != tx.token:
+		return fmt.Errorf(
+			"TxTransferExchange.SyntacticVerify failed: invalid token, expected %s, got %s",
+			tx.input.Receive.GoString(), tx.token.GoString())
+	case tx.input.Expire < tx.ld.Timestamp:
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: data expired")
 	}
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("TxTransferExchange invalid exSignatures: %v", err)
-	}
-
-	tx.data = &ld.TxExchanger{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxTransferExchange unmarshal data failed: %v", err)
-	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxTransferExchange SyntacticVerify failed: %v", err)
-	}
-	if tx.data.Nonce == 0 {
-		return fmt.Errorf("TxTransferExchange invalid nonce")
-	}
-	if tx.data.Payee != *tx.ld.To {
-		return fmt.Errorf("TxTransferExchange invalid to")
-	}
-	if tx.data.Purchaser != nil && *tx.data.Purchaser != tx.ld.From {
-		return fmt.Errorf("TxTransferExchange invalid from")
-	}
-	if tx.data.Receive != tx.token {
-		return fmt.Errorf("TxTransferExchange invalid token")
-	}
-	if tx.ld.Amount == nil || tx.ld.Amount.Sign() < 1 {
-		return fmt.Errorf("TxTransferExchange invalid amount")
-	}
-	// quantity = amount * 1_000_000_000 / price
-	tx.quantity = new(big.Int).SetUint64(constants.LDC)
-	tx.quantity.Mul(tx.quantity, tx.ld.Amount)
-	tx.quantity.Quo(tx.quantity, tx.data.Price)
-	if tx.quantity.Cmp(tx.data.Minimum) < 0 || tx.quantity.Cmp(tx.data.Quota) > 0 {
-		return fmt.Errorf("TxTransferExchange invalid amount")
+		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: %v", err)
 	}
 	return nil
 }
@@ -94,9 +107,10 @@ func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
 	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
-		return fmt.Errorf("TxTransferExchange account seller need more signers")
+		return fmt.Errorf("TxTransferExchange.Verify failed: invalid signatures for seller")
 	}
-	if err = tx.to.CheckSubByNonceTable(tx.data.Sell, tx.data.Expire, tx.data.Nonce, tx.quantity); err != nil {
+	if err = tx.to.CheckSubByNonceTable(
+		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
 		return err
 	}
 	return err
@@ -104,10 +118,10 @@ func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
 
 func (tx *TxTransferExchange) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.to.SubByNonceTable(tx.data.Sell, tx.data.Expire, tx.data.Nonce, tx.quantity); err != nil {
+	if err = tx.to.SubByNonceTable(tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
 		return err
 	}
-	if err = tx.from.Add(tx.data.Sell, tx.quantity); err != nil {
+	if err = tx.from.Add(tx.input.Sell, tx.quantity); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

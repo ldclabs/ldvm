@@ -84,17 +84,31 @@ func (t *DataMeta) SyntacticVerify() error {
 			}
 		}
 	}
-	kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
-	if err != nil {
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: %v", err)
+
+	if t.Version > 0 {
+		kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
+		if err != nil {
+			return fmt.Errorf("DataMeta.SyntacticVerify failed: %v", err)
+		}
+		if !t.Keepers.Has(kSigner) {
+			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid kSig")
+		}
 	}
-	if !t.Keepers.Has(kSigner) {
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid kSig")
-	}
+	var err error
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("DataMeta.SyntacticVerify marshal error: %v", err)
 	}
 	return nil
+}
+
+func (t *DataMeta) MarkDeleted(data []byte) error {
+	t.Version = 0
+	t.KSig = util.SignatureEmpty
+	t.MSig = nil
+	if data != nil {
+		t.Data = data
+	}
+	return t.SyntacticVerify()
 }
 
 func (t *DataMeta) Bytes() []byte {

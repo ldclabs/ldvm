@@ -6,6 +6,7 @@
 package transaction
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -30,6 +31,8 @@ func NewMockBCtx() *MockBCtx {
 	}
 	return &MockBCtx{
 		ChainConfig: &cfg.Chain,
+		Height:      1,
+		Timestamp:   1000,
 		Price:       1000,
 		MinerID:     ld.MustNewStake("#LDC"),
 	}
@@ -153,9 +156,83 @@ func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	return nil
 }
 
-func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataMeta) error {
-	dm.Version = 0
+func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataMeta, message []byte) error {
+	if err := dm.MarkDeleted(message); err != nil {
+		return err
+	}
 	m.DC[id] = dm
 	delete(m.PDC, id)
+	return nil
+}
+
+func (m *MockBS) VerifyState() error {
+	for k, v := range m.AC {
+		data, err := v.Marshal()
+		if err != nil {
+			return err
+		}
+		acc, err := ParseAccount(k, data)
+		if err != nil {
+			return err
+		}
+		data2, err := acc.Marshal()
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(data, data2) {
+			return fmt.Errorf("Account %s is invalid", k)
+		}
+	}
+
+	for k, v := range m.MC {
+		data, err := v.Marshal()
+		if err != nil {
+			return err
+		}
+		mm := &ld.ModelMeta{}
+		if err := mm.Unmarshal(data); err != nil {
+			return err
+		}
+		if err := mm.SyntacticVerify(); err != nil {
+			return err
+		}
+		if !bytes.Equal(data, mm.Bytes()) {
+			return fmt.Errorf("ModelMeta %s is invalid", k)
+		}
+	}
+
+	for k, v := range m.DC {
+		data, err := v.Marshal()
+		if err != nil {
+			return err
+		}
+		dm := &ld.DataMeta{}
+		if err := dm.Unmarshal(data); err != nil {
+			return err
+		}
+		if err := dm.SyntacticVerify(); err != nil {
+			return err
+		}
+		if !bytes.Equal(data, dm.Bytes()) {
+			return fmt.Errorf("DataMeta %s is invalid", k)
+		}
+	}
+
+	for k, v := range m.PDC {
+		data, err := v.Marshal()
+		if err != nil {
+			return err
+		}
+		dm := &ld.DataMeta{}
+		if err := dm.Unmarshal(data); err != nil {
+			return err
+		}
+		if err := dm.SyntacticVerify(); err != nil {
+			return err
+		}
+		if !bytes.Equal(data, dm.Bytes()) {
+			return fmt.Errorf("DataMeta %s is invalid", k)
+		}
+	}
 	return nil
 }

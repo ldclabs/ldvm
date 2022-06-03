@@ -5,6 +5,7 @@ package genesis
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -107,9 +108,9 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	assert.NoError(err)
-	assert.Equal("LD6xqTubBtKLzCtaokGE6CNFSdL7THe54Nr", gs.Chain.FeeConfigID.String())
-	assert.Equal("LM6ogwZUx6kHY7jnwiePg4AHUkhZquuUbQz", gs.Chain.NameServiceID.String())
-	assert.Equal("LMvYNiYmNXQq1kFTZcLanKDh97wFhjL9Tj", gs.Chain.ProfileServiceID.String())
+	assert.Equal("LDBu29pdwT1xK2CZr8DCVx5NqvLiSUzwzEG", gs.Chain.FeeConfigID.String())
+	assert.Equal("LM4rB4RoU8Xa2FAJRVAER8bcprHcpAYFRBs", gs.Chain.NameServiceID.String())
+	assert.Equal("LMDWuG2ggqziTRsZRvVwCf5W9Vr6j1QqWNt", gs.Chain.ProfileServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
 	jsondata, err := json.Marshal(txs)
@@ -117,7 +118,7 @@ func TestGenesis(t *testing.T) {
 
 	file, err = os.ReadFile("./genesis_sample_txs.json")
 	assert.NoError(err)
-	// fmt.Println(string(jsondata))
+	fmt.Println(string(jsondata))
 	assert.True(jsonpatch.Equal(jsondata, file))
 
 	cbordata, err := txs.Marshal()

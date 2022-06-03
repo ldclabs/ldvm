@@ -63,14 +63,26 @@ func (tx *TxBase) SetStatus(s choices.Status) {
 }
 
 func (tx *TxBase) SyntacticVerify() error {
-	if tx == nil || tx.ld == nil {
+	switch {
+	case tx == nil || tx.ld == nil:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: nil pointer")
-	}
-	if tx.ld.From == util.EthIDEmpty {
+	case tx.ld.From == util.EthIDEmpty:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid from")
-	}
-	if tx.ld.To != nil && tx.ld.From == *tx.ld.To {
+	case tx.ld.To != nil && tx.ld.From == *tx.ld.To:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid to")
+	}
+
+	var err error
+	tx.signers, err = tx.ld.Signers()
+	if err != nil {
+		return fmt.Errorf("TxBase.SyntacticVerify failed: %v", err)
+	}
+	if tx.ld.Token != nil {
+		tx.token = *tx.ld.Token
+	}
+	tx.amount = new(big.Int)
+	if tx.ld.Amount != nil {
+		tx.amount.Set(tx.ld.Amount)
 	}
 	return nil
 }
@@ -89,17 +101,6 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 			requireGas, tx.ld.Gas)
 	}
 
-	tx.signers, err = tx.ld.Signers()
-	if err != nil {
-		return fmt.Errorf("TxBase.SyntacticVerify failed: %v", err)
-	}
-	if tx.ld.Token != nil {
-		tx.token = *tx.ld.Token
-	}
-	tx.amount = new(big.Int)
-	if tx.ld.Amount != nil {
-		tx.amount.Set(tx.ld.Amount)
-	}
 	tx.tip = new(big.Int).Mul(tx.ld.GasUnits(), new(big.Int).SetUint64(tx.ld.GasTip))
 	tx.fee = new(big.Int).Mul(tx.ld.GasUnits(), bctx.GasPrice())
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
@@ -124,15 +125,15 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 			return err
 		}
 	}
-	if tx.ld.Nonce != tx.from.Nonce() {
+
+	switch {
+	case tx.ld.Nonce != tx.from.Nonce():
 		return fmt.Errorf("TxBase.Verify failed: invalid nonce for sender, expected %d, got %d",
 			tx.from.Nonce(), tx.ld.Nonce)
-	}
-	if !tx.from.SatisfySigning(tx.signers) {
+	case !tx.from.SatisfySigning(tx.signers):
 		return fmt.Errorf("TxBase.Verify failed: invalid signatures for sender")
-	}
-	if tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) &&
-		!tx.signers.Has(*tx.from.ld.Approver) {
+	case tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) &&
+		!tx.signers.Has(*tx.from.ld.Approver):
 		return fmt.Errorf("TxBase.Verify failed: TxBase.Verify: invalid signature for approver")
 	}
 

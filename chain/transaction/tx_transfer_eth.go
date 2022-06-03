@@ -4,9 +4,7 @@
 package transaction
 
 import (
-	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -14,65 +12,54 @@ import (
 
 type TxEth struct {
 	TxBase
-	data *ld.TxEth
-}
-
-func (tx *TxEth) MarshalJSON() ([]byte, error) {
-	if tx == nil || tx.ld == nil {
-		return []byte("null"), nil
-	}
-	v := tx.ld.Copy()
-	if tx.data == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
-	}
-	d, err := json.Marshal(tx.data)
-	if err != nil {
-		return nil, err
-	}
-	v.Data = d
-	return json.Marshal(v)
+	input *ld.TxEth
 }
 
 func (tx *TxEth) SyntacticVerify() error {
-	if tx == nil || tx.ld == nil {
-		return fmt.Errorf("TxEth is nil")
-	}
-
-	tx.data = &ld.TxEth{}
-	if err := tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxEth unmarshal data failed: %v", err)
-	}
-	if len(tx.ld.Signatures) != 1 {
-		return fmt.Errorf("TxEth invalid signature")
-	}
-	copy(tx.data.Signature[:], tx.ld.Signatures[0][:])
-	if err := tx.data.SyntacticVerify(); err != nil {
+	var err error
+	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return err
 	}
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid to")
+	case tx.ld.Amount == nil:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid amount")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid data")
 	}
-	if tx.ld.ChainID != tx.data.ChainID {
-		return fmt.Errorf("TxEth invalid chainID")
+
+	tx.input = &ld.TxEth{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxEth.SyntacticVerify failed: %v", err)
 	}
-	if tx.ld.Nonce != tx.data.Nonce {
-		return fmt.Errorf("TxEth invalid nonce")
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxEth.SyntacticVerify failed: %v", err)
 	}
-	if tx.ld.GasTip != tx.data.GasTipCap {
-		return fmt.Errorf("TxEth invalid gasTipCap")
-	}
-	if tx.ld.GasFeeCap != tx.data.GasFeeCap {
-		return fmt.Errorf("TxEth invalid gasFeeCap")
-	}
-	if tx.ld.From != tx.data.From {
-		return fmt.Errorf("TxEth invalid from")
-	}
-	if tx.ld.To == nil || *tx.ld.To != tx.data.To {
-		return fmt.Errorf("TxEth invalid to")
-	}
-	if tx.ld.Amount == nil || tx.data.Value == nil || tx.ld.Amount.Cmp(tx.data.Value) != 0 {
-		return fmt.Errorf("TxEth invalid amount")
+
+	txData := tx.input.TxData(nil)
+	switch {
+	case tx.ld.ChainID != txData.ChainID:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid chainID")
+	case tx.ld.Nonce != txData.Nonce:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid nonce")
+	case tx.ld.GasTip != txData.GasTip:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid gasTip")
+	case tx.ld.GasFeeCap != txData.GasFeeCap:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid gasFeeCap")
+	case tx.ld.From != txData.From:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid from")
+	case *tx.ld.To != *txData.To:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid to")
+	case tx.ld.Token != nil:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid token")
+	case tx.ld.Amount.Cmp(txData.Amount) != 0:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid amount")
+	case len(tx.ld.Signatures) != 1 || tx.ld.Signatures[0] != txData.Signatures[0]:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid signatures")
+	case tx.ld.ExSignatures != nil:
+		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid exSignatures")
 	}
 
 	tx.signers = []util.EthID{tx.ld.From}

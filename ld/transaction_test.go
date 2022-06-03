@@ -93,10 +93,10 @@ func TestTxData(t *testing.T) {
 	jsondata, err := json.Marshal(txx)
 	assert.NoError(err)
 	assert.Contains(string(jsondata), `"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"`)
-	assert.Contains(string(jsondata), `"id":"Av2arMc7hB2RYsfFqdsYu9tPnqvdzmxqLMceQ7BbKHyzf1VgF"`)
+	assert.Contains(string(jsondata), `"id":"2uhrWkwBpocDoL3wfadMhErPoz4dEPUX7StGSsbcxfmGjr152M"`)
 	assert.NotContains(string(jsondata), `"exSignatures":null`)
 	assert.Contains(string(jsondata), `"gas":0`)
-	assert.Contains(string(jsondata), `"type":3`)
+	assert.Contains(string(jsondata), `"type":2`)
 	assert.Contains(string(jsondata), `"name":"TransferTx"`)
 
 	txx2 := &Transaction{}
@@ -136,7 +136,7 @@ func TestTransaction(t *testing.T) {
 
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["070a1d67010bfecec1309e0d30f62f9f73f339ad8fa726c3b70d43066089a92660a2104180dd0f2335fcd3c599f641ed8e9bc6ce88d7b1b71285120fb3fa1d1c01"],"gas":0,"name":"TransferTx","id":"12sX66xsbsSAZCN6ZWv2bRgua9EXEwwyx5eeBrRC16hwjRnce"}`, string(jsondata))
+	assert.Equal(`{"type":2,"chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"gas":0,"name":"TransferTx","id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}`, string(jsondata))
 
 	ctx := tx.Copy()
 	assert.NoError(ctx.SyntacticVerify())

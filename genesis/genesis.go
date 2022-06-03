@@ -199,7 +199,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	cfgData := &ld.TxUpdater{
 		ModelID:   &mid,
 		Version:   1,
-		Threshold: genesisAccount.Threshold,
+		Threshold: &genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
 		Data:      cfg,
 	}

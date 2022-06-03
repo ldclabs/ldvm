@@ -13,7 +13,7 @@ import (
 
 type TxWithdrawStake struct {
 	TxBase
-	data *ld.TxTransfer
+	input *ld.TxTransfer
 }
 
 func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
@@ -21,10 +21,10 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -51,15 +51,15 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxWithdrawStake invalid")
 	}
-	tx.data = &ld.TxTransfer{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxTransfer{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxWithdrawStake unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxWithdrawStake SyntacticVerify failed: %v", err)
 	}
 
-	if tx.data.Amount == nil || tx.data.Amount.Sign() <= 0 {
+	if tx.input.Amount == nil || tx.input.Amount.Sign() <= 0 {
 		return fmt.Errorf("TxWithdrawStake invalid amount")
 	}
 	return nil
@@ -70,12 +70,12 @@ func (tx *TxWithdrawStake) Verify(bctx BlockContext, bs BlockState) error {
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
 		return err
 	}
-	return tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
+	return tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
 }
 
 func (tx *TxWithdrawStake) Accept(bctx BlockContext, bs BlockState) error {
 	// must WithdrawStake and then Accept
-	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.data.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
 	if err != nil {
 		return err
 	}

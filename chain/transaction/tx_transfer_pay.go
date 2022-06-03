@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -14,7 +15,7 @@ import (
 type TxTransferPay struct {
 	TxBase
 	exSigners util.EthIDs
-	data      *ld.TxTransfer
+	input     *ld.TxTransfer
 }
 
 func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
@@ -22,10 +23,10 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+	if tx.input == nil {
+		return nil, fmt.Errorf("TxTransferPay.MarshalJSON failed: invalid tx.input")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -39,37 +40,62 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxTransferPay invalid to")
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid to")
+	case tx.ld.Amount == nil:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid amount")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid data")
 	}
 
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxTransferPay invalid")
+	tx.input = &ld.TxTransfer{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: %v", err)
+	}
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: %v", err)
+	}
+
+	switch {
+	case tx.input.From != nil && *tx.input.From != tx.ld.From:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid sender, expected %s, got %s",
+			*tx.input.From, tx.ld.From)
+	case tx.input.To == nil:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: nil recipient")
+	case *tx.input.To != *tx.ld.To:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid recipient, expected %s, got %s",
+			tx.input.To, *tx.ld.To)
+	case tx.input.Token == nil && tx.token != constants.NativeToken:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid token, expected %s, got %s",
+			constants.NativeToken.GoString(), tx.token.GoString())
+	case tx.input.Token != nil && tx.token != *tx.input.Token:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid token, expected %s, got %s",
+			tx.input.Token.GoString(), tx.token.GoString())
+	case tx.input.Amount == nil:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: nil amount")
+	case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid amount, expected %v, got %v",
+			tx.input.Amount, tx.ld.Amount)
+	case tx.input.Expire > 0 && tx.input.Expire < tx.ld.Timestamp:
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: data expired")
 	}
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("TxTransferPay invalid exSignatures: %v", err)
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: %v", err)
 	}
-	if !tx.exSigners.Has(*tx.ld.To) {
-		return fmt.Errorf("TxTransferPay invalid exSignatures, not from recipient")
+	return nil
+}
+
+func (tx *TxTransferPay) Verify(bctx BlockContext, bs BlockState) error {
+	var err error
+	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+		return err
 	}
 
-	tx.data = &ld.TxTransfer{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxTransferPay unmarshal data failed: %v", err)
-	}
-	if err = tx.data.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxTransferPay SyntacticVerify failed: %v", err)
-	}
-	if tx.data.To == nil || *tx.data.To != *tx.ld.To {
-		return fmt.Errorf("TxTransferPay invalid recipient")
-	}
-	if tx.data.Expire < tx.ld.Timestamp {
-		return fmt.Errorf("TxTransferPay expired")
-	}
-	if tx.data.Amount == nil || tx.data.Amount.Cmp(tx.ld.Amount) != 0 {
-		return fmt.Errorf("TxTransferPay invalid amount")
+	if !tx.to.SatisfySigning(tx.exSigners) {
+		return fmt.Errorf("TxTransferPay.Verify failed: invalid exSignatures for recipient")
 	}
 	return nil
 }

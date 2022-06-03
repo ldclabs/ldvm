@@ -41,10 +41,10 @@ func TestNativeAccount(t *testing.T) {
 	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(-1)), "invalid amount -1")
 	assert.ErrorContains(acc.checkBalance(token, big.NewInt(-1)), "invalid amount -1")
 	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(1)), "insufficient NativeLDC balance")
-	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1)), "insufficient $TEST balance")
+	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1)),
+		"Account.CheckBalance failed: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient $TEST balance, expected 1, got 0")
 
-	var ty ld.TxType
-	for ; ty <= ld.TypeDeleteData; ty++ {
+	for _, ty := range ld.AllTxTypes {
 		assert.NoError(acc.CheckAsFrom(ty))
 		assert.NoError(acc.CheckAsTo(ty))
 	}
@@ -57,7 +57,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.False(NewAccount(constants.LDCAccount).SatisfySigning(util.EthIDs{constants.LDCAccount}))
 	assert.False(NewAccount(constants.LDCAccount).SatisfySigningPlus(util.EthIDs{constants.LDCAccount}))
 
-	assert.NoError(acc.UpdateKeepers(1, util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, nil, nil))
+	assert.NoError(acc.UpdateKeepers(ld.Uint8Ptr(1), util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, nil, nil))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address()}))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer2.Address()}))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
@@ -192,7 +192,7 @@ func TestTokenAccount(t *testing.T) {
 	acc.Init(big.NewInt(0), 0, 0)
 	amount := big.NewInt(1000)
 	cfg := &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    amount,
 	}
@@ -235,18 +235,18 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(big.NewInt(100).Uint64(), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// CheckAsFrom
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeEth, ld.TypeTransfer, ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeDestroyToken, ld.TypeOpenLending, ld.TypeCloseLending:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.TokenFromTxTypes.Has(ty):
 			assert.NoError(nativeToken.CheckAsFrom(ty))
 		default:
 			assert.Error(nativeToken.CheckAsFrom(ty))
 		}
 	}
 	// CheckAsTo
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeEth, ld.TypeTransfer, ld.TypeTest, ld.TypeExchange, ld.TypeCreateToken:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.TokenToTxTypes.Has(ty):
 			assert.NoError(nativeToken.CheckAsTo(ty))
 		default:
 			assert.Error(nativeToken.CheckAsTo(ty))
@@ -357,7 +357,7 @@ func TestStakeAccount(t *testing.T) {
 	acc2.Init(big.NewInt(0), 0, 0)
 	pledge := big.NewInt(1000)
 	cfg := &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	scfg := &ld.StakeConfig{
@@ -517,7 +517,7 @@ func TestStakeFromAndTo(t *testing.T) {
 	acc.Init(big.NewInt(0), 0, 0)
 	pledge := big.NewInt(1000)
 	cfg := &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 
@@ -534,18 +534,18 @@ func TestStakeFromAndTo(t *testing.T) {
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
 
 	// CheckAsFrom
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeFromTxTypes0.Has(ty):
 			assert.NoError(testStake.CheckAsFrom(ty))
 		default:
 			assert.Error(testStake.CheckAsFrom(ty))
 		}
 	}
 	// CheckAsTo
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeToTxTypes.Has(ty):
 			assert.NoError(testStake.CheckAsTo(ty))
 		default:
 			assert.Error(testStake.CheckAsTo(ty))
@@ -563,18 +563,18 @@ func TestStakeFromAndTo(t *testing.T) {
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
 
 	// CheckAsFrom
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeFromTxTypes1.Has(ty):
 			assert.NoError(testStake.CheckAsFrom(ty))
 		default:
 			assert.Error(testStake.CheckAsFrom(ty))
 		}
 	}
 	// CheckAsTo
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeToTxTypes.Has(ty):
 			assert.NoError(testStake.CheckAsTo(ty))
 		default:
 			assert.Error(testStake.CheckAsTo(ty))
@@ -592,18 +592,18 @@ func TestStakeFromAndTo(t *testing.T) {
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
 
 	// CheckAsFrom
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeUpdateAccountKeepers, ld.TypeAddNonceTable, ld.TypeResetStake, ld.TypeBorrow, ld.TypeRepay, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover, ld.TypeOpenLending, ld.TypeCloseLending, ld.TypeEth, ld.TypeTransfer:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeFromTxTypes2.Has(ty):
 			assert.NoError(testStake.CheckAsFrom(ty))
 		default:
 			assert.Error(testStake.CheckAsFrom(ty))
 		}
 	}
 	// CheckAsTo
-	for ty := ld.TxType(0); ty <= ld.TypeDeleteData; ty++ {
-		switch ty {
-		case ld.TypeTest, ld.TypeEth, ld.TypeTransfer, ld.TypeCreateStake, ld.TypeTakeStake, ld.TypeWithdrawStake, ld.TypeUpdateStakeApprover:
+	for _, ty := range ld.AllTxTypes {
+		switch {
+		case ld.StakeToTxTypes.Has(ty):
 			assert.NoError(testStake.CheckAsTo(ty))
 		default:
 			assert.Error(testStake.CheckAsTo(ty))
@@ -638,7 +638,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	withdrawFee := uint64(100_000)
 	sa := NewAccount(util.EthID(ld.MustNewStake("#LDC"))).Init(pledge, 1, 1)
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		LockTime:    10,
@@ -839,7 +839,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	// Create again
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		Token:       token,
@@ -882,7 +882,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	// sa take a stake in sc
 	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
 	assert.NoError(sc.CreateStake(util.Signer2.Address(), pledge, &ld.TxAccounter{
-		Threshold: 1,
+		Threshold: ld.Uint8Ptr(1),
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		Token:       token,

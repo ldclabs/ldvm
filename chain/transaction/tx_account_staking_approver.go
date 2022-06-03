@@ -13,7 +13,7 @@ import (
 
 type TxUpdateStakeApprover struct {
 	TxBase
-	data *ld.TxAccounter
+	input *ld.TxAccounter
 }
 
 func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
@@ -21,10 +21,10 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.data == nil {
+	if tx.input == nil {
 		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
 	}
-	d, err := json.Marshal(tx.data)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -50,14 +50,14 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	if len(tx.ld.Data) == 0 {
 		return fmt.Errorf("TxUpdateStakeApprover invalid")
 	}
-	tx.data = &ld.TxAccounter{}
-	if err = tx.data.Unmarshal(tx.ld.Data); err != nil {
+	tx.input = &ld.TxAccounter{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxUpdateStakeApprover unmarshal data failed: %v", err)
 	}
-	if err = tx.data.SyntacticVerify(); err != nil {
+	if err = tx.input.SyntacticVerify(); err != nil {
 		return fmt.Errorf("TxUpdateStakeApprover SyntacticVerify failed: %v", err)
 	}
-	if tx.data.Approver == nil {
+	if tx.input.Approver == nil {
 		return fmt.Errorf("TxUpdateStakeApprover invalid approver")
 	}
 	return nil
@@ -68,11 +68,11 @@ func (tx *TxUpdateStakeApprover) Verify(bctx BlockContext, bs BlockState) error 
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
 		return err
 	}
-	return tx.to.CheckUpdateStakeApprover(tx.ld.From, *tx.data.Approver, tx.signers)
+	return tx.to.CheckUpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers)
 }
 
 func (tx *TxUpdateStakeApprover) Accept(bctx BlockContext, bs BlockState) error {
-	err := tx.to.UpdateStakeApprover(tx.ld.From, *tx.data.Approver, tx.signers)
+	err := tx.to.UpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers)
 	if err != nil {
 		return err
 	}

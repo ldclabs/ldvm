@@ -31,35 +31,51 @@ func TestTxTransfer(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   2357,
+		ChainID:   bctx.Chain().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
 		From:      from.id,
 	}
+	assert.NoError(txData.SyntacticVerify())
+	_, err = NewTx(txData.ToTransaction(), true)
+	assert.ErrorContains(err, "DeriveSigners: no signature")
 
+	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "invalid to")
 
-	txData.To = &constants.GenesisAccount
+	txData = &ld.TxData{
+		Type:      ld.TypeTransfer,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		To:        &constants.GenesisAccount,
+	}
+	assert.NoError(txData.SyntacticVerify())
+	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "invalid amount")
 
-	txData.Amount = new(big.Int).SetUint64(1000)
-	_, err = NewTx(txData.ToTransaction(), true)
-	assert.NoError(err)
+	txData = &ld.TxData{
+		Type:      ld.TypeTransfer,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		To:        &constants.GenesisAccount,
+		Amount:    new(big.Int).SetUint64(1000),
+	}
 
-	// Verify
+	assert.NoError(txData.SyntacticVerify())
+	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SyntacticVerify())
 	tt := txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err := NewTx(tt, true)
-	assert.ErrorContains(itx.Verify(bctx, bs), "DeriveSigners: no signature")
-
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
 	assert.ErrorContains(itx.Verify(bctx, bs), "insufficient NativeLDC balance")
 
 	tx = itx.(*TxTransfer)
@@ -77,7 +93,7 @@ func TestTxTransfer(t *testing.T) {
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"signatures":["5d919bf1bd400e2756bc469e62fa9224370bbfb3fb675006adcc20c03295b7644e4ae94ae8cd8caeb66efe5645e04cd1cc53133590aed0cb5cebcbb6545dde8c00"],"gas":119,"name":"TransferTx","id":"2chgEyDeQWiofeTywV9UZDZ2hQAj5TJRetmKJ1RSvje3Xnn2Mz"}`, string(jsondata))
+	assert.Equal(`{"type":2,"chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"signatures":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01"],"gas":119,"name":"TransferTx","id":"Hhp7vYTnhNemXC7N6w9N9DiUV8vuvPzc6TWDbPa2cpy4gHYwo"}`, string(jsondata))
 
 	token := ld.MustNewToken("$LDC")
 	txData = &ld.TxData{
@@ -112,7 +128,9 @@ func TestTxTransfer(t *testing.T) {
 
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000,"signatures":["ef35b1ae4e1cad99704f0884f45221b9609fdfbd5c0df939c78faaecec2dbf616071b3793a5378803821915f65bb1fe172edeaecd0d7ce4ff2db14cf15427e7100"],"gas":143,"name":"TransferTx","id":"jjGWDHh44LQfhUjVy8GNcKAQpGBUPNVzktbdGxU358CVgeGrh"}`, string(jsondata))
+	assert.Equal(`{"type":2,"chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000,"signatures":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"gas":143,"name":"TransferTx","id":"sJV9ndy4B654Nmt6YVKsybB3DSe9GRFNvqTL1cab2s4cG34rm"}`, string(jsondata))
+
+	assert.NoError(bs.VerifyState())
 }
 
 func TestTxTransferGenesis(t *testing.T) {
@@ -147,5 +165,7 @@ func TestTxTransferGenesis(t *testing.T) {
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x0000000000000000000000000000000000000000","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000000000000000000,"gas":0,"name":"TransferTx","id":"2ctSeFRMfP214MC7QGHoM9orSRPQ5asyyYRUebsH32o5d5W87D"}`, string(jsondata))
+	assert.Equal(`{"type":2,"chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x0000000000000000000000000000000000000000","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000000000000000000,"gas":0,"name":"TransferTx","id":"rCfqgA8NHYcjHxvkTURAmsmMrCZDps31H3iMDLqHkgDWGiA73"}`, string(jsondata))
+
+	assert.NoError(bs.VerifyState())
 }

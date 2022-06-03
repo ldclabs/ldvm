@@ -34,3 +34,7 @@ func MustMarshal(v Marshaler) []byte {
 	}
 	return data
 }
+
+func Uint8Ptr(u uint8) *uint8 {
+	return &u
+}
