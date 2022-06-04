@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
@@ -193,8 +192,9 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, erro
 	return bs.LoadAccount(miner)
 }
 
+// name should be ASCII form (IDNA2008)
 func (bs *blockState) SetName(name string, id util.DataID) error {
-	key := []byte(strings.ToLower(name))
+	key := []byte(name)
 	data, err := bs.nameDB.Get(key)
 	switch err {
 	case nil:
@@ -208,13 +208,9 @@ func (bs *blockState) SetName(name string, id util.DataID) error {
 	return err
 }
 
+// name should be ASCII form (IDNA2008)
 func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
-	dn, err := idna.Registration.ToASCII(name)
-	if err != nil {
-		return util.DataIDEmpty, fmt.Errorf("invalid name %s, error: %v",
-			strconv.Quote(name), err)
-	}
-	data, err := bs.nameDB.Get([]byte(dn))
+	data, err := bs.nameDB.Get([]byte(name))
 	if err != nil {
 		return util.DataIDEmpty, err
 	}
@@ -223,7 +219,12 @@ func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 }
 
 func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
-	id, err := bs.ResolveNameID(name)
+	dn, err := idna.Registration.ToASCII(name)
+	if err != nil {
+		return nil, fmt.Errorf("invalid name %s, error: %v",
+			strconv.Quote(name), err)
+	}
+	id, err := bs.ResolveNameID(dn)
 	if err != nil {
 		return nil, err
 	}

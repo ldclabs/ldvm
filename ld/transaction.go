@@ -66,7 +66,7 @@ func (t *TxData) SyntacticVerify() error {
 			strconv.Quote(t.Token.GoString()))
 	}
 	if t.Amount != nil {
-		if t.Amount.Sign() <= 0 {
+		if t.Amount.Sign() < 0 {
 			return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
 		}
 		if t.To == nil {

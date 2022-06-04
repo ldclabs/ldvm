@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -16,7 +15,7 @@ import (
 
 type TxCreateModel struct {
 	TxBase
-	mm *ld.ModelMeta
+	input *ld.ModelMeta
 }
 
 func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
@@ -24,10 +23,10 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	v := tx.ld.Copy()
-	if tx.mm == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+	if tx.input == nil {
+		return nil, fmt.Errorf("TxCreateModel.MarshalJSON failed: invalid tx.input")
 	}
-	d, err := json.Marshal(tx.mm)
+	d, err := json.Marshal(tx.input)
 	if err != nil {
 		return nil, err
 	}
@@ -41,34 +40,41 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: invalid to, should be nil")
+	case tx.ld.Token != nil:
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: invalid token, should be nil")
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: invalid amount, should be nil")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: invalid data")
 	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxCreateModel invalid")
+
+	tx.input = &ld.ModelMeta{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: %v", err)
 	}
-	tx.mm = &ld.ModelMeta{}
-	if err = tx.mm.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxCreateModel.SyntacticVerify failed: %v", err)
 	}
-	if err = tx.mm.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateModel SyntacticVerify failed: %v", err)
-	}
+	tx.input.ID = util.ModelID(tx.ld.ShortID())
 	return nil
 }
 
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	tx.mm = &ld.ModelMeta{}
-	if err = tx.mm.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateModel unmarshal data failed: %v", err)
+	tx.input = &ld.ModelMeta{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("TxCreateModel.VerifyGenesis failed: %v", err)
 	}
-	if err = tx.mm.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateModel SyntacticVerify failed: %v", err)
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("TxCreateModel.VerifyGenesis failed: %v", err)
 	}
+	tx.input.ID = util.ModelID(tx.ld.ShortID())
 
+	tx.amount = new(big.Int)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
@@ -85,7 +91,7 @@ func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 
 func (tx *TxCreateModel) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = bs.SaveModel(util.ModelID(tx.ld.ShortID()), tx.mm); err != nil {
+	if err = bs.SaveModel(tx.input.ID, tx.input); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

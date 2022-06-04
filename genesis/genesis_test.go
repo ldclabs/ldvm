@@ -5,7 +5,6 @@ package genesis
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -118,7 +117,7 @@ func TestGenesis(t *testing.T) {
 
 	file, err = os.ReadFile("./genesis_sample_txs.json")
 	assert.NoError(err)
-	fmt.Println(string(jsondata))
+	// fmt.Println(string(jsondata))
 	assert.True(jsonpatch.Equal(jsondata, file))
 
 	cbordata, err := txs.Marshal()

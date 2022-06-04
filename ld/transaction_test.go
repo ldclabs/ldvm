@@ -28,10 +28,10 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Token: &util.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid token symbol")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(1)}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid to")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: RawData{}}

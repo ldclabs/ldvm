@@ -25,12 +25,16 @@ type MockBCtx struct {
 }
 
 func NewMockBCtx() *MockBCtx {
-	cfg, err := genesis.FromJSON([]byte(genesis.LocalGenesisConfigJSON))
+	ge, err := genesis.FromJSON([]byte(genesis.LocalGenesisConfigJSON))
+	if err != nil {
+		panic(err)
+	}
+	_, err = ge.ToTxs()
 	if err != nil {
 		panic(err)
 	}
 	return &MockBCtx{
-		ChainConfig: &cfg.Chain,
+		ChainConfig: &ge.Chain,
 		Height:      1,
 		Timestamp:   1000,
 		Price:       1000,
@@ -59,9 +63,9 @@ type MockBS struct {
 	Fee               *genesis.FeeConfig
 	AC                AccountCache
 	NC                map[string]util.DataID
-	MC                map[util.ModelID]*ld.ModelMeta
-	DC                map[util.DataID]*ld.DataMeta
-	PDC               map[util.DataID]*ld.DataMeta
+	MC                map[util.ModelID][]byte
+	DC                map[util.DataID][]byte
+	PDC               map[util.DataID][]byte
 }
 
 func NewMockBS(m *MockBCtx) *MockBS {
@@ -71,9 +75,9 @@ func NewMockBS(m *MockBCtx) *MockBS {
 		Fee:       m.ChainConfig.FeeConfig,
 		AC:        make(AccountCache),
 		NC:        make(map[string]util.DataID),
-		MC:        make(map[util.ModelID]*ld.ModelMeta),
-		DC:        make(map[util.DataID]*ld.DataMeta),
-		PDC:       make(map[util.DataID]*ld.DataMeta),
+		MC:        make(map[util.ModelID][]byte),
+		DC:        make(map[util.DataID][]byte),
+		PDC:       make(map[util.DataID][]byte),
 	}
 }
 
@@ -126,33 +130,56 @@ func (m *MockBS) SetName(name string, id util.DataID) error {
 }
 
 func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
-	mm, ok := m.MC[id]
+	data, ok := m.MC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadModel: %s not found", id)
+	}
+	mm := &ld.ModelMeta{}
+	if err := mm.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	if err := mm.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	return mm, nil
 }
 
 func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
-	m.MC[id] = mm
+	if err := mm.SyntacticVerify(); err != nil {
+		return err
+	}
+	m.MC[id] = mm.Bytes()
 	return nil
 }
 
 func (m *MockBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
-	dm, ok := m.DC[id]
+	data, ok := m.DC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadData: %s not found", id)
+	}
+	dm := &ld.DataMeta{}
+	if err := dm.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	if err := dm.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	return dm, nil
 }
 
 func (m *MockBS) SaveData(id util.DataID, dm *ld.DataMeta) error {
-	m.DC[id] = dm
+	if err := dm.SyntacticVerify(); err != nil {
+		return err
+	}
+	m.DC[id] = dm.Bytes()
 	return nil
 }
 
 func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
-	m.PDC[id] = dm
+	if err := dm.SyntacticVerify(); err != nil {
+		return err
+	}
+	m.PDC[id] = dm.Bytes()
 	return nil
 }
 
@@ -160,7 +187,9 @@ func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataMeta, message []byte) err
 	if err := dm.MarkDeleted(message); err != nil {
 		return err
 	}
-	m.DC[id] = dm
+	if err := m.SaveData(id, dm); err != nil {
+		return err
+	}
 	delete(m.PDC, id)
 	return nil
 }
@@ -181,57 +210,6 @@ func (m *MockBS) VerifyState() error {
 		}
 		if !bytes.Equal(data, data2) {
 			return fmt.Errorf("Account %s is invalid", k)
-		}
-	}
-
-	for k, v := range m.MC {
-		data, err := v.Marshal()
-		if err != nil {
-			return err
-		}
-		mm := &ld.ModelMeta{}
-		if err := mm.Unmarshal(data); err != nil {
-			return err
-		}
-		if err := mm.SyntacticVerify(); err != nil {
-			return err
-		}
-		if !bytes.Equal(data, mm.Bytes()) {
-			return fmt.Errorf("ModelMeta %s is invalid", k)
-		}
-	}
-
-	for k, v := range m.DC {
-		data, err := v.Marshal()
-		if err != nil {
-			return err
-		}
-		dm := &ld.DataMeta{}
-		if err := dm.Unmarshal(data); err != nil {
-			return err
-		}
-		if err := dm.SyntacticVerify(); err != nil {
-			return err
-		}
-		if !bytes.Equal(data, dm.Bytes()) {
-			return fmt.Errorf("DataMeta %s is invalid", k)
-		}
-	}
-
-	for k, v := range m.PDC {
-		data, err := v.Marshal()
-		if err != nil {
-			return err
-		}
-		dm := &ld.DataMeta{}
-		if err := dm.Unmarshal(data); err != nil {
-			return err
-		}
-		if err := dm.SyntacticVerify(); err != nil {
-			return err
-		}
-		if !bytes.Equal(data, dm.Bytes()) {
-			return fmt.Errorf("DataMeta %s is invalid", k)
 		}
 	}
 	return nil

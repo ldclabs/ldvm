@@ -27,7 +27,7 @@ type TxUpdater struct {
 	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
 	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
 	Threshold   *uint8            `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers     util.EthIDs       `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Keepers     *util.EthIDs      `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList []TxType          `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
@@ -50,25 +50,24 @@ func (t *TxUpdater) SyntacticVerify() error {
 	if t.Token != nil && !t.Token.Valid() {
 		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
 	}
-	if t.Amount != nil && t.Amount.Sign() < 1 {
+	if t.Amount != nil && t.Amount.Sign() < 0 {
 		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid amount")
 	}
 	if t.Keepers != nil || t.Threshold != nil {
-		l := len(t.Keepers)
 		switch {
 		case t.Threshold == nil:
 			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil threshold")
 		case t.Keepers == nil:
 			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil keepers")
-		case int(*t.Threshold) > l:
+		case int(*t.Threshold) > len(*t.Keepers):
 			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid threshold, expected <= %d, got %d",
-				l, *t.Threshold)
-		case l > math.MaxUint8:
+				len(*t.Keepers), *t.Threshold)
+		case len(*t.Keepers) > math.MaxUint8:
 			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keepers, expected <= %d, got %d",
-				math.MaxUint8, l)
+				math.MaxUint8, len(*t.Keepers))
 		}
 
-		for _, id := range t.Keepers {
+		for _, id := range *t.Keepers {
 			if id == util.EthIDEmpty {
 				return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
 			}

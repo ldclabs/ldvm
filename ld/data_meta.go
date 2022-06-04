@@ -16,7 +16,7 @@ type DataMeta struct {
 	// 0 indicates that the data is invalid, for example, deleted or punished.
 	Version uint64 `cbor:"v" json:"version"`
 	// MultiSig: m of n, threshold is m, keepers length is n.
-	// The minimum value is 0, means no one can change the data.
+	// The minimum value is 0, means no one can update the data.
 	// the maximum value is len(keepers)
 	Threshold uint8 `cbor:"th" json:"threshold"`
 	// keepers who owned this data, no more than 255
@@ -85,7 +85,7 @@ func (t *DataMeta) SyntacticVerify() error {
 		}
 	}
 
-	if t.Version > 0 {
+	if t.KSig != util.SignatureEmpty {
 		kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
 		if err != nil {
 			return fmt.Errorf("DataMeta.SyntacticVerify failed: %v", err)
@@ -94,6 +94,7 @@ func (t *DataMeta) SyntacticVerify() error {
 			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid kSig")
 		}
 	}
+
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("DataMeta.SyntacticVerify marshal error: %v", err)
