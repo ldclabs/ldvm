@@ -23,16 +23,20 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Token: &util.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(), `invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
-	tx = &TxUpdater{Amount: big.NewInt(0)}
+	tx = &TxUpdater{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxUpdater{Keepers: util.EthIDs{}}
+	tx = &TxUpdater{Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
+	tx2 := &TxUpdater{}
+	assert.NoError(tx2.Unmarshal(tx.Bytes()))
+	assert.ErrorContains(tx2.SyntacticVerify(), "nil threshold")
+
 	tx = &TxUpdater{Threshold: Uint8Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
-	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: []util.EthID{}}
+	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: []util.EthID{util.EthIDEmpty}}
+	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
 
 	tx = &TxUpdater{ApproveList: []TxType{TypeCreateData - 1}}
@@ -48,7 +52,7 @@ func TestTxUpdater(t *testing.T) {
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
 		Threshold: Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Approver:  &util.EthIDEmpty,
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,
@@ -68,7 +72,7 @@ func TestTxUpdater(t *testing.T) {
 	assert.NotContains(string(jsondata), `"mid":`)
 	assert.NotContains(string(jsondata), `"mSig":`)
 
-	tx2 := &TxUpdater{}
+	tx2 = &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
 	cbordata2 := tx2.Bytes()

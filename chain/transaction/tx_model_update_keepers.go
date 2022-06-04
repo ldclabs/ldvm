@@ -100,7 +100,7 @@ func (tx *TxUpdateModelKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	}
 	if tx.input.Threshold != nil {
 		tx.mm.Threshold = *tx.input.Threshold
-		tx.mm.Keepers = tx.input.Keepers
+		tx.mm.Keepers = *tx.input.Keepers
 	}
 	if err = bs.SaveModel(*tx.input.ModelID, tx.mm); err != nil {
 		return err

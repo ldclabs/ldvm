@@ -173,7 +173,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 
 		if le := len(v.Keepers); le > 0 {
 			update := &ld.TxAccounter{
-				Threshold: v.Threshold,
+				Threshold: &v.Threshold,
 				Keepers:   v.Keepers,
 			}
 
@@ -195,13 +195,15 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	if err != nil {
 		return nil, err
 	}
-	mid := util.ModelID(constants.JSONModelID)
 	cfgData := &ld.TxUpdater{
-		ModelID:   &mid,
+		ModelID:   &constants.JSONModelID,
 		Version:   1,
 		Threshold: &genesisAccount.Threshold,
-		Keepers:   genesisAccount.Keepers,
+		Keepers:   &genesisAccount.Keepers,
 		Data:      cfg,
+	}
+	if err = cfgData.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
@@ -226,6 +228,9 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Keepers:   genesisAccount.Keepers,
 		Data:      nm.Schema(),
 	}
+	if err = ns.SyntacticVerify(); err != nil {
+		return nil, err
+	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
@@ -248,6 +253,9 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
 		Data:      pm.Schema(),
+	}
+	if err = ps.SyntacticVerify(); err != nil {
+		return nil, err
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,

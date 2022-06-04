@@ -82,7 +82,7 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("TxTransferPay.SyntacticVerify failed: invalid exSignatures: %v", err)
 	}
 	return nil
 }

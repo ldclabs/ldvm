@@ -89,9 +89,9 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		if err != nil {
 			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig: %v", err)
 		}
-		keepers := tx.input.Keepers
-		if len(keepers) == 0 {
-			keepers = tx.dm.Keepers
+		keepers := tx.dm.Keepers
+		if tx.input.Keepers != nil {
+			keepers = *tx.input.Keepers
 		}
 		if !keepers.Has(kSigner) {
 			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig")
@@ -116,7 +116,7 @@ func (tx *TxUpdateDataKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	}
 	if tx.input.Threshold != nil {
 		tx.dm.Threshold = *tx.input.Threshold
-		tx.dm.Keepers = tx.input.Keepers
+		tx.dm.Keepers = *tx.input.Keepers
 	}
 	if tx.input.KSig != nil {
 		tx.dm.KSig = *tx.input.KSig

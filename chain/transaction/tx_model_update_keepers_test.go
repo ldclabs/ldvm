@@ -138,11 +138,11 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.ErrorContains(err, "invalid mid")
 
 	mid := util.ModelID{'1', '2', '3', '4', '5', '6'}
-	input = ld.TxUpdater{ModelID: &mid, Keepers: util.EthIDs{}}
+	input = ld.TxUpdater{ModelID: &mid, Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "nil threshold")
 	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint8Ptr(0)}
 	assert.ErrorContains(input.SyntacticVerify(), "nil keepers")
-	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint8Ptr(1), Keepers: util.EthIDs{}}
+	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint8Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
 
 	mid = util.ModelID{'1', '2', '3', '4', '5', '6'}
@@ -228,7 +228,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		ModelID:   &mid,
 		Approver:  &util.EthIDEmpty,
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
@@ -274,7 +274,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	input = ld.TxUpdater{
 		ModelID:   &mid,
 		Threshold: ld.Uint8Ptr(0),
-		Keepers:   util.EthIDs{util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{

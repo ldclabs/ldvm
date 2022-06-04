@@ -17,7 +17,7 @@ type ModelMeta struct {
 	// model name, should match ^[A-Z][0-9A-Za-z]{1,127}$
 	Name string `cbor:"n" json:"name"`
 	// MultiSig: m of n, threshold is m, keepers length is n.
-	// The minimum value is 0, means no one can change the data.
+	// The minimum value is 0, means any one using the model don't need to approve.
 	// the maximum value is len(keepers)
 	Threshold uint8 `cbor:"th" json:"threshold"`
 	// keepers who owned this model, no more than 255
