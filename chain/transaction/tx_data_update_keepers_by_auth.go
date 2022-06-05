@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -24,7 +25,7 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxUpdateDataKeepersByAuth.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -40,36 +41,67 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxUpdateModelKeepers invalid to")
-	}
-
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxUpdateModelKeepers invalid")
-	}
-
-	tx.exSigners, err = tx.ld.ExSigners()
-	if err != nil {
-		return fmt.Errorf("invalid exSignatures: %v", err)
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.SyntacticVerify failed: nil to")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid data")
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth unmarshal data failed: %v", err)
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.SyntacticVerify failed: %v", err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth syntacticVerify failed: %v", err)
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.SyntacticVerify failed: %v", err)
 	}
-	if tx.input.ID == nil ||
-		tx.input.Version == 0 ||
-		tx.input.Amount == nil ||
-		tx.input.Amount.Cmp(tx.ld.Amount) != 0 ||
-		tx.input.To == nil ||
-		*tx.input.To != *tx.ld.To {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater")
+
+	switch {
+	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid data id")
+	case tx.input.Version == 0:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid data version")
+	case tx.input.Keepers != nil:
+		return fmt.Errorf(
+			"TxUpdateModelKeepers.SyntacticVerify failed: invalid keepers, should be nil")
+	case tx.input.KSig != nil:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid kSig, should be nil")
+	case tx.input.Approver != nil:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid approver, should be nil")
+	case tx.input.ApproveList != nil:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid approveList, should be nil")
+	case tx.input.To == nil:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: nil to")
+	case *tx.input.To != *tx.ld.To:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid to, expected %s, got %s",
+			tx.input.To, tx.ld.To)
+	case tx.input.Amount == nil:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: nil amount")
+	case tx.input.Amount.Cmp(tx.amount) != 0:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid amount, expected %v, got %v",
+			tx.input.Amount, tx.amount)
+	case tx.input.Token == nil && tx.token != constants.NativeToken:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid token, expected NativeToken, got %s",
+			tx.token.GoString())
+	case tx.input.Token != nil && tx.token != *tx.input.Token:
+		return fmt.Errorf(
+			"TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid token, expected %s, got %s",
+			tx.input.Token.GoString(), tx.token.GoString())
 	}
-	if tx.input.Token != nil && *tx.input.Token != tx.token {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth invalid TxUpdater token")
+
+	tx.exSigners, err = tx.ld.ExSigners()
+	if err != nil {
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.SyntacticVerify failed: invalid exSignatures: %v", err)
 	}
 	return nil
 }
@@ -81,32 +113,16 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 	}
 
 	tx.dm, err = bs.LoadData(*tx.input.ID)
-	if err != nil {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth load data failed: %v", err)
-	}
-	if tx.dm.Version != tx.input.Version {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth version mismatch, expected %v, got %v",
+	switch {
+	case err != nil:
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: %v", err)
+	case tx.dm.Version != tx.input.Version:
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid version, expected %d, got %d",
 			tx.dm.Version, tx.input.Version)
-	}
-	// verify seller's signatures
-	if !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners) {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth need more exSignatures")
-	}
-	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver) {
-		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: no approver signing")
-	}
-	if tx.input.KSig != nil {
-		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.input.KSig)[:])
-		if err != nil {
-			return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid kSig: %v", err)
-		}
-		keepers := tx.dm.Keepers
-		if tx.input.Keepers != nil {
-			keepers = *tx.input.Keepers
-		}
-		if !keepers.Has(kSigner) {
-			return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid kSig")
-		}
+	case !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners):
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid exSignatures for data keepers")
+	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver):
+		return fmt.Errorf("TxUpdateDataKeepersByAuth.Verify failed: invalid signature for data approver")
 	}
 	return nil
 }
@@ -115,26 +131,16 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) er
 	var err error
 
 	tx.dm.Version++
-	tx.dm.Threshold = *tx.input.Threshold
-	tx.dm.Keepers = *tx.input.Keepers
+	tx.dm.KSig = util.Signature{}
+	tx.dm.Threshold = tx.from.Threshold()
+	tx.dm.Keepers = tx.from.Keepers()
 	if len(tx.dm.Keepers) == 0 {
-		tx.dm.Threshold = tx.from.Threshold()
-		tx.dm.Keepers = tx.from.Keepers()
+		tx.dm.Threshold = 1
+		tx.dm.Keepers = util.EthIDs{tx.from.id}
 	}
-	if tx.input.Approver != nil {
-		if *tx.input.Approver == util.EthIDEmpty {
-			tx.dm.Approver = nil
-			tx.dm.ApproveList = nil
-		} else {
-			tx.dm.Approver = tx.input.Approver
-		}
-	}
-	if tx.input.ApproveList != nil {
-		tx.dm.ApproveList = tx.input.ApproveList
-	}
-	if tx.input.KSig != nil {
-		tx.dm.KSig = *tx.input.KSig
-	}
+	tx.dm.Approver = nil
+	tx.dm.ApproveList = nil
+
 	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
 		return err
 	}

@@ -57,43 +57,33 @@ func (b *Block) TxsMarshalJSON() error {
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
-	if b == nil {
+	switch {
+	case b == nil:
 		return fmt.Errorf("Block.SyntacticVerify failed: nil pointer")
-	}
-
-	if b.Height > 0 {
-		if b.Parent == ids.Empty {
-			return fmt.Errorf("Block.SyntacticVerify failed: invalid parent %s", b.Parent)
-		}
-
-		if b.ParentState == ids.Empty {
-			return fmt.Errorf("Block.SyntacticVerify failed: invalid parent state %s", b.ParentState)
-		}
-	}
-	if b.State == ids.Empty || b.State == b.ParentState {
+	case b.Height > 0 && b.Parent == ids.Empty:
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid parent %s", b.Parent)
+	case b.Height > 0 && b.ParentState == ids.Empty:
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid parent state %s", b.ParentState)
+	case b.State == ids.Empty || b.State == b.ParentState:
 		return fmt.Errorf("Block.SyntacticVerify failed: invalid state %s", b.State)
+	case b.Timestamp > uint64(time.Now().Add(futureBound).Unix()):
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid timestamp")
+	case b.GasRebateRate > 1000:
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid gasRebateRate")
+	case b.Miner != util.StakeEmpty && !b.Miner.Valid():
+		return fmt.Errorf("Block.SyntacticVerify failed: invalid miner address %s", b.Miner.GoString())
+	case len(b.Validators) > 256:
+		return fmt.Errorf("Block.SyntacticVerify failed: too many validators")
+	case len(b.Txs) == 0:
+		return fmt.Errorf("Block.SyntacticVerify failed: no txs")
 	}
 
-	if b.Timestamp > uint64(time.Now().Add(futureBound).Unix()) {
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid timestamp")
-	}
-	if b.GasRebateRate > 1000 {
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid gasRebateRate")
-	}
-	if b.Miner != util.StakeEmpty && !b.Miner.Valid() {
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid miner address %s", b.Miner.GoString())
-	}
-	if len(b.Validators) > 256 {
-		return fmt.Errorf("Block.SyntacticVerify failed: too many validators")
-	}
 	for _, s := range b.Validators {
 		if !s.Valid() {
 			return fmt.Errorf("Block.SyntacticVerify failed: invalid validator address %s", s.GoString())
 		}
 	}
-	if len(b.Txs) == 0 {
-		return fmt.Errorf("Block.SyntacticVerify failed: no txs")
-	}
+
 	var err error
 	for _, tx := range b.Txs {
 		if err = tx.SyntacticVerify(); err != nil {

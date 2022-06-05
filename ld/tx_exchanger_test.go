@@ -32,6 +32,10 @@ func TestTxExchanger(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "sell and receive token should not equal")
 
 	tx = &TxExchanger{Nonce: 1, Sell: util.NativeToken, Receive: token}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid minimum")
+
+	tx = &TxExchanger{Nonce: 1, Sell: util.NativeToken, Receive: token,
+		Minimum: big.NewInt(1000), Quota: big.NewInt(999)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid quota")
 
 	tx = &TxExchanger{

@@ -51,20 +51,29 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *Tx is well-formed.
 func (t *TxData) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("TxData.SyntacticVerify failed: nil pointer")
-	}
-	if !AllTxTypes.Has(t.Type) {
+	case !AllTxTypes.Has(t.Type):
 		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type %d", t.Type)
-	}
-	if t.ChainID != gChainID {
+	case t.ChainID != gChainID:
 		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d",
 			gChainID, t.ChainID)
-	}
-	if t.Token != nil && !t.Token.Valid() {
+	case t.Token != nil && !t.Token.Valid():
 		return fmt.Errorf("TxData.SyntacticVerify failed: invalid token symbol %s",
 			strconv.Quote(t.Token.GoString()))
+	case t.Data != nil && len(t.Data) == 0:
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty data")
+	case t.Signatures != nil && len(t.Signatures) == 0:
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty signatures")
+	case t.ExSignatures != nil && len(t.ExSignatures) == 0:
+		return fmt.Errorf("TxData.SyntacticVerify failed: empty exSignatures")
+	case len(t.Signatures) > math.MaxUint8:
+		return fmt.Errorf("TxData.SyntacticVerify failed: too many signatures")
+	case len(t.ExSignatures) > math.MaxUint8:
+		return fmt.Errorf("TxData.SyntacticVerify failed: too many exSignatures")
 	}
+
 	if t.Amount != nil {
 		if t.Amount.Sign() < 0 {
 			return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
@@ -73,21 +82,7 @@ func (t *TxData) SyntacticVerify() error {
 			return fmt.Errorf("TxData.SyntacticVerify failed: invalid to")
 		}
 	}
-	if t.Data != nil && len(t.Data) == 0 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty data")
-	}
-	if t.Signatures != nil && len(t.Signatures) == 0 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty signatures")
-	}
-	if t.ExSignatures != nil && len(t.ExSignatures) == 0 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty exSignatures")
-	}
-	if len(t.Signatures) > math.MaxUint8 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: too many signatures")
-	}
-	if len(t.ExSignatures) > math.MaxUint8 {
-		return fmt.Errorf("TxData.SyntacticVerify failed: too many exSignatures")
-	}
+
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("TxData.SyntacticVerify marshal error: %v", err)

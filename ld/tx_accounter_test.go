@@ -18,7 +18,7 @@ func TestTxAccounter(t *testing.T) {
 	var tx *TxAccounter
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxAccounter{Amount: big.NewInt(0)}
+	tx = &TxAccounter{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
 	tx = &TxAccounter{Keepers: util.EthIDs{}}

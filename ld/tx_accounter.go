@@ -28,16 +28,16 @@ type TxAccounter struct {
 
 // SyntacticVerify verifies that a *TxAccounter is well-formed.
 func (t *TxAccounter) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("TxAccounter.SyntacticVerify failed: nil pointer")
-	}
-	if t.Name != "" && !util.ValidName(t.Name) {
-		return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid name %s", strconv.Quote(t.Name))
-	}
-
-	if t.Amount != nil && t.Amount.Sign() < 1 {
+	case t.Name != "" && !util.ValidName(t.Name):
+		return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid name %s",
+			strconv.Quote(t.Name))
+	case t.Amount != nil && t.Amount.Sign() < 0:
 		return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid amount")
 	}
+
 	if t.Keepers != nil || t.Threshold != nil {
 		l := len(t.Keepers)
 		switch {

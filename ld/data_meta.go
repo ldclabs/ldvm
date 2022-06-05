@@ -59,24 +59,23 @@ func (t *DataMeta) Clone() *DataMeta {
 
 // SyntacticVerify verifies that a *DataMeta is well-formed.
 func (t *DataMeta) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("DataMeta.SyntacticVerify failed: nil pointer")
+	case len(t.Keepers) > math.MaxUint8:
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: too many keepers")
+	case int(t.Threshold) > len(t.Keepers):
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid threshold")
+	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
+		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid approver")
 	}
 
-	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: too many keepers")
-	}
-	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid threshold")
-	}
 	for _, id := range t.Keepers {
 		if id == util.EthIDEmpty {
 			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid keeper")
 		}
 	}
-	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid approver")
-	}
+
 	if t.ApproveList != nil {
 		for _, ty := range t.ApproveList {
 			if ty > TypeDeleteData || ty < TypeCreateData {

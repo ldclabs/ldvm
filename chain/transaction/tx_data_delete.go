@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -24,7 +23,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxDeleteData.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -40,23 +39,30 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 		return err
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid to, should be nil")
+	case tx.ld.Token != nil:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid token, should be nil")
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid amount, should be nil")
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data")
 	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxDeleteData invalid")
-	}
+
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxDeleteData unmarshal data failed: %v", err)
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: %v", err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxDeleteData SyntacticVerify failed: %v", err)
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: %v", err)
 	}
-	if tx.input.ID == nil ||
-		tx.input.Version == 0 {
-		return fmt.Errorf("TxDeleteData invalid TxUpdater")
+
+	switch {
+	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data id")
+	case tx.input.Version == 0:
+		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data version")
 	}
 	return nil
 }
@@ -68,18 +74,16 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 	}
 
 	tx.dm, err = bs.LoadData(*tx.input.ID)
-	if err != nil {
-		return fmt.Errorf("TxDeleteData load data failed: %v", err)
-	}
-	if tx.dm.Version != tx.input.Version {
-		return fmt.Errorf("TxDeleteData version mismatch, expected %v, got %v",
+	switch {
+	case err != nil:
+		return fmt.Errorf("TxDeleteData.Verify failed: %v", err)
+	case tx.dm.Version != tx.input.Version:
+		return fmt.Errorf("TxDeleteData.Verify failed: invalid version, expected %d, got %d",
 			tx.dm.Version, tx.input.Version)
-	}
-	if !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false) {
-		return fmt.Errorf("TxDeleteData need more signatures")
-	}
-	if tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver) {
-		return fmt.Errorf("TxDeleteData.Verify failed: no approver signing")
+	case !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false):
+		return fmt.Errorf("TxDeleteData.Verify failed: invalid signatures for data keepers")
+	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver):
+		return fmt.Errorf("TxDeleteData.Verify failed: invalid signature for data approver")
 	}
 	return nil
 }

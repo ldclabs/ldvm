@@ -31,15 +31,16 @@ type TxTransfer struct {
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
 func (t *TxTransfer) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: nil pointer")
-	}
-	if t.Token != nil && !t.Token.Valid() {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
-	}
-	if t.Amount != nil && t.Amount.Sign() < 1 {
+	case t.Token != nil && !t.Token.Valid():
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid token symbol %s",
+			strconv.Quote(t.Token.GoString()))
+	case t.Amount != nil && t.Amount.Sign() < 1:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
 	}
+
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("TxTransfer.SyntacticVerify marshal failed error: %v", err)

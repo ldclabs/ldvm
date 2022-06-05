@@ -39,29 +39,25 @@ func (t *ModelMeta) Model() *IPLDModel {
 
 // SyntacticVerify verifies that a *ModelMeta is well-formed.
 func (t *ModelMeta) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("ModelMeta.SyntacticVerify failed: nil pointer")
+	case !ModelNameReg.MatchString(t.Name):
+		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid name")
+	case len(t.Keepers) > math.MaxUint8:
+		return fmt.Errorf("ModelMeta.SyntacticVerify failed: too many keepers")
+	case int(t.Threshold) > len(t.Keepers):
+		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid threshold")
+	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
+		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid approver")
+	case len(t.Data) < 10:
+		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid data bytes")
 	}
 
-	if !ModelNameReg.MatchString(t.Name) {
-		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid name")
-	}
-	if len(t.Keepers) > math.MaxUint8 {
-		return fmt.Errorf("ModelMeta.SyntacticVerify failed: too many keepers")
-	}
-	if int(t.Threshold) > len(t.Keepers) {
-		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid threshold")
-	}
 	for _, id := range t.Keepers {
 		if id == util.EthIDEmpty {
 			return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid keeper")
 		}
-	}
-	if t.Approver != nil && *t.Approver == util.EthIDEmpty {
-		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid approver")
-	}
-	if len(t.Data) < 10 {
-		return fmt.Errorf("ModelMeta.SyntacticVerify failed: invalid data bytes")
 	}
 
 	var err error
