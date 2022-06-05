@@ -22,7 +22,6 @@ type TxCreateData struct {
 	input     *ld.TxUpdater
 	dm        *ld.DataMeta
 	name      *service.Name
-	kSigner   *util.EthID
 	mSigner   *util.EthID
 }
 
@@ -88,10 +87,16 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	if !tx.input.Keepers.Has(kSigner) {
 		return fmt.Errorf("TxCreateData.SyntacticVerify failed: invalid kSig for keepers")
 	}
-	tx.kSigner = &kSigner
 
-	// with model keepers
-	if tx.input.To != nil {
+	if tx.input.To == nil {
+		switch {
+		case tx.ld.To != nil:
+			return fmt.Errorf("TxCreateData.SyntacticVerify failed: invalid to, should be nil")
+		case tx.ld.Amount != nil:
+			return fmt.Errorf("TxCreateData.SyntacticVerify failed: invalid amount, should be nil")
+		}
+	} else {
+		// with model keepers
 		switch {
 		case tx.ld.To == nil || *tx.input.To != *tx.ld.To:
 			return fmt.Errorf("TxCreateData.SyntacticVerify failed: invalid to, expected %s, got %s",

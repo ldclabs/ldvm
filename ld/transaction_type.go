@@ -164,6 +164,10 @@ func (t TxType) String() string {
 	}
 }
 
+// func (t TxType) MarshalJSON() ([]byte, error) {
+// 	return []byte("\"" + t.String() + "\""), nil
+// }
+
 type TxTypes []TxType
 
 func (ts TxTypes) Has(ty TxType) bool {

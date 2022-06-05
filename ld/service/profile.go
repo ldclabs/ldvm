@@ -70,21 +70,19 @@ func ProfileModel() (*ld.IPLDModel, error) {
 
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
-	if p == nil {
+	switch {
+	case p == nil:
 		return fmt.Errorf("Name.SyntacticVerify failed: nil pointer")
-	}
-	if !util.ValidName(p.Name) {
+	case !util.ValidName(p.Name):
 		return fmt.Errorf("Name.SyntacticVerify failed: invalid name %s", strconv.Quote(p.Name))
-	}
-	if !util.ValidLink(p.Image) {
+	case !util.ValidLink(p.Image):
 		return fmt.Errorf("Name.SyntacticVerify failed: invalid image %s", strconv.Quote(p.Image))
-	}
-	if !util.ValidLink(p.URL) {
+	case !util.ValidLink(p.URL):
 		return fmt.Errorf("Name.SyntacticVerify failed: invalid url %s", strconv.Quote(p.URL))
-	}
-	if p.Follows == nil {
+	case p.Follows == nil:
 		return fmt.Errorf("Name.SyntacticVerify failed: nil follows")
 	}
+
 	for _, id := range p.Follows {
 		if id == util.DataIDEmpty {
 			return fmt.Errorf("Name.SyntacticVerify failed: invalid follow address")

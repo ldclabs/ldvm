@@ -35,11 +35,12 @@ func TestBlock(t *testing.T) {
 	blk = &Block{State: ids.ID{1, 2, 3}, Miner: util.StakeSymbol{1, 2, 3}}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid miner address")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, Validators: []util.StakeSymbol{{1, 2, 3}}}
-	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
-
 	blk = &Block{State: ids.ID{1, 2, 3}}
 	assert.ErrorContains(blk.SyntacticVerify(), "no txs")
+
+	blk = &Block{State: ids.ID{1, 2, 3}, Txs: make([]*Transaction, 1),
+		Validators: []util.StakeSymbol{{1, 2, 3}}}
+	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
 
 	blk = &Block{State: ids.ID{1, 2, 3}, Txs: make([]*Transaction, 1)}
 	assert.ErrorContains(blk.SyntacticVerify(), "Block.SyntacticVerify failed: Transaction.SyntacticVerify failed: nil pointer")

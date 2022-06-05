@@ -256,6 +256,56 @@ func TestTxCreateData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
 		From:      from.id,
+		To:        &constants.GenesisAccount,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	_, err = NewTx(txData.ToTransaction(), true)
+	assert.ErrorContains(err, "invalid to, should be nil")
+
+	input = &ld.TxUpdater{
+		ModelID:   &constants.RawModelID,
+		Version:   1,
+		Threshold: ld.Uint8Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Data:      []byte(`42`),
+	}
+	kSig, err = util.Signer1.Sign(input.Data)
+	assert.NoError(err)
+	input.KSig = &kSig
+	assert.NoError(input.SyntacticVerify())
+	txData = &ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Amount:    big.NewInt(1),
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	_, err = NewTx(txData.ToTransaction(), true)
+	assert.ErrorContains(err, "TxData.SyntacticVerify failed: invalid to")
+
+	input = &ld.TxUpdater{
+		ModelID:   &constants.RawModelID,
+		Version:   1,
+		Threshold: ld.Uint8Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Data:      []byte(`42`),
+	}
+	kSig, err = util.Signer1.Sign(input.Data)
+	assert.NoError(err)
+	input.KSig = &kSig
+	assert.NoError(input.SyntacticVerify())
+	txData = &ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))

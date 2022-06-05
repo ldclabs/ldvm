@@ -32,16 +32,14 @@ func NewState(parent ids.ID) *State {
 
 // SyntacticVerify verifies that a *State is well-formed.
 func (s *State) SyntacticVerify() error {
-	if s == nil {
+	switch {
+	case s == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil pointer")
-	}
-	if s.Accounts == nil {
+	case s.Accounts == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil accounts")
-	}
-	if s.Datas == nil {
+	case s.Datas == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil datas")
-	}
-	if s.Models == nil {
+	case s.Models == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil models")
 	}
 

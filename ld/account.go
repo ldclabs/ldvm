@@ -68,26 +68,20 @@ type StakeEntry struct {
 
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
-	if a == nil {
+	switch {
+	case a == nil:
 		return fmt.Errorf("Account.SyntacticVerify failed: nil pointer")
-	}
-
-	if a.Balance == nil || a.Balance.Sign() < 0 {
+	case a.Balance == nil || a.Balance.Sign() < 0:
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid balance")
-	}
-	if a.Keepers == nil {
+	case a.Keepers == nil:
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid keepers")
-	}
-	if len(a.Keepers) > math.MaxUint8 {
+	case len(a.Keepers) > math.MaxUint8:
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid keepers, too many")
-	}
-	if int(a.Threshold) > len(a.Keepers) {
+	case int(a.Threshold) > len(a.Keepers):
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid threshold")
-	}
-	if a.Tokens == nil {
+	case a.Tokens == nil:
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid tokens")
-	}
-	if a.NonceTable == nil {
+	case a.NonceTable == nil:
 		return fmt.Errorf("Account.SyntacticVerify failed: invalid nonceTable")
 	}
 
@@ -183,23 +177,19 @@ type StakeConfig struct {
 
 // SyntacticVerify verifies that a *StakeConfig is well-formed.
 func (c *StakeConfig) SyntacticVerify() error {
-	if c == nil {
+	switch {
+	case c == nil:
 		return fmt.Errorf("StakeConfig.SyntacticVerify failed: nil pointer")
-	}
-	if !c.Token.Valid() {
+	case !c.Token.Valid():
 		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid token %s", c.Token.GoString())
-	}
-	if c.Type > 2 {
+	case c.Type > 2:
 		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid type")
-	}
-	if c.WithdrawFee < 1 || c.WithdrawFee > 200_000 {
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid withdrawFee, should be in [1, 200_000]")
-	}
-
-	if c.MinAmount == nil || c.MinAmount.Sign() < 1 {
+	case c.WithdrawFee < 1 || c.WithdrawFee > 200_000:
+		return fmt.Errorf(
+			"StakeConfig.SyntacticVerify failed: invalid withdrawFee, should be in [1, 200_000]")
+	case c.MinAmount == nil || c.MinAmount.Sign() < 1:
 		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid minAmount")
-	}
-	if c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0 {
+	case c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0:
 		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid maxAmount")
 	}
 	return nil
@@ -225,25 +215,23 @@ type LendingConfig struct {
 
 // SyntacticVerify verifies that a *LendingConfig is well-formed.
 func (c *LendingConfig) SyntacticVerify() error {
-	if c == nil {
+	switch {
+	case c == nil:
 		return fmt.Errorf("LendingConfig.SyntacticVerify failed: nil pointer")
-	}
-	if !c.Token.Valid() {
+	case !c.Token.Valid():
 		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid token %s", c.Token.GoString())
-	}
-
-	if c.DailyInterest < 1 || c.DailyInterest > 10_000 {
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid dailyInterest, should be in [1, 10_000]")
-	}
-	if c.OverdueInterest < 1 || c.OverdueInterest > 10_000 {
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid overdueInterest, should be in [1, 10_000]")
-	}
-	if c.MinAmount == nil || c.MinAmount.Sign() < 1 {
+	case c.DailyInterest < 1 || c.DailyInterest > 10_000:
+		return fmt.Errorf(
+			"LendingConfig.SyntacticVerify failed: invalid dailyInterest, should be in [1, 10_000]")
+	case c.OverdueInterest < 1 || c.OverdueInterest > 10_000:
+		return fmt.Errorf(
+			"LendingConfig.SyntacticVerify failed: invalid overdueInterest, should be in [1, 10_000]")
+	case c.MinAmount == nil || c.MinAmount.Sign() < 1:
 		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid minAmount")
-	}
-	if c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0 {
+	case c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0:
 		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid maxAmount")
 	}
+
 	return nil
 }
 

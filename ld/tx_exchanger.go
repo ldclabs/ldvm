@@ -29,39 +29,32 @@ type TxExchanger struct {
 
 // SyntacticVerify verifies that a *TxExchanger is well-formed.
 func (t *TxExchanger) SyntacticVerify() error {
-	if t == nil {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: nil pointer")
+	switch {
+	case t == nil:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: nil pointer")
+	case t.Nonce == 0:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid nonce")
+	case !t.Sell.Valid():
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid sell token symbol %s",
+			strconv.Quote(t.Sell.GoString()))
+	case !t.Receive.Valid():
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid receive token symbol %s",
+			strconv.Quote(t.Receive.GoString()))
+	case t.Sell == t.Receive:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: sell and receive token should not equal")
+	case t.Minimum == nil || t.Minimum.Sign() < 1:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid minimum")
+	case t.Quota == nil || t.Quota.Cmp(t.Minimum) < 0:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid quota")
+	case t.Price == nil || t.Price.Sign() < 1:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid price")
+	case t.Payee == util.EthIDEmpty:
+		return fmt.Errorf("TxExchanger.SyntacticVerify failed: invalid payee")
 	}
 
-	if t.Nonce == 0 {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid nonce")
-	}
-	if !t.Sell.Valid() {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid sell token symbol %s",
-			strconv.Quote(t.Sell.GoString()))
-	}
-	if !t.Receive.Valid() {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid receive token symbol %s",
-			strconv.Quote(t.Receive.GoString()))
-	}
-	if t.Sell == t.Receive {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: sell and receive token should not equal")
-	}
-	if t.Quota == nil || t.Quota.Sign() < 1 {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid quota")
-	}
-	if t.Minimum == nil || t.Minimum.Sign() < 1 {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid minimum")
-	}
-	if t.Price == nil || t.Price.Sign() < 1 {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid price")
-	}
-	if t.Payee == util.EthIDEmpty {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid payee")
-	}
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("TxTransfer.SyntacticVerify marshal failed: %v", err)
+		return fmt.Errorf("TxExchanger.SyntacticVerify marshal failed: %v", err)
 	}
 	return nil
 }

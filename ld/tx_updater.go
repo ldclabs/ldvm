@@ -44,15 +44,16 @@ type TxUpdater struct {
 
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
-	if t == nil {
+	switch {
+	case t == nil:
 		return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil pointer")
-	}
-	if t.Token != nil && !t.Token.Valid() {
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid token symbol %s", strconv.Quote(t.Token.GoString()))
-	}
-	if t.Amount != nil && t.Amount.Sign() < 0 {
+	case t.Token != nil && !t.Token.Valid():
+		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid token symbol %s",
+			strconv.Quote(t.Token.GoString()))
+	case t.Amount != nil && t.Amount.Sign() < 0:
 		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid amount")
 	}
+
 	if t.Keepers != nil || t.Threshold != nil {
 		switch {
 		case t.Threshold == nil:
@@ -75,7 +76,7 @@ func (t *TxUpdater) SyntacticVerify() error {
 	}
 	if t.ApproveList != nil {
 		for _, ty := range t.ApproveList {
-			if ty > TypeDeleteData || ty < TypeCreateData {
+			if !DataTxTypes.Has(ty) {
 				return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid TxType %d in approveList", ty)
 			}
 		}

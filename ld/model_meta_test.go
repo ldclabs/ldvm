@@ -42,14 +42,14 @@ func TestModelMeta(t *testing.T) {
 	tx = &ModelMeta{Name: "Name", Threshold: 1}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 
-	tx = &ModelMeta{Name: "Name", Threshold: 1, Keepers: []util.EthID{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
-
 	tx = &ModelMeta{Name: "Name", Approver: &util.EthIDEmpty}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
 	tx = &ModelMeta{Name: "Name", Data: []byte("abc")}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid data")
+
+	tx = &ModelMeta{Name: "Name", Data: []byte(sch), Threshold: 1, Keepers: []util.EthID{util.EthIDEmpty}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
 
 	tx = &ModelMeta{Name: "Name", Data: []byte(sch)}
 	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel "Name" error`)
