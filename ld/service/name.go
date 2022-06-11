@@ -53,33 +53,36 @@ func GetName(data []byte) (string, error) {
 
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
+	errPrefix := "Name.SyntacticVerify failed:"
+
 	if n == nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
 	}
+
 	dn, err := idna.Registration.ToASCII(n.Name)
 	if err != nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: converts %s error: %v",
-			strconv.Quote(n.Name), err)
+		return fmt.Errorf("%s converts %s error: %v", errPrefix, strconv.Quote(n.Name), err)
 	}
 	if dn != n.Name {
-		return fmt.Errorf("Name.SyntacticVerify failed: %s is not ASCII form (IDNA2008)",
-			strconv.Quote(n.Name))
+		return fmt.Errorf("%s %s is not ASCII form (IDNA2008)", errPrefix, strconv.Quote(n.Name))
 	}
+
 	name, err := idna.Registration.ToUnicode(n.Name)
 	if err != nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: converts %s error: %v", strconv.Quote(n.Name), err)
+		return fmt.Errorf("%s converts %s error: %v", errPrefix, strconv.Quote(n.Name), err)
 	}
 	n.DisplayName = name
+
 	if n.Records == nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: nil records")
+		return fmt.Errorf("%s nil records", errPrefix)
 	}
 	for _, s := range n.Records {
 		if !utf8.ValidString(s) {
-			return fmt.Errorf("Name.SyntacticVerify failed: invalid utf8 record %s", strconv.Quote(s))
+			return fmt.Errorf("%s invalid utf8 record %s", errPrefix, strconv.Quote(s))
 		}
 	}
 	if n.raw, err = n.Marshal(); err != nil {
-		return fmt.Errorf("Name.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

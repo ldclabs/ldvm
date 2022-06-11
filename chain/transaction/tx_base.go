@@ -66,8 +66,10 @@ func (tx *TxBase) SyntacticVerify() error {
 	switch {
 	case tx == nil || tx.ld == nil:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: nil pointer")
+
 	case tx.ld.From == util.EthIDEmpty:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid from")
+
 	case tx.ld.To != nil && tx.ld.From == *tx.ld.To:
 		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid to")
 	}
@@ -90,15 +92,18 @@ func (tx *TxBase) SyntacticVerify() error {
 // call after SyntacticVerify
 func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errPrefix := "TxBase.Verify failed:"
 	feeCfg := bctx.FeeConfig()
 	requireGas := tx.ld.RequiredGas(feeCfg.ThresholdGas)
+
 	if price := bctx.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
-		return fmt.Errorf("TxBase.Verify failed: invalid gasFeeCap, expected >= %d, got %d",
-			price, tx.ld.GasFeeCap)
+		return fmt.Errorf("%s invalid gasFeeCap, expected >= %d, got %d",
+			errPrefix, price, tx.ld.GasFeeCap)
 	}
+
 	if tx.ld.Gas != requireGas || tx.ld.Gas > feeCfg.MaxTxGas {
-		return fmt.Errorf("TxBase.Verify failed: invalid gas, expected %d, got %d",
-			requireGas, tx.ld.Gas)
+		return fmt.Errorf("%s invalid gas, expected %d, got %d",
+			errPrefix, requireGas, tx.ld.Gas)
 	}
 
 	tx.tip = new(big.Int).Mul(tx.ld.GasUnits(), new(big.Int).SetUint64(tx.ld.GasTip))
@@ -128,13 +133,15 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 
 	switch {
 	case tx.ld.Nonce != tx.from.Nonce():
-		return fmt.Errorf("TxBase.Verify failed: invalid nonce for sender, expected %d, got %d",
-			tx.from.Nonce(), tx.ld.Nonce)
+		return fmt.Errorf("%s invalid nonce for sender, expected %d, got %d",
+			errPrefix, tx.from.Nonce(), tx.ld.Nonce)
+
 	case !tx.from.SatisfySigning(tx.signers):
-		return fmt.Errorf("TxBase.Verify failed: invalid signatures for sender")
+		return fmt.Errorf("%s invalid signatures for sender", errPrefix)
+
 	case tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) &&
 		!tx.signers.Has(*tx.from.ld.Approver):
-		return fmt.Errorf("TxBase.Verify failed: TxBase.Verify: invalid signature for approver")
+		return fmt.Errorf("%s invalid signature for approver", errPrefix)
 	}
 
 	switch tx.token {
@@ -143,6 +150,7 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 			new(big.Int).Add(tx.amount, tx.cost)); err != nil {
 			return err
 		}
+
 	default:
 		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost); err != nil {
 			return err

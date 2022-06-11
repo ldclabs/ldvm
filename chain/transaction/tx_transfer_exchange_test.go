@@ -336,7 +336,7 @@ func TestTxTransferExchange(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":5,"chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1,"payee":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["c1ad16b7420ad47b8a4f0f506840c57df9b42510a43faee9d9a150fb5a7c00155f5c5fb952693b7af3075ce69d98e14486d10bf6c0a886243c64563004b019ab01"],"exSignatures":["b29b8525280dde2e056b99b20a1e252f2a5b44320837b2b7bc0280c6fa20aa7c743cd3959b97b11c757dbdabf177bbc22ec5263ee529cddceda3a5415b89850000"],"gas":227,"name":"ExchangeTx","id":"qEstDMoKQN1Z81gwGGY29LdPwVhZRThZq8enUbw35tTgqJiuK"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1,"payee":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["c1ad16b7420ad47b8a4f0f506840c57df9b42510a43faee9d9a150fb5a7c00155f5c5fb952693b7af3075ce69d98e14486d10bf6c0a886243c64563004b019ab01"],"exSignatures":["b29b8525280dde2e056b99b20a1e252f2a5b44320837b2b7bc0280c6fa20aa7c743cd3959b97b11c757dbdabf177bbc22ec5263ee529cddceda3a5415b89850000"],"gas":227,"id":"qEstDMoKQN1Z81gwGGY29LdPwVhZRThZq8enUbw35tTgqJiuK"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

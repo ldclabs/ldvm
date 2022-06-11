@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 )
@@ -22,7 +21,7 @@ func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxAddAccountNonceTable.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -35,35 +34,41 @@ func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
 // VerifyGenesis skipping signature verification
 func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxAddAccountNonceTable.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
-	if tx.ld.To != nil {
-		return fmt.Errorf("TxAddAccountNonceTable invalid to")
-	}
-	if tx.ld.Amount != nil {
-		return fmt.Errorf("TxAddAccountNonceTable invalid amount")
-	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxAddAccountNonceTable invalid")
-	}
+
 	tx.input = make([]uint64, 0)
 	if err = ld.DecMode.Unmarshal(tx.ld.Data, &tx.input); err != nil {
-		return fmt.Errorf("TxAddAccountNonceTable unmarshal data failed: %v", err)
+		return fmt.Errorf("%s invalid data, %v", errPrefix, err)
 	}
-	if len(tx.input) < 2 {
-		return fmt.Errorf("TxAddAccountNonceTable numbers empty")
-	}
-	if len(tx.input) > 1025 {
-		return fmt.Errorf("TxAddAccountNonceTable too many numbers")
-	}
-	if tx.input[0] < tx.ld.Timestamp || tx.input[0] > (tx.ld.Timestamp+3600*24*7) {
-		return fmt.Errorf("TxAddAccountNonceTable invalid expire")
+	switch {
+	case len(tx.input) < 2:
+		return fmt.Errorf("%s no nonce", errPrefix)
+
+	case len(tx.input) > 1025:
+		return fmt.Errorf("%s too many nonces, expected <= 1025", errPrefix)
+
+	case tx.input[0] <= tx.ld.Timestamp:
+		return fmt.Errorf("%s invalid expire time, expected > %d", errPrefix, tx.ld.Timestamp)
+
+	case tx.input[0] > (tx.ld.Timestamp + 3600*24*30):
+		return fmt.Errorf("%s invalid expire time, expected <= %d", errPrefix, tx.ld.Timestamp+3600*24*30)
 	}
 	return nil
 }
@@ -71,10 +76,10 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 func (tx *TxAddAccountNonceTable) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxAddAccountNonceTable.Verify failed: %v", err)
 	}
 	if err = tx.from.CheckNonceTable(tx.input[0], tx.input[1:]); err != nil {
-		return err
+		return fmt.Errorf("TxAddAccountNonceTable.Verify failed: %v", err)
 	}
 	return nil
 }

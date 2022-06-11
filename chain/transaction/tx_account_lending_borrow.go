@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -24,7 +25,7 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxBorrow.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -36,54 +37,69 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 
 func (tx *TxBorrow) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxBorrow.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
-	}
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxBorrow invalid to")
-	}
-	if tx.ld.Amount.Sign() != 0 {
-		return fmt.Errorf("TxBorrow invalid amount, expected 0, got %v", tx.ld.Amount)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxBorrow invalid")
-	}
-	tx.exSigners, err = tx.ld.ExSigners()
-	if err != nil {
-		return fmt.Errorf("TxBorrow invalid exSignatures")
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("%s nil to", errPrefix)
+
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxTransfer{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxBorrow unmarshal data failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxBorrow SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.input.From == nil || *tx.input.From != *tx.ld.To {
-		return fmt.Errorf("TxBorrow invalid lender")
-	}
-	if tx.input.To == nil || *tx.input.To != tx.ld.From {
-		return fmt.Errorf("TxBorrow invalid recipient")
-	}
-	if tx.input.Token != nil && *tx.input.Token != tx.token {
-		return fmt.Errorf("TxBorrow invalid token")
-	}
-	if tx.input.Expire < tx.ld.Timestamp {
-		return fmt.Errorf("TxBorrow expired")
-	}
-	if tx.input.Amount == nil {
-		return fmt.Errorf("TxBorrow invalid amount")
+	switch {
+	case tx.input.From == nil:
+		return fmt.Errorf("%s invalid from as lender", errPrefix)
+
+	case *tx.input.From != *tx.ld.To:
+		return fmt.Errorf("%s invalid to, expected %s, got %s", errPrefix, tx.input.From, tx.ld.To)
+
+	case tx.input.To == nil:
+		return fmt.Errorf("%s invalid to as borrower", errPrefix)
+
+	case *tx.input.To != tx.ld.From:
+		return fmt.Errorf("%s invalid from, expected %s, got %s", errPrefix, tx.input.To, tx.ld.From)
+
+	case tx.input.Token == nil && tx.token != constants.NativeToken:
+		return fmt.Errorf("%s invalid token, expected %s, got %s",
+			errPrefix, constants.NativeToken.GoString(), tx.token.GoString())
+
+	case tx.input.Token != nil && tx.token != *tx.input.Token:
+		return fmt.Errorf("%s invalid token, expected %s, got %s",
+			errPrefix, tx.input.Token.GoString(), tx.token.GoString())
+
+	case tx.input.Amount == nil || tx.input.Amount.Sign() <= 0:
+		return fmt.Errorf("%s invalid amount, expected >= 1", errPrefix)
+
+	case tx.input.Expire < tx.ld.Timestamp:
+		return fmt.Errorf("%s data expired", errPrefix)
 	}
 
 	if len(tx.input.Data) > 0 {
 		u := uint64(0)
 		if err = ld.DecMode.Unmarshal(tx.input.Data, &u); err != nil {
-			return fmt.Errorf("TxBorrow unmarshal dueTime failed: %v", err)
+			return fmt.Errorf("%s invalid dueTime, %v", errPrefix, err)
 		}
 		tx.dueTime = u
+	}
+
+	tx.exSigners, err = tx.ld.ExSigners()
+	if err != nil {
+		return fmt.Errorf("%s invalid exSignatures, %v", errPrefix, err)
 	}
 	return nil
 }
@@ -91,24 +107,30 @@ func (tx *TxBorrow) SyntacticVerify() error {
 func (tx *TxBorrow) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
-	}
-	if err = tx.to.CheckSubByNonceTable(tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
-		return err
+		return fmt.Errorf("TxBorrow.Verify failed: %v", err)
 	}
 	// verify lender's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
-		return fmt.Errorf("TxBorrow account lender need more signers")
+		return fmt.Errorf("TxBorrow.Verify failed: invalid exSignatures for lending keepers")
 	}
-	return tx.to.CheckBorrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime)
+	if err = tx.to.CheckSubByNonceTable(
+		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
+		return fmt.Errorf("TxBorrow.Verify failed: %v", err)
+	}
+	if err = tx.to.CheckBorrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
+		return fmt.Errorf("TxBorrow.Verify failed: %v", err)
+	}
+	return nil
 }
 
 func (tx *TxBorrow) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.to.Borrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
+	if err = tx.to.Borrow(
+		tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
 		return err
 	}
-	if err = tx.to.SubByNonceTable(tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
+	if err = tx.to.SubByNonceTable(
+		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
 		return err
 	}
 	if err = tx.from.Add(tx.token, tx.input.Amount); err != nil {

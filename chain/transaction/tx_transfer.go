@@ -17,12 +17,13 @@ type TxTransfer struct {
 func (tx *TxTransfer) SyntacticVerify() error {
 	var err error
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("TxTransfer.SyntacticVerify failed: %v", err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid to")
+
 	case tx.ld.Amount == nil:
 		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
 	}

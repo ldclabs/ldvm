@@ -32,7 +32,7 @@ func TestTxData(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid to")
+	assert.ErrorContains(tx.SyntacticVerify(), "nil to together with amount")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: RawData{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
@@ -96,8 +96,7 @@ func TestTxData(t *testing.T) {
 	assert.Contains(string(jsondata), `"id":"2uhrWkwBpocDoL3wfadMhErPoz4dEPUX7StGSsbcxfmGjr152M"`)
 	assert.NotContains(string(jsondata), `"exSignatures":null`)
 	assert.Contains(string(jsondata), `"gas":0`)
-	assert.Contains(string(jsondata), `"type":2`)
-	assert.Contains(string(jsondata), `"name":"TransferTx"`)
+	assert.Contains(string(jsondata), `"type":"TypeTransfer"`)
 
 	txx2 := &Transaction{}
 	assert.NoError(txx2.Unmarshal(txx.Bytes()))
@@ -136,7 +135,8 @@ func TestTransaction(t *testing.T) {
 
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-	assert.Equal(`{"type":2,"chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"gas":0,"name":"TransferTx","id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}`, string(jsondata))
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"gas":0,"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}`, string(jsondata))
 
 	ctx := tx.Copy()
 	assert.NoError(ctx.SyntacticVerify())
@@ -180,8 +180,8 @@ func TestTransaction(t *testing.T) {
 	assert.False(tx.IsBatched())
 	assert.False(tx.NeedApprove(nil, nil))
 	assert.True(tx.NeedApprove(&constants.GenesisAccount, nil))
-	assert.True(tx.NeedApprove(&constants.GenesisAccount, []TxType{TypeTransfer}))
-	assert.False(tx.NeedApprove(&constants.GenesisAccount, []TxType{TypeUpdateAccountKeepers}))
+	assert.True(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeTransfer}))
+	assert.False(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeUpdateAccountKeepers}))
 }
 
 func TestTxs(t *testing.T) {

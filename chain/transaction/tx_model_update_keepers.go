@@ -35,55 +35,56 @@ func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxUpdateModelKeepers.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid to, should be nil")
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 	case tx.ld.Token != nil:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid token, should be nil")
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid amount, should be nil")
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.input.ModelID == nil || *tx.input.ModelID == util.ModelIDEmpty:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: invalid mid")
+		return fmt.Errorf("%s invalid mid", errPrefix)
 	case tx.input.Threshold == nil && tx.input.Approver == nil:
-		return fmt.Errorf("TxUpdateModelKeepers.SyntacticVerify failed: nothing to update")
+		return fmt.Errorf("%s nothing to update", errPrefix)
 	}
 	return nil
 }
 
 func (tx *TxUpdateModelKeepers) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errPrefix := "TxUpdateModelKeepers.Verify failed:"
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	tx.mm, err = bs.LoadModel(*tx.input.ModelID)
-	if err != nil {
-		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: %v", err)
-	}
+	switch {
+	case err != nil:
+		return fmt.Errorf("%s %v", errPrefix, err)
 
-	if !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers) {
-		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: invalid signature for keepers")
-	}
+	case !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers):
+		return fmt.Errorf("%s invalid signatures for keepers, need more", errPrefix)
 
-	if tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver) {
-		return fmt.Errorf("TxUpdateModelKeepers.Verify failed: invalid signature for approver")
+	case tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver):
+		return fmt.Errorf("%s invalid signature for approver", errPrefix)
 	}
 	return nil
 }

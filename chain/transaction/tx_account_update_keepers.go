@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -24,7 +23,7 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxUpdateAccountKeepers.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -34,43 +33,56 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-// VerifyGenesis skipping signature verification
 func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxUpdateAccountKeepers.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxUpdateAccountKeepers invalid")
-	}
+
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
+
 	if tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil {
-		return fmt.Errorf("TxUpdateAccountKeepers no keepers nor approver")
+		return fmt.Errorf("%s no keepers nor approver", errPrefix)
+	}
+	if tx.input.Threshold != nil && *tx.input.Threshold == 0 {
+		return fmt.Errorf("%s invalid threshold, expected >= 1", errPrefix)
 	}
 	return nil
 }
 
+// VerifyGenesis skipping signature verification
 func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers unmarshal data failed: %v", err)
+		return fmt.Errorf("TxUpdateAccountKeepers.VerifyGenesis failed: %v", err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers SyntacticVerify failed: %v", err)
+		return fmt.Errorf("TxUpdateAccountKeepers.VerifyGenesis failed: %v", err)
 	}
 
+	tx.amount = new(big.Int)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
@@ -88,10 +100,10 @@ func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState
 func (tx *TxUpdateAccountKeepers) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("sender account need more signers")
+		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: invalid signatures for keepers, need more")
 	}
 	return nil
 }

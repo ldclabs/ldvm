@@ -19,7 +19,7 @@ import (
 
 type MockBCtx struct {
 	ChainConfig       *genesis.ChainConfig
-	Height, Timestamp uint64
+	height, timestamp uint64
 	Price             uint64
 	MinerID           util.StakeSymbol
 }
@@ -35,8 +35,8 @@ func NewMockBCtx() *MockBCtx {
 	}
 	return &MockBCtx{
 		ChainConfig: &ge.Chain,
-		Height:      1,
-		Timestamp:   1000,
+		height:      1,
+		timestamp:   1000,
 		Price:       1000,
 		MinerID:     ld.MustNewStake("#LDC"),
 	}
@@ -59,7 +59,7 @@ func (m *MockBCtx) Miner() util.StakeSymbol {
 }
 
 type MockBS struct {
-	Height, Timestamp uint64
+	height, timestamp uint64
 	Fee               *genesis.FeeConfig
 	AC                AccountCache
 	NC                map[string]util.DataID
@@ -70,8 +70,8 @@ type MockBS struct {
 
 func NewMockBS(m *MockBCtx) *MockBS {
 	return &MockBS{
-		Height:    m.Height,
-		Timestamp: m.Timestamp,
+		height:    m.height,
+		timestamp: m.timestamp,
 		Fee:       m.ChainConfig.FeeConfig,
 		AC:        make(AccountCache),
 		NC:        make(map[string]util.DataID),
@@ -81,10 +81,19 @@ func NewMockBS(m *MockBCtx) *MockBS {
 	}
 }
 
+func (m *MockBS) Height() uint64 {
+	return m.height
+}
+
+func (m *MockBS) Timestamp() uint64 {
+	return m.timestamp
+}
+
 func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
 	acc := m.AC[id]
 	if acc == nil {
 		acc = NewAccount(id)
+
 		pledge := new(big.Int)
 		switch {
 		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
@@ -92,11 +101,9 @@ func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
 		case acc.Type() == ld.StakeAccount:
 			pledge.Set(m.Fee.MinStakePledge)
 		}
-
-		acc.Init(pledge, m.Height, m.Timestamp)
+		acc.Init(pledge, m.height, m.timestamp)
 		m.AC[id] = acc
 	}
-
 	return m.AC[id], nil
 }
 

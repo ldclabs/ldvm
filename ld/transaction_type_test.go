@@ -13,10 +13,8 @@ import (
 func TestTxType(t *testing.T) {
 	assert := assert.New(t)
 
-	set := map[uint8]struct{}{}
 	for _, ty := range AllTxTypes {
-		set[uint8(ty)] = struct{}{}
-		assert.NotEqual("UnknownTx", ty.String(), fmt.Sprintf("invalid TxType %d", ty))
+		assert.NotEqual("TypeUnknown", ty.String(), fmt.Sprintf("invalid TxType %d", ty))
 		assert.True(ty.Gas() < 10000)
 		switch ty {
 		case TypeTest:
@@ -36,7 +34,7 @@ func TestTxType(t *testing.T) {
 			assert.True(ModelTxTypes.Has(ty))
 		case TypeCreateData:
 			assert.Equal(uint8(19), uint8(ty))
-			assert.True(DataTxTypes.Has(ty))
+			assert.False(DataTxTypes.Has(ty))
 		case TypeDeleteData:
 			assert.Equal(uint8(23), uint8(ty))
 			assert.True(DataTxTypes.Has(ty))
@@ -48,5 +46,21 @@ func TestTxType(t *testing.T) {
 			assert.True(AccountTxTypes.Has(ty))
 		}
 	}
-	assert.Equal(len(set), len(AllTxTypes), "should no duplicate value")
+
+	var ts TxTypes
+	assert.NoError(ts.CheckDuplicate())
+	assert.NoError(TransferTxTypes.CheckDuplicate())
+	assert.NoError(ModelTxTypes.CheckDuplicate())
+	assert.NoError(DataTxTypes.CheckDuplicate())
+	assert.NoError(AccountTxTypes.CheckDuplicate())
+	assert.NoError(AllTxTypes.CheckDuplicate())
+	assert.NoError(TokenFromTxTypes.CheckDuplicate())
+	assert.NoError(TokenToTxTypes.CheckDuplicate())
+	assert.NoError(StakeFromTxTypes0.CheckDuplicate())
+	assert.NoError(StakeFromTxTypes1.CheckDuplicate())
+	assert.NoError(StakeFromTxTypes2.CheckDuplicate())
+	assert.NoError(StakeToTxTypes.CheckDuplicate())
+
+	ts = append(TxTypes{TypeEth}, AllTxTypes...)
+	assert.ErrorContains(ts.CheckDuplicate(), "duplicate TxType TypeEth")
 }

@@ -17,49 +17,59 @@ type TxEth struct {
 
 func (tx *TxEth) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxEth.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid to")
+		return fmt.Errorf("%s invalid to", errPrefix)
 	case tx.ld.Amount == nil:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid amount")
+		return fmt.Errorf("%s invalid amount", errPrefix)
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxEth{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	txData := tx.input.TxData(nil)
 	switch {
 	case tx.ld.ChainID != txData.ChainID:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid chainID")
+		return fmt.Errorf("%s invalid chainID", errPrefix)
+
 	case tx.ld.Nonce != txData.Nonce:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid nonce")
+		return fmt.Errorf("%s invalid nonce", errPrefix)
+
 	case tx.ld.GasTip != txData.GasTip:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid gasTip")
+		return fmt.Errorf("%s invalid gasTip", errPrefix)
+
 	case tx.ld.GasFeeCap != txData.GasFeeCap:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid gasFeeCap")
+		return fmt.Errorf("%s invalid gasFeeCap", errPrefix)
+
 	case tx.ld.From != txData.From:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid from")
+		return fmt.Errorf("%s invalid from", errPrefix)
+
 	case *tx.ld.To != *txData.To:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid to")
+		return fmt.Errorf("%s invalid to", errPrefix)
+
 	case tx.ld.Token != nil:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid token")
+		return fmt.Errorf("%s invalid token", errPrefix)
+
 	case tx.ld.Amount.Cmp(txData.Amount) != 0:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid amount")
+		return fmt.Errorf("%s invalid amount", errPrefix)
+
 	case len(tx.ld.Signatures) != 1 || tx.ld.Signatures[0] != txData.Signatures[0]:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid signatures")
+		return fmt.Errorf("%s invalid signatures", errPrefix)
+
 	case tx.ld.ExSignatures != nil:
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid exSignatures")
+		return fmt.Errorf("%s invalid exSignatures", errPrefix)
 	}
 
 	tx.signers = []util.EthID{tx.ld.From}

@@ -28,7 +28,7 @@ func TestTxPunish(t *testing.T) {
 	from, err := bs.LoadAccount(constants.GenesisAccount)
 	assert.NoError(err)
 	singer1 := util.Signer1.Address()
-	assert.NoError(from.UpdateKeepers(ld.Uint8Ptr(1), util.EthIDs{singer1}, nil, nil))
+	assert.NoError(from.UpdateKeepers(ld.Uint8Ptr(1), &util.EthIDs{singer1}, nil, nil))
 
 	to, err := bs.LoadAccount(util.Signer2.Address())
 	assert.NoError(err)
@@ -95,7 +95,7 @@ func TestTxPunish(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "TxData.SyntacticVerify failed: invalid to")
+	assert.ErrorContains(err, "nil to together with amount")
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
@@ -211,7 +211,7 @@ func TestTxPunish(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":16,"chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8","data":"Illegal content"},"signatures":["c9f430b760115127737634c92ba2fb544134b00542703d1731239ddefa5ea28d06bc883916b3c8d08802c4109d7fadcaa7feeeb0900ac25b84f927424b8120c701"],"gas":138,"name":"PunishTx","id":"2CfBQuuhuptvM81Hf9v4zZMmhaiQCurzh9Sgzu9YsJDSxF8nYy"}`, string(jsondata))
+	assert.Equal(`{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8","data":"Illegal content"},"signatures":["c9f430b760115127737634c92ba2fb544134b00542703d1731239ddefa5ea28d06bc883916b3c8d08802c4109d7fadcaa7feeeb0900ac25b84f927424b8120c701"],"gas":138,"id":"2CfBQuuhuptvM81Hf9v4zZMmhaiQCurzh9Sgzu9YsJDSxF8nYy"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

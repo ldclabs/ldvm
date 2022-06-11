@@ -25,7 +25,7 @@ func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxCreateTokenAccount.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -37,41 +37,52 @@ func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
 
 func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxCreateTokenAccount.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
-	}
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxCreateTokenAccount invalid to")
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("%s nil to as token account", errPrefix)
+
+	case *tx.ld.To == util.EthIDEmpty:
+		return fmt.Errorf("%s invalid to as token account, expected not %s", errPrefix, tx.ld.To)
+
+	case tx.ld.Amount == nil:
+		return fmt.Errorf("%s nil amount", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	if token := util.TokenSymbol(*tx.ld.To); !token.Valid() {
-		return fmt.Errorf("TxCreateTokenAccount invalid token: %s", token.GoString())
+		return fmt.Errorf("%s invalid token %s", errPrefix, token.GoString())
 	}
 
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxCreateTokenAccount invalid")
-	}
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateTokenAccount unmarshal data failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateTokenAccount SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.input.Threshold == nil {
-		return fmt.Errorf("TxCreateTokenAccount invalid threshold")
-	}
-	if len(tx.input.Keepers) == 0 {
-		return fmt.Errorf("TxCreateTokenAccount invalid keepers")
-	}
-	if tx.input.Amount == nil || tx.input.Amount.Sign() <= 0 {
-		return fmt.Errorf("TxCreateTokenAccount invalid amount")
+	switch {
+	case tx.input.Threshold == nil || *tx.input.Threshold == 0:
+		return fmt.Errorf("%s invalid threshold, expected >= 1", errPrefix)
+
+	case tx.input.Amount == nil || tx.input.Amount.Sign() <= 0:
+		return fmt.Errorf("%s invalid amount, expected >= 1", errPrefix)
+
+	case tx.input.Approver != nil && *tx.input.Approver == util.EthIDEmpty:
+		return fmt.Errorf("%s invalid approver, expected not %s", errPrefix, tx.input.Approver)
+
+	case len(tx.input.Name) < 3:
+		return fmt.Errorf("%s invalid name %s, expected length >= 3", errPrefix, strconv.Quote(tx.input.Name))
 	}
 	return nil
 }
@@ -79,15 +90,18 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 func (tx *TxCreateTokenAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxCreateTokenAccount.Verify failed: %v", err)
 	}
 
 	feeCfg := bctx.FeeConfig()
 	if tx.ld.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
-		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
+		return fmt.Errorf("TxCreateTokenAccount.Verify failed: invalid amount, expected >= %v, got %v",
 			feeCfg.MinTokenPledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateToken(tx.input)
+	if err = tx.to.CheckCreateToken(tx.input); err != nil {
+		return fmt.Errorf("TxCreateTokenAccount.Verify failed: %v", err)
+	}
+	return nil
 }
 
 // VerifyGenesis skipping signature verification
@@ -95,12 +109,13 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(bctx BlockContext, bs BlockState) 
 	var err error
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateTokenAccount unmarshal data failed: %v", err)
+		return fmt.Errorf("TxCreateTokenAccount.VerifyGenesis failed: %v", err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateTokenAccount SyntacticVerify failed: %v", err)
+		return fmt.Errorf("TxCreateTokenAccount.VerifyGenesis failed: %v", err)
 	}
 
+	tx.amount = new(big.Int)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
@@ -109,8 +124,6 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(bctx BlockContext, bs BlockState) 
 	if err != nil {
 		return err
 	}
-
-	tx.from.Add(constants.NativeToken, bctx.Chain().MaxTotalSupply)
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
@@ -125,6 +138,10 @@ func (tx *TxCreateTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.to.CreateToken(tx.input); err != nil {
 		return err
+	}
+	if tx.to.id != constants.LDCAccount {
+		pledge := new(big.Int).Set(bctx.FeeConfig().MinTokenPledge)
+		tx.to.Init(pledge, bs.Height(), bs.Timestamp())
 	}
 	return tx.TxBase.Accept(bctx, bs)
 }

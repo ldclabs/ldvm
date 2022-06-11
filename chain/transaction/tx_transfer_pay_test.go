@@ -32,7 +32,7 @@ func TestTxTransferPay(t *testing.T) {
 	singer2 := util.Signer2.Address()
 	to, err := bs.LoadAccount(constants.GenesisAccount)
 	assert.NoError(err)
-	assert.NoError(to.UpdateKeepers(ld.Uint8Ptr(1), util.EthIDs{singer2}, nil, nil))
+	assert.NoError(to.UpdateKeepers(ld.Uint8Ptr(1), &util.EthIDs{singer2}, nil, nil))
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransferPay,
@@ -266,7 +266,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	tt.Timestamp = bctx.Timestamp
+	tt.Timestamp = bs.Timestamp()
 	_, err = NewTx(tt, true)
 	assert.ErrorContains(err, "data expired")
 
@@ -291,7 +291,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Timestamp = bctx.Timestamp
+	tt.Timestamp = bs.Timestamp()
 	_, err = NewTx(tt, true)
 	assert.ErrorContains(err, "DeriveSigners: no signature")
 
@@ -317,7 +317,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Timestamp = bctx.Timestamp
+	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
@@ -390,7 +390,7 @@ func TestTxTransferPay(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":3,"chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"token":"$LDC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000000000},"signatures":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSignatures":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"gas":206,"name":"TransferPayTx","id":"2dsFu9TNZWVLW7pmfBVwVRCmCd9hbRXiFpr6X33KekRP3tFZCE"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000},"signatures":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSignatures":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"gas":206,"id":"2dsFu9TNZWVLW7pmfBVwVRCmCd9hbRXiFpr6X33KekRP3tFZCE"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

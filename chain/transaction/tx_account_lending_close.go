@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"fmt"
-	"strconv"
 )
 
 type TxCloseLending struct {
@@ -14,19 +13,20 @@ type TxCloseLending struct {
 
 func (tx *TxCloseLending) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxCloseLending.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
-	}
-	if tx.ld.To != nil {
-		return fmt.Errorf("TxCloseLending invalid to")
-	}
-	if tx.ld.Amount.Sign() != 0 {
-		return fmt.Errorf("TxCloseLending invalid amount, expected 0, got %v", tx.ld.Amount)
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
 	}
 	return nil
 }
@@ -34,9 +34,12 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 func (tx *TxCloseLending) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxCloseLending.Verify failed: %v", err)
 	}
-	return tx.from.CheckCloseLending()
+	if err = tx.from.CheckCloseLending(); err != nil {
+		return fmt.Errorf("TxCloseLending.Verify failed: %v", err)
+	}
+	return nil
 }
 
 func (tx *TxCloseLending) Accept(bctx BlockContext, bs BlockState) error {

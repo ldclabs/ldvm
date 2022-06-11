@@ -19,6 +19,8 @@ type BlockContext interface {
 }
 
 type BlockState interface {
+	Height() uint64
+	Timestamp() uint64
 	LoadAccount(util.EthID) (*Account, error)
 	LoadMiner(util.StakeSymbol) (*Account, error)
 	ResolveNameID(name string) (util.DataID, error)

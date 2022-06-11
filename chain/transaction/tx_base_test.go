@@ -156,7 +156,8 @@ func TestTxBase(t *testing.T) {
 
 	jsondata, err := tx.MarshalJSON()
 	assert.NoError(err)
-	assert.Equal(`{"type":2,"chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"signatures":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01","70c90b4dee8b2442d8974a568bc0640c858fcaa100d4888daf582e33be5510622e5de01281cc2bc7c4a9269caf959dbca03f7fce68032dd03121d375721c2fbb00"],"gas":119,"name":"TransferTx","id":"KtpU3iErfEz63uBEhoWPLk816UhNF3kjUj1dV3Zi6rfBPqewg"}`, string(jsondata))
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"signatures":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01","70c90b4dee8b2442d8974a568bc0640c858fcaa100d4888daf582e33be5510622e5de01281cc2bc7c4a9269caf959dbca03f7fce68032dd03121d375721c2fbb00"],"gas":119,"id":"KtpU3iErfEz63uBEhoWPLk816UhNF3kjUj1dV3Zi6rfBPqewg"}`, string(jsondata))
 
 	from.ld.Approver = nil
 	token := ld.MustNewToken("$LDC")
@@ -192,7 +193,8 @@ func TestTxBase(t *testing.T) {
 
 	jsondata, err = tx.MarshalJSON()
 	assert.NoError(err)
-	assert.Equal(`{"type":2,"chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000,"signatures":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"gas":143,"name":"TransferTx","id":"sJV9ndy4B654Nmt6YVKsybB3DSe9GRFNvqTL1cab2s4cG34rm"}`, string(jsondata))
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000,"signatures":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"gas":143,"id":"sJV9ndy4B654Nmt6YVKsybB3DSe9GRFNvqTL1cab2s4cG34rm"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

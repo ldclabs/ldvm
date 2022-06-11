@@ -168,6 +168,36 @@ func TestAccount(t *testing.T) {
 		Keepers:    util.EthIDs{},
 		Tokens:     make(map[util.TokenSymbol]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
+		Approver:   &util.EthIDEmpty,
+	}
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
+
+	acc = &Account{
+		Type:        NativeAccount,
+		Balance:     big.NewInt(0),
+		Keepers:     util.EthIDs{},
+		Tokens:      make(map[util.TokenSymbol]*big.Int),
+		NonceTable:  make(map[uint64][]uint64),
+		ApproveList: TxTypes{TxType(255)},
+	}
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
+
+	acc = &Account{
+		Type:        NativeAccount,
+		Balance:     big.NewInt(0),
+		Keepers:     util.EthIDs{},
+		Tokens:      make(map[util.TokenSymbol]*big.Int),
+		NonceTable:  make(map[uint64][]uint64),
+		ApproveList: TxTypes{TypeTransfer, TypeTransfer},
+	}
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
+
+	acc = &Account{
+		Type:       NativeAccount,
+		Balance:    big.NewInt(0),
+		Keepers:    util.EthIDs{},
+		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on NativeAccount")

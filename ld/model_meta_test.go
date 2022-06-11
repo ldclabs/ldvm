@@ -49,7 +49,7 @@ func TestModelMeta(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid data")
 
 	tx = &ModelMeta{Name: "Name", Data: []byte(sch), Threshold: 1, Keepers: []util.EthID{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
 	tx = &ModelMeta{Name: "Name", Data: []byte(sch)}
 	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel "Name" error`)
@@ -58,6 +58,15 @@ func TestModelMeta(t *testing.T) {
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Data:      []byte(sch),
+	}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+
+	tx = &ModelMeta{
+		Name:      "NameService",
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(sch),
 	}
 	assert.NoError(tx.SyntacticVerify())

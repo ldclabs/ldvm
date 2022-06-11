@@ -97,6 +97,14 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 	}
 }
 
+func (bs *blockState) Height() uint64 {
+	return bs.height
+}
+
+func (bs *blockState) Timestamp() uint64 {
+	return bs.timestamp
+}
+
 // DeriveState for the given block
 func (bs *blockState) DeriveState() (BlockState, error) {
 	vdb := versiondb.New(bs.vdb.GetDatabase())
@@ -187,7 +195,10 @@ func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSym
 func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
-		miner = util.EthID(id)
+		acc, err := bs.LoadAccount(util.EthID(id))
+		if err == nil && acc.Valid(ld.StakeAccount) {
+			return acc, nil
+		}
 	}
 	return bs.LoadAccount(miner)
 }
