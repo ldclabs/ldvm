@@ -21,7 +21,8 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
 	tx = &TxUpdater{Token: &util.TokenSymbol{'a', 'b', 'c'}}
-	assert.ErrorContains(tx.SyntacticVerify(), `invalid token symbol "0x6162630000000000000000000000000000000000"`)
+	assert.ErrorContains(tx.SyntacticVerify(),
+		`invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
 	tx = &TxUpdater{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
@@ -37,13 +38,18 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
 	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &TxUpdater{ApproveList: []TxType{TypeCreateData - 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
+	tx = &TxUpdater{ApproveList: TxTypes{TypeCreateData}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeCreateData in approveList")
 
-	tx = &TxUpdater{ApproveList: []TxType{TypeDeleteData + 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
+	tx = &TxUpdater{ApproveList: TxTypes{TypeDeleteData + 1}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(24) in approveList")
+
+	tx = &TxUpdater{ApproveList: TxTypes{
+		TypeUpdateDataKeepers, TypeDeleteData, TypeUpdateDataKeepers}}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid approveList, duplicate TxType TypeUpdateDataKeepers")
 
 	tx = &TxUpdater{Token: &util.NativeToken}
 	assert.NoError(tx.SyntacticVerify())
@@ -53,6 +59,22 @@ func TestTxUpdater(t *testing.T) {
 		Version:   1,
 		Threshold: Uint8Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Approver:  &util.EthIDEmpty,
+		Token:     &util.NativeToken,
+		To:        &constants.GenesisAccount,
+		Amount:    big.NewInt(1000),
+		KSig:      &util.Signature{1, 2, 3},
+		Expire:    uint64(time.Now().Unix()),
+		Data:      []byte(`"Hello, world!"`),
+	}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+
+	tx = &TxUpdater{
+		ID:        &util.DataID{1, 2, 3},
+		Version:   1,
+		Threshold: Uint8Ptr(1),
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Approver:  &util.EthIDEmpty,
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,

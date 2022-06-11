@@ -17,13 +17,14 @@ type TxTester struct {
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
 func (t *TxTester) SyntacticVerify() error {
+	errPrefix := "TxTester.SyntacticVerify failed:"
 	if t == nil {
-		return fmt.Errorf("invalid TxTester")
+		return fmt.Errorf("%s invalid TxTester", errPrefix)
 	}
 
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("TxTester marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

@@ -29,7 +29,7 @@ type TxUpdater struct {
 	Threshold   *uint8            `cbor:"th,omitempty" json:"threshold,omitempty"`
 	Keepers     *util.EthIDs      `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList []TxType          `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	ApproveList TxTypes           `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
 	To          *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
 	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
@@ -44,46 +44,60 @@ type TxUpdater struct {
 
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
+	var err error
+	errPrefix := "TxUpdater.SyntacticVerify failed:"
+
 	switch {
 	case t == nil:
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case t.Token != nil && !t.Token.Valid():
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid token symbol %s",
-			strconv.Quote(t.Token.GoString()))
+		return fmt.Errorf("%s invalid token symbol %s", errPrefix, strconv.Quote(t.Token.GoString()))
+
 	case t.Amount != nil && t.Amount.Sign() < 0:
-		return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid amount")
+		return fmt.Errorf("%s invalid amount", errPrefix)
 	}
 
 	if t.Keepers != nil || t.Threshold != nil {
 		switch {
 		case t.Threshold == nil:
-			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil threshold")
+			return fmt.Errorf("%s nil threshold together with keepers", errPrefix)
+
 		case t.Keepers == nil:
-			return fmt.Errorf("TxUpdater.SyntacticVerify failed: nil keepers")
+			return fmt.Errorf("%s nil keepers together with threshold", errPrefix)
+
 		case int(*t.Threshold) > len(*t.Keepers):
-			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid threshold, expected <= %d, got %d",
-				len(*t.Keepers), *t.Threshold)
+			return fmt.Errorf("%s invalid threshold, expected <= %d, got %d",
+				errPrefix, len(*t.Keepers), *t.Threshold)
+
 		case len(*t.Keepers) > math.MaxUint8:
-			return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keepers, expected <= %d, got %d",
-				math.MaxUint8, len(*t.Keepers))
+			return fmt.Errorf("%s invalid keepers, expected <= %d, got %d",
+				errPrefix, math.MaxUint8, len(*t.Keepers))
 		}
 
-		for _, id := range *t.Keepers {
-			if id == util.EthIDEmpty {
-				return fmt.Errorf("TxUpdater.SyntacticVerify failed: invalid keeper")
-			}
+		if err = t.Keepers.CheckDuplicate(); err != nil {
+			return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+		}
+
+		if err = t.Keepers.CheckEmptyID(); err != nil {
+			return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
 		}
 	}
+
 	if t.ApproveList != nil {
+		if err = t.ApproveList.CheckDuplicate(); err != nil {
+			return fmt.Errorf("%s invalid approveList, %v", errPrefix, err)
+		}
+
 		for _, ty := range t.ApproveList {
 			if !DataTxTypes.Has(ty) {
-				return fmt.Errorf("TxAccounter.SyntacticVerify failed: invalid TxType %d in approveList", ty)
+				return fmt.Errorf("%s invalid TxType %s in approveList", errPrefix, ty)
 			}
 		}
 	}
-	var err error
+
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("TxUpdater.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

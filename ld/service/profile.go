@@ -70,45 +70,53 @@ func ProfileModel() (*ld.IPLDModel, error) {
 
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
+	errPrefix := "Profile.SyntacticVerify failed: "
 	switch {
 	case p == nil:
-		return fmt.Errorf("Name.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case !util.ValidName(p.Name):
-		return fmt.Errorf("Name.SyntacticVerify failed: invalid name %s", strconv.Quote(p.Name))
+		return fmt.Errorf("%s invalid name %s", errPrefix, strconv.Quote(p.Name))
+
 	case !util.ValidLink(p.Image):
-		return fmt.Errorf("Name.SyntacticVerify failed: invalid image %s", strconv.Quote(p.Image))
+		return fmt.Errorf("%s invalid image %s", errPrefix, strconv.Quote(p.Image))
+
 	case !util.ValidLink(p.URL):
-		return fmt.Errorf("Name.SyntacticVerify failed: invalid url %s", strconv.Quote(p.URL))
+		return fmt.Errorf("%s invalid url %s", errPrefix, strconv.Quote(p.URL))
+
 	case p.Follows == nil:
-		return fmt.Errorf("Name.SyntacticVerify failed: nil follows")
+		return fmt.Errorf("%s nil follows", errPrefix)
 	}
 
 	for _, id := range p.Follows {
 		if id == util.DataIDEmpty {
-			return fmt.Errorf("Name.SyntacticVerify failed: invalid follow address")
+			return fmt.Errorf("%s invalid follow address", errPrefix)
 		}
 	}
+
 	for _, id := range p.Members {
 		if id == util.DataIDEmpty {
-			return fmt.Errorf("Name.SyntacticVerify failed: invalid member address")
+			return fmt.Errorf("%s invalid member address", errPrefix)
 		}
 	}
+
 	if p.Extensions == nil {
-		return fmt.Errorf("Name.SyntacticVerify failed: nil extensions")
+		return fmt.Errorf("%s nil extensions", errPrefix)
 	}
 	set := make(map[string]struct{}, len(p.Extensions))
 	for _, ex := range p.Extensions {
 		if !util.ValidName(ex.Title) {
-			return fmt.Errorf("Name.SyntacticVerify failed: invalid extension title %s", strconv.Quote(ex.Title))
+			return fmt.Errorf("%s invalid extension title %s", errPrefix, strconv.Quote(ex.Title))
 		}
 		if _, ok := set[ex.Title]; ok {
-			return fmt.Errorf("Name.SyntacticVerify failed: %s exists in extensions", strconv.Quote(ex.Title))
+			return fmt.Errorf("%s %s exists in extensions", errPrefix, strconv.Quote(ex.Title))
 		}
 		set[ex.Title] = struct{}{}
 	}
+
 	var err error
 	if p.raw, err = p.Marshal(); err != nil {
-		return fmt.Errorf("Name.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

@@ -35,17 +35,20 @@ func (s *State) SyntacticVerify() error {
 	switch {
 	case s == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil pointer")
+
 	case s.Accounts == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil accounts")
+
 	case s.Datas == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil datas")
+
 	case s.Models == nil:
 		return fmt.Errorf("State.SyntacticVerify failed: nil models")
 	}
 
 	var err error
 	if s.raw, err = s.Marshal(); err != nil {
-		return fmt.Errorf("State.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("State.SyntacticVerify failed: %v", err)
 	}
 
 	s.ID = util.IDFromData(s.raw)

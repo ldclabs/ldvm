@@ -78,7 +78,7 @@ func TestTxDeleteData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "TxData.SyntacticVerify failed: invalid to")
+	assert.ErrorContains(err, "nil to together with amount")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
@@ -250,7 +250,7 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":23,"chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2},"signatures":["412d5a180fee8b76b36f0811584338dd0d084d8840e52b29988bc1fd2c00d37d01b3df69af6a524cebbe5f015f9c200c79d50d58d5ab6bf7fb7ce2b27f94c07300"],"gas":279,"name":"DeleteDataTx","id":"3xLkdg8i7DbhUR8u4aAr1BKEuYjDYiJ4HT3QYH1rwyK6acPA2"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2},"signatures":["412d5a180fee8b76b36f0811584338dd0d084d8840e52b29988bc1fd2c00d37d01b3df69af6a524cebbe5f015f9c200c79d50d58d5ab6bf7fb7ce2b27f94c07300"],"gas":279,"id":"3xLkdg8i7DbhUR8u4aAr1BKEuYjDYiJ4HT3QYH1rwyK6acPA2"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{

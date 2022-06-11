@@ -6,7 +6,7 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"math/big"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -25,7 +25,7 @@ func (tx *TxCreateStakeAccount) MarshalJSON() ([]byte, error) {
 
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxCreateStakeAccount.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -37,51 +37,62 @@ func (tx *TxCreateStakeAccount) MarshalJSON() ([]byte, error) {
 
 func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxCreateStakeAccount.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("%s nil to as stake account", errPrefix)
+
+	case tx.ld.Amount == nil:
+		return fmt.Errorf("%s nil amount", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxCreateStakeAccount invalid to")
-	}
-	if token := util.StakeSymbol(*tx.ld.To); !token.Valid() {
-		return fmt.Errorf("TxCreateStakeAccount invalid stake address: %s", token.GoString())
-	}
-	if len(tx.ld.Data) == 0 {
-		return fmt.Errorf("TxCreateStakeAccount invalid")
+
+	if stake := util.StakeSymbol(*tx.ld.To); !stake.Valid() {
+		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
 	}
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateStakeAccount SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.input.Threshold == nil {
-		return fmt.Errorf("TxCreateStakeAccount invalid threshold")
-	}
-	if len(tx.input.Keepers) == 0 {
-		return fmt.Errorf("TxCreateStakeAccount invalid keepers")
-	}
-	if tx.input.Amount != nil {
-		return fmt.Errorf("TxCreateStakeAccount invalid amount, please take stake after created")
+	switch {
+	case tx.input.Threshold == nil || *tx.input.Threshold == 0:
+		return fmt.Errorf("%s invalid threshold, expected >= 1", errPrefix)
+
+	case tx.input.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case tx.input.Approver != nil && *tx.input.Approver == util.EthIDEmpty:
+		return fmt.Errorf("%s invalid approver, expected not %s", errPrefix, tx.input.Approver)
+
+	case len(tx.input.Data) == 0:
+		return fmt.Errorf("%s invalid TxAccounter data", errPrefix)
 	}
 
 	tx.stake = &ld.StakeConfig{}
 	if err = tx.stake.Unmarshal(tx.input.Data); err != nil {
-		return fmt.Errorf("TxCreateStakeAccount unmarshal data failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.stake.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateStakeAccount SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
-	if tx.stake.LockTime < tx.ld.Timestamp {
-		return fmt.Errorf("TxCreateStakeAccount invalid lockTime")
+
+	switch {
+	case tx.stake.LockTime > 0 && tx.stake.LockTime <= tx.ld.Timestamp:
+		return fmt.Errorf("%s invalid lockTime, expected 0 or >= %d", errPrefix, tx.ld.Timestamp)
 	}
 	return nil
 }
@@ -89,15 +100,18 @@ func (tx *TxCreateStakeAccount) SyntacticVerify() error {
 func (tx *TxCreateStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxCreateStakeAccount.Verify failed: %v", err)
 	}
 
 	feeCfg := bctx.FeeConfig()
-	if tx.ld.Amount.Cmp(feeCfg.MinStakePledge) < 0 {
-		return fmt.Errorf("TxCreateStakeAccount invalid amount, expected >= %v, got %v",
+	if tx.amount.Cmp(feeCfg.MinStakePledge) < 0 {
+		return fmt.Errorf("TxCreateStakeAccount.SyntacticVerify Verify: invalid amount, expected >= %v, got %v",
 			feeCfg.MinStakePledge, tx.ld.Amount)
 	}
-	return tx.to.CheckCreateStake(tx.ld.From, tx.ld.Amount, tx.input, tx.stake)
+	if err = tx.to.CheckCreateStake(tx.ld.From, tx.ld.Amount, tx.input, tx.stake); err != nil {
+		return fmt.Errorf("TxCreateStakeAccount.Verify failed: %v", err)
+	}
+	return nil
 }
 
 func (tx *TxCreateStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
@@ -105,5 +119,8 @@ func (tx *TxCreateStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
 	if err = tx.to.CreateStake(tx.ld.From, tx.ld.Amount, tx.input, tx.stake); err != nil {
 		return err
 	}
+
+	pledge := new(big.Int).Set(bctx.FeeConfig().MinStakePledge)
+	tx.to.Init(pledge, bs.Height(), bs.Timestamp())
 	return tx.TxBase.Accept(bctx, bs)
 }

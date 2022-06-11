@@ -51,7 +51,7 @@ func (tx *TxTest) SetStatus(s choices.Status) {
 
 func (tx *TxTest) SyntacticVerify() error {
 	if tx == nil || tx.ld == nil {
-		return fmt.Errorf("tx is nil")
+		return fmt.Errorf("TxTest.SyntacticVerify failed: nil tx")
 	}
 	return nil
 }

@@ -424,7 +424,7 @@ func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error
 
 func (a *Account) UpdateKeepers(
 	threshold *uint8,
-	keepers []util.EthID,
+	keepers *util.EthIDs,
 	approver *util.EthID,
 	approveList []ld.TxType,
 ) error {
@@ -442,9 +442,9 @@ func (a *Account) UpdateKeepers(
 	if approveList != nil {
 		a.ld.ApproveList = approveList
 	}
-	if threshold != nil {
+	if threshold != nil && keepers != nil {
 		a.ld.Threshold = *threshold
-		a.ld.Keepers = keepers
+		a.ld.Keepers = *keepers
 	}
 	return nil
 }
@@ -484,7 +484,9 @@ func (a *Account) createToken(data *ld.TxAccounter, write bool) error {
 			a.ld.Balance.Set(data.Amount)
 		default:
 			a.ld.Threshold = *data.Threshold
-			a.ld.Keepers = data.Keepers
+			a.ld.Keepers = *data.Keepers
+			a.ld.Approver = data.Approver
+			a.ld.ApproveList = data.ApproveList
 			a.ld.Tokens[token] = new(big.Int).Set(data.Amount)
 		}
 	}
@@ -495,6 +497,9 @@ func (a *Account) CheckDestroyToken(recipient *Account) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	if err := a.closeLending(false, true); err != nil {
+		return err
+	}
 	return a.destroyToken(recipient, false)
 }
 
@@ -502,6 +507,9 @@ func (a *Account) DestroyToken(recipient *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	if err := a.closeLending(true, true); err != nil {
+		return err
+	}
 	return a.destroyToken(recipient, true)
 }
 
@@ -518,7 +526,8 @@ func (a *Account) destroyToken(recipient *Account, write bool) error {
 		return fmt.Errorf("Account.CheckDestroyToken failed: invalid token %s",
 			token.GoString())
 	} else if tk.Cmp(a.ld.MaxTotalSupply) != 0 {
-		return fmt.Errorf("Account.CheckDestroyToken failed: some token in the use %v", tk)
+		return fmt.Errorf("Account.CheckDestroyToken failed: some token in the use, expected %v, got %v",
+			a.ld.MaxTotalSupply, tk)
 	}
 
 	if write {
@@ -527,6 +536,9 @@ func (a *Account) destroyToken(recipient *Account, write bool) error {
 		a.ld.Balance.SetUint64(0)
 		a.ld.Threshold = 0
 		a.ld.Keepers = a.ld.Keepers[:0]
+		a.ld.NonceTable = make(map[uint64][]uint64)
+		a.ld.Approver = nil
+		a.ld.ApproveList = nil
 		a.ld.MaxTotalSupply = nil
 		delete(a.ld.Tokens, token)
 	}
@@ -578,7 +590,9 @@ func (a *Account) createStake(
 	if write {
 		a.ld.Type = ld.StakeAccount
 		a.ld.Threshold = *acc.Threshold
-		a.ld.Keepers = acc.Keepers
+		a.ld.Keepers = *acc.Keepers
+		a.ld.Approver = acc.Approver
+		a.ld.ApproveList = acc.ApproveList
 		a.ld.Stake = cfg
 		a.ld.StakeLedger = make(map[util.EthID]*ld.StakeEntry)
 		a.ld.MaxTotalSupply = nil
@@ -656,6 +670,9 @@ func (a *Account) CheckDestroyStake(recipient *Account) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	if err := a.closeLending(false, true); err != nil {
+		return err
+	}
 	return a.destroyStake(recipient, false)
 }
 
@@ -663,6 +680,9 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	if err := a.closeLending(true, true); err != nil {
+		return err
+	}
 	return a.destroyStake(recipient, true)
 }
 
@@ -708,6 +728,9 @@ func (a *Account) destroyStake(recipient *Account, write bool) error {
 		a.ld.Type = 0
 		a.ld.Threshold = 0
 		a.ld.Keepers = a.ld.Keepers[:0]
+		a.ld.NonceTable = make(map[uint64][]uint64)
+		a.ld.Approver = nil
+		a.ld.ApproveList = nil
 		a.ld.Stake = nil
 		a.ld.StakeLedger = nil
 	}
@@ -988,17 +1011,21 @@ func (a *Account) CheckCloseLending() error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	return a.closeLending(false)
+	return a.closeLending(false, false)
 }
 
 func (a *Account) CloseLending() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.closeLending(true)
+	return a.closeLending(true, false)
 }
 
-func (a *Account) closeLending(write bool) error {
+func (a *Account) closeLending(write, ignoreNone bool) error {
+	if ignoreNone && a.ld.Lending == nil {
+		return nil
+	}
+
 	if a.ld.Lending == nil || a.ld.LendingLedger == nil {
 		return fmt.Errorf(
 			"Account.CheckCloseLending failed: invalid lending on %s", a.id)

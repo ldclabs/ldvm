@@ -67,7 +67,11 @@ func TestIDFromData(t *testing.T) {
 func TestEthIDs(t *testing.T) {
 	assert := assert.New(t)
 
-	ids := EthIDs([]EthID{
+	var ids EthIDs
+	assert.NoError(ids.CheckDuplicate())
+	assert.NoError(ids.CheckEmptyID())
+
+	ids = EthIDs([]EthID{
 		EthIDEmpty,
 		{1, 2, 3},
 		Signer1.Address(),
@@ -78,6 +82,11 @@ func TestEthIDs(t *testing.T) {
 	assert.True(ids.Has(Signer2.Address()))
 
 	assert.False(ids.Has(EthID{1, 2, 4}))
+	assert.Nil(ids.CheckDuplicate())
+	ids = append(ids, EthID{1, 2, 3})
+
+	assert.ErrorContains(ids.CheckDuplicate(), EthID{1, 2, 3}.String())
+	assert.ErrorContains(ids.CheckEmptyID(), "empty address exists")
 }
 
 func TestUint64Set(t *testing.T) {

@@ -51,41 +51,49 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *Tx is well-formed.
 func (t *TxData) SyntacticVerify() error {
+	errPrefix := "TxData.SyntacticVerify failed:"
+
 	switch {
 	case t == nil:
-		return fmt.Errorf("TxData.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case !AllTxTypes.Has(t.Type):
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid type %d", t.Type)
+		return fmt.Errorf("%s invalid type %d", errPrefix, t.Type)
+
 	case t.ChainID != gChainID:
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid ChainID, expected %d, got %d",
-			gChainID, t.ChainID)
+		return fmt.Errorf("%s invalid ChainID, expected %d, got %d", errPrefix, gChainID, t.ChainID)
+
 	case t.Token != nil && !t.Token.Valid():
-		return fmt.Errorf("TxData.SyntacticVerify failed: invalid token symbol %s",
-			strconv.Quote(t.Token.GoString()))
+		return fmt.Errorf("%s invalid token symbol %s", errPrefix, strconv.Quote(t.Token.GoString()))
+
 	case t.Data != nil && len(t.Data) == 0:
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty data")
+		return fmt.Errorf("%s empty data", errPrefix)
+
 	case t.Signatures != nil && len(t.Signatures) == 0:
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty signatures")
+		return fmt.Errorf("%s empty signatures", errPrefix)
+
 	case t.ExSignatures != nil && len(t.ExSignatures) == 0:
-		return fmt.Errorf("TxData.SyntacticVerify failed: empty exSignatures")
+		return fmt.Errorf("%s empty exSignatures", errPrefix)
+
 	case len(t.Signatures) > math.MaxUint8:
-		return fmt.Errorf("TxData.SyntacticVerify failed: too many signatures")
+		return fmt.Errorf("%s too many signatures", errPrefix)
+
 	case len(t.ExSignatures) > math.MaxUint8:
-		return fmt.Errorf("TxData.SyntacticVerify failed: too many exSignatures")
+		return fmt.Errorf("%s too many exSignatures", errPrefix)
 	}
 
 	if t.Amount != nil {
 		if t.Amount.Sign() < 0 {
-			return fmt.Errorf("TxData.SyntacticVerify failed: invalid amount")
+			return fmt.Errorf("%s invalid amount", errPrefix)
 		}
 		if t.To == nil {
-			return fmt.Errorf("TxData.SyntacticVerify failed: invalid to")
+			return fmt.Errorf("%s nil to together with amount", errPrefix)
 		}
 	}
 
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("TxData.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	t.unsigned = t.calcUnsignedBytes()
 	t.ID = util.IDFromData(t.Bytes())
@@ -179,7 +187,6 @@ type Transaction struct {
 
 	// external assignment fields
 	Gas       uint64  `cbor:"g" json:"gas"` // calculate when build block.
-	Name      string  `cbor:"-" json:"name"`
 	ID        ids.ID  `cbor:"id" json:"id"`
 	Err       error   `cbor:"-" json:"error,omitempty"`
 	AddedTime uint64  `cbor:"-" json:"-"`
@@ -207,10 +214,9 @@ func (t *Transaction) SyntacticVerify() error {
 	}
 
 	t.ID = t.tx.ID
-	t.Name = t.Type.String()
 	t.gas = t.Gas
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("Transaction.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("Transaction.SyntacticVerify failed: %v", err)
 	}
 	return nil
 }
@@ -339,7 +345,7 @@ func (t *Transaction) ExSigners() (util.EthIDs, error) {
 	return util.DeriveSigners(t.Data, t.ExSignatures)
 }
 
-func (t *Transaction) NeedApprove(approver *util.EthID, approveList []TxType) bool {
+func (t *Transaction) NeedApprove(approver *util.EthID, approveList TxTypes) bool {
 	switch {
 	case approver == nil:
 		return false

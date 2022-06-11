@@ -22,13 +22,17 @@ func TestDataMeta(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 
 	tx = &DataMeta{Keepers: []util.EthID{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
 	tx = &DataMeta{Version: 1, Approver: &util.EthIDEmpty}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
-	tx = &DataMeta{ApproveList: []TxType{TypeDeleteData + 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
+	tx = &DataMeta{ApproveList: TxTypes{TxType(255)}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
+
+	tx = &DataMeta{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
+
 	tx = &DataMeta{
 		Version: 1,
 		Data:    []byte(`42`),
@@ -43,6 +47,15 @@ func TestDataMeta(t *testing.T) {
 
 	kSig, err := util.Signer1.Sign([]byte(`42`))
 	assert.NoError(err)
+	tx = &DataMeta{
+		Version:   1,
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Data:      []byte(`42`),
+		KSig:      kSig,
+	}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+
 	tx = &DataMeta{
 		Version:   1,
 		Threshold: 1,

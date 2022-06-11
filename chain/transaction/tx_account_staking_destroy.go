@@ -9,13 +9,13 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxDestroyTokenAccount struct {
+type TxDestroyStakeAccount struct {
 	TxBase
 }
 
-func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
+func (tx *TxDestroyStakeAccount) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxDestroyTokenAccount.SyntacticVerify failed:"
+	errPrefix := "TxDestroyStakeAccount.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
@@ -31,33 +31,31 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
 	}
 
-	if token := util.TokenSymbol(tx.ld.From); !token.Valid() {
-		return fmt.Errorf("%s invalid token %s", errPrefix, token.GoString())
+	if stake := util.StakeSymbol(tx.ld.From); !stake.Valid() {
+		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
 	}
 	return nil
 }
 
-func (tx *TxDestroyTokenAccount) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxDestroyStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
-	errPrefix := "TxDestroyTokenAccount.Verify failed:"
-
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("%s invalid signature for keepers, need more", errPrefix)
+		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: invalid signatures for stake keepers, need more")
 	}
-	if err = tx.from.CheckDestroyToken(tx.to); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+	if err = tx.from.CheckDestroyStake(tx.to); err != nil {
+		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: %v", err)
 	}
 	return nil
 }
 
-func (tx *TxDestroyTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
+func (tx *TxDestroyStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
 	if err := tx.TxBase.Accept(bctx, bs); err != nil {
 		return err
 	}
-	// DestroyToken after TxBase.Accept
+	// do it after TxBase.Accept
 	tx.from.pledge.SetUint64(0)
-	return tx.from.DestroyToken(tx.to)
+	return tx.from.DestroyStake(tx.to)
 }

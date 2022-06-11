@@ -22,7 +22,7 @@ type DataMeta struct {
 	// keepers who owned this data, no more than 255
 	Keepers     util.EthIDs `cbor:"kp" json:"keepers"`
 	Approver    *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList []TxType    `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	ApproveList TxTypes     `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Data        RawData     `cbor:"d" json:"data"`
 	// full data signature signing by Data Keeper
 	KSig util.Signature `cbor:"ks" json:"kSig"`
@@ -44,7 +44,7 @@ func (t *DataMeta) Clone() *DataMeta {
 		x.Approver = &id
 	}
 	if t.ApproveList != nil {
-		x.ApproveList = make([]TxType, len(t.ApproveList))
+		x.ApproveList = make(TxTypes, len(t.ApproveList))
 		copy(x.ApproveList, t.ApproveList)
 	}
 	x.Data = make([]byte, len(t.Data))
@@ -59,27 +59,39 @@ func (t *DataMeta) Clone() *DataMeta {
 
 // SyntacticVerify verifies that a *DataMeta is well-formed.
 func (t *DataMeta) SyntacticVerify() error {
+	var err error
+	errPrefix := "DataMeta.SyntacticVerify failed:"
+
 	switch {
 	case t == nil:
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case len(t.Keepers) > math.MaxUint8:
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: too many keepers")
+		return fmt.Errorf("%s too many keepers", errPrefix)
+
 	case int(t.Threshold) > len(t.Keepers):
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid threshold")
+		return fmt.Errorf("%s invalid threshold", errPrefix)
+
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
-		return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid approver")
+		return fmt.Errorf("%s invalid approver", errPrefix)
 	}
 
-	for _, id := range t.Keepers {
-		if id == util.EthIDEmpty {
-			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid keeper")
-		}
+	if err = t.Keepers.CheckDuplicate(); err != nil {
+		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+	}
+
+	if err = t.Keepers.CheckEmptyID(); err != nil {
+		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
 	}
 
 	if t.ApproveList != nil {
+		if err = t.ApproveList.CheckDuplicate(); err != nil {
+			return fmt.Errorf("%s invalid approveList, %v", errPrefix, err)
+		}
+
 		for _, ty := range t.ApproveList {
-			if ty > TypeDeleteData || ty < TypeCreateData {
-				return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid TxType %d in approveList", ty)
+			if !DataTxTypes.Has(ty) {
+				return fmt.Errorf("%s invalid TxType %s in approveList", errPrefix, ty)
 			}
 		}
 	}
@@ -87,16 +99,15 @@ func (t *DataMeta) SyntacticVerify() error {
 	if t.KSig != util.SignatureEmpty {
 		kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
 		if err != nil {
-			return fmt.Errorf("DataMeta.SyntacticVerify failed: %v", err)
+			return fmt.Errorf("%s %v", errPrefix, err)
 		}
 		if !t.Keepers.Has(kSigner) {
-			return fmt.Errorf("DataMeta.SyntacticVerify failed: invalid kSig")
+			return fmt.Errorf("%s invalid kSig", errPrefix)
 		}
 	}
 
-	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("DataMeta.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

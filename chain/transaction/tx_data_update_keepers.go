@@ -35,36 +35,39 @@ func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxUpdateDataKeepers.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: invalid to, should be nil")
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
 	case tx.ld.Token != nil:
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: invalid token, should be nil")
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
-		return fmt.Errorf(
-			"TxUpdateDataKeepers.SyntacticVerify failed: invalid data id")
+		return fmt.Errorf("%s invalid data id", errPrefix)
+
 	case tx.input.Version == 0:
-		return fmt.Errorf(
-			"TxUpdateDataKeepers.SyntacticVerify failed: invalid data version")
+		return fmt.Errorf("%s invalid data version", errPrefix)
+
 	case tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil:
-		return fmt.Errorf("TxUpdateDataKeepers.SyntacticVerify failed: no thing to update")
+		return fmt.Errorf("%s no thing to update", errPrefix)
 	}
 
 	return nil
@@ -72,34 +75,39 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 
 func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errPrefix := "TxUpdateDataKeepers.Verify failed:"
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	tx.dm, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
-		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
+
 	case tx.dm.Version != tx.input.Version:
-		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid version, expected %d, got %d",
-			tx.dm.Version, tx.input.Version)
+		return fmt.Errorf("%s invalid version, expected %d, got %d",
+			errPrefix, tx.dm.Version, tx.input.Version)
+
 	case !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers):
-		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid signatures for data keepers")
-	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver):
-		return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid signature for data approver")
+		return fmt.Errorf("%s invalid signatures for data keepers, need more", errPrefix)
+
+	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) &&
+		!tx.signers.Has(*tx.dm.Approver):
+		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 
 	if tx.input.KSig != nil {
 		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.input.KSig)[:])
 		if err != nil {
-			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig: %v", err)
+			return fmt.Errorf("%s invalid kSig: %v", errPrefix, err)
 		}
 		keepers := tx.dm.Keepers
 		if tx.input.Keepers != nil {
 			keepers = *tx.input.Keepers
 		}
 		if !keepers.Has(kSigner) {
-			return fmt.Errorf("TxUpdateDataKeepers.Verify failed: invalid kSig")
+			return fmt.Errorf("%s invalid kSig", errPrefix)
 		}
 	}
 	return nil

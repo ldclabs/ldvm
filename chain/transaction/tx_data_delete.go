@@ -35,55 +35,64 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 
 func (tx *TxDeleteData) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxDeleteData.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid to, should be nil")
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
 	case tx.ld.Token != nil:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid token, should be nil")
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid amount, should be nil")
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data id")
+		return fmt.Errorf("%s invalid data id", errPrefix)
+
 	case tx.input.Version == 0:
-		return fmt.Errorf("TxDeleteData.SyntacticVerify failed: invalid data version")
+		return fmt.Errorf("%s invalid data version", errPrefix)
 	}
 	return nil
 }
 
 func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errPrefix := "TxDeleteData.Verify failed:"
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	tx.dm, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
-		return fmt.Errorf("TxDeleteData.Verify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
+
 	case tx.dm.Version != tx.input.Version:
-		return fmt.Errorf("TxDeleteData.Verify failed: invalid version, expected %d, got %d",
-			tx.dm.Version, tx.input.Version)
+		return fmt.Errorf("%s invalid version, expected %d, got %d",
+			errPrefix, tx.dm.Version, tx.input.Version)
+
 	case !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false):
-		return fmt.Errorf("TxDeleteData.Verify failed: invalid signatures for data keepers")
+		return fmt.Errorf("%s invalid signatures for data keepers", errPrefix)
+
 	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver):
-		return fmt.Errorf("TxDeleteData.Verify failed: invalid signature for data approver")
+		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 	return nil
 }

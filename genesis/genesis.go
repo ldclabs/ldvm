@@ -129,7 +129,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
-	minter := &ld.TxAccounter{
+	token := &ld.TxAccounter{
 		Amount: g.Chain.MaxTotalSupply,
 		Name:   "Linked Data Chain",
 		Data:   []byte(strconv.Quote(g.Chain.Message)),
@@ -139,8 +139,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		ChainID: g.Chain.ChainID,
 		From:    constants.GenesisAccount,
 		To:      &constants.LDCAccount,
-		Amount:  g.Chain.MaxTotalSupply,
-		Data:    ld.MustMarshal(minter),
+		Data:    ld.MustMarshal(token),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, err
@@ -174,7 +173,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		if le := len(v.Keepers); le > 0 {
 			update := &ld.TxAccounter{
 				Threshold: &v.Threshold,
-				Keepers:   v.Keepers,
+				Keepers:   &v.Keepers,
 			}
 
 			tx := &ld.Transaction{

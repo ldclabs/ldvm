@@ -242,7 +242,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "nil amount")
+	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = ld.TxTransfer{
 		From:   &to.id,
@@ -333,7 +333,7 @@ func TestTxTransferCash(t *testing.T) {
 		"insufficient NativeLDC balance, expected 194700, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxTransferPay.Verify failed: invalid signature for issuer")
+		"invalid signature for issuer")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -374,7 +374,7 @@ func TestTxTransferCash(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":4,"chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":10},"signatures":["9c99c19c500c56d9301d7942267755925b41359fb657ec4309b28619685d77a5548d8d7947a09b13486e25d2c085f2a94ad6460f323dfcb1d90b7389f0dba1b301"],"exSignatures":["644835f6bafdf4ff94d19cece9ef523030720f2141a925d02c219ed3f3abf98167453a2d5a7a36becb9fc53ce4026fbea05bf67f1caa251a530d379fb5e0f92301"],"gas":177,"name":"TransferCashTx","id":"xM2FpyQejMz1LhvdAQSLsH6AdTptinLzjB5A6qzPeMmppgkK5"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":10},"signatures":["9c99c19c500c56d9301d7942267755925b41359fb657ec4309b28619685d77a5548d8d7947a09b13486e25d2c085f2a94ad6460f323dfcb1d90b7389f0dba1b301"],"exSignatures":["644835f6bafdf4ff94d19cece9ef523030720f2141a925d02c219ed3f3abf98167453a2d5a7a36becb9fc53ce4026fbea05bf67f1caa251a530d379fb5e0f92301"],"gas":177,"id":"xM2FpyQejMz1LhvdAQSLsH6AdTptinLzjB5A6qzPeMmppgkK5"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

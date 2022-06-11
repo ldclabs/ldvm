@@ -38,34 +38,37 @@ func (t *TxEth) MarshalJSON() ([]byte, error) {
 
 // SyntacticVerify verifies that a *TxEth is well-formed.
 func (t *TxEth) SyntacticVerify() error {
+	errPrefix := "TxEth.SyntacticVerify failed:"
 	if t == nil || t.tx == nil {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
 	}
 
 	if chainID := t.tx.ChainId().Uint64(); chainID > 0 && chainID != gChainID {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid chainId, expected %d, got %d",
-			gChainID, chainID)
+		return fmt.Errorf("%s invalid chainId, expected %d, got %d", errPrefix, gChainID, chainID)
 	}
+
 	if t.tx.Value().Sign() < 0 {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid value")
+		return fmt.Errorf("%s invalid value", errPrefix)
 	}
 
 	from, err := types.Sender(EthSigner, t.tx)
 	if err != nil {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	t.from = util.EthID(from)
+
 	to := t.tx.To()
 	if to == nil {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid to")
+		return fmt.Errorf("%s invalid to", errPrefix)
 	}
 	t.to = util.EthID(*to)
 	if t.to == util.EthIDEmpty {
-		return fmt.Errorf("TxEth.SyntacticVerify failed: invalid recipient")
+		return fmt.Errorf("%s invalid recipient", errPrefix)
 	}
+
 	t.sigs = []util.Signature{encodeSignature(t.tx.RawSignatureValues())}
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("TxEth.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }

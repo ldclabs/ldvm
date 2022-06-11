@@ -57,7 +57,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.False(NewAccount(constants.LDCAccount).SatisfySigning(util.EthIDs{constants.LDCAccount}))
 	assert.False(NewAccount(constants.LDCAccount).SatisfySigningPlus(util.EthIDs{constants.LDCAccount}))
 
-	assert.NoError(acc.UpdateKeepers(ld.Uint8Ptr(1), util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, nil, nil))
+	assert.NoError(acc.UpdateKeepers(ld.Uint8Ptr(1), &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, nil, nil))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address()}))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer2.Address()}))
 	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
@@ -190,10 +190,10 @@ func TestTokenAccount(t *testing.T) {
 
 	acc := NewAccount(util.Signer1.Address())
 	acc.Init(big.NewInt(0), 0, 0)
-	amount := big.NewInt(1000)
+	amount := big.NewInt(1_000_000)
 	cfg := &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    amount,
 	}
 	assert.ErrorContains(acc.CheckCreateToken(cfg),
@@ -223,16 +223,14 @@ func TestTokenAccount(t *testing.T) {
 	assert.False(nativeToken.SatisfySigning(util.EthIDs{util.Signer1.Address()}), "no controller")
 	assert.False(nativeToken.SatisfySigningPlus(util.EthIDs{}), "no controller")
 	assert.False(nativeToken.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}), "no controller")
-	assert.ErrorContains(nativeToken.CheckDestroyToken(acc),
-		"invalid token")
-	assert.ErrorContains(nativeToken.CheckDestroyToken(acc),
-		"invalid token")
+	assert.ErrorContains(nativeToken.CheckDestroyToken(acc), "invalid token")
+	assert.ErrorContains(nativeToken.CheckDestroyToken(acc), "invalid token")
 
-	nativeToken.Sub(constants.NativeToken, big.NewInt(100))
-	acc.Add(constants.NativeToken, big.NewInt(100))
-	assert.Equal(big.NewInt(900).Uint64(), nativeToken.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(big.NewInt(900).Uint64(), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(big.NewInt(100).Uint64(), acc.balanceOf(constants.NativeToken).Uint64())
+	nativeToken.Sub(constants.NativeToken, big.NewInt(1000))
+	acc.Add(constants.NativeToken, big.NewInt(1000))
+	assert.Equal(uint64(999000), nativeToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(999000), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1000), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// CheckAsFrom
 	for _, ty := range ld.AllTxTypes {
@@ -269,8 +267,8 @@ func TestTokenAccount(t *testing.T) {
 	testToken.Add(constants.NativeToken, big.NewInt(100))
 	assert.Equal(true, testToken.valid(ld.TokenAccount))
 
-	assert.Equal(big.NewInt(0).Uint64(), testToken.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(big.NewInt(100).Uint64(), testToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(100), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOf(token).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(amount.Uint64(), testToken.ld.MaxTotalSupply.Uint64())
@@ -283,15 +281,15 @@ func TestTokenAccount(t *testing.T) {
 	assert.False(testToken.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}))
 	assert.True(testToken.SatisfySigningPlus(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
 
-	testToken.Sub(token, big.NewInt(100))
-	acc.Add(token, big.NewInt(100))
-	assert.Equal(big.NewInt(900).Uint64(), testToken.balanceOf(token).Uint64())
-	assert.Equal(big.NewInt(900).Uint64(), testToken.balanceOfAll(token).Uint64())
-	assert.Equal(big.NewInt(100).Uint64(), acc.balanceOf(token).Uint64())
-	testToken.Sub(token, big.NewInt(100))
-	acc.Add(token, big.NewInt(100))
-	assert.Equal(big.NewInt(800).Uint64(), testToken.balanceOf(token).Uint64())
-	assert.Equal(big.NewInt(200).Uint64(), acc.balanceOf(token).Uint64())
+	testToken.Sub(token, big.NewInt(1000))
+	acc.Add(token, big.NewInt(1000))
+	assert.Equal(uint64(999000), testToken.balanceOf(token).Uint64())
+	assert.Equal(uint64(999000), testToken.balanceOfAll(token).Uint64())
+	assert.Equal(uint64(1000), acc.balanceOf(token).Uint64())
+	testToken.Sub(token, big.NewInt(1000))
+	acc.Add(token, big.NewInt(1000))
+	assert.Equal(uint64(998000), testToken.balanceOf(token).Uint64())
+	assert.Equal(uint64(2000), acc.balanceOf(token).Uint64())
 
 	// Marshal
 	data, err = testToken.Marshal()
@@ -302,6 +300,7 @@ func TestTokenAccount(t *testing.T) {
 
 	// Lending
 	lcfg := &ld.LendingConfig{
+		Token:           token,
 		DailyInterest:   10,
 		OverdueInterest: 10,
 		MinAmount:       big.NewInt(1000),
@@ -310,13 +309,23 @@ func TestTokenAccount(t *testing.T) {
 	assert.NoError(testToken.CheckOpenLending(lcfg))
 	assert.NoError(testToken.OpenLending(lcfg))
 	assert.NoError(testToken.CheckCloseLending())
-	assert.NoError(testToken.CloseLending())
+	assert.NotNil(testToken.ld.Lending)
+	assert.NotNil(testToken.ld.LendingLedger)
 
 	// Destroy
 	assert.ErrorContains(testToken.CheckDestroyToken(acc), "some token in the use")
+	assert.NoError(testToken.Borrow(token, acc.id, big.NewInt(1000), 0))
+	assert.ErrorContains(testToken.CheckDestroyToken(acc),
+		"Account.CheckCloseLending failed: please repay all before close")
+	assert.ErrorContains(testToken.DestroyToken(acc),
+		"Account.CheckCloseLending failed: please repay all before close")
+	actual, err := testToken.Repay(token, acc.id, big.NewInt(1000))
+	assert.NoError(err)
+	assert.Equal(uint64(1000), actual.Uint64())
+
+	assert.ErrorContains(testToken.CheckDestroyToken(acc), "some token in the use")
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
-	testToken.Add(token, big.NewInt(100))
-	testToken.Add(token, big.NewInt(100))
+	testToken.Add(token, big.NewInt(2000))
 	assert.NoError(testToken.CheckDestroyToken(acc))
 	assert.NoError(testToken.DestroyToken(acc))
 	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
@@ -327,7 +336,9 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(util.EthIDs{}, testToken.Keepers())
 	assert.Equal(0, len(testToken.ld.Tokens))
 	assert.Nil(testToken.ld.MaxTotalSupply)
-	assert.Equal(big.NewInt(200).Uint64(), acc.balanceOf(constants.NativeToken).Uint64())
+	assert.Nil(testToken.ld.Lending)
+	assert.Nil(testToken.ld.LendingLedger)
+	assert.Equal(uint64(1100), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// Destroy again
 	assert.ErrorContains(testToken.CheckDestroyToken(acc), "invalid token account")
@@ -358,7 +369,7 @@ func TestStakeAccount(t *testing.T) {
 	pledge := big.NewInt(1000)
 	cfg := &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	scfg := &ld.StakeConfig{
 		LockTime:    2,
@@ -388,8 +399,8 @@ func TestStakeAccount(t *testing.T) {
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
 	assert.Equal(true, testStake.valid(ld.StakeAccount))
 
-	assert.Equal(big.NewInt(900).Uint64(), testStake.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(big.NewInt(1000).Uint64(), testStake.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(900), testStake.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1000), testStake.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Nil(testStake.ld.MaxTotalSupply)
 	assert.NotNil(testStake.ld.StakeLedger)
 	assert.Equal(uint8(1), testStake.Threshold())
@@ -407,8 +418,8 @@ func TestStakeAccount(t *testing.T) {
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
 	assert.Equal(2, len(testStake.ld.StakeLedger))
 	assert.Equal(uint64(1000), testStake.ld.StakeLedger[util.Signer2.Address()].Amount.Uint64())
-	assert.Equal(big.NewInt(1900).Uint64(), testStake.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(big.NewInt(2000).Uint64(), testStake.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1900), testStake.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(2000), testStake.balanceOfAll(constants.NativeToken).Uint64())
 
 	// Marshal
 	data, err := testStake.Marshal()
@@ -417,19 +428,7 @@ func TestStakeAccount(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
 
-	// Lending
-	lcfg := &ld.LendingConfig{
-		DailyInterest:   10,
-		OverdueInterest: 10,
-		MinAmount:       big.NewInt(1000),
-		MaxAmount:       big.NewInt(1_000_000),
-	}
-	assert.NoError(testStake.CheckOpenLending(lcfg))
-	assert.NoError(testStake.OpenLending(lcfg))
-	assert.NoError(testStake.CheckCloseLending())
-	assert.NoError(testStake.CloseLending())
-
-	// Reset & Destroy
+	// Reset
 	token := ld.MustNewToken("$TEST")
 	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
 		Type:        1,
@@ -474,7 +473,29 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(uint64(1000), testStake.ld.Stake.MinAmount.Uint64())
 	assert.Equal(uint64(10000), testStake.ld.Stake.MaxAmount.Uint64())
 
+	// Lending
+	lcfg := &ld.LendingConfig{
+		DailyInterest:   10,
+		OverdueInterest: 10,
+		MinAmount:       big.NewInt(1000),
+		MaxAmount:       big.NewInt(1_000_000),
+	}
+	assert.NoError(testStake.CheckOpenLending(lcfg))
+	assert.NoError(testStake.OpenLending(lcfg))
+	assert.NoError(testStake.CheckCloseLending())
+	assert.NotNil(testStake.ld.Lending)
+	assert.NotNil(testStake.ld.LendingLedger)
+
 	// Destroy
+	assert.NoError(testStake.Borrow(constants.NativeToken, acc.id, big.NewInt(1000), 0))
+	assert.ErrorContains(testStake.CheckDestroyToken(acc),
+		"Account.CheckCloseLending failed: please repay all before close")
+	assert.ErrorContains(testStake.DestroyToken(acc),
+		"Account.CheckCloseLending failed: please repay all before close")
+	actual, err := testStake.Repay(constants.NativeToken, acc.id, big.NewInt(1000))
+	assert.NoError(err)
+	assert.Equal(uint64(1000), actual.Uint64())
+
 	assert.ErrorContains(testStake.CheckDestroyStake(acc2),
 		"Account.CheckDestroyStake failed: recipient not exists")
 	assert.NoError(testStake.CheckDestroyStake(acc))
@@ -486,8 +507,10 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(util.EthIDs{}, testStake.Keepers())
 	assert.Nil(testStake.ld.Stake)
 	assert.Nil(testStake.ld.StakeLedger)
+	assert.Nil(testStake.ld.Lending)
+	assert.Nil(testStake.ld.LendingLedger)
 	assert.Equal(0, len(testStake.ld.Tokens))
-	assert.Equal(big.NewInt(2000).Uint64(), acc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(2000), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// Destroy again
 	assert.ErrorContains(testStake.CheckDestroyStake(acc),
@@ -518,7 +541,7 @@ func TestStakeFromAndTo(t *testing.T) {
 	pledge := big.NewInt(1000)
 	cfg := &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 
 	stake := ld.MustNewStake("#TEST")
@@ -639,7 +662,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa := NewAccount(util.EthID(ld.MustNewStake("#LDC"))).Init(pledge, 1, 1)
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		LockTime:    10,
 		WithdrawFee: withdrawFee,
@@ -840,7 +863,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	// Create again
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		Token:       token,
 		WithdrawFee: withdrawFee,
@@ -883,7 +906,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
 	assert.NoError(sc.CreateStake(util.Signer2.Address(), pledge, &ld.TxAccounter{
 		Threshold: ld.Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer2.Address()},
+		Keepers:   &util.EthIDs{util.Signer2.Address()},
 	}, &ld.StakeConfig{
 		Token:       token,
 		WithdrawFee: withdrawFee,

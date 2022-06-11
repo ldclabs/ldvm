@@ -38,25 +38,29 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTransferExchange) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxTransferExchange.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid to")
+		return fmt.Errorf("%s invalid to", errPrefix)
+
 	case tx.ld.Amount == nil:
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid amount")
+		return fmt.Errorf("%s invalid amount", errPrefix)
+
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxExchanger{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
+
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	// quantity = amount * 1_000_000_000 / price
@@ -68,34 +72,34 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	case tx.quantity.Cmp(tx.input.Minimum) < 0:
 		min := new(big.Int).Mul(tx.input.Minimum, tx.input.Price)
 		min.Quo(min, new(big.Int).SetUint64(constants.LDC))
-		return fmt.Errorf(
-			"TxTransferExchange.SyntacticVerify failed: invalid amount, expected >=%v, got %v",
-			min, tx.ld.Amount)
+		return fmt.Errorf("%s invalid amount, expected >=%v, got %v",
+			errPrefix, min, tx.ld.Amount)
+
 	case tx.quantity.Cmp(tx.input.Quota) > 0:
 		max := new(big.Int).Mul(tx.input.Quota, tx.input.Price)
 		max.Quo(max, new(big.Int).SetUint64(constants.LDC))
-		return fmt.Errorf(
-			"TxTransferExchange.SyntacticVerify failed: invalid amount, expected <=%v, got %v",
-			max, tx.ld.Amount)
+		return fmt.Errorf("%s invalid amount, expected <=%v, got %v",
+			errPrefix, max, tx.ld.Amount)
+
 	case tx.input.Purchaser != nil && *tx.input.Purchaser != tx.ld.From:
-		return fmt.Errorf(
-			"TxTransferExchange.SyntacticVerify failed: invalid from, expected %s, got %s",
-			*tx.input.Purchaser, tx.ld.From)
+		return fmt.Errorf("%s invalid from, expected %s, got %s",
+			errPrefix, *tx.input.Purchaser, tx.ld.From)
+
 	case tx.input.Payee != *tx.ld.To:
-		return fmt.Errorf(
-			"TxTransferExchange.SyntacticVerify failed: invalid to, expected %s, got %s",
-			tx.input.Payee, tx.ld.To)
+		return fmt.Errorf("%s invalid to, expected %s, got %s",
+			errPrefix, tx.input.Payee, tx.ld.To)
+
 	case tx.input.Receive != tx.token:
-		return fmt.Errorf(
-			"TxTransferExchange.SyntacticVerify failed: invalid token, expected %s, got %s",
-			tx.input.Receive.GoString(), tx.token.GoString())
+		return fmt.Errorf("%s invalid token, expected %s, got %s",
+			errPrefix, tx.input.Receive.GoString(), tx.token.GoString())
+
 	case tx.input.Expire < tx.ld.Timestamp:
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: data expired")
+		return fmt.Errorf("%s data expired", errPrefix)
 	}
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("TxTransferExchange.SyntacticVerify failed: invalid exSignatures: %v", err)
+		return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
 	}
 	return nil
 }
@@ -103,7 +107,7 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxTransferExchange.Verify failed: %v", err)
 	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
@@ -111,9 +115,9 @@ func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
 	}
 	if err = tx.to.CheckSubByNonceTable(
 		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
-		return err
+		return fmt.Errorf("TxTransferExchange.Verify failed: %v", err)
 	}
-	return err
+	return nil
 }
 
 func (tx *TxTransferExchange) Accept(bctx BlockContext, bs BlockState) error {

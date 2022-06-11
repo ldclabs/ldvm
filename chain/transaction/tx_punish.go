@@ -36,36 +36,42 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 
 func (tx *TxPunish) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxPunish.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
+
 	switch {
 	case tx.ld.From != constants.GenesisAccount:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid from, expected GenesisAccount, got %s",
-			tx.ld.From)
+		return fmt.Errorf("%s invalid from, expected GenesisAccount, got %s", errPrefix, tx.ld.From)
+
 	case tx.ld.To != nil:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid to, should be nil")
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
 	case tx.ld.Token != nil:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid token, should be nil")
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid amount, should be nil")
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid data")
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	switch {
 	case tx.input.ID == nil:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: nil data id")
+		return fmt.Errorf("%s nil data id", errPrefix)
+
 	case *tx.input.ID == util.DataIDEmpty:
-		return fmt.Errorf("TxPunish.SyntacticVerify failed: invalid data id")
+		return fmt.Errorf("%s invalid data id", errPrefix)
 	}
 	return nil
 }
@@ -73,11 +79,10 @@ func (tx *TxPunish) SyntacticVerify() error {
 func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxPunish.Verify failed: %v", err)
 	}
 
-	tx.dm, err = bs.LoadData(*tx.input.ID)
-	if err != nil {
+	if tx.dm, err = bs.LoadData(*tx.input.ID); err != nil {
 		return fmt.Errorf("TxPunish.Verify failed: %v", err)
 	}
 	return nil

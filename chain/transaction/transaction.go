@@ -58,6 +58,8 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 		tt = &TxCreateStakeAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeResetStake:
 		tt = &TxResetStakeAccount{TxBase: TxBase{ld: tx}}
+	case ld.TypeDestroyStake:
+		tt = &TxDestroyStakeAccount{TxBase: TxBase{ld: tx}}
 	case ld.TypeTakeStake:
 		tt = &TxTakeStake{TxBase: TxBase{ld: tx}}
 	case ld.TypeWithdrawStake:

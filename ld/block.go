@@ -57,41 +57,51 @@ func (b *Block) TxsMarshalJSON() error {
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
+	errPrefix := "Block.SyntacticVerify failed:"
+
 	switch {
 	case b == nil:
-		return fmt.Errorf("Block.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case b.Height > 0 && b.Parent == ids.Empty:
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid parent %s", b.Parent)
+		return fmt.Errorf("%s invalid parent %s", errPrefix, b.Parent)
+
 	case b.Height > 0 && b.ParentState == ids.Empty:
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid parent state %s", b.ParentState)
+		return fmt.Errorf("%s invalid parent state %s", errPrefix, b.ParentState)
+
 	case b.State == ids.Empty || b.State == b.ParentState:
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid state %s", b.State)
+		return fmt.Errorf("%s invalid state %s", errPrefix, b.State)
+
 	case b.Timestamp > uint64(time.Now().Add(futureBound).Unix()):
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid timestamp")
+		return fmt.Errorf("%s invalid timestamp", errPrefix)
+
 	case b.GasRebateRate > 1000:
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid gasRebateRate")
+		return fmt.Errorf("%s invalid gasRebateRate", errPrefix)
+
 	case b.Miner != util.StakeEmpty && !b.Miner.Valid():
-		return fmt.Errorf("Block.SyntacticVerify failed: invalid miner address %s", b.Miner.GoString())
+		return fmt.Errorf("%s invalid miner address %s", errPrefix, b.Miner.GoString())
+
 	case len(b.Validators) > 256:
-		return fmt.Errorf("Block.SyntacticVerify failed: too many validators")
+		return fmt.Errorf("%s too many validators", errPrefix)
+
 	case len(b.Txs) == 0:
-		return fmt.Errorf("Block.SyntacticVerify failed: no txs")
+		return fmt.Errorf("%s no txs", errPrefix)
 	}
 
 	for _, s := range b.Validators {
 		if !s.Valid() {
-			return fmt.Errorf("Block.SyntacticVerify failed: invalid validator address %s", s.GoString())
+			return fmt.Errorf("%s invalid validator address %s", errPrefix, s.GoString())
 		}
 	}
 
 	var err error
 	for _, tx := range b.Txs {
 		if err = tx.SyntacticVerify(); err != nil {
-			return fmt.Errorf("Block.SyntacticVerify failed: %v", err)
+			return fmt.Errorf("%s %v", errPrefix, err)
 		}
 	}
 	if b.raw, err = b.Marshal(); err != nil {
-		return fmt.Errorf("Block.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
 	b.ID = util.IDFromData(b.raw)

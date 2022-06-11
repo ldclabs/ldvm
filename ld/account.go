@@ -35,7 +35,7 @@ type Account struct {
 	Tokens      map[util.TokenSymbol]*big.Int `cbor:"tk" json:"tokens"`
 	NonceTable  map[uint64][]uint64           `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
 	Approver    *util.EthID                   `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList []TxType                      `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	ApproveList TxTypes                       `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	// MaxTotalSupply only used with TokenAccount
 	MaxTotalSupply *big.Int                     `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
 	Stake          *StakeConfig                 `cbor:"st,omitempty" json:"stake,omitempty"`
@@ -68,44 +68,78 @@ type StakeEntry struct {
 
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
+	var err error
+	errPrefix := "Account.SyntacticVerify failed:"
+
 	switch {
 	case a == nil:
-		return fmt.Errorf("Account.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case a.Balance == nil || a.Balance.Sign() < 0:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid balance")
+		return fmt.Errorf("%s invalid balance", errPrefix)
+
 	case a.Keepers == nil:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid keepers")
+		return fmt.Errorf("%s invalid keepers", errPrefix)
+
 	case len(a.Keepers) > math.MaxUint8:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid keepers, too many")
+		return fmt.Errorf("%s invalid keepers, too many", errPrefix)
+
 	case int(a.Threshold) > len(a.Keepers):
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid threshold")
+		return fmt.Errorf("%s invalid threshold", errPrefix)
+
 	case a.Tokens == nil:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid tokens")
+		return fmt.Errorf("%s invalid tokens", errPrefix)
+
 	case a.NonceTable == nil:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid nonceTable")
+		return fmt.Errorf("%s invalid nonceTable", errPrefix)
+
+	case a.Approver != nil && *a.Approver == util.EthIDEmpty:
+		return fmt.Errorf("%s invalid approver", errPrefix)
+	}
+
+	if err = a.Keepers.CheckDuplicate(); err != nil {
+		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+	}
+
+	if err = a.Keepers.CheckEmptyID(); err != nil {
+		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+	}
+
+	if a.ApproveList != nil {
+		if err = a.ApproveList.CheckDuplicate(); err != nil {
+			return fmt.Errorf("%s invalid approveList, %v", errPrefix, err)
+		}
+
+		for _, ty := range a.ApproveList {
+			if !AllTxTypes.Has(ty) {
+				return fmt.Errorf("%s invalid TxType %s in approveList", errPrefix, ty)
+			}
+		}
 	}
 
 	switch a.Type {
 	case NativeAccount:
 		if a.MaxTotalSupply != nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: maxTotalSupply should be nil")
+			return fmt.Errorf("%s maxTotalSupply should be nil", errPrefix)
 		}
 		if a.Stake != nil || a.StakeLedger != nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: invalid stake on NativeAccount")
+			return fmt.Errorf("%s invalid stake on NativeAccount", errPrefix)
 		}
+
 	case TokenAccount:
 		if a.Stake != nil || a.StakeLedger != nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: invalid stake on TokenAccount")
+			return fmt.Errorf("%s invalid stake on TokenAccount", errPrefix)
 		}
 		if a.MaxTotalSupply == nil || a.MaxTotalSupply.Sign() < 0 {
-			return fmt.Errorf("Account.SyntacticVerify failed: invalid maxTotalSupply")
+			return fmt.Errorf("%s invalid maxTotalSupply", errPrefix)
 		}
+
 	case StakeAccount:
 		if a.MaxTotalSupply != nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: maxTotalSupply should be nil")
+			return fmt.Errorf("%s maxTotalSupply should be nil", errPrefix)
 		}
 		if a.Stake == nil {
-			return fmt.Errorf("Account.SyntacticVerify failed: invalid stake on StakeAccount")
+			return fmt.Errorf("%s invalid stake on StakeAccount", errPrefix)
 		}
 		if a.StakeLedger == nil {
 			a.StakeLedger = make(map[util.EthID]*StakeEntry)
@@ -116,14 +150,15 @@ func (a *Account) SyntacticVerify() error {
 		for _, entry := range a.StakeLedger {
 			if entry.Amount == nil || entry.Amount.Sign() < 0 ||
 				(entry.Amount.Sign() == 0 && entry.Approver == nil) {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on StakeEntry")
+				return fmt.Errorf("%s invalid amount on StakeEntry", errPrefix)
 			}
 			if entry.Approver != nil && *entry.Approver == util.EthIDEmpty {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid approver on StakeEntry")
+				return fmt.Errorf("%s invalid approver on StakeEntry", errPrefix)
 			}
 		}
+
 	default:
-		return fmt.Errorf("Account.SyntacticVerify failed: invalid type")
+		return fmt.Errorf("%s invalid type", errPrefix)
 	}
 
 	if a.Lending != nil {
@@ -135,14 +170,13 @@ func (a *Account) SyntacticVerify() error {
 		}
 		for _, entry := range a.LendingLedger {
 			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
-				return fmt.Errorf("Account.SyntacticVerify failed: invalid amount on StakeEntry")
+				return fmt.Errorf("%s invalid amount on StakeEntry", errPrefix)
 			}
 		}
 	}
 
-	var err error
 	if a.raw, err = a.Marshal(); err != nil {
-		return fmt.Errorf("Account.SyntacticVerify marshal error: %v", err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	return nil
 }
@@ -177,20 +211,26 @@ type StakeConfig struct {
 
 // SyntacticVerify verifies that a *StakeConfig is well-formed.
 func (c *StakeConfig) SyntacticVerify() error {
+	errPrefix := "StakeConfig.SyntacticVerify failed:"
+
 	switch {
 	case c == nil:
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: nil pointer")
+		return fmt.Errorf("%s nil pointer", errPrefix)
+
 	case !c.Token.Valid():
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid token %s", c.Token.GoString())
+		return fmt.Errorf("%s invalid token %s", errPrefix, c.Token.GoString())
+
 	case c.Type > 2:
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid type")
+		return fmt.Errorf("%s invalid type", errPrefix)
+
 	case c.WithdrawFee < 1 || c.WithdrawFee > 200_000:
-		return fmt.Errorf(
-			"StakeConfig.SyntacticVerify failed: invalid withdrawFee, should be in [1, 200_000]")
+		return fmt.Errorf("%s invalid withdrawFee, should be in [1, 200_000]", errPrefix)
+
 	case c.MinAmount == nil || c.MinAmount.Sign() < 1:
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid minAmount")
+		return fmt.Errorf("%s invalid minAmount", errPrefix)
+
 	case c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0:
-		return fmt.Errorf("StakeConfig.SyntacticVerify failed: invalid maxAmount")
+		return fmt.Errorf("%s invalid maxAmount", errPrefix)
 	}
 	return nil
 }
@@ -215,23 +255,26 @@ type LendingConfig struct {
 
 // SyntacticVerify verifies that a *LendingConfig is well-formed.
 func (c *LendingConfig) SyntacticVerify() error {
+	errPrefix := "LendingConfig.SyntacticVerify failed:"
 	switch {
 	case c == nil:
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: nil pointer")
-	case !c.Token.Valid():
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid token %s", c.Token.GoString())
-	case c.DailyInterest < 1 || c.DailyInterest > 10_000:
-		return fmt.Errorf(
-			"LendingConfig.SyntacticVerify failed: invalid dailyInterest, should be in [1, 10_000]")
-	case c.OverdueInterest < 1 || c.OverdueInterest > 10_000:
-		return fmt.Errorf(
-			"LendingConfig.SyntacticVerify failed: invalid overdueInterest, should be in [1, 10_000]")
-	case c.MinAmount == nil || c.MinAmount.Sign() < 1:
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid minAmount")
-	case c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0:
-		return fmt.Errorf("LendingConfig.SyntacticVerify failed: invalid maxAmount")
-	}
+		return fmt.Errorf("%s nil pointer", errPrefix)
 
+	case !c.Token.Valid():
+		return fmt.Errorf("%s invalid token %s", errPrefix, c.Token.GoString())
+
+	case c.DailyInterest < 1 || c.DailyInterest > 10_000:
+		return fmt.Errorf("%s invalid dailyInterest, should be in [1, 10_000]", errPrefix)
+
+	case c.OverdueInterest < 1 || c.OverdueInterest > 10_000:
+		return fmt.Errorf("%s invalid overdueInterest, should be in [1, 10_000]", errPrefix)
+
+	case c.MinAmount == nil || c.MinAmount.Sign() < 1:
+		return fmt.Errorf("%s invalid minAmount", errPrefix)
+
+	case c.MaxAmount == nil || c.MaxAmount.Cmp(c.MinAmount) < 0:
+		return fmt.Errorf("%s invalid maxAmount", errPrefix)
+	}
 	return nil
 }
 

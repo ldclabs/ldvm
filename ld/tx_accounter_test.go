@@ -21,21 +21,33 @@ func TestTxAccounter(t *testing.T) {
 	tx = &TxAccounter{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxAccounter{Keepers: util.EthIDs{}}
+	tx = &TxAccounter{Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
 	tx = &TxAccounter{Threshold: Uint8Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
-	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: []util.EthID{}}
+	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: []util.EthID{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keeper")
+	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &TxAccounter{ApproveList: []TxType{TypeDeleteData + 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType")
+	tx = &TxAccounter{ApproveList: TxTypes{TxType(255)}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
+
+	tx = &TxAccounter{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
 
 	tx = &TxAccounter{
 		Threshold: Uint8Ptr(1),
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Amount:    big.NewInt(1000),
+		Data:      []byte(`42`),
+	}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+
+	tx = &TxAccounter{
+		Threshold: Uint8Ptr(1),
+		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),
 	}

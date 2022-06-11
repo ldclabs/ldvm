@@ -81,7 +81,7 @@ func TestBlock(t *testing.T) {
 	assert.Contains(string(jsondata), `"height":0,"timestamp":0`)
 	assert.Contains(string(jsondata), `"gas":119,"gasPrice":1000,"gasRebateRate":200`)
 	assert.Contains(string(jsondata), `"miner":"","validators":null`)
-	assert.Contains(string(jsondata), `"name":"TransferTx"`)
+	assert.Contains(string(jsondata), `"type":"TypeTransfer"`)
 
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))

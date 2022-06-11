@@ -3,6 +3,8 @@
 
 package ld
 
+import "fmt"
+
 const (
 	// The "test" transaction tests that a value of data at the target location
 	// is equal to a specified value. test transaction will not write to the block.
@@ -54,20 +56,20 @@ const (
 
 // TxTypes set
 var TransferTxTypes = TxTypes{TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange}
-var ModelTxTypes = TxTypes{TypeCreateModel, TypeUpdateModelKeepers}
-var DataTxTypes = TxTypes{TypeCreateData, TypeUpdateData, TypeUpdateDataKeepers, TypeUpdateDataKeepersByAuth, TypeDeleteData}
+var ModelTxTypes = TxTypes{TypeUpdateModelKeepers}
+var DataTxTypes = TxTypes{TypeUpdateData, TypeUpdateDataKeepers, TypeUpdateDataKeepersByAuth, TypeDeleteData}
 var AccountTxTypes = TxTypes{TypeAddNonceTable, TypeUpdateAccountKeepers, TypeCreateToken,
 	TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake, TypeTakeStake,
 	TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending, TypeBorrow, TypeRepay}
-var AllTxTypes = TxTypes{TypeTest, TypePunish}.Union(
+var AllTxTypes = TxTypes{TypeTest, TypePunish, TypeCreateModel, TypeCreateData}.Union(
 	TransferTxTypes, ModelTxTypes, DataTxTypes, AccountTxTypes)
 
 var TokenFromTxTypes = TxTypes{TypeEth, TypeTransfer, TypeUpdateAccountKeepers, TypeAddNonceTable, TypeDestroyToken, TypeOpenLending, TypeCloseLending}
-var TokenToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeExchange, TypeCreateToken}
-var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountKeepers, TypeAddNonceTable, TypeResetStake, TypeBorrow, TypeRepay}
+var TokenToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeExchange, TypeCreateToken, TypeBorrow, TypeRepay}
+var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountKeepers, TypeAddNonceTable, TypeResetStake}
 var StakeFromTxTypes1 = TxTypes{TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending}.Union(StakeFromTxTypes0)
 var StakeFromTxTypes2 = TxTypes{TypeEth, TypeTransfer}.Union(StakeFromTxTypes1)
-var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover}
+var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeBorrow, TypeRepay}
 
 // TxType is an uint8 representing the type of the tx
 type TxType uint8
@@ -104,69 +106,69 @@ func (t TxType) Gas() uint64 {
 func (t TxType) String() string {
 	switch t {
 	case TypeTest:
-		return "TestTx"
+		return "TypeTest"
 	case TypePunish:
-		return "PunishTx"
+		return "TypePunish"
 	case TypeEth:
-		return "EthTx"
+		return "TypeEth"
 	case TypeTransfer:
-		return "TransferTx"
+		return "TypeTransfer"
 	case TypeTransferPay:
-		return "TransferPayTx"
+		return "TypeTransferPay"
 	case TypeTransferCash:
-		return "TransferCashTx"
+		return "TypeTransferCash"
 	case TypeExchange:
-		return "ExchangeTx"
+		return "TypeExchange"
 	case TypeAddNonceTable:
 		return "TypeAddNonceTable"
 	case TypeUpdateAccountKeepers:
-		return "UpdateAccountKeepersTx"
+		return "TypeUpdateAccountKeepers"
 	case TypeCreateToken:
-		return "CreateTokenTx"
+		return "TypeCreateToken"
 	case TypeDestroyToken:
-		return "DestroyTokenTx"
+		return "TypeDestroyToken"
 	case TypeCreateStake:
-		return "CreateStakeTx"
+		return "TypeCreateStake"
 	case TypeResetStake:
-		return "ResetStakeTx"
+		return "TypeResetStake"
 	case TypeDestroyStake:
-		return "DestroyStakeTx"
+		return "TypeDestroyStake"
 	case TypeTakeStake:
-		return "TakeStakeTx"
+		return "TypeTakeStake"
 	case TypeWithdrawStake:
-		return "WithdrawStakeTx"
+		return "TypeWithdrawStake"
 	case TypeUpdateStakeApprover:
 		return "TypeUpdateStakeApprover"
 	case TypeOpenLending:
-		return "OpenLendingTx"
+		return "TypeOpenLending"
 	case TypeCloseLending:
-		return "CloseLendingTx"
+		return "TypeCloseLending"
 	case TypeBorrow:
-		return "BorrowTx"
+		return "TypeBorrow"
 	case TypeRepay:
-		return "RepayTx"
+		return "TypeRepay"
 	case TypeCreateModel:
-		return "CreateModelTx"
+		return "TypeCreateModel"
 	case TypeUpdateModelKeepers:
-		return "UpdateModelKeepersTx"
+		return "TypeUpdateModelKeepers"
 	case TypeCreateData:
-		return "CreateDataTx"
+		return "TypeCreateData"
 	case TypeUpdateData:
-		return "UpdateDataTx"
+		return "TypeUpdateData"
 	case TypeUpdateDataKeepers:
-		return "UpdateDataKeepersTx"
+		return "TypeUpdateDataKeepers"
 	case TypeUpdateDataKeepersByAuth:
-		return "UpdateDataKeepersByAuthTx"
+		return "TypeUpdateDataKeepersByAuth"
 	case TypeDeleteData:
-		return "DeleteDataTx"
+		return "TypeDeleteData"
 	default:
-		return "UnknownTx"
+		return fmt.Sprintf("TypeUnknown(%d)", t)
 	}
 }
 
-// func (t TxType) MarshalJSON() ([]byte, error) {
-// 	return []byte("\"" + t.String() + "\""), nil
-// }
+func (t TxType) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + t.String() + "\""), nil
+}
 
 type TxTypes []TxType
 
@@ -184,4 +186,15 @@ func (ts TxTypes) Union(tss ...TxTypes) TxTypes {
 		ts = append(ts, vv...)
 	}
 	return ts
+}
+
+func (ts TxTypes) CheckDuplicate() error {
+	set := make(map[TxType]struct{}, len(ts))
+	for _, v := range ts {
+		if _, ok := set[v]; ok {
+			return fmt.Errorf("duplicate TxType %s", v)
+		}
+		set[v] = struct{}{}
+	}
+	return nil
 }

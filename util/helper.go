@@ -5,6 +5,7 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -61,6 +62,26 @@ func (s EthIDs) Has(id EthID) bool {
 		}
 	}
 	return false
+}
+
+func (s EthIDs) CheckEmptyID() error {
+	for _, v := range s {
+		if v == EthIDEmpty {
+			return fmt.Errorf("empty address exists")
+		}
+	}
+	return nil
+}
+
+func (s EthIDs) CheckDuplicate() error {
+	set := make(map[EthID]struct{}, len(s))
+	for _, v := range s {
+		if _, ok := set[v]; ok {
+			return fmt.Errorf("duplicate address %s", v)
+		}
+		set[v] = struct{}{}
+	}
+	return nil
 }
 
 type Uint64Set map[uint64]struct{}

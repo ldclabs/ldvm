@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -23,7 +22,7 @@ func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("MarshalJSON failed: data not exists")
+		return nil, fmt.Errorf("TxResetStakeAccount.MarshalJSON failed: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -35,36 +34,39 @@ func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 
 func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxResetStakeAccount.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.Token != nil {
-		return fmt.Errorf("invalid token, expected NativeToken, got %s",
-			strconv.Quote(tx.ld.Token.GoString()))
-	}
-	if token := util.StakeSymbol(tx.ld.From); !token.Valid() {
-		return fmt.Errorf("TxResetStakeAccount invalid stake address: %s", token.GoString())
-	}
-	if tx.ld.Amount == nil || tx.ld.Amount.Sign() != 0 {
-		return fmt.Errorf("TxResetStakeAccount invalid amount")
+	switch {
+	case tx.ld.To != nil:
+		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
+	case tx.ld.Token != nil:
+		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+
+	case tx.ld.Amount != nil:
+		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+	case len(tx.ld.Data) == 0:
+		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
-	// reset stake account
-	if tx.ld.To == nil {
-		if len(tx.ld.Data) == 0 {
-			return fmt.Errorf("TxResetStakeAccount invalid data")
-		}
-		tx.input = &ld.StakeConfig{}
-		if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-			return fmt.Errorf("TxResetStakeAccount unmarshal data failed: %v", err)
-		}
-		if err = tx.input.SyntacticVerify(); err != nil {
-			return fmt.Errorf("TxResetStakeAccount SyntacticVerify failed: %v", err)
-		}
-		if tx.input.LockTime < tx.ld.Timestamp {
-			return fmt.Errorf("TxResetStakeAccount invalid lockTime")
-		}
+	if stake := util.StakeSymbol(tx.ld.From); !stake.Valid() {
+		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
+	}
+
+	tx.input = &ld.StakeConfig{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return fmt.Errorf("%s %v", errPrefix, err)
+	}
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return fmt.Errorf("%s %v", errPrefix, err)
+	}
+
+	if tx.input.LockTime < tx.ld.Timestamp {
+		return fmt.Errorf("%s invalid lockTime, expected >= %d", errPrefix, tx.ld.Timestamp)
 	}
 	return nil
 }
@@ -72,18 +74,15 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 func (tx *TxResetStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("sender account need more signers")
+		return fmt.Errorf("TxResetStakeAccount.Verify failed: invalid signatures for stake keepers, need more")
 	}
-
-	switch tx.ld.To {
-	case nil:
-		return tx.from.CheckResetStake(tx.input)
-	default:
-		return tx.from.CheckDestroyStake(tx.to)
+	if err = tx.from.CheckResetStake(tx.input); err != nil {
+		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)
 	}
+	return nil
 }
 
 func (tx *TxResetStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
@@ -91,10 +90,5 @@ func (tx *TxResetStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
 		return err
 	}
 	// do it after TxBase.Accept
-	switch tx.ld.To {
-	case nil:
-		return tx.from.ResetStake(tx.input)
-	default:
-		return tx.from.DestroyStake(tx.to)
-	}
+	return tx.from.ResetStake(tx.input)
 }

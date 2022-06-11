@@ -13,15 +13,17 @@ type TxRepay struct {
 
 func (tx *TxRepay) SyntacticVerify() error {
 	var err error
+	errPrefix := "TxRepay.SyntacticVerify failed:"
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return err
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if tx.ld.To == nil {
-		return fmt.Errorf("TxRepay invalid to")
-	}
-	if tx.ld.Amount.Sign() == 0 {
-		return fmt.Errorf("TxRepay invalid amount, got 0")
+	switch {
+	case tx.ld.To == nil:
+		return fmt.Errorf("%s failed: nil to", errPrefix)
+
+	case tx.ld.Amount == nil || tx.ld.Amount.Sign() <= 0:
+		return fmt.Errorf("%s failed: invalid amount, expected >= 1", errPrefix)
 	}
 	return nil
 }
@@ -29,9 +31,12 @@ func (tx *TxRepay) SyntacticVerify() error {
 func (tx *TxRepay) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return err
+		return fmt.Errorf("TxRepay.Verify failed: %v", err)
 	}
-	return tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount)
+	if err = tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount); err != nil {
+		return fmt.Errorf("TxRepay.Verify failed: %v", err)
+	}
+	return nil
 }
 
 func (tx *TxRepay) Accept(bctx BlockContext, bs BlockState) error {
@@ -39,6 +44,6 @@ func (tx *TxRepay) Accept(bctx BlockContext, bs BlockState) error {
 	if err != nil {
 		return err
 	}
-	tx.ld.Amount.Set(actual)
+	tx.amount.Set(actual)
 	return tx.TxBase.Accept(bctx, bs)
 }
