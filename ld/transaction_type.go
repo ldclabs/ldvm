@@ -71,8 +71,9 @@ var StakeFromTxTypes1 = TxTypes{TypeTakeStake, TypeWithdrawStake, TypeUpdateStak
 var StakeFromTxTypes2 = TxTypes{TypeEth, TypeTransfer}.Union(StakeFromTxTypes1)
 var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeBorrow, TypeRepay}
 
-// TxType is an uint8 representing the type of the tx
-type TxType uint8
+// TxType is an uint16 representing the type of the tx.
+// to avoid encode/decode TxTypes as []uint8, aka []byte.
+type TxType uint16
 
 func (t TxType) Gas() uint64 {
 	switch t {

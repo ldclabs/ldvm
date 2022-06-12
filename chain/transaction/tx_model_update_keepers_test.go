@@ -140,9 +140,9 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	mid := util.ModelID{'1', '2', '3', '4', '5', '6'}
 	input = ld.TxUpdater{ModelID: &mid, Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "nil threshold")
-	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint8Ptr(0)}
+	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint16Ptr(0)}
 	assert.ErrorContains(input.SyntacticVerify(), "nil keepers")
-	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint8Ptr(1), Keepers: &util.EthIDs{}}
+	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint16Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
 
 	mid = util.ModelID{'1', '2', '3', '4', '5', '6'}
@@ -186,7 +186,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient NativeLDC balance, expected 661100, got 0")
+		"insufficient NativeLDC balance, expected 661100, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LM5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB not found")
@@ -227,7 +227,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	input = ld.TxUpdater{
 		ModelID:   &mid,
 		Approver:  &util.EthIDEmpty,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -273,7 +273,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	// check SatisfySigningPlus
 	input = ld.TxUpdater{
 		ModelID:   &mid,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -314,7 +314,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	mm, err = bs.LoadModel(mid)
 	assert.NoError(err)
 	assert.Nil(mm.Approver)
-	assert.Equal(uint8(0), mm.Threshold)
+	assert.Equal(uint16(0), mm.Threshold)
 	assert.Equal(util.EthIDs{util.Signer2.Address()}, mm.Keepers)
 
 	assert.NoError(bs.VerifyState())

@@ -124,7 +124,7 @@ func TestTxUpdateData(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "invalid data version")
 
-	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint8Ptr(1)}
+	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1)}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.Chain().ChainID,
@@ -138,7 +138,7 @@ func TestTxUpdateData(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "nil keepers together with threshold")
 
-	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint8Ptr(1),
+	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1),
 		Keepers: &util.EthIDs{util.Signer1.Address()}}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,

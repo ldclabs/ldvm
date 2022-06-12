@@ -44,7 +44,7 @@ func (tx *TxBorrow) SyntacticVerify() error {
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to", errPrefix)
+		return fmt.Errorf("%s nil to as lender", errPrefix)
 
 	case tx.ld.Amount != nil:
 		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
@@ -63,13 +63,13 @@ func (tx *TxBorrow) SyntacticVerify() error {
 
 	switch {
 	case tx.input.From == nil:
-		return fmt.Errorf("%s invalid from as lender", errPrefix)
+		return fmt.Errorf("%s nil from as lender", errPrefix)
 
 	case *tx.input.From != *tx.ld.To:
 		return fmt.Errorf("%s invalid to, expected %s, got %s", errPrefix, tx.input.From, tx.ld.To)
 
 	case tx.input.To == nil:
-		return fmt.Errorf("%s invalid to as borrower", errPrefix)
+		return fmt.Errorf("%s nil to as borrower", errPrefix)
 
 	case *tx.input.To != tx.ld.From:
 		return fmt.Errorf("%s invalid from, expected %s, got %s", errPrefix, tx.input.To, tx.ld.From)
@@ -94,6 +94,10 @@ func (tx *TxBorrow) SyntacticVerify() error {
 		if err = ld.DecMode.Unmarshal(tx.input.Data, &u); err != nil {
 			return fmt.Errorf("%s invalid dueTime, %v", errPrefix, err)
 		}
+		if u <= tx.ld.Timestamp {
+			return fmt.Errorf("%s invalid dueTime, expected > %d, got %d",
+				errPrefix, tx.ld.Timestamp, u)
+		}
 		tx.dueTime = u
 	}
 
@@ -113,11 +117,11 @@ func (tx *TxBorrow) Verify(bctx BlockContext, bs BlockState) error {
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return fmt.Errorf("TxBorrow.Verify failed: invalid exSignatures for lending keepers")
 	}
-	if err = tx.to.CheckSubByNonceTable(
-		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
+	if err = tx.to.CheckBorrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
 		return fmt.Errorf("TxBorrow.Verify failed: %v", err)
 	}
-	if err = tx.to.CheckBorrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
+	if err = tx.to.CheckSubByNonceTable(
+		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
 		return fmt.Errorf("TxBorrow.Verify failed: %v", err)
 	}
 	return nil

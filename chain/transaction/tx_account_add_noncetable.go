@@ -62,13 +62,16 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 		return fmt.Errorf("%s no nonce", errPrefix)
 
 	case len(tx.input) > 1025:
-		return fmt.Errorf("%s too many nonces, expected <= 1025", errPrefix)
+		return fmt.Errorf("%s too many nonces, expected <= 1024, got %d",
+			errPrefix, len(tx.input)-1)
 
 	case tx.input[0] <= tx.ld.Timestamp:
-		return fmt.Errorf("%s invalid expire time, expected > %d", errPrefix, tx.ld.Timestamp)
+		return fmt.Errorf("%s invalid expire time, expected > %d, got %d",
+			errPrefix, tx.ld.Timestamp, tx.input[0])
 
 	case tx.input[0] > (tx.ld.Timestamp + 3600*24*30):
-		return fmt.Errorf("%s invalid expire time, expected <= %d", errPrefix, tx.ld.Timestamp+3600*24*30)
+		return fmt.Errorf("%s invalid expire time, expected <= %d, got %d",
+			errPrefix, tx.ld.Timestamp+3600*24*30, tx.input[0])
 	}
 	return nil
 }

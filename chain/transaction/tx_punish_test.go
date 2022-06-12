@@ -28,7 +28,7 @@ func TestTxPunish(t *testing.T) {
 	from, err := bs.LoadAccount(constants.GenesisAccount)
 	assert.NoError(err)
 	singer1 := util.Signer1.Address()
-	assert.NoError(from.UpdateKeepers(ld.Uint8Ptr(1), &util.EthIDs{singer1}, nil, nil))
+	assert.NoError(from.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer1}, nil, nil))
 
 	to, err := bs.LoadAccount(util.Signer2.Address())
 	assert.NoError(err)
@@ -175,7 +175,7 @@ func TestTxPunish(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF has an insufficient NativeLDC balance, expected 151800, got 0")
+		"insufficient NativeLDC balance, expected 151800, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8 not found")

@@ -132,7 +132,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
@@ -150,7 +150,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{},
 	}
 	txData = &ld.TxData{
@@ -169,7 +169,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 	}
 	txData = &ld.TxData{
@@ -188,7 +188,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`{}`),
 	}
@@ -241,7 +241,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 	}
@@ -266,7 +266,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 	}
@@ -291,7 +291,7 @@ func TestTxCreateData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.RawModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 	}
@@ -335,7 +335,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(constants.RawModelID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(0), dm.Threshold)
+	assert.Equal(uint16(0), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -373,7 +373,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	input := &ld.TxUpdater{
 		ModelID:   &constants.CBORModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      invalidData,
 	}
@@ -408,7 +408,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.CBORModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 	}
@@ -449,7 +449,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(constants.CBORModelID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(0), dm.Threshold)
+	assert.Equal(uint16(0), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -487,7 +487,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	input := &ld.TxUpdater{
 		ModelID:   &constants.JSONModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      invalidData,
 	}
@@ -522,7 +522,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &constants.JSONModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 	}
@@ -563,7 +563,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(constants.JSONModelID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(0), dm.Threshold)
+	assert.Equal(uint16(0), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -610,7 +610,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	input := &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data[1:],
 	}
@@ -647,7 +647,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 	}
@@ -685,7 +685,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(ps.ID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(1), dm.Threshold)
+	assert.Equal(uint16(1), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -742,7 +742,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	input := &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 	}
@@ -772,7 +772,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -834,7 +834,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -885,7 +885,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -981,7 +981,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -1048,7 +1048,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(ps.ID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(1), dm.Threshold)
+	assert.Equal(uint16(1), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -1104,7 +1104,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	input := &ld.TxUpdater{
 		ModelID:   &mm.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -1161,7 +1161,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(mm.ID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(1), dm.Threshold)
+	assert.Equal(uint16(1), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)
@@ -1193,7 +1193,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &mm.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -1239,7 +1239,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	input = &ld.TxUpdater{
 		ModelID:   &mm.ID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		To:        &to.id,
@@ -1290,7 +1290,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	cfgData := &ld.TxUpdater{
 		ModelID:   &constants.JSONModelID,
 		Version:   1,
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      cfg,
 	}
@@ -1318,7 +1318,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(constants.JSONModelID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint8(1), dm.Threshold)
+	assert.Equal(uint16(1), dm.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
 	assert.Nil(dm.Approver)
 	assert.Nil(dm.ApproveList)

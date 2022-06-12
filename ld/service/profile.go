@@ -11,7 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type ProfileType uint8
+type ProfileType uint16
 
 func (pt ProfileType) String() string {
 	switch pt {

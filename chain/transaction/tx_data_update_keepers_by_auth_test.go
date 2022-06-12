@@ -130,7 +130,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
-		Threshold: ld.Uint8Ptr(1)}
+		Threshold: ld.Uint16Ptr(1)}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
 		ChainID:   bctx.Chain().ChainID,
@@ -431,7 +431,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(dm.Version+1, dm2.Version)
 	assert.Equal(util.SignatureEmpty, dm2.KSig)
-	assert.Equal(uint8(1), dm2.Threshold)
+	assert.Equal(uint16(1), dm2.Threshold)
 	assert.Equal(util.EthIDs{from.id}, dm2.Keepers)
 	assert.Equal(dm.Data, dm2.Data)
 	assert.Nil(dm2.Approver)

@@ -146,7 +146,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(0),
+		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 	}
 	txData = &ld.TxData{
@@ -165,7 +165,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 	}
 	txData = &ld.TxData{
@@ -184,7 +184,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Approver:  &util.EthIDEmpty,
@@ -206,7 +206,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 		"invalid approver, expected not 0x0000000000000000000000000000000000000000")
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Name:      "LDC\nToken",
@@ -227,7 +227,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, `invalid name "LDC\nToken"`)
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Approver:  &approver,
@@ -249,7 +249,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, `invalid name "LD", expected length >= 3`)
 
 	input = &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Approver:  &approver,
@@ -276,7 +276,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		`0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient NativeLDC balance, expected 1744700, got 0`)
+		`insufficient NativeLDC balance, expected 1744700, got 0`)
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
@@ -321,7 +321,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 
 	assert.Equal(uint64(0), tokenAcc.Nonce())
-	assert.Equal(uint8(1), tokenAcc.Threshold())
+	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
@@ -351,7 +351,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.NoError(err)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account.CheckCreateToken failed: token account $LDC exists")
+		"token account $LDC exists")
 
 	// destroy and create again
 	txData = &ld.TxData{
@@ -377,13 +377,13 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0x00000000000000000000000000000000244C4443 has an insufficient NativeLDC balance, expected 1353000, got 0")
+		"insufficient NativeLDC balance, expected 1353000, got 0")
 	tokenAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
 	assert.Equal(uint64(1), tokenAcc.Nonce())
-	assert.Equal(uint8(0), tokenAcc.Threshold())
+	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
 	assert.Nil(tokenAcc.ld.Approver)
 	assert.Nil(tokenAcc.ld.MaxTotalSupply)
@@ -410,7 +410,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	assert.NoError(itx.Accept(bctx, bs))
 
 	assert.Equal(uint64(1), tokenAcc.Nonce())
-	assert.Equal(uint8(1), tokenAcc.Threshold())
+	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
@@ -433,7 +433,7 @@ func TestTxCreateTokenAccountGenesis(t *testing.T) {
 
 	// can not create the NativeToken
 	input := &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Name:      "NativeToken",
@@ -485,7 +485,7 @@ func TestTxCreateTokenAccountGenesis(t *testing.T) {
 	assert.Equal(uint64(1), tx.from.Nonce())
 
 	assert.Equal(uint64(0), tx.ldc.Nonce())
-	assert.Equal(uint8(0), tx.ldc.Threshold())
+	assert.Equal(uint16(0), tx.ldc.Threshold())
 	assert.Equal(util.EthIDs{}, tx.ldc.Keepers())
 	assert.Nil(tx.ldc.ld.Approver)
 	assert.Nil(tx.ldc.ld.ApproveList)

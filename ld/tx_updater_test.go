@@ -33,11 +33,11 @@ func TestTxUpdater(t *testing.T) {
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))
 	assert.ErrorContains(tx2.SyntacticVerify(), "nil threshold")
 
-	tx = &TxUpdater{Threshold: Uint8Ptr(1)}
+	tx = &TxUpdater{Threshold: Uint16Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
-	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{}}
+	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxUpdater{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
+	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
 	tx = &TxUpdater{ApproveList: TxTypes{TypeCreateData}}
@@ -57,7 +57,7 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
-		Threshold: Uint8Ptr(1),
+		Threshold: Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Approver:  &util.EthIDEmpty,
 		Token:     &util.NativeToken,
@@ -73,7 +73,7 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
-		Threshold: Uint8Ptr(1),
+		Threshold: Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Approver:  &util.EthIDEmpty,
 		Token:     &util.NativeToken,

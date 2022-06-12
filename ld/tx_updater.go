@@ -5,7 +5,6 @@ package ld
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 
@@ -26,7 +25,7 @@ type TxUpdater struct {
 	ID          *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
 	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
 	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
-	Threshold   *uint8            `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Threshold   *uint16           `cbor:"th,omitempty" json:"threshold,omitempty"`
 	Keepers     *util.EthIDs      `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes           `cbor:"apl,omitempty" json:"approveList,omitempty"`
@@ -70,9 +69,9 @@ func (t *TxUpdater) SyntacticVerify() error {
 			return fmt.Errorf("%s invalid threshold, expected <= %d, got %d",
 				errPrefix, len(*t.Keepers), *t.Threshold)
 
-		case len(*t.Keepers) > math.MaxUint8:
+		case len(*t.Keepers) > MaxKeepers:
 			return fmt.Errorf("%s invalid keepers, expected <= %d, got %d",
-				errPrefix, math.MaxUint8, len(*t.Keepers))
+				errPrefix, MaxKeepers, len(*t.Keepers))
 		}
 
 		if err = t.Keepers.CheckDuplicate(); err != nil {

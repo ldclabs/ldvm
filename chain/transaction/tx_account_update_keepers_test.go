@@ -121,12 +121,12 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "no keepers nor approver")
 
-	input = ld.TxAccounter{Threshold: ld.Uint8Ptr(0)}
+	input = ld.TxAccounter{Threshold: ld.Uint16Ptr(0)}
 	assert.ErrorContains(input.SyntacticVerify(), "nil keepers together with threshold")
 	input = ld.TxAccounter{Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "nil threshold together with keepers")
 	input = ld.TxAccounter{
-		Threshold:   ld.Uint8Ptr(1),
+		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &util.EthIDs{util.Signer1.Address()},
 		Approver:    &approver,
 		ApproveList: ld.AccountTxTypes,
@@ -145,17 +145,17 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 1464, got 0")
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 1532, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has an insufficient NativeLDC balance, expected 1610400, got 0")
+		"insufficient NativeLDC balance, expected 1685200, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Verify(bctx, bs))
 
-	assert.Equal(uint8(0), from.Threshold())
+	assert.Equal(uint16(0), from.Threshold())
 	assert.Equal(util.EthIDs{}, from.Keepers())
 	assert.Nil(from.ld.Approver)
 	assert.Nil(from.ld.ApproveList)
@@ -168,7 +168,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	assert.Equal(uint8(1), from.Threshold())
+	assert.Equal(uint16(1), from.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
 	assert.Equal(approver, *from.ld.Approver)
 	assert.Equal(ld.AccountTxTypes, from.ld.ApproveList)
@@ -176,7 +176,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateAccountKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeAddNonceTable","TypeUpdateAccountKeepers","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]},"signatures":["1f27b42b85578572a817fb6a1542a2a2dc61d2b23c714f02c5ed683e24400fae42a0d08f840b0a66ea5532672b9169fb9aeeec7507fdbf89bf170a30561c7f2800"],"gas":1464,"id":"22YGwYCsZLrtHTKNMBufFUPbF9nuHe7gWb4HkQdEqSEXjWYBQ1"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateAccountKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeAddNonceTable","TypeUpdateAccountKeepers","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]},"signatures":["f17168d2ddcf516e263bd27ad2bd400b89b8482053ed4760aba782953dbf2e4b05d1ff96d7bc0a1c0726829373579216602e631ac25f8c2352b3cc6b9472315400"],"gas":1532,"id":"KuMRgdoifs9ytwAv7EWwgmwrHrQpmoFEMu9YF9XaF8eMRZjMj"}`, string(jsondata))
 
 	input = ld.TxAccounter{
 		ApproveList: ld.TransferTxTypes,
@@ -207,7 +207,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal(uint8(1), from.Threshold())
+	assert.Equal(uint16(1), from.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
 	assert.Equal(approver, *from.ld.Approver)
 	assert.Equal(ld.TransferTxTypes, from.ld.ApproveList)
@@ -233,13 +233,13 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal(uint8(1), from.Threshold())
+	assert.Equal(uint16(1), from.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
 	assert.Nil(from.ld.Approver)
 	assert.Nil(from.ld.ApproveList)
 
 	input = ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -260,7 +260,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal(uint8(1), from.Threshold())
+	assert.Equal(uint16(1), from.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, from.Keepers())
 
 	input = ld.TxAccounter{
@@ -291,7 +291,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal(uint8(1), from.Threshold())
+	assert.Equal(uint16(1), from.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, from.Keepers())
 	assert.Equal(approver, *from.ld.Approver)
 	assert.Nil(from.ld.ApproveList)

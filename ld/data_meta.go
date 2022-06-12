@@ -5,7 +5,6 @@ package ld
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -18,8 +17,8 @@ type DataMeta struct {
 	// MultiSig: m of n, threshold is m, keepers length is n.
 	// The minimum value is 0, means no one can update the data.
 	// the maximum value is len(keepers)
-	Threshold uint8 `cbor:"th" json:"threshold"`
-	// keepers who owned this data, no more than 255
+	Threshold uint16 `cbor:"th" json:"threshold"`
+	// keepers who owned this data, no more than 1024
 	Keepers     util.EthIDs `cbor:"kp" json:"keepers"`
 	Approver    *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes     `cbor:"apl,omitempty" json:"approveList,omitempty"`
@@ -66,7 +65,7 @@ func (t *DataMeta) SyntacticVerify() error {
 	case t == nil:
 		return fmt.Errorf("%s nil pointer", errPrefix)
 
-	case len(t.Keepers) > math.MaxUint8:
+	case len(t.Keepers) > MaxKeepers:
 		return fmt.Errorf("%s too many keepers", errPrefix)
 
 	case int(t.Threshold) > len(t.Keepers):

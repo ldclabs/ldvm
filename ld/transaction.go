@@ -75,10 +75,10 @@ func (t *TxData) SyntacticVerify() error {
 	case t.ExSignatures != nil && len(t.ExSignatures) == 0:
 		return fmt.Errorf("%s empty exSignatures", errPrefix)
 
-	case len(t.Signatures) > math.MaxUint8:
+	case len(t.Signatures) > MaxKeepers:
 		return fmt.Errorf("%s too many signatures", errPrefix)
 
-	case len(t.ExSignatures) > math.MaxUint8:
+	case len(t.ExSignatures) > MaxKeepers:
 		return fmt.Errorf("%s too many exSignatures", errPrefix)
 	}
 

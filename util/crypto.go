@@ -175,7 +175,7 @@ func DerivePublicKey(dh []byte, sig []byte) (*ecdsa.PublicKey, error) {
 	return crypto.SigToPub(dh, sigcpy)
 }
 
-func SatisfySigning(threshold uint8, keepers, signers []EthID, whenZero bool) bool {
+func SatisfySigning(threshold uint16, keepers, signers []EthID, whenZero bool) bool {
 	if threshold == 0 || len(keepers) == 0 {
 		return whenZero
 	}
@@ -187,7 +187,7 @@ func SatisfySigning(threshold uint8, keepers, signers []EthID, whenZero bool) bo
 	for _, v := range keepers {
 		set[v] = struct{}{}
 	}
-	t := uint8(0)
+	t := uint16(0)
 	for _, id := range signers {
 		if _, ok := set[id]; ok {
 			t++
@@ -197,7 +197,7 @@ func SatisfySigning(threshold uint8, keepers, signers []EthID, whenZero bool) bo
 }
 
 // SatisfySigningPlus verify for updating keepers.
-func SatisfySigningPlus(threshold uint8, keepers, signers []EthID) bool {
+func SatisfySigningPlus(threshold uint16, keepers, signers []EthID) bool {
 	if int(threshold) < len(keepers) {
 		threshold += 1
 	}

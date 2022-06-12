@@ -61,7 +61,7 @@ func (api *VMAPI) Genesis(_ *http.Request, args *NoArgs, reply *genesis.Genesis)
 }
 
 type TransactionArgs struct {
-	Type      uint8           `json:"type"`
+	Type      uint16          `json:"type"`
 	ChainID   uint64          `json:"chainID"`
 	Nonce     uint64          `json:"Nonce"`
 	GasTip    uint64          `json:"gasTip"`
@@ -91,7 +91,7 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 type DataMetaArgs struct {
 	ModelID   util.ModelID    `json:"mID"`
 	Version   uint64          `json:"version"`
-	Threshold uint8           `json:"threshold"`
+	Threshold uint16          `json:"threshold"`
 	Keepers   []util.EthID    `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }
@@ -110,7 +110,7 @@ func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataMetaArgs, reply *E
 
 type ModelMetaArgs struct {
 	Name      string          `json:"name"`
-	Threshold uint8           `json:"threshold"`
+	Threshold uint16          `json:"threshold"`
 	Keepers   []util.EthID    `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }

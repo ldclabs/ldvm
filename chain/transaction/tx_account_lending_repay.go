@@ -20,10 +20,10 @@ func (tx *TxRepay) SyntacticVerify() error {
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s failed: nil to", errPrefix)
+		return fmt.Errorf("%s nil to as lender", errPrefix)
 
 	case tx.ld.Amount == nil || tx.ld.Amount.Sign() <= 0:
-		return fmt.Errorf("%s failed: invalid amount, expected >= 1", errPrefix)
+		return fmt.Errorf("%s invalid amount, expected > 0, got %v", errPrefix, tx.ld.Amount)
 	}
 	return nil
 }

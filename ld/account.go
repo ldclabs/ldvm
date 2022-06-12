@@ -5,20 +5,21 @@ package ld
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/util"
 )
 
-// AccountType is an uint8 representing the type of account
-type AccountType uint8
+// AccountType is an uint16 representing the type of account
+type AccountType uint16
 
 const (
 	NativeAccount AccountType = iota
 	TokenAccount              // The first byte of account address must be $
 	StakeAccount              // The first byte of account address must be #
 )
+
+const MaxKeepers = 1024
 
 type Account struct {
 	Type AccountType `cbor:"t" json:"type"`
@@ -28,8 +29,8 @@ type Account struct {
 	Balance *big.Int `cbor:"b" json:"balance"`
 	// M of N threshold signatures, aka MultiSig: threshold is m, keepers length is n.
 	// The minimum value is 1, the maximum value is len(keepers)
-	Threshold uint8 `cbor:"th" json:"threshold"`
-	// keepers who can use this account, no more than 255
+	Threshold uint16 `cbor:"th" json:"threshold"`
+	// keepers who can use this account, no more than 1024
 	// the account id must be one of them.
 	Keepers     util.EthIDs                   `cbor:"kp" json:"keepers"`
 	Tokens      map[util.TokenSymbol]*big.Int `cbor:"tk" json:"tokens"`
@@ -81,7 +82,7 @@ func (a *Account) SyntacticVerify() error {
 	case a.Keepers == nil:
 		return fmt.Errorf("%s invalid keepers", errPrefix)
 
-	case len(a.Keepers) > math.MaxUint8:
+	case len(a.Keepers) > MaxKeepers:
 		return fmt.Errorf("%s invalid keepers, too many", errPrefix)
 
 	case int(a.Threshold) > len(a.Keepers):
@@ -202,7 +203,7 @@ type StakeConfig struct {
 	// 0: account keepers can not use stake token
 	// 1: account keepers can take a stake in other stake account
 	// 2: in addition to 1, account keepers can transfer stake token to other account
-	Type        uint8    `json:"type"`
+	Type        uint16   `json:"type"`
 	LockTime    uint64   `json:"lockTime"`
 	WithdrawFee uint64   `json:"withdrawFee"` // 1_000_000 == 100%, should be in [1, 200_000]
 	MinAmount   *big.Int `json:"minAmount"`

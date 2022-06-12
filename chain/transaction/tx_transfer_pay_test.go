@@ -32,7 +32,7 @@ func TestTxTransferPay(t *testing.T) {
 	singer2 := util.Signer2.Address()
 	to, err := bs.LoadAccount(constants.GenesisAccount)
 	assert.NoError(err)
-	assert.NoError(to.UpdateKeepers(ld.Uint8Ptr(1), &util.EthIDs{singer2}, nil, nil))
+	assert.NoError(to.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer2}, nil, nil))
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransferPay,
