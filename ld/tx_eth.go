@@ -129,7 +129,7 @@ func encodeSignature(v, r, s *big.Int) util.Signature {
 	if v != nil && r != nil && s != nil {
 		copy(sig[:32], r.Bytes())
 		copy(sig[32:64], s.Bytes())
-		vv := uint8(v.Uint64())
+		vv := byte(v.Uint64())
 		if vv >= 27 {
 			vv -= 27
 		}

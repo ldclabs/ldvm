@@ -5,7 +5,6 @@ package ld
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 
@@ -14,7 +13,7 @@ import (
 
 // TxAccounter
 type TxAccounter struct {
-	Threshold   *uint8       `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Threshold   *uint16      `cbor:"th,omitempty" json:"threshold,omitempty"`
 	Keepers     *util.EthIDs `cbor:"kp,omitempty" json:"keepers,omitempty"`
 	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
@@ -54,9 +53,9 @@ func (t *TxAccounter) SyntacticVerify() error {
 			return fmt.Errorf("%s invalid threshold, expected <= %d, got %d",
 				errPrefix, len(*t.Keepers), *t.Threshold)
 
-		case len(*t.Keepers) > math.MaxUint8:
+		case len(*t.Keepers) > MaxKeepers:
 			return fmt.Errorf("%s invalid keepers, expected <= %d, got %d",
-				errPrefix, math.MaxUint8, len(*t.Keepers))
+				errPrefix, MaxKeepers, len(*t.Keepers))
 		}
 
 		if err = t.Keepers.CheckDuplicate(); err != nil {

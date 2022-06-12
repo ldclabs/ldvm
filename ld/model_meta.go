@@ -5,7 +5,6 @@ package ld
 
 import (
 	"fmt"
-	"math"
 	"regexp"
 
 	"github.com/ldclabs/ldvm/util"
@@ -19,8 +18,8 @@ type ModelMeta struct {
 	// MultiSig: m of n, threshold is m, keepers length is n.
 	// The minimum value is 0, means any one using the model don't need to approve.
 	// the maximum value is len(keepers)
-	Threshold uint8 `cbor:"th" json:"threshold"`
-	// keepers who owned this model, no more than 255
+	Threshold uint16 `cbor:"th" json:"threshold"`
+	// keepers who owned this model, no more than 1024
 	// Creating data using this model requires keepers to sign.
 	// no keepers or threshold is 0 means don't need sign.
 	Keepers  util.EthIDs `cbor:"kp" json:"keepers"`
@@ -48,7 +47,7 @@ func (t *ModelMeta) SyntacticVerify() error {
 	case !ModelNameReg.MatchString(t.Name):
 		return fmt.Errorf("%s invalid name", errPrefix)
 
-	case len(t.Keepers) > math.MaxUint8:
+	case len(t.Keepers) > MaxKeepers:
 		return fmt.Errorf("%s too many keepers", errPrefix)
 
 	case int(t.Threshold) > len(t.Keepers):

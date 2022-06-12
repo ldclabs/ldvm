@@ -23,11 +23,11 @@ func TestTxAccounter(t *testing.T) {
 
 	tx = &TxAccounter{Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
-	tx = &TxAccounter{Threshold: Uint8Ptr(1)}
+	tx = &TxAccounter{Threshold: Uint16Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
-	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{}}
+	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxAccounter{Threshold: Uint8Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
+	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
 	tx = &TxAccounter{ApproveList: TxTypes{TxType(255)}}
@@ -37,7 +37,7 @@ func TestTxAccounter(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
 
 	tx = &TxAccounter{
-		Threshold: Uint8Ptr(1),
+		Threshold: Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),
@@ -46,7 +46,7 @@ func TestTxAccounter(t *testing.T) {
 		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	tx = &TxAccounter{
-		Threshold: Uint8Ptr(1),
+		Threshold: Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),

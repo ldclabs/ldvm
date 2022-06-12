@@ -46,13 +46,13 @@ func TestGenesis(t *testing.T) {
 
 	alloc1 := gs.Alloc[constants.GenesisAccount]
 	assert.Equal(0, alloc1.Balance.Cmp(big.NewInt(400000000000000000)))
-	assert.Equal(uint8(2), alloc1.Threshold)
+	assert.Equal(uint16(2), alloc1.Threshold)
 	assert.True(alloc1.Keepers.Has(address1))
 	assert.True(alloc1.Keepers.Has(address2))
 
 	alloc2 := gs.Alloc[address1]
 	assert.Equal(0, alloc2.Balance.Cmp(big.NewInt(100000000000000000)))
-	assert.Equal(uint8(1), alloc2.Threshold)
+	assert.Equal(uint16(1), alloc2.Threshold)
 	assert.True(alloc2.Keepers.Has(address1))
 	assert.True(alloc2.Keepers.Has(address2))
 

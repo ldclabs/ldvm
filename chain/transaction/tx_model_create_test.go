@@ -173,7 +173,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.NoError(err)
 	mm := &ld.ModelMeta{
 		Name:      nm.Name(),
-		Threshold: *ld.Uint8Ptr(1),
+		Threshold: *ld.Uint16Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      nm.Schema(),
 	}
@@ -200,7 +200,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 
 	mm2, err := bs.LoadModel(tx.input.ID)
 	assert.NoError(err)
-	assert.Equal(uint8(1), mm2.Threshold)
+	assert.Equal(uint16(1), mm2.Threshold)
 	assert.Equal(util.EthIDs{from.id}, mm2.Keepers)
 	assert.Nil(mm2.Approver)
 	assert.Equal(mm.Name, mm2.Name)
@@ -215,7 +215,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.NoError(err)
 	mm = &ld.ModelMeta{
 		Name:      pm.Name(),
-		Threshold: *ld.Uint8Ptr(1),
+		Threshold: *ld.Uint16Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      pm.Schema(),
 	}
@@ -243,7 +243,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 
 	mm2, err = bs.LoadModel(tx.input.ID)
 	assert.NoError(err)
-	assert.Equal(uint8(1), mm2.Threshold)
+	assert.Equal(uint16(1), mm2.Threshold)
 	assert.Equal(util.EthIDs{from.id}, mm2.Keepers)
 	assert.Nil(mm2.Approver)
 	assert.Equal(mm.Name, mm2.Name)

@@ -165,7 +165,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Approver:    &approver,
 		ApproveList: []ld.TxType{ld.TypeDeleteData},
-		Threshold:   ld.Uint8Ptr(1),
+		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &util.EthIDs{util.Signer1.Address()},
 		KSig:        &kSig,
 	}
@@ -201,7 +201,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 2,
 		Approver:    &approver,
 		ApproveList: []ld.TxType{ld.TypeDeleteData},
-		Threshold:   ld.Uint8Ptr(1),
+		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &util.EthIDs{util.Signer1.Address()},
 		KSig:        &kSig,
 	}
@@ -236,7 +236,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 			ld.TypeUpdateDataKeepers,
 			ld.TypeUpdateDataKeepersByAuth,
 			ld.TypeDeleteData},
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		KSig:      &kSig,
 	}
@@ -270,7 +270,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.Equal(dm.Version+1, dm2.Version)
 	assert.NotEqual(kSig, dm.KSig)
 	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint8(1), dm2.Threshold)
+	assert.Equal(uint16(1), dm2.Threshold)
 	assert.Equal(util.EthIDs{util.Signer2.Address()}, dm.Keepers)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
 	assert.Equal(dm.Data, dm2.Data)
@@ -286,7 +286,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataKeepers","TypeUpdateDataKeepersByAuth","TypeDeleteData"],"kSig":"505a3dfb3372ef790ba8237ab40a53f8e626b56b3778f9edcb67436ea1ac9fd65a7a10f80921aa34809a056c18f8cd9f905367c65b30734e137428554e71735001"},"signatures":["b42c3d5bd42cf996afb105bd31e74cfea70e5e69c70d56978da4edbf7691e500529fbeb9eec4adb016c1d3e10be01b709d18b450e418f3564109ad8824c997ff00","406f90c21685e7e26039a45d8f236b98d2cf70e431b706166808a2ed63c6705f58436f9c2a46d513935bb6ceabe067d99cf8791aded747677966c5963d597e5701"],"gas":310,"id":"278NGpRg8mA7gM7BKGUYKSbVzVWYLupboK4WLodjFVQHQo9QAL"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataKeepers","TypeUpdateDataKeepersByAuth","TypeDeleteData"],"kSig":"505a3dfb3372ef790ba8237ab40a53f8e626b56b3778f9edcb67436ea1ac9fd65a7a10f80921aa34809a056c18f8cd9f905367c65b30734e137428554e71735001"},"signatures":["2062c8e0867f4dd2cbac4137ab7ced3d57deafed9393904c3b3d0a6ed631f942101466787868cffb55262bd5e8c4f460d646b2e645ffd660eb8b8da3a0ab7c7a00","6bc7e9fcf0c89d4a754373842293f2996665f208470b69e6176627a1bb8099bc1825ff22cb171b89c06346039da4a4ba47a90642ce6699c57065ddb4f40afedc00"],"gas":310,"id":"D7b91sptH22A7J3mmhpFhNwrkFxfdhcr3jgP4nFCpLeXyGgkP"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
 		Approver: &util.EthIDEmpty,
@@ -319,7 +319,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(uint64(4), dm2.Version)
 	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint8(1), dm2.Threshold)
+	assert.Equal(uint16(1), dm2.Threshold)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
 	assert.Equal(dm.Data, dm2.Data)
 	assert.Nil(dm2.Approver)

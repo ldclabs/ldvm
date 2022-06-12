@@ -96,7 +96,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	assert.ErrorContains(err, "invalid token 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	cfg := &ld.TxAccounter{
-		Threshold: ld.Uint8Ptr(1),
+		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 	}
@@ -129,7 +129,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0x00000000000000000000000000000000244C4443 has an insufficient NativeLDC balance, expected 159500, got 0")
+		"insufficient NativeLDC balance, expected 159500, got 0")
 	testToken.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
@@ -179,7 +179,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account.CheckDestroyToken failed: some token in the use, expected 10000000000, got 9000000000")
+		"some token in the use, expected 10000000000, got 9000000000")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -249,7 +249,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	assert.Equal(uint64(0), acc.balanceOf(token).Uint64())
 
 	assert.Equal(uint64(2), testToken.Nonce())
-	assert.Equal(uint8(0), testToken.Threshold())
+	assert.Equal(uint16(0), testToken.Threshold())
 	assert.Equal(util.EthIDs{}, testToken.Keepers())
 
 	jsondata, err := itx.MarshalJSON()
@@ -274,7 +274,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 
 	// CreateToken
 	input := &ld.TxAccounter{
-		Threshold:   ld.Uint8Ptr(1),
+		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &util.EthIDs{util.Signer1.Address()},
 		Approver:    &approver,
 		ApproveList: ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken},
@@ -321,7 +321,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 
-	assert.Equal(uint8(1), tokenAcc.Threshold())
+	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken}, tokenAcc.ld.ApproveList)
@@ -359,7 +359,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"0x00000000000000000000000000000000244C4443 has an insufficient NativeLDC balance, expected 1416800, got 0")
+		"insufficient NativeLDC balance, expected 1416800, got 0")
 	tokenAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
@@ -369,7 +369,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 
 	// AddNonceTable
-	ns := []uint64{10, 1, 2, 3}
+	ns := []uint64{bs.Timestamp() + 1, 1, 2, 3}
 	ndData, err := ld.EncMode.Marshal(ns)
 	assert.NoError(err)
 	txData = &ld.TxData{
@@ -383,13 +383,14 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
+	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal([]uint64{1, 2, 3}, tokenAcc.ld.NonceTable[10])
+	assert.Equal([]uint64{1, 2, 3}, tokenAcc.ld.NonceTable[bs.Timestamp()+1])
 	assert.Equal(uint64(2), tokenAcc.Nonce())
 
 	// Borrow
@@ -399,7 +400,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		To:     &from.id,
 		Token:  &token,
 		Amount: new(big.Int).SetUint64(constants.LDC),
-		Expire: 10,
+		Expire: bs.Timestamp() + 1,
 	}
 	assert.NoError(tf.SyntacticVerify())
 	txData = &ld.TxData{
@@ -416,13 +417,14 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
+	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal([]uint64{1, 2}, tokenAcc.ld.NonceTable[10])
+	assert.Equal([]uint64{1, 2}, tokenAcc.ld.NonceTable[bs.Timestamp()+1])
 	assert.Equal(constants.LDC*9, tokenAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
 
@@ -450,7 +452,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account.CheckCloseLending failed: please repay all before close")
+		"please repay all before close")
 
 	// TypeRepay
 	txData = &ld.TxData{
@@ -495,7 +497,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.NoError(itx.Accept(bctx, bs))
 
 	assert.Equal(uint64(3), tokenAcc.Nonce())
-	assert.Equal(uint8(0), tokenAcc.Threshold())
+	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
 	assert.Equal(make(map[uint64][]uint64), tokenAcc.ld.NonceTable)
 	assert.Equal(ld.NativeAccount, tokenAcc.ld.Type)

@@ -271,7 +271,7 @@ func TestTxTransferCash(t *testing.T) {
 		From:   &to.id,
 		To:     &from.id,
 		Amount: new(big.Int).SetUint64(constants.LDC),
-		Expire: 10,
+		Expire: bs.Timestamp(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
@@ -309,7 +309,7 @@ func TestTxTransferCash(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 177, got 0")
+		"TxBase.Verify failed: invalid gas, expected 179, got 0")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -330,7 +330,7 @@ func TestTxTransferCash(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"insufficient NativeLDC balance, expected 194700, got 0")
+		"insufficient NativeLDC balance, expected 196900, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid signature for issuer")
@@ -349,13 +349,13 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Timestamp = 10
+	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"nonce 0 not exists at 10 on 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
-	assert.NoError(to.AddNonceTable(10, []uint64{2, 1, 0}))
+		"nonce 0 not exists at 10")
+	assert.NoError(to.AddNonceTable(bs.Timestamp(), []uint64{2, 1, 0}))
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"insufficient NativeLDC balance, expected 1000000000, got 0")
 	to.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -369,12 +369,12 @@ func TestTxTransferCash(t *testing.T) {
 	assert.Equal(constants.LDC*2-tx.ld.Gas*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
-	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[10])
+	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[bs.Timestamp()])
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":10},"signatures":["9c99c19c500c56d9301d7942267755925b41359fb657ec4309b28619685d77a5548d8d7947a09b13486e25d2c085f2a94ad6460f323dfcb1d90b7389f0dba1b301"],"exSignatures":["644835f6bafdf4ff94d19cece9ef523030720f2141a925d02c219ed3f3abf98167453a2d5a7a36becb9fc53ce4026fbea05bf67f1caa251a530d379fb5e0f92301"],"gas":177,"id":"xM2FpyQejMz1LhvdAQSLsH6AdTptinLzjB5A6qzPeMmppgkK5"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000},"signatures":["65503bbaf2a1368b056e862adb9af46097c1a4cf38a47be223210b54969c936631d12376399a537c221a49829ce566731ff55dd9d00e23e10710dde949afbcdc00"],"exSignatures":["2315ac412bbf6573fa1accd7e45ce16101fb8221c1ebc76a8d1567d5c367a4fd0cd70406a11a3c4b2bde2ccec261e803ec8da7a8d18d6ffe47aeb9749219725001"],"gas":179,"id":"21tUfux5dxqMqUmxDtpGy3YqiXP12Q2Ca8Ao34QRtsfyZNZDHs"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

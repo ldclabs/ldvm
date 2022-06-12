@@ -35,6 +35,6 @@ func MustMarshal(v Marshaler) []byte {
 	return data
 }
 
-func Uint8Ptr(u uint8) *uint8 {
+func Uint16Ptr(u uint16) *uint16 {
 	return &u
 }

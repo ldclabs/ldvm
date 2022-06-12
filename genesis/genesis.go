@@ -23,7 +23,7 @@ type Genesis struct {
 
 type Allocation struct {
 	Balance   *big.Int    `json:"balance"`
-	Threshold uint8       `json:"threshold"`
+	Threshold uint16      `json:"threshold"`
 	Keepers   util.EthIDs `json:"keepers"`
 }
 
