@@ -18,14 +18,20 @@ func TestName(t *testing.T) {
 	assert.ErrorContains(name.SyntacticVerify(), "nil pointer")
 
 	name = &Name{Name: "ab=c"}
-	assert.ErrorContains(name.SyntacticVerify(), `converts "ab=c" error: idna: disallowed rune`)
+	assert.ErrorContains(name.SyntacticVerify(), `NewDN("ab=c"): ToASCII error, idna: disallowed rune`)
 
-	name = &Name{Name: "你好"}
-	assert.ErrorContains(name.SyntacticVerify(), `"你好" is not ASCII form (IDNA2008)`)
+	name = &Name{Name: "xn--vuq70b.com."}
+	assert.ErrorContains(name.SyntacticVerify(), `"xn--vuq70b.com." is not unicode form`)
+
+	name = &Name{Name: "xn--vuq70b"}
+	assert.ErrorContains(name.SyntacticVerify(), `"xn--vuq70b" is not unicode form`)
+
+	name = &Name{Name: "公信"}
+	assert.ErrorContains(name.SyntacticVerify(), `nil records`)
 
 	address := util.DataID{1, 2, 3, 4}
 	name = &Name{
-		Name:    "xn--vuq70b.com",
+		Name:    "公信.com.",
 		Linked:  &address,
 		Records: []string{},
 	}
@@ -42,7 +48,7 @@ func TestName(t *testing.T) {
 	data, err := json.Marshal(name)
 	assert.NoError(err)
 
-	jsonStr := `{"name":"xn--vuq70b.com","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"displayName":"公信.com"}`
+	jsonStr := `{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"]}`
 	assert.Equal(jsonStr, string(data))
 
 	nm, err := NameModel()

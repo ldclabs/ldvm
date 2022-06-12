@@ -1095,7 +1095,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	}
 
 	name := &service.Name{
-		Name:    "ldc.to",
+		Name:    "ldc.to.",
 		Records: []string{"ldc.to. IN A 10.0.0.1"},
 	}
 	assert.NoError(name.SyntacticVerify())
@@ -1141,8 +1141,8 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(err)
 	assert.NoError(itx.Verify(bctx, bs))
 
-	id, err := bs.ResolveNameID("ldc.to")
-	assert.ErrorContains(err, `"ldc.to" not found`)
+	id, err := bs.ResolveNameID("ldc.to.")
+	assert.ErrorContains(err, `"ldc.to." not found`)
 	assert.NoError(itx.Accept(bctx, bs))
 
 	tx := itx.(*TxCreateData)
@@ -1153,11 +1153,11 @@ func TestTxCreateNameModelData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	id, err = bs.ResolveNameID("ldc.to")
+	id, err = bs.ResolveNameID("ldc.to.")
 	assert.NoError(err)
 	assert.Equal(id, tx.dm.ID)
 
-	dm, err := bs.ResolveName("ldc.to")
+	dm, err := bs.ResolveName("ldc.to.")
 	assert.NoError(err)
 	assert.Equal(mm.ID, dm.ModelID)
 	assert.Equal(uint64(1), dm.Version)
@@ -1179,12 +1179,12 @@ func TestTxCreateNameModelData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"LM4rB4RoU8Xa2FAJRVAER8bcprHcpAYFRBs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"kSig":"07f3f5759612e6300d31241f7946be2cacc87326a0e7de1f454eeba178ed7da70df7cd13c4ba91dd1023d86b520cb397f8689c8e80add0d070f780dae198cea401","mSig":"387fed9c37853ed38bce487df85cd8a0c02e30d5df7eec2f17b54319cf78ce9c43d168325540666b4b1c97246e21bcc0f58a1f5a51c503f9cd8ef380e62f713d00","expire":100,"data":"0xa2616e666c64632e746f62727381756c64632e746f2e20494e20412031302e302e302e31c20fc028"},"signatures":["011a04002b62799c7be2f19bec58f3b087becd92cd72625bfdf19ad0645c715b2bea98cac163419008440260278298ca1356adb88fd7cf099dbd1e16f29098cf01"],"exSignatures":["b1828270f3b1fc702774c15ca60626d551ac16e9732a148707b921803c72993870ccbf7c38605cdf71ffa899f2d8e2da8e0a7f32cdb47a8ecb7085e90f3129aa01"],"gas":456,"id":"27jAXGGhU1htM6x9h5HiJ5WUxX2UzmSLkKAfgsnQBtosaQxdzK"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"LM4rB4RoU8Xa2FAJRVAER8bcprHcpAYFRBs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"kSig":"5b23ad8462e39ba1e9921d2afb09ecf2c056bc62805a9259860cda8f53c64d422bf2f1d744d5c2979af407b22fb5726410db433f23c0ab644d9c45325442b9c901","mSig":"e286779f92e10b160ca27af117eb935dd31e78bea636921290062c66b5ae1e5a341ae0b80c2716f4b324225e9a4549064a77df943a442fd5b7d49480c722926a01","expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["fa58aaecd2e3b6dd1e845aa639ae38e28a115466ee39441340021c6ddfc22de57facb02f0a9046f192bf7aef1d6cc44a207fa0302c8becfa1bb88aaacf856fc700"],"exSignatures":["c279c42e5e61b1c5863706f0993f9f65c8c97ea0b6251a61758ca531bffed28c00bbda6f249af41d130f2781594261890881a0e67216a9226b202ba2f77c25fa01"],"gas":457,"id":"2gxKFC6JnY6SFiQJpHb18DK2WqM1C5QbZNaanhTBugdSuvgvJg"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 
 	name2 := &service.Name{
-		Name:    "ldc.to",
+		Name:    "ldc.to.",
 		Records: []string{"ldc.to. IN A 10.0.0.2"},
 	}
 	assert.NoError(name2.SyntacticVerify())
@@ -1227,10 +1227,10 @@ func TestTxCreateNameModelData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		`TxCreateData.Verify failed: name "ldc.to" conflict`)
+		`TxCreateData.Verify failed: name "ldc.to." conflict`)
 
 	name2 = &service.Name{
-		Name:    "api.ldc.to",
+		Name:    "api.ldc.to.",
 		Records: []string{},
 	}
 	assert.NoError(name2.SyntacticVerify())
