@@ -13,12 +13,12 @@ import (
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
-	"golang.org/x/net/idna"
 
 	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -219,7 +219,7 @@ func (bs *blockState) SetName(name string, id util.DataID) error {
 	return err
 }
 
-// name should be ASCII form (IDNA2008)
+// name should be Unicode form
 func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 	data, err := bs.nameDB.Get([]byte(name))
 	if err != nil {
@@ -230,12 +230,12 @@ func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 }
 
 func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
-	dn, err := idna.Registration.ToASCII(name)
+	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %s, error: %v",
 			strconv.Quote(name), err)
 	}
-	id, err := bs.ResolveNameID(dn)
+	id, err := bs.ResolveNameID(dn.String())
 	if err != nil {
 		return nil, err
 	}

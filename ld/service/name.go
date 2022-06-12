@@ -8,21 +8,19 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"golang.org/x/net/idna"
-
 	"github.com/fxamacker/cbor/v2"
+
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
 type Name struct {
-	Name    string       `cbor:"n" json:"name"`                       // should be ASCII form (IDNA2008)
+	Name    string       `cbor:"n" json:"name"`                       // should be Unicode form
 	Linked  *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"` // optional, linked (ProfileService) data id
 	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
 
 	// external assignment fields
-	DisplayName string `cbor:"-" json:"displayName"` // Unicode form
-	raw         []byte `cbor:"-" json:"-"`
+	raw []byte `cbor:"-" json:"-"`
 }
 
 func NameModel() (*ld.IPLDModel, error) {
@@ -54,24 +52,17 @@ func GetName(data []byte) (string, error) {
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
 	errPrefix := "Name.SyntacticVerify failed:"
-
 	if n == nil {
 		return fmt.Errorf("%s nil pointer", errPrefix)
 	}
 
-	dn, err := idna.Registration.ToASCII(n.Name)
+	dn, err := NewDN(n.Name)
 	if err != nil {
-		return fmt.Errorf("%s converts %s error: %v", errPrefix, strconv.Quote(n.Name), err)
+		return fmt.Errorf("%s %v", errPrefix, err)
 	}
-	if dn != n.Name {
-		return fmt.Errorf("%s %s is not ASCII form (IDNA2008)", errPrefix, strconv.Quote(n.Name))
+	if dn.String() != n.Name {
+		return fmt.Errorf("%s %s is not unicode form", errPrefix, strconv.Quote(n.Name))
 	}
-
-	name, err := idna.Registration.ToUnicode(n.Name)
-	if err != nil {
-		return fmt.Errorf("%s converts %s error: %v", errPrefix, strconv.Quote(n.Name), err)
-	}
-	n.DisplayName = name
 
 	if n.Records == nil {
 		return fmt.Errorf("%s nil records", errPrefix)

@@ -14,7 +14,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
-	"golang.org/x/net/idna"
 
 	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/config"
@@ -22,6 +21,7 @@ import (
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -570,12 +570,12 @@ func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
 }
 
 func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
-	dn, err := idna.Registration.ToASCII(name)
+	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %s, error: %v",
 			strconv.Quote(name), err)
 	}
-	obj, err := s.nameDB.LoadObject([]byte(dn), s.recentNames)
+	obj, err := s.nameDB.LoadObject([]byte(dn.String()), s.recentNames)
 	if err != nil {
 		return nil, err
 	}
