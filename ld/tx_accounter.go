@@ -92,9 +92,9 @@ func (t *TxAccounter) Bytes() []byte {
 }
 
 func (t *TxAccounter) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *TxAccounter) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }

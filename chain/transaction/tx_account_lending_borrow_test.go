@@ -246,7 +246,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 
 	dueTime := bs.Timestamp()
-	dueTimeData, err := ld.EncMode.Marshal(dueTime)
+	dueTimeData, err := ld.MarshalCBOR(dueTime)
 	assert.NoError(err)
 	input = &ld.TxTransfer{
 		From:   &lender.id,
@@ -274,7 +274,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.ErrorContains(err, "invalid dueTime, expected > 1000, got 1000")
 
 	dueTime = bs.Timestamp() + 3600*24
-	dueTimeData, err = ld.EncMode.Marshal(dueTime)
+	dueTimeData, err = ld.MarshalCBOR(dueTime)
 	assert.NoError(err)
 	input = &ld.TxTransfer{
 		From:   &lender.id,

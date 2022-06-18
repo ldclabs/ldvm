@@ -122,7 +122,7 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypeCreateData:
 		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	default:
-		return nil, fmt.Errorf("not support genesis tx type: %d", tx.Type)
+		return nil, fmt.Errorf("NewGenesisTx: unsupport TxType: %s", tx.Type)
 	}
 	return tt, nil
 }

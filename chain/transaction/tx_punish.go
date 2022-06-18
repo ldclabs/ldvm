@@ -15,7 +15,7 @@ import (
 type TxPunish struct {
 	TxBase
 	input *ld.TxUpdater
-	dm    *ld.DataMeta
+	dm    *ld.DataInfo
 }
 
 func (tx *TxPunish) MarshalJSON() ([]byte, error) {

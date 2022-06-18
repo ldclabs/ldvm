@@ -149,7 +149,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "no thing to update")
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -324,6 +324,131 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.Equal(dm.Data, dm2.Data)
 	assert.Nil(dm2.Approver)
 	assert.Nil(dm2.ApproveList)
+
+	// clear threshold
+	input = &ld.TxUpdater{ID: &did, Version: 4,
+		Threshold: ld.Uint16Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+	}
+	txData = &ld.TxData{
+		Type:      ld.TypeUpdateDataKeepers,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     2,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.NoError(itx.Verify(bctx, bs))
+	assert.NoError(itx.Accept(bctx, bs))
+
+	dm2, err = bs.LoadData(dm.ID)
+	assert.NoError(err)
+	assert.Equal(uint64(5), dm2.Version)
+	assert.Equal(kSig, dm2.KSig)
+	assert.Equal(uint16(0), dm2.Threshold)
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
+
+	// clear keepers
+	input = &ld.TxUpdater{ID: &did, Version: 5,
+		Threshold: ld.Uint16Ptr(0),
+		Keepers:   &util.EthIDs{},
+	}
+	txData = &ld.TxData{
+		Type:      ld.TypeUpdateDataKeepers,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     3,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.NoError(itx.Verify(bctx, bs))
+	assert.NoError(itx.Accept(bctx, bs))
+
+	dm2, err = bs.LoadData(dm.ID)
+	assert.NoError(err)
+	assert.Equal(uint64(6), dm2.Version)
+	assert.Equal(kSig, dm2.KSig)
+	assert.Equal(uint16(0), dm2.Threshold)
+	assert.Equal(util.EthIDs{}, dm2.Keepers)
+
+	// can't update keepers
+	input = &ld.TxUpdater{ID: &did, Version: 6,
+		Threshold: ld.Uint16Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+	}
+	txData = &ld.TxData{
+		Type:      ld.TypeUpdateDataKeepers,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     4,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
+
+	// can't update data
+	input = &ld.TxUpdater{ID: &did, Version: 6,
+		Data: []byte(`421`),
+	}
+	kSig, err = util.Signer1.Sign([]byte(`421`))
+	assert.NoError(err)
+	input.KSig = &kSig
+	txData = &ld.TxData{
+		Type:      ld.TypeUpdateData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     4,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.ErrorContains(err, "DeriveSigners: no signature")
+
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
+
+	// can't delete data
+	input = &ld.TxUpdater{ID: &did, Version: 6, Data: []byte(`421`)}
+	txData = &ld.TxData{
+		Type:      ld.TypeDeleteData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     4,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
 
 	assert.NoError(bs.VerifyState())
 }

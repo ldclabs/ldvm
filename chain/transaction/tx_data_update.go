@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strconv"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/fxamacker/cbor/v2"
+	cborpatch "github.com/ldclabs/cbor-patch"
+	jsonpatch "github.com/ldclabs/json-patch"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -21,9 +21,8 @@ type TxUpdateData struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataMeta
-	prevDM    *ld.DataMeta
-	jsonPatch jsonpatch.Patch
+	dm        *ld.DataInfo
+	prevDM    *ld.DataInfo
 }
 
 func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
@@ -158,21 +157,25 @@ func (tx *TxUpdateData) Verify(bctx BlockContext, bs BlockState) error {
 		}
 
 	case constants.CBORModelID:
-		// TODO cbor patch
-		if err = cbor.Valid(tx.input.Data); err != nil {
-			return fmt.Errorf("%s invalid CBOR encoding data, %v", errPrefix, err)
+		var patch cborpatch.Patch
+		if patch, err = cborpatch.NewPatch(tx.input.Data); err != nil {
+			return fmt.Errorf("%s invalid CBOR patch, %v", errPrefix, err)
 		}
-		tx.dm.Data = tx.input.Data
+
+		if tx.dm.Data, err = patch.Apply(tx.dm.Data); err != nil {
+			return fmt.Errorf("%s apply patch failed, %v", errPrefix, err)
+		}
 		if tx.input.To != nil {
 			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 		}
 
 	case constants.JSONModelID:
-		if tx.jsonPatch, err = jsonpatch.DecodePatch(tx.input.Data); err != nil {
+		var patch jsonpatch.Patch
+		if patch, err = jsonpatch.NewPatch(tx.input.Data); err != nil {
 			return fmt.Errorf("%s invalid JSON patch, %v", errPrefix, err)
 		}
 
-		if tx.dm.Data, err = tx.jsonPatch.Apply(tx.dm.Data); err != nil {
+		if tx.dm.Data, err = patch.Apply(tx.dm.Data); err != nil {
 			return fmt.Errorf("%s apply patch failed, %v", errPrefix, err)
 		}
 		if tx.input.To != nil {

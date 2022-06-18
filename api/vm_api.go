@@ -73,7 +73,7 @@ type TransactionArgs struct {
 }
 
 func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *EncodeReply) error {
-	data := util.JSONUnmarshalData(args.Data)
+	data := util.UnmarshalJSONData(args.Data)
 	tx := &ld.Transaction{
 		Type:      ld.TxType(args.Type),
 		ChainID:   args.ChainID,
@@ -88,17 +88,17 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 	return reply.SetTxData(tx)
 }
 
-type DataMetaArgs struct {
+type DataInfoArgs struct {
 	ModelID   util.ModelID    `json:"mID"`
 	Version   uint64          `json:"version"`
 	Threshold uint16          `json:"threshold"`
-	Keepers   []util.EthID    `json:"keepers"`
+	Keepers   util.EthIDs     `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }
 
-func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataMetaArgs, reply *EncodeReply) error {
-	data := util.JSONUnmarshalData(args.Data)
-	tx := &ld.DataMeta{
+func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataInfoArgs, reply *EncodeReply) error {
+	data := util.UnmarshalJSONData(args.Data)
+	tx := &ld.DataInfo{
 		ModelID:   args.ModelID,
 		Version:   args.Version,
 		Threshold: args.Threshold,
@@ -108,16 +108,16 @@ func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataMetaArgs, reply *E
 	return reply.SetTxData(tx)
 }
 
-type ModelMetaArgs struct {
+type ModelInfoArgs struct {
 	Name      string          `json:"name"`
 	Threshold uint16          `json:"threshold"`
-	Keepers   []util.EthID    `json:"keepers"`
+	Keepers   util.EthIDs     `json:"keepers"`
 	Data      json.RawMessage `json:"data"`
 }
 
-func (api *VMAPI) EncodeCreateModel(_ *http.Request, args *ModelMetaArgs, reply *EncodeReply) error {
-	data := util.JSONUnmarshalData(args.Data)
-	tx := &ld.ModelMeta{
+func (api *VMAPI) EncodeCreateModel(_ *http.Request, args *ModelInfoArgs, reply *EncodeReply) error {
+	data := util.UnmarshalJSONData(args.Data)
+	tx := &ld.ModelInfo{
 		Name:      args.Name,
 		Threshold: args.Threshold,
 		Keepers:   args.Keepers,

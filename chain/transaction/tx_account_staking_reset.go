@@ -77,7 +77,7 @@ func (tx *TxResetStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("TxResetStakeAccount.Verify failed: invalid signatures for stake keepers, need more")
+		return fmt.Errorf("TxResetStakeAccount.Verify failed: invalid signatures for stake keepers")
 	}
 	if err = tx.from.CheckResetStake(tx.input); err != nil {
 		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)

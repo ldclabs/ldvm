@@ -39,7 +39,7 @@ func (t *TxTransfer) SyntacticVerify() error {
 	case t.Token != nil && !t.Token.Valid():
 		return fmt.Errorf("%s invalid token symbol %s", errPrefix, strconv.Quote(t.Token.GoString()))
 
-	case t.Amount != nil && t.Amount.Sign() < 1:
+	case t.Amount != nil && t.Amount.Sign() < 0:
 		return fmt.Errorf("%s invalid amount", errPrefix)
 	}
 
@@ -58,9 +58,9 @@ func (t *TxTransfer) Bytes() []byte {
 }
 
 func (t *TxTransfer) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *TxTransfer) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }

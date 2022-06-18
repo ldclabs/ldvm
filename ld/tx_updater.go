@@ -109,9 +109,9 @@ func (t *TxUpdater) Bytes() []byte {
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }

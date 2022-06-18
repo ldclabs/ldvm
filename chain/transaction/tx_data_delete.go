@@ -14,7 +14,7 @@ import (
 type TxDeleteData struct {
 	TxBase
 	input *ld.TxUpdater
-	dm    *ld.DataMeta
+	dm    *ld.DataInfo
 }
 
 func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {

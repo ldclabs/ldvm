@@ -12,7 +12,7 @@ import (
 
 var ModelNameReg = regexp.MustCompile(`^[A-Z][0-9A-Za-z]{1,127}$`)
 
-type ModelMeta struct {
+type ModelInfo struct {
 	// model name, should match ^[A-Z][0-9A-Za-z]{1,127}$
 	Name string `cbor:"n" json:"name"`
 	// MultiSig: m of n, threshold is m, keepers length is n.
@@ -32,14 +32,14 @@ type ModelMeta struct {
 	raw   []byte       `cbor:"-" json:"-"`
 }
 
-func (t *ModelMeta) Model() *IPLDModel {
+func (t *ModelInfo) Model() *IPLDModel {
 	return t.model
 }
 
-// SyntacticVerify verifies that a *ModelMeta is well-formed.
-func (t *ModelMeta) SyntacticVerify() error {
+// SyntacticVerify verifies that a *ModelInfo is well-formed.
+func (t *ModelInfo) SyntacticVerify() error {
 	var err error
-	errPrefix := "ModelMeta.SyntacticVerify failed:"
+	errPrefix := "ModelInfo.SyntacticVerify failed:"
 	switch {
 	case t == nil:
 		return fmt.Errorf("%s nil pointer", errPrefix)
@@ -77,17 +77,17 @@ func (t *ModelMeta) SyntacticVerify() error {
 	return nil
 }
 
-func (t *ModelMeta) Bytes() []byte {
+func (t *ModelInfo) Bytes() []byte {
 	if len(t.raw) == 0 {
 		t.raw = MustMarshal(t)
 	}
 	return t.raw
 }
 
-func (t *ModelMeta) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+func (t *ModelInfo) Unmarshal(data []byte) error {
+	return UnmarshalCBOR(data, t)
 }
 
-func (t *ModelMeta) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+func (t *ModelInfo) Marshal() ([]byte, error) {
+	return MarshalCBOR(t)
 }

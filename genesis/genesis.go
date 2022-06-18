@@ -221,7 +221,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	if err != nil {
 		return nil, err
 	}
-	ns := &ld.ModelMeta{
+	ns := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
@@ -247,7 +247,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	if err != nil {
 		return nil, err
 	}
-	ps := &ld.ModelMeta{
+	ps := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,

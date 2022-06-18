@@ -126,11 +126,11 @@ func (t *TxData) calcUnsignedBytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }
 
 func (t *TxData) RequiredGas(threshold uint64) uint64 {
@@ -286,11 +286,11 @@ func (t *Transaction) TxData(tx *TxData) *TxData {
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }
 
 func (t *Transaction) SetPriority(threshold, delay uint64) {
@@ -420,11 +420,11 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, txs)
+	return UnmarshalCBOR(data, txs)
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	return EncMode.Marshal(txs)
+	return MarshalCBOR(txs)
 }
 
 type group struct {

@@ -170,7 +170,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -203,7 +203,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
 
-	dm = &ld.DataMeta{
+	dm = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -219,7 +219,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(bs.SaveData(dm.ID, dm))
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for data approver")
 
-	dm = &ld.DataMeta{
+	dm = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -269,7 +269,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 0, got 2")
 
-	dm = &ld.DataMeta{
+	dm = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,

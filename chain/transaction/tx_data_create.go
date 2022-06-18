@@ -20,7 +20,7 @@ type TxCreateData struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataMeta
+	dm        *ld.DataInfo
 	name      *service.Name
 	mSigner   *util.EthID
 }
@@ -135,7 +135,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		}
 	}
 
-	tx.dm = &ld.DataMeta{
+	tx.dm = &ld.DataInfo{
 		ModelID:     *tx.input.ModelID,
 		Version:     1,
 		Threshold:   *tx.input.Threshold,
@@ -174,7 +174,7 @@ func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: invalid data")
 	}
 
-	tx.dm = &ld.DataMeta{
+	tx.dm = &ld.DataInfo{
 		ModelID:   *tx.input.ModelID,
 		Version:   1,
 		Threshold: *tx.input.Threshold,

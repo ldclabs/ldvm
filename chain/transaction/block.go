@@ -24,12 +24,12 @@ type BlockState interface {
 	LoadAccount(util.EthID) (*Account, error)
 	LoadMiner(util.StakeSymbol) (*Account, error)
 	ResolveNameID(name string) (util.DataID, error)
-	ResolveName(name string) (*ld.DataMeta, error)
+	ResolveName(name string) (*ld.DataInfo, error)
 	SetName(name string, id util.DataID) error
-	LoadModel(util.ModelID) (*ld.ModelMeta, error)
-	SaveModel(util.ModelID, *ld.ModelMeta) error
-	LoadData(util.DataID) (*ld.DataMeta, error)
-	SaveData(util.DataID, *ld.DataMeta) error
-	SavePrevData(util.DataID, *ld.DataMeta) error
-	DeleteData(util.DataID, *ld.DataMeta, []byte) error
+	LoadModel(util.ModelID) (*ld.ModelInfo, error)
+	SaveModel(util.ModelID, *ld.ModelInfo) error
+	LoadData(util.DataID) (*ld.DataInfo, error)
+	SaveData(util.DataID, *ld.DataInfo) error
+	SavePrevData(util.DataID, *ld.DataInfo) error
+	DeleteData(util.DataID, *ld.DataInfo, []byte) error
 }

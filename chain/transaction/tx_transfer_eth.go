@@ -72,6 +72,6 @@ func (tx *TxEth) SyntacticVerify() error {
 		return fmt.Errorf("%s invalid exSignatures", errPrefix)
 	}
 
-	tx.signers = []util.EthID{tx.ld.From}
+	tx.signers = util.EthIDs{tx.ld.From}
 	return nil
 }

@@ -39,11 +39,11 @@ func TestIPLDModel(t *testing.T) {
 	assert.Equal(sch, string(im.Schema()))
 	assert.Equal("map", im.Type().TypeKind().String())
 
-	data, err := EncMode.Marshal(map[string]interface{}{"a": 1, "b": "a"})
+	data, err := MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
 	assert.NoError(err)
 	assert.NoError(im.Valid(data))
 
-	data, err = EncMode.Marshal([]interface{}{"a", "b", 1})
+	data, err = MarshalCBOR([]interface{}{"a", "b", 1})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `IPLDModel "SomeModel" error`)
 
@@ -57,15 +57,15 @@ func TestIPLDModel(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal("struct", im.Type().TypeKind().String())
 
-	data, err = EncMode.Marshal(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
+	data, err = MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
 	assert.NoError(err)
 	assert.NoError(im.Valid(data))
 
-	data, err = EncMode.Marshal(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
+	data, err = MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `invalid key: "x"`)
 
-	data, err = EncMode.Marshal(map[string]interface{}{"n": "test"})
+	data, err = MarshalCBOR(map[string]interface{}{"n": "test"})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `missing required fields`)
 }

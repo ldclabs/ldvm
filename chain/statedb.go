@@ -80,10 +80,10 @@ type StateDB interface {
 	RemoveTx(ids.ID)
 
 	LoadAccount(util.EthID) (*ld.Account, error)
-	ResolveName(name string) (*ld.DataMeta, error)
-	LoadModel(util.ModelID) (*ld.ModelMeta, error)
-	LoadData(util.DataID) (*ld.DataMeta, error)
-	LoadPrevData(util.DataID, uint64) (*ld.DataMeta, error)
+	ResolveName(name string) (*ld.DataInfo, error)
+	LoadModel(util.ModelID) (*ld.ModelInfo, error)
+	LoadData(util.DataID) (*ld.DataInfo, error)
+	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
 }
 
 type atomicBlock atomic.Value
@@ -195,10 +195,10 @@ func NewState(
 		return new(db.RawObject)
 	})
 	s.recentModels = db.NewCacher(10_000, 60*20, func() db.Objecter {
-		return new(ld.ModelMeta)
+		return new(ld.ModelInfo)
 	})
 	s.recentData = db.NewCacher(100_000, 60*20, func() db.Objecter {
-		return new(ld.DataMeta)
+		return new(ld.DataInfo)
 	})
 	s.recentAccounts = db.NewCacher(100_000, 60*20, func() db.Objecter {
 		return new(ld.Account)
@@ -286,7 +286,7 @@ func (s *stateDB) Bootstrap() error {
 	s.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
 
 	// load latest fee config from chain.
-	var dm *ld.DataMeta
+	var dm *ld.DataInfo
 	feeConfigID := s.genesis.Chain.FeeConfigID
 	dm, err = s.LoadData(feeConfigID)
 	if err != nil {
@@ -569,7 +569,7 @@ func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
 	return rt, nil
 }
 
-func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
+func (s *stateDB) ResolveName(name string) (*ld.DataInfo, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %s, error: %v",
@@ -588,27 +588,27 @@ func (s *stateDB) ResolveName(name string) (*ld.DataMeta, error) {
 	return s.LoadData(util.DataID(id))
 }
 
-func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
+func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	obj, err := s.modelDB.LoadObject(id[:], s.recentModels)
 	if err != nil {
 		return nil, err
 	}
-	rt := obj.(*ld.ModelMeta)
+	rt := obj.(*ld.ModelInfo)
 	rt.ID = id
 	return rt, nil
 }
 
-func (s *stateDB) LoadData(id util.DataID) (*ld.DataMeta, error) {
+func (s *stateDB) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	obj, err := s.dataDB.LoadObject(id[:], s.recentData)
 	if err != nil {
 		return nil, err
 	}
-	rt := obj.(*ld.DataMeta)
+	rt := obj.(*ld.DataInfo)
 	rt.ID = id
 	return rt, nil
 }
 
-func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, error) {
+func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo, error) {
 	if version == 0 {
 		return nil, fmt.Errorf("data not found")
 	}
@@ -622,7 +622,7 @@ func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataMeta, er
 	if err != nil {
 		return nil, err
 	}
-	rt := obj.(*ld.DataMeta)
+	rt := obj.(*ld.DataInfo)
 	rt.ID = id
 	return rt, nil
 }

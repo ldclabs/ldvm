@@ -229,7 +229,7 @@ func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 	return util.DataID(id), err
 }
 
-func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
+func (bs *blockState) ResolveName(name string) (*ld.DataInfo, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %s, error: %v",
@@ -242,12 +242,12 @@ func (bs *blockState) ResolveName(name string) (*ld.DataMeta, error) {
 	return bs.LoadData(id)
 }
 
-func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
+func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
-	mm := &ld.ModelMeta{}
+	mm := &ld.ModelInfo{}
 	if err := mm.Unmarshal(data); err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	return mm, nil
 }
 
-func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
+func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelInfo) error {
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -266,12 +266,12 @@ func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
 	return bs.modelDB.Put(id[:], mm.Bytes())
 }
 
-func (bs *blockState) LoadData(id util.DataID) (*ld.DataMeta, error) {
+func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
 		return nil, err
 	}
-	dm := &ld.DataMeta{}
+	dm := &ld.DataInfo{}
 	if err := dm.Unmarshal(data); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	return dm, nil
 }
 
-func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
+func (bs *blockState) SaveData(id util.DataID, dm *ld.DataInfo) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (bs *blockState) SaveData(id util.DataID, dm *ld.DataMeta) error {
 	return bs.dataDB.Put(id[:], dm.Bytes())
 }
 
-func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
+func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataInfo) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -302,7 +302,7 @@ func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	return bs.prevDataDB.Put(key, dm.Bytes())
 }
 
-func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataMeta, message []byte) error {
+func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataInfo, message []byte) error {
 	version := dm.Version
 	if err := dm.MarkDeleted(message); err != nil {
 		return err

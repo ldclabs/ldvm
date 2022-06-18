@@ -103,7 +103,7 @@ func (tx *TxUpdateAccountKeepers) Verify(bctx BlockContext, bs BlockState) error
 		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: invalid signatures for keepers, need more")
+		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: invalid signatures for keepers")
 	}
 	return nil
 }

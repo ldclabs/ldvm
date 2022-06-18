@@ -16,7 +16,7 @@ type TxUpdateDataKeepersByAuth struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataMeta
+	dm        *ld.DataInfo
 }
 
 func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
@@ -122,7 +122,7 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 			errPrefix, tx.dm.Version, tx.input.Version)
 
 	case !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners):
-		return fmt.Errorf("%s invalid exSignatures for data keepers, need more", errPrefix)
+		return fmt.Errorf("%s invalid exSignatures for data keepers", errPrefix)
 
 	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver):
 		return fmt.Errorf("%s invalid signature for data approver", errPrefix)

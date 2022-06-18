@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/fxamacker/cbor/v2"
+	cborpatch "github.com/ldclabs/cbor-patch"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -29,17 +30,37 @@ var DecOpts = cbor.DecOptions{
 }
 var DecMode, _ = DecOpts.DecMode()
 
+func init() {
+	cborpatch.SetCBOR(EncMode.Marshal, DecMode.Unmarshal)
+}
+
+func MarshalCBOR(v interface{}) ([]byte, error) {
+	return EncMode.Marshal(v)
+}
+
+func MustMarshalCBOR(v interface{}) []byte {
+	data, err := EncMode.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func UnmarshalCBOR(data []byte, v interface{}) error {
+	return DecMode.Unmarshal(data, v)
+}
+
 type RawData []byte
 
 func (r RawData) MarshalJSON() ([]byte, error) {
-	return util.JSONMarshalData(r), nil
+	return util.MarshalJSONData(r), nil
 }
 
 func (r *RawData) UnmarshalJSON(b []byte) error {
 	if r == nil {
 		return errors.New("RawData: UnmarshalJSON on nil pointer")
 	}
-	data := util.JSONUnmarshalData(b)
+	data := util.UnmarshalJSONData(b)
 	*r = append((*r)[0:0], data...)
 	return nil
 }

@@ -190,11 +190,11 @@ func (a *Account) Bytes() []byte {
 }
 
 func (a *Account) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, a)
+	return UnmarshalCBOR(data, a)
 }
 
 func (a *Account) Marshal() ([]byte, error) {
-	return EncMode.Marshal(a)
+	return MarshalCBOR(a)
 }
 
 type StakeConfig struct {
@@ -237,11 +237,11 @@ func (c *StakeConfig) SyntacticVerify() error {
 }
 
 func (c *StakeConfig) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, c)
+	return UnmarshalCBOR(data, c)
 }
 
 func (c *StakeConfig) Marshal() ([]byte, error) {
-	return EncMode.Marshal(c)
+	return MarshalCBOR(c)
 }
 
 type LendingConfig struct {
@@ -280,9 +280,9 @@ func (c *LendingConfig) SyntacticVerify() error {
 }
 
 func (c *LendingConfig) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, c)
+	return UnmarshalCBOR(data, c)
 }
 
 func (c *LendingConfig) Marshal() ([]byte, error) {
-	return EncMode.Marshal(c)
+	return MarshalCBOR(c)
 }

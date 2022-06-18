@@ -43,7 +43,7 @@ func (tx *TxDestroyStakeAccount) Verify(bctx BlockContext, bs BlockState) error 
 		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: %v", err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: invalid signatures for stake keepers, need more")
+		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: invalid signatures for stake keepers")
 	}
 	if err = tx.from.CheckDestroyStake(tx.to); err != nil {
 		return fmt.Errorf("TxDestroyStakeAccount.Verify failed: %v", err)

@@ -9,7 +9,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type DataMeta struct {
+type DataInfo struct {
 	ModelID util.ModelID `cbor:"mid" json:"mid"` // model id
 	// data version，the initial value is 1, should increase 1 when updating,
 	// 0 indicates that the data is invalid, for example, deleted or punished.
@@ -33,10 +33,10 @@ type DataMeta struct {
 	raw []byte      `cbor:"-" json:"-"`
 }
 
-func (t *DataMeta) Clone() *DataMeta {
-	x := new(DataMeta)
+func (t *DataInfo) Clone() *DataInfo {
+	x := new(DataInfo)
 	*x = *t
-	x.Keepers = make([]util.EthID, len(t.Keepers))
+	x.Keepers = make(util.EthIDs, len(t.Keepers))
 	copy(x.Keepers, t.Keepers)
 	if t.Approver != nil {
 		id := *t.Approver
@@ -56,10 +56,10 @@ func (t *DataMeta) Clone() *DataMeta {
 	return x
 }
 
-// SyntacticVerify verifies that a *DataMeta is well-formed.
-func (t *DataMeta) SyntacticVerify() error {
+// SyntacticVerify verifies that a *DataInfo is well-formed.
+func (t *DataInfo) SyntacticVerify() error {
 	var err error
-	errPrefix := "DataMeta.SyntacticVerify failed:"
+	errPrefix := "DataInfo.SyntacticVerify failed:"
 
 	switch {
 	case t == nil:
@@ -95,7 +95,7 @@ func (t *DataMeta) SyntacticVerify() error {
 		}
 	}
 
-	if t.KSig != util.SignatureEmpty {
+	if t.KSig != util.SignatureEmpty && len(t.Keepers) > 0 {
 		kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
 		if err != nil {
 			return fmt.Errorf("%s %v", errPrefix, err)
@@ -111,7 +111,7 @@ func (t *DataMeta) SyntacticVerify() error {
 	return nil
 }
 
-func (t *DataMeta) MarkDeleted(data []byte) error {
+func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
 	t.KSig = util.SignatureEmpty
 	t.MSig = nil
@@ -121,17 +121,17 @@ func (t *DataMeta) MarkDeleted(data []byte) error {
 	return t.SyntacticVerify()
 }
 
-func (t *DataMeta) Bytes() []byte {
+func (t *DataInfo) Bytes() []byte {
 	if len(t.raw) == 0 {
 		t.raw = MustMarshal(t)
 	}
 	return t.raw
 }
 
-func (t *DataMeta) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+func (t *DataInfo) Unmarshal(data []byte) error {
+	return UnmarshalCBOR(data, t)
 }
 
-func (t *DataMeta) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+func (t *DataInfo) Marshal() ([]byte, error) {
+	return MarshalCBOR(t)
 }
