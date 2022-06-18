@@ -94,9 +94,9 @@ func (s *State) Bytes() []byte {
 }
 
 func (s *State) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, s)
+	return UnmarshalCBOR(data, s)
 }
 
 func (s *State) Marshal() ([]byte, error) {
-	return EncMode.Marshal(s)
+	return MarshalCBOR(s)
 }

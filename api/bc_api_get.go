@@ -165,7 +165,7 @@ func (api *BlockChainAPI) GetPrevDatas(_ *http.Request, args *GetDataArgs, reply
 	}
 
 	num := 10
-	rt := make([]*ld.DataMeta, 0, num)
+	rt := make([]*ld.DataInfo, 0, num)
 	ver := args.Version
 	for ver > 0 && len(rt) < num {
 		data, err := api.state.LoadPrevData(args.ID, ver)

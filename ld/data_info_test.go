@@ -12,34 +12,35 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-func TestDataMeta(t *testing.T) {
+func TestDataInfo(t *testing.T) {
 	assert := assert.New(t)
 
-	var tx *DataMeta
+	var tx *DataInfo
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &DataMeta{Threshold: 1}
+	tx = &DataInfo{Threshold: 1}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 
-	tx = &DataMeta{Keepers: []util.EthID{util.EthIDEmpty}}
+	tx = &DataInfo{Keepers: util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &DataMeta{Version: 1, Approver: &util.EthIDEmpty}
+	tx = &DataInfo{Version: 1, Approver: &util.EthIDEmpty}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
-	tx = &DataMeta{ApproveList: TxTypes{TxType(255)}}
+	tx = &DataInfo{ApproveList: TxTypes{TxType(255)}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
 
-	tx = &DataMeta{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
+	tx = &DataInfo{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
 
-	tx = &DataMeta{
+	tx = &DataInfo{
 		Version: 1,
+		Keepers: util.EthIDs{util.Signer1.Address()},
 		Data:    []byte(`42`),
 		KSig:    util.Signature{1, 2, 3},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigner: recovery failed")
-	tx = &DataMeta{
+	tx = &DataInfo{
 		Version: 0,
 		Data:    []byte(`42`),
 	}
@@ -47,7 +48,7 @@ func TestDataMeta(t *testing.T) {
 
 	kSig, err := util.Signer1.Sign([]byte(`42`))
 	assert.NoError(err)
-	tx = &DataMeta{
+	tx = &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
@@ -56,7 +57,7 @@ func TestDataMeta(t *testing.T) {
 	}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
-	tx = &DataMeta{
+	tx = &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
@@ -75,7 +76,7 @@ func TestDataMeta(t *testing.T) {
 	assert.Contains(string(jsondata), `"data":42`)
 	assert.NotContains(string(jsondata), `"approver":`)
 
-	tx2 := &DataMeta{}
+	tx2 := &DataInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
 
@@ -90,7 +91,7 @@ func TestDataMeta(t *testing.T) {
 	assert.Equal(tx2.Data, tx.Data)
 	cbordata, err = tx.Marshal()
 	assert.NoError(err)
-	tx2 = &DataMeta{}
+	tx2 = &DataInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
 	cbordata2 = tx2.Bytes()

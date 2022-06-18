@@ -99,7 +99,7 @@ func TestTxTransfer(t *testing.T) {
 	token := ld.MustNewToken("$LDC")
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   2357,
+		ChainID:   bctx.Chain().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -131,6 +131,26 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000,"signatures":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"gas":143,"id":"sJV9ndy4B654Nmt6YVKsybB3DSe9GRFNvqTL1cab2s4cG34rm"}`, string(jsondata))
+
+	// support 0 amount
+	txData = &ld.TxData{
+		Type:      ld.TypeTransfer,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     3,
+		GasTip:    0,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		To:        &constants.GenesisAccount,
+		Amount:    new(big.Int).SetUint64(0),
+		Data:      []byte(`"some message"`),
+	}
+	assert.NoError(txData.SyntacticVerify())
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(itx.Verify(bctx, bs))
+	assert.NoError(itx.Accept(bctx, bs), "should support 0 amount")
 
 	assert.NoError(bs.VerifyState())
 }

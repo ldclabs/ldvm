@@ -193,7 +193,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 
 	ipldm, err := service.ProfileModel()
 	assert.NoError(err)
-	mm := &ld.ModelMeta{
+	mm := &ld.ModelInfo{
 		Name:      ipldm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},

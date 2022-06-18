@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
+	jsonpatch "github.com/ldclabs/json-patch"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -365,7 +365,7 @@ func TestTxCreateCBORData(t *testing.T) {
 		Nonces []int  `cbor:"no"`
 	}
 
-	data, err := ld.EncMode.Marshal(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
+	data, err := ld.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
 	assert.NoError(err)
 	invalidData := data[:len(data)-3]
 
@@ -590,7 +590,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
-	ps := &ld.ModelMeta{
+	ps := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 0,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -723,7 +723,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
-	ps := &ld.ModelMeta{
+	ps := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -1086,7 +1086,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 
 	nm, err := service.NameModel()
 	assert.NoError(err)
-	mm := &ld.ModelMeta{
+	mm := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},

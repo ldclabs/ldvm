@@ -51,9 +51,9 @@ func TestJSON(t *testing.T) {
 		},
 	}
 	for _, c := range tcs {
-		o := JSONMarshalData(c.input)
+		o := MarshalJSONData(c.input)
 		assert.Equal(c.output, []byte(o))
-		assert.Equal(c.input, JSONUnmarshalData(o))
+		assert.Equal(c.input, UnmarshalJSONData(o))
 	}
 }
 
@@ -71,7 +71,7 @@ func TestEthIDs(t *testing.T) {
 	assert.NoError(ids.CheckDuplicate())
 	assert.NoError(ids.CheckEmptyID())
 
-	ids = EthIDs([]EthID{
+	ids = EthIDs(EthIDs{
 		EthIDEmpty,
 		{1, 2, 3},
 		Signer1.Address(),

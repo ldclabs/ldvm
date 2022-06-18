@@ -43,7 +43,7 @@ type lazyName struct {
 
 func GetName(data []byte) (string, error) {
 	n := &lazyName{}
-	if err := ld.DecMode.Unmarshal(data, n); err != nil {
+	if err := ld.UnmarshalCBOR(data, n); err != nil {
 		return "", err
 	}
 	return n.Name, nil
@@ -86,9 +86,9 @@ func (n *Name) Bytes() []byte {
 }
 
 func (n *Name) Unmarshal(data []byte) error {
-	return ld.DecMode.Unmarshal(data, n)
+	return ld.UnmarshalCBOR(data, n)
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	return ld.EncMode.Marshal(n)
+	return ld.MarshalCBOR(n)
 }

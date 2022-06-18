@@ -171,7 +171,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for keepers, need more")
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for keepers")
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
@@ -370,7 +370,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 
 	// AddNonceTable
 	ns := []uint64{bs.Timestamp() + 1, 1, 2, 3}
-	ndData, err := ld.EncMode.Marshal(ns)
+	ndData, err := ld.MarshalCBOR(ns)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,

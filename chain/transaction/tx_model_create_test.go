@@ -106,11 +106,11 @@ func TestTxCreateModel(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
-	input := &ld.ModelMeta{}
-	assert.ErrorContains(input.SyntacticVerify(), "ModelMeta.SyntacticVerify failed: invalid name")
+	input := &ld.ModelInfo{}
+	assert.ErrorContains(input.SyntacticVerify(), "ModelInfo.SyntacticVerify failed: invalid name")
 	ipldm, err := service.ProfileModel()
 	assert.NoError(err)
-	input = &ld.ModelMeta{
+	input = &ld.ModelInfo{
 		Name:      ipldm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
@@ -171,7 +171,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 
 	nm, err := service.NameModel()
 	assert.NoError(err)
-	mm := &ld.ModelMeta{
+	mm := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: *ld.Uint16Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address()},
@@ -213,7 +213,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
-	mm = &ld.ModelMeta{
+	mm = &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: *ld.Uint16Ptr(1),
 		Keepers:   util.EthIDs{util.Signer1.Address()},

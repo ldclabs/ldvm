@@ -180,7 +180,7 @@ func TestTxPunish(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8 not found")
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},

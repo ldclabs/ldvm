@@ -141,14 +141,14 @@ func DeriveSigner(data []byte, sig []byte) (EthID, error) {
 	return EthID(crypto.PubkeyToAddress(*pk)), nil
 }
 
-func DeriveSigners(data []byte, sigs []Signature) ([]EthID, error) {
+func DeriveSigners(data []byte, sigs []Signature) (EthIDs, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("DeriveSigners: empty data")
 	}
 	if len(sigs) == 0 {
 		return nil, fmt.Errorf("DeriveSigners: no signature")
 	}
-	signers := make([]EthID, len(sigs))
+	signers := make(EthIDs, len(sigs))
 	dh := sha3.Sum256(data)
 	for i, sig := range sigs {
 		pk, err := DerivePublicKey(dh[:], sig[:])
@@ -156,6 +156,9 @@ func DeriveSigners(data []byte, sigs []Signature) ([]EthID, error) {
 			return nil, fmt.Errorf("DeriveSigners: %v", err)
 		}
 		signers[i] = EthID(crypto.PubkeyToAddress(*pk))
+	}
+	if err := signers.CheckDuplicate(); err != nil {
+		return nil, fmt.Errorf("DeriveSigners: %v", err)
 	}
 	return signers, nil
 }
@@ -175,7 +178,7 @@ func DerivePublicKey(dh []byte, sig []byte) (*ecdsa.PublicKey, error) {
 	return crypto.SigToPub(dh, sigcpy)
 }
 
-func SatisfySigning(threshold uint16, keepers, signers []EthID, whenZero bool) bool {
+func SatisfySigning(threshold uint16, keepers, signers EthIDs, whenZero bool) bool {
 	if threshold == 0 || len(keepers) == 0 {
 		return whenZero
 	}
@@ -197,7 +200,7 @@ func SatisfySigning(threshold uint16, keepers, signers []EthID, whenZero bool) b
 }
 
 // SatisfySigningPlus verify for updating keepers.
-func SatisfySigningPlus(threshold uint16, keepers, signers []EthID) bool {
+func SatisfySigningPlus(threshold uint16, keepers, signers EthIDs) bool {
 	if int(threshold) < len(keepers) {
 		threshold += 1
 	}

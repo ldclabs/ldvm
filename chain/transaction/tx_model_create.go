@@ -15,7 +15,7 @@ import (
 
 type TxCreateModel struct {
 	TxBase
-	input *ld.ModelMeta
+	input *ld.ModelInfo
 }
 
 func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
@@ -55,7 +55,7 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 		return fmt.Errorf("%s invalid data", errPrefix)
 	}
 
-	tx.input = &ld.ModelMeta{}
+	tx.input = &ld.ModelInfo{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
@@ -69,7 +69,7 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	tx.input = &ld.ModelMeta{}
+	tx.input = &ld.ModelInfo{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
 		return fmt.Errorf("TxCreateModel.VerifyGenesis failed: %v", err)
 	}

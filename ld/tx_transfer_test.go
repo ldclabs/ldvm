@@ -23,8 +23,11 @@ func TestTxTransfer(t *testing.T) {
 	tx = &TxTransfer{Token: &util.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(), `invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
-	tx = &TxTransfer{Amount: big.NewInt(0)}
+	tx = &TxTransfer{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
+
+	tx = &TxTransfer{Amount: big.NewInt(0)}
+	assert.NoError(tx.SyntacticVerify())
 
 	tx = &TxTransfer{Token: &util.NativeToken}
 	assert.NoError(tx.SyntacticVerify())

@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
+	jsonpatch "github.com/ldclabs/json-patch"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ldclabs/ldvm/constants"

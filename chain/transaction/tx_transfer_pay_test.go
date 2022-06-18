@@ -392,5 +392,33 @@ func TestTxTransferPay(t *testing.T) {
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000},"signatures":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSignatures":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"gas":206,"id":"2dsFu9TNZWVLW7pmfBVwVRCmCd9hbRXiFpr6X33KekRP3tFZCE"}`, string(jsondata))
 
+	// should support 0 amount
+	input = ld.TxTransfer{
+		From:   &from.id,
+		To:     &constants.GenesisAccount,
+		Amount: new(big.Int).SetUint64(0),
+		Data:   []byte(`"some data`),
+	}
+	assert.NoError(input.SyntacticVerify())
+	txData = &ld.TxData{
+		Type:      ld.TypeTransferPay,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     2,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		To:        &to.id,
+		Amount:    new(big.Int).SetUint64(0),
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SyntacticVerify())
+	assert.NoError(txData.SignWith(util.Signer1))
+	assert.NoError(txData.ExSignWith(util.Signer2))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.NoError(itx.Verify(bctx, bs))
+	assert.NoError(itx.Accept(bctx, bs), "should support 0 amount")
+
 	assert.NoError(bs.VerifyState())
 }

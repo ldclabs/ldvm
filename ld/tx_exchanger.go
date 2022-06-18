@@ -75,9 +75,9 @@ func (t *TxExchanger) Bytes() []byte {
 }
 
 func (t *TxExchanger) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, t)
+	return UnmarshalCBOR(data, t)
 }
 
 func (t *TxExchanger) Marshal() ([]byte, error) {
-	return EncMode.Marshal(t)
+	return MarshalCBOR(t)
 }

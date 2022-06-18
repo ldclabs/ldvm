@@ -120,9 +120,9 @@ func (b *Block) Bytes() []byte {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	return DecMode.Unmarshal(data, b)
+	return UnmarshalCBOR(data, b)
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	return EncMode.Marshal(b)
+	return MarshalCBOR(b)
 }

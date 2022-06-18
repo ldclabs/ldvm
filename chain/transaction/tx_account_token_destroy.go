@@ -45,7 +45,7 @@ func (tx *TxDestroyTokenAccount) Verify(bctx BlockContext, bs BlockState) error 
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("%s invalid signature for keepers, need more", errPrefix)
+		return fmt.Errorf("%s invalid signature for keepers", errPrefix)
 	}
 	if err = tx.from.CheckDestroyToken(tx.to); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)

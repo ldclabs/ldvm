@@ -338,7 +338,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,

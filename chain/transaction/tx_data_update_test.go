@@ -4,12 +4,15 @@
 package transaction
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -410,7 +413,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -426,7 +429,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid version, expected 2, got 1")
 
-	dm = &ld.DataMeta{
+	dm = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   1,
 		Threshold: 1,
@@ -533,10 +536,10 @@ func TestTxUpdateCBORData(t *testing.T) {
 		Nonces []int  `cbor:"no"`
 	}
 
-	data, err := ld.EncMode.Marshal(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
+	data, err := ld.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
 	assert.NoError(err)
 
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.CBORModelID,
 		Version:   2,
 		Threshold: 1,
@@ -570,13 +573,14 @@ func TestTxUpdateCBORData(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"invalid CBOR encoding data")
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid CBOR patch")
 
-	data, err = ld.EncMode.Marshal(&cborData{Name: "test", Nonces: []int{1, 2, 3, 4}})
-	assert.NoError(err)
+	patch := cborpatch.Patch{
+		{Op: "add", Path: "/no/-", Value: ld.MustMarshalCBOR(4)},
+	}
+	patchdata := ld.MustMarshalCBOR(patch)
 	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
-		Data: data,
+		Data: patchdata,
 	}
 	input.KSig = &kSig
 	txData = &ld.TxData{
@@ -596,11 +600,12 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid data signature for data keepers, invalid signer")
 
-	// TODO CBOR Patch
 	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
-		Data: data,
+		Data: patchdata,
 	}
-	kSig, err = util.Signer1.Sign(input.Data)
+	newData, err := patch.Apply(dm.Data)
+	assert.NoError(err)
+	kSig, err = util.Signer1.Sign(newData)
 	assert.NoError(err)
 	input.KSig = &kSig
 	txData = &ld.TxData{
@@ -632,14 +637,18 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.Equal(uint64(3), dm2.Version)
 	assert.NotEqual(kSig, dm.KSig)
 	assert.Equal(kSig, dm2.KSig)
-	assert.NotEqual(data, []byte(dm.Data))
-	assert.Equal(data, []byte(dm2.Data))
+	assert.NotEqual(newData, []byte(dm.Data))
+	assert.Equal(newData, []byte(dm2.Data))
 	assert.Equal(bs.PDC[dm.ID], dm.Bytes())
+
+	var nc cborData
+	assert.NoError(ld.UnmarshalCBOR(dm2.Data, &nc))
+	assert.Equal([]int{1, 2, 3, 4}, nc.Nonces)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
-	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0xa2626e616474657374626e6f8401020304b7efd5cd"},"signatures":["0621bde177bc2bb5d0a53d2cf8f71d18e908d30bd542cfa464c7a1a46e2667cf06c1c2e7ecce4fbdd7efa1969dad9d45c64fc27374b85538a628bc4cea96632500"],"gas":269,"id":"pdJkLeuZSK6xVqyghyV9PTmv3cyY2W4KjxKAzTCLXSxDsm7u9"}`, string(jsondata))
+	fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["1a0306bf9768771d9806458fea0162940e398630b27f4eaf209d0bcd276d0a3e50aeeac718ec43da7b02ac453185d7c447167d64bb8430588f1bfed6bb25b62001"],"gas":280,"id":"LdoZA49wq9kbkxQGd1XCxcmLSp7mS7XfuMuvoJ243pVgYNY2X"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -661,7 +670,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
 
 	data := []byte(`{"name":"test","nonces":[1,2,3]}`)
-	dm := &ld.DataMeta{
+	dm := &ld.DataInfo{
 		ModelID:   constants.JSONModelID,
 		Version:   2,
 		Threshold: 1,
@@ -695,8 +704,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"invalid JSON patch")
+	assert.ErrorContains(itx.Verify(bctx, bs), "invalid JSON patch")
 
 	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
 		Data: []byte(`[{"op": "replace", "path": "/name", "value": "Tester"}]`),

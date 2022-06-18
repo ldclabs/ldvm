@@ -123,7 +123,7 @@ func (m *MockBS) ResolveNameID(name string) (util.DataID, error) {
 	return id, nil
 }
 
-func (m *MockBS) ResolveName(name string) (*ld.DataMeta, error) {
+func (m *MockBS) ResolveName(name string) (*ld.DataInfo, error) {
 	id, err := m.ResolveNameID(name)
 	if err != nil {
 		return nil, err
@@ -136,12 +136,12 @@ func (m *MockBS) SetName(name string, id util.DataID) error {
 	return nil
 }
 
-func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
+func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	data, ok := m.MC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadModel: %s not found", id)
 	}
-	mm := &ld.ModelMeta{}
+	mm := &ld.ModelInfo{}
 	if err := mm.Unmarshal(data); err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelMeta, error) {
 	return mm, nil
 }
 
-func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
+func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelInfo) error {
 	if err := mm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -159,12 +159,12 @@ func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelMeta) error {
 	return nil
 }
 
-func (m *MockBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
+func (m *MockBS) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	data, ok := m.DC[id]
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadData: %s not found", id)
 	}
-	dm := &ld.DataMeta{}
+	dm := &ld.DataInfo{}
 	if err := dm.Unmarshal(data); err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (m *MockBS) LoadData(id util.DataID) (*ld.DataMeta, error) {
 	return dm, nil
 }
 
-func (m *MockBS) SaveData(id util.DataID, dm *ld.DataMeta) error {
+func (m *MockBS) SaveData(id util.DataID, dm *ld.DataInfo) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (m *MockBS) SaveData(id util.DataID, dm *ld.DataMeta) error {
 	return nil
 }
 
-func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
+func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataInfo) error {
 	if err := dm.SyntacticVerify(); err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataMeta) error {
 	return nil
 }
 
-func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataMeta, message []byte) error {
+func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataInfo, message []byte) error {
 	if err := dm.MarkDeleted(message); err != nil {
 		return err
 	}

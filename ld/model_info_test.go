@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestModelMeta(t *testing.T) {
+func TestModelInfo(t *testing.T) {
 	assert := assert.New(t)
 
 	sch := `
@@ -23,7 +23,7 @@ func TestModelMeta(t *testing.T) {
 	}
 `
 
-	var tx *ModelMeta
+	var tx *ModelInfo
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
 	assert.False(ModelNameReg.MatchString("test"))
@@ -36,25 +36,25 @@ func TestModelMeta(t *testing.T) {
 	assert.True(ModelNameReg.MatchString("Name"))
 	assert.True(ModelNameReg.MatchString("TestService"))
 
-	tx = &ModelMeta{Name: "test"}
+	tx = &ModelInfo{Name: "test"}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid name")
 
-	tx = &ModelMeta{Name: "Name", Threshold: 1}
+	tx = &ModelInfo{Name: "Name", Threshold: 1}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 
-	tx = &ModelMeta{Name: "Name", Approver: &util.EthIDEmpty}
+	tx = &ModelInfo{Name: "Name", Approver: &util.EthIDEmpty}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
-	tx = &ModelMeta{Name: "Name", Data: []byte("abc")}
+	tx = &ModelInfo{Name: "Name", Data: []byte("abc")}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid data")
 
-	tx = &ModelMeta{Name: "Name", Data: []byte(sch), Threshold: 1, Keepers: []util.EthID{util.EthIDEmpty}}
+	tx = &ModelInfo{Name: "Name", Data: []byte(sch), Threshold: 1, Keepers: util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &ModelMeta{Name: "Name", Data: []byte(sch)}
+	tx = &ModelInfo{Name: "Name", Data: []byte(sch)}
 	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel "Name" error`)
 
-	tx = &ModelMeta{
+	tx = &ModelInfo{
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
@@ -63,7 +63,7 @@ func TestModelMeta(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
-	tx = &ModelMeta{
+	tx = &ModelInfo{
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
@@ -78,7 +78,7 @@ func TestModelMeta(t *testing.T) {
 	assert.NotContains(string(jsondata), `"approver":`)
 	assert.Contains(string(jsondata), `"name":"NameService"`)
 
-	tx2 := &ModelMeta{}
+	tx2 := &ModelInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
 

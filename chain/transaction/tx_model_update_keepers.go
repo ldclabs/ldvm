@@ -14,7 +14,7 @@ import (
 type TxUpdateModelKeepers struct {
 	TxBase
 	input *ld.TxUpdater
-	mm    *ld.ModelMeta
+	mm    *ld.ModelInfo
 }
 
 func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
@@ -81,7 +81,7 @@ func (tx *TxUpdateModelKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 
 	case !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers):
-		return fmt.Errorf("%s invalid signatures for keepers, need more", errPrefix)
+		return fmt.Errorf("%s invalid signatures for keepers", errPrefix)
 
 	case tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver):
 		return fmt.Errorf("%s invalid signature for approver", errPrefix)

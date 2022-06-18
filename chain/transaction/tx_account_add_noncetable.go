@@ -54,7 +54,7 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 	}
 
 	tx.input = make([]uint64, 0)
-	if err = ld.DecMode.Unmarshal(tx.ld.Data, &tx.input); err != nil {
+	if err = ld.UnmarshalCBOR(tx.ld.Data, &tx.input); err != nil {
 		return fmt.Errorf("%s invalid data, %v", errPrefix, err)
 	}
 	switch {

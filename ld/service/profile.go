@@ -129,9 +129,9 @@ func (p *Profile) Bytes() []byte {
 }
 
 func (p *Profile) Unmarshal(data []byte) error {
-	return ld.DecMode.Unmarshal(data, p)
+	return ld.UnmarshalCBOR(data, p)
 }
 
 func (p *Profile) Marshal() ([]byte, error) {
-	return ld.EncMode.Marshal(p)
+	return ld.MarshalCBOR(p)
 }

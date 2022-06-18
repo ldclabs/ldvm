@@ -94,7 +94,7 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 
 	if len(tx.input.Data) > 0 {
 		u := uint64(0)
-		if err = ld.DecMode.Unmarshal(tx.input.Data, &u); err != nil {
+		if err = ld.UnmarshalCBOR(tx.input.Data, &u); err != nil {
 			return fmt.Errorf("%s invalid lockTime, %v", errPrefix, err)
 		}
 		tx.lockTime = u

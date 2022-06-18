@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-func JSONMarshalData(data []byte) json.RawMessage {
+func MarshalJSONData(data []byte) json.RawMessage {
 	switch {
 	case len(data) == 0 || json.Valid(data):
 		return data
@@ -30,7 +30,7 @@ func JSONMarshalData(data []byte) json.RawMessage {
 	}
 }
 
-func JSONUnmarshalData(data json.RawMessage) []byte {
+func UnmarshalJSONData(data json.RawMessage) []byte {
 	if last := len(data) - 1; last > 2 && data[0] == '"' && data[last] == '"' {
 		b := data[1:last]
 		if d, err := formatting.Decode(formatting.Hex, string(b)); err == nil {
@@ -40,8 +40,8 @@ func JSONUnmarshalData(data json.RawMessage) []byte {
 	return data
 }
 
-func NodeIDToStakeAddress(nodeIDs ...EthID) []EthID {
-	rt := make([]EthID, len(nodeIDs))
+func NodeIDToStakeAddress(nodeIDs ...EthID) EthIDs {
+	rt := make(EthIDs, len(nodeIDs))
 	for i, id := range nodeIDs {
 		rt[i] = id
 		rt[i][0] = '#'

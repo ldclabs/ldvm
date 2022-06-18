@@ -51,7 +51,7 @@ func TestEthID(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"`, string(data))
 
-	eids := make([]EthID, 0)
+	eids := make(EthIDs, 0)
 	err = json.Unmarshal([]byte(`[
 		"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
 	  "44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
@@ -513,7 +513,7 @@ func TestEthIDToStakeSymbol(t *testing.T) {
 
 	ldc, err := NewStake("#LDC")
 	assert.Nil(err)
-	ids := []EthID{
+	ids := EthIDs{
 		EthID(ldc),
 		EthIDEmpty,
 		Signer1.Address(),
