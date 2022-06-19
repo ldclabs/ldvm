@@ -43,7 +43,7 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -392,7 +392,7 @@ func TestTxUpdateData(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
 	_, err = NewTx(tt, true)
-	assert.ErrorContains(err, "invalid exSignatures: DeriveSigners: no signature")
+	assert.ErrorContains(err, "invalid exSignatures, DeriveSigners error: no signature")
 
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
@@ -535,7 +535,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		Nonces []int  `cbor:"no"`
 	}
 
-	data, err := ld.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
+	data, err := util.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
 	assert.NoError(err)
 
 	di := &ld.DataInfo{
@@ -575,9 +575,9 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid CBOR patch")
 
 	patch := cborpatch.Patch{
-		{Op: "add", Path: "/no/-", Value: ld.MustMarshalCBOR(4)},
+		{Op: "add", Path: "/no/-", Value: util.MustMarshalCBOR(4)},
 	}
-	patchdata := ld.MustMarshalCBOR(patch)
+	patchdata := util.MustMarshalCBOR(patch)
 	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: patchdata,
 	}
@@ -641,7 +641,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.Equal(bs.PDC[di.ID], di.Bytes())
 
 	var nc cborData
-	assert.NoError(ld.UnmarshalCBOR(di2.Data, &nc))
+	assert.NoError(util.UnmarshalCBOR(di2.Data, &nc))
 	assert.Equal([]int{1, 2, 3, 4}, nc.Nonces)
 
 	jsondata, err := itx.MarshalJSON()

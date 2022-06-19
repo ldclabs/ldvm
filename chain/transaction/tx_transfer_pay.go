@@ -24,7 +24,7 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxTransferPay.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxTransferPay.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -36,77 +36,80 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTransferPay) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxTransferPay.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxTransferPay.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s invalid to", errPrefix)
+		return errp.Errorf("invalid to")
 
 	case tx.ld.Amount == nil:
-		return fmt.Errorf("%s invalid amount", errPrefix)
+		return errp.Errorf("invalid amount")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxTransfer{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.From != nil && *tx.input.From != tx.ld.From:
-		return fmt.Errorf("%s invalid sender, expected %s, got %s",
-			errPrefix, *tx.input.From, tx.ld.From)
+		return errp.Errorf("invalid sender, expected %s, got %s",
+			*tx.input.From, tx.ld.From)
 
 	case tx.input.To == nil:
-		return fmt.Errorf("%s nil recipient", errPrefix)
+		return errp.Errorf("nil recipient")
 
 	case *tx.input.To != *tx.ld.To:
-		return fmt.Errorf("%s invalid recipient, expected %s, got %s",
-			errPrefix, tx.input.To, *tx.ld.To)
+		return errp.Errorf("invalid recipient, expected %s, got %s",
+			tx.input.To, *tx.ld.To)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, constants.NativeToken.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			constants.NativeToken.GoString(), tx.token.GoString())
 
 	case tx.input.Token != nil && tx.token != *tx.input.Token:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, tx.input.Token.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			tx.input.Token.GoString(), tx.token.GoString())
 
 	case tx.input.Amount == nil:
-		return fmt.Errorf("%s nil amount", errPrefix)
+		return errp.Errorf("nil amount")
 
 	case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
-		return fmt.Errorf("%s invalid amount, expected %v, got %v",
-			errPrefix, tx.input.Amount, tx.ld.Amount)
+		return errp.Errorf("invalid amount, expected %v, got %v",
+			tx.input.Amount, tx.ld.Amount)
 
 	case tx.input.Expire > 0 && tx.input.Expire < tx.ld.Timestamp:
-		return fmt.Errorf("%s data expired", errPrefix)
+		return errp.Errorf("data expired")
 	}
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
+		return errp.Errorf("invalid exSignatures, %v", err)
 	}
 	return nil
 }
 
 func (tx *TxTransferPay) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxTransferPay.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxTransferPay.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	if !tx.to.SatisfySigning(tx.exSigners) {
-		return fmt.Errorf("TxTransferPay.Verify failed: invalid exSignatures for recipient")
+		return errp.Errorf("invalid exSignatures for recipient")
 	}
 	return nil
 }

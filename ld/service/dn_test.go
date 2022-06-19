@@ -13,31 +13,31 @@ func TestDN(t *testing.T) {
 	assert := assert.New(t)
 
 	dn, err := NewDN("")
-	assert.ErrorContains(err, `NewDN(""): invalid utf8 name`)
+	assert.ErrorContains(err, `NewDN("") error: invalid utf8 name`)
 	assert.Nil(dn)
 
 	dn, err = NewDN(".")
-	assert.ErrorContains(err, `NewDN("."): ToASCII error, idna: invalid label "."`)
+	assert.ErrorContains(err, `NewDN(".") error: ToASCII error, idna: invalid label "."`)
 	assert.Nil(dn)
 
 	dn, err = NewDN(".com")
-	assert.ErrorContains(err, `NewDN(".com"): ToASCII error, idna: invalid label ".com"`)
+	assert.ErrorContains(err, `NewDN(".com") error: ToASCII error, idna: invalid label ".com"`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("abc.com")
-	assert.ErrorContains(err, `NewDN("abc.com"): invalid domain name, no trailing dot`)
+	assert.ErrorContains(err, `NewDN("abc.com") error: invalid domain name, no trailing dot`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("abc..com")
-	assert.ErrorContains(err, `NewDN("abc..com"): ToASCII error, idna: invalid label "abc..com"`)
+	assert.ErrorContains(err, `NewDN("abc..com") error: ToASCII error, idna: invalid label "abc..com"`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("abc_com")
-	assert.ErrorContains(err, `NewDN("abc_com"): ToASCII error, idna: disallowed rune`)
+	assert.ErrorContains(err, `NewDN("abc_com") error: ToASCII error, idna: disallowed rune`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("abc com")
-	assert.ErrorContains(err, `NewDN("abc com"): ToASCII error, idna: disallowed rune`)
+	assert.ErrorContains(err, `NewDN("abc com") error: ToASCII error, idna: disallowed rune`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("com.")
@@ -59,23 +59,23 @@ func TestDN(t *testing.T) {
 	assert.Equal("公信.com.", dn.String())
 
 	dn, err = NewDN("xn--vuq70b.公信.")
-	assert.ErrorContains(err, `NewDN("xn--vuq70b.公信."): invalid domain name`)
+	assert.ErrorContains(err, `NewDN("xn--vuq70b.公信.") error: invalid domain name`)
 	assert.Nil(dn)
 
 	dn, err = NewDN(":")
-	assert.ErrorContains(err, `NewDN(":"): ToASCII error, idna: invalid label ""`)
+	assert.ErrorContains(err, `NewDN(":") error: ToASCII error, idna: invalid label ""`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("did:")
-	assert.ErrorContains(err, `NewDN("did:"): ToASCII error, idna: invalid label ""`)
+	assert.ErrorContains(err, `NewDN("did:") error: ToASCII error, idna: invalid label ""`)
 	assert.Nil(dn)
 
 	dn, err = NewDN(":did")
-	assert.ErrorContains(err, `NewDN(":did"): ToASCII error, idna: invalid label ""`)
+	assert.ErrorContains(err, `NewDN(":did") error: ToASCII error, idna: invalid label ""`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("did::ldc")
-	assert.ErrorContains(err, `NewDN("did::ldc"): ToASCII error, idna: invalid label ""`)
+	assert.ErrorContains(err, `NewDN("did::ldc") error: ToASCII error, idna: invalid label ""`)
 	assert.Nil(dn)
 
 	dn, err = NewDN("com")
@@ -115,6 +115,6 @@ func TestDN(t *testing.T) {
 	assert.Equal("公信:公信", dn.String())
 
 	dn, err = NewDN("公信:xn--vuq70b")
-	assert.ErrorContains(err, `NewDN("公信:xn--vuq70b"): invalid decentralized name`)
+	assert.ErrorContains(err, `NewDN("公信:xn--vuq70b") error: invalid decentralized name`)
 	assert.Nil(dn)
 }

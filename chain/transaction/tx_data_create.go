@@ -29,7 +29,7 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxCreateModel.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxCreateModel.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -43,45 +43,46 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 // TxCreateData{ID, Version, To, Amount, Threshold, Keepers, Data, KSig, MSig, Expire} with model keepers
 func (tx *TxCreateData) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxCreateData.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxCreateData.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.ModelID == nil:
-		return fmt.Errorf("%s nil mid", errPrefix)
+		return errp.Errorf("nil mid")
 
 	case tx.input.Version != 1:
-		return fmt.Errorf("%s invalid version, expected 1, got %d", errPrefix, tx.input.Version)
+		return errp.Errorf("invalid version, expected 1, got %d", tx.input.Version)
 
 	case tx.input.Threshold == nil:
-		return fmt.Errorf("%s nil threshold", errPrefix)
+		return errp.Errorf("nil threshold")
 
 	case len(*tx.input.Keepers) == 0:
-		return fmt.Errorf("%s empty keepers", errPrefix)
+		return errp.Errorf("empty keepers")
 
 	case len(tx.input.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 
 	case tx.input.KSig == nil:
-		return fmt.Errorf("%s nil kSig", errPrefix)
+		return errp.Errorf("nil kSig")
 	}
 
 	tx.di = &ld.DataInfo{
@@ -97,47 +98,47 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		ID:          util.DataID(tx.ld.ShortID()),
 	}
 	if err := tx.di.VerifySig(tx.di.Keepers, tx.di.KSig); err != nil {
-		return fmt.Errorf("%s invalid kSig, %v", errPrefix, err)
+		return errp.Errorf("invalid kSig, %v", err)
 	}
 
 	if tx.input.To == nil {
 		switch {
 		case tx.ld.To != nil:
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+			return errp.Errorf("invalid to, should be nil")
 
 		case tx.ld.Amount != nil:
-			return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+			return errp.Errorf("invalid amount, should be nil")
 
 		case tx.ld.ExSignatures != nil:
-			return fmt.Errorf("%s invalid exSignatures, should be nil", errPrefix)
+			return errp.Errorf("invalid exSignatures, should be nil")
 
 		case tx.input.MSig != nil:
-			return fmt.Errorf("%s invalid mSig, should be nil", errPrefix)
+			return errp.Errorf("invalid mSig, should be nil")
 		}
 	} else {
 		// with model keepers
 		switch {
 		case tx.ld.To == nil || *tx.input.To != *tx.ld.To:
-			return fmt.Errorf("%s invalid to, expected %s, got %s",
-				errPrefix, tx.input.To, tx.ld.To)
+			return errp.Errorf("invalid to, expected %s, got %s",
+				tx.input.To, tx.ld.To)
 
 		case tx.input.Expire < tx.ld.Timestamp:
-			return fmt.Errorf("%s data expired", errPrefix)
+			return errp.Errorf("data expired")
 
 		case tx.input.MSig == nil:
-			return fmt.Errorf("%s nil mSig", errPrefix)
+			return errp.Errorf("nil mSig")
 
 		case tx.input.Amount == nil || tx.ld.Amount == nil:
-			return fmt.Errorf("%s nil amount", errPrefix)
+			return errp.Errorf("nil amount")
 
 		case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
-			return fmt.Errorf("%s invalid amount, expected %s, got %s",
-				errPrefix, tx.input.Amount, tx.ld.Amount)
+			return errp.Errorf("invalid amount, expected %s, got %s",
+				tx.input.Amount, tx.ld.Amount)
 		}
 
 		tx.exSigners, err = tx.ld.ExSigners()
 		if err != nil {
-			return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
+			return errp.Errorf("invalid exSignatures, %v", err)
 		}
 	}
 	return nil
@@ -146,29 +147,31 @@ func (tx *TxCreateData) SyntacticVerify() error {
 // VerifyGenesis skipping signature verification
 func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxCreateData.VerifyGenesis error: ")
+
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.ModelID == nil:
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: nil mid")
+		return errp.Errorf("nil mid")
 
 	case tx.input.Version != 1:
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: invalid version, expected 1")
+		return errp.Errorf("invalid version, expected 1")
 
 	case tx.input.Threshold == nil:
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: nil threshold")
+		return errp.Errorf("nil threshold")
 
 	case len(*tx.input.Keepers) == 0:
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: tx.input.Keepers keepers")
+		return errp.Errorf("tx.input.Keepers keepers")
 
 	case len(tx.input.Data) == 0:
-		return fmt.Errorf("TxCreateData.VerifyGenesis failed: invalid data")
+		return errp.Errorf("invalid data")
 	}
 
 	tx.di = &ld.DataInfo{
@@ -186,87 +189,88 @@ func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	tx.cost = new(big.Int)
 
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
-	errPrefix := "TxCreateData.Verify failed:"
+	errp := util.ErrPrefix("TxCreateData.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch tx.di.ModelID {
 	case constants.RawModelID:
 		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+			return errp.Errorf("invalid to, should be nil")
 		}
 		return nil
 
 	case constants.CBORModelID:
 		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+			return errp.Errorf("invalid to, should be nil")
 		}
-		if err = ld.ValidCBOR(tx.input.Data); err != nil {
-			return fmt.Errorf("%s invalid CBOR encoding data: %v", errPrefix, err)
+		if err = util.ValidCBOR(tx.input.Data); err != nil {
+			return errp.Errorf("invalid CBOR encoding data: %v", err)
 		}
 		return nil
 
 	case constants.JSONModelID:
 		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+			return errp.Errorf("invalid to, should be nil")
 		}
 		if !json.Valid(tx.input.Data) {
-			return fmt.Errorf("%s invalid JSON encoding data", errPrefix)
+			return errp.Errorf("invalid JSON encoding data")
 		}
 		return nil
 	}
 
 	mi, err := bs.LoadModel(tx.di.ModelID)
 	if err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case mi.Threshold == 0:
 		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+			return errp.Errorf("invalid to, should be nil")
 		}
 
 	case mi.Threshold > 0:
 		if tx.input.To == nil {
-			return fmt.Errorf("%s nil to", errPrefix)
+			return errp.Errorf("nil to")
 		}
 		if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
-			return fmt.Errorf("%s invalid mSig for model keepers, %v", errPrefix, err)
+			return errp.Errorf("invalid mSig for model keepers, %v", err)
 		}
 		if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
-			return fmt.Errorf("%s invalid exSignatures for model keepers", errPrefix)
+			return errp.Errorf("invalid exSignatures for model keepers")
 		}
 		tx.di.MSig = tx.input.MSig
 	}
 
 	if err = mi.Model().Valid(tx.di.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	if bctx.Chain().IsNameService(tx.di.ModelID) {
 		tx.name = &service.Name{}
 		if err = tx.name.Unmarshal(tx.di.Data); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 		if err = tx.name.SyntacticVerify(); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 		_, err = bs.ResolveNameID(tx.name.Name)
 		if err == nil {
-			return fmt.Errorf("%s name %s conflict", errPrefix, strconv.Quote(tx.name.Name))
+			return errp.Errorf("name %s conflict", strconv.Quote(tx.name.Name))
 		}
 	}
 	return nil
@@ -274,14 +278,15 @@ func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
 
 func (tx *TxCreateData) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxCreateData.Accept error: ")
 
 	if tx.name != nil {
 		if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 	}
 	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

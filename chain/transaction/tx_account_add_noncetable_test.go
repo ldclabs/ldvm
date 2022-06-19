@@ -38,7 +38,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -105,7 +105,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := []uint64{10}
-	inputData, err := ld.MarshalCBOR(input)
+	inputData, err := util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -124,7 +124,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	for i := range input {
 		input[i] = uint64(i)
 	}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -140,7 +140,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "too many nonces, expected <= 1024, got 1025")
 
 	input = []uint64{bs.Timestamp() - 1, 123}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -158,7 +158,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "invalid expire time, expected > 1000, got 999")
 
 	input = []uint64{3600*24*30 + 2, 123}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -176,7 +176,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "invalid expire time, expected <= 2592001, got 2592002")
 
 	input = []uint64{bs.Timestamp() + 1, 1, 3, 7, 5}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -218,7 +218,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.Equal(`{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5],"signatures":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"gas":101,"id":"svYgQEJj8X7cydgowuZ3Dj4pZftQFA4fzVreLeVUbUbhGxkwS"}`, string(jsondata))
 
 	input = []uint64{bs.Timestamp() + 1, 2, 4, 1}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -238,7 +238,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs), "nonce 1 exists at 1001")
 
 	input = []uint64{bs.Timestamp() + 1, 2, 4, 6}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -263,7 +263,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, tx.from.ld.NonceTable[bs.Timestamp()+1])
 
 	input = []uint64{bs.Timestamp() + 2, 0}
-	inputData, err = ld.MarshalCBOR(input)
+	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,

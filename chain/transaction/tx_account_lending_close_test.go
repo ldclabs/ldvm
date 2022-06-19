@@ -39,7 +39,7 @@ func TestTxCloseLending(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -103,7 +103,7 @@ func TestTxCloseLending(t *testing.T) {
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending failed: invalid lending")
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending error: invalid lending")
 
 	input := &ld.LendingConfig{
 		Token:           token,
@@ -182,7 +182,7 @@ func TestTxCloseLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending failed: invalid lending")
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending error: invalid lending")
 
 	assert.NoError(bs.VerifyState())
 }

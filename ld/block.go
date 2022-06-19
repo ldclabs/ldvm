@@ -5,7 +5,6 @@ package ld
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -57,51 +56,51 @@ func (b *Block) TxsMarshalJSON() error {
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
-	errPrefix := "Block.SyntacticVerify failed:"
+	errp := util.ErrPrefix("Block.SyntacticVerify error: ")
 
 	switch {
 	case b == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case b.Height > 0 && b.Parent == ids.Empty:
-		return fmt.Errorf("%s invalid parent %s", errPrefix, b.Parent)
+		return errp.Errorf("invalid parent %s", b.Parent)
 
 	case b.Height > 0 && b.ParentState == ids.Empty:
-		return fmt.Errorf("%s invalid parent state %s", errPrefix, b.ParentState)
+		return errp.Errorf("invalid parent state %s", b.ParentState)
 
 	case b.State == ids.Empty || b.State == b.ParentState:
-		return fmt.Errorf("%s invalid state %s", errPrefix, b.State)
+		return errp.Errorf("invalid state %s", b.State)
 
 	case b.Timestamp > uint64(time.Now().Add(futureBound).Unix()):
-		return fmt.Errorf("%s invalid timestamp", errPrefix)
+		return errp.Errorf("invalid timestamp")
 
 	case b.GasRebateRate > 1000:
-		return fmt.Errorf("%s invalid gasRebateRate", errPrefix)
+		return errp.Errorf("invalid gasRebateRate")
 
 	case b.Miner != util.StakeEmpty && !b.Miner.Valid():
-		return fmt.Errorf("%s invalid miner address %s", errPrefix, b.Miner.GoString())
+		return errp.Errorf("invalid miner address %s", b.Miner.GoString())
 
 	case len(b.Validators) > 256:
-		return fmt.Errorf("%s too many validators", errPrefix)
+		return errp.Errorf("too many validators")
 
 	case len(b.Txs) == 0:
-		return fmt.Errorf("%s no txs", errPrefix)
+		return errp.Errorf("no txs")
 	}
 
 	for _, s := range b.Validators {
 		if !s.Valid() {
-			return fmt.Errorf("%s invalid validator address %s", errPrefix, s.GoString())
+			return errp.Errorf("invalid validator address %s", s.GoString())
 		}
 	}
 
 	var err error
 	for _, tx := range b.Txs {
 		if err = tx.SyntacticVerify(); err != nil {
-			return fmt.Errorf("%s %v", errPrefix, err)
+			return errp.ErrorIf(err)
 		}
 	}
 	if b.raw, err = b.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	b.ID = util.IDFromData(b.raw)
@@ -120,9 +119,16 @@ func (b *Block) Bytes() []byte {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, b)
+	if err := util.UnmarshalCBOR(data, b); err != nil {
+		return util.ErrPrefix("Block.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	return MarshalCBOR(b)
+	data, err := util.MarshalCBOR(b)
+	if err != nil {
+		return nil, util.ErrPrefix("Block.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

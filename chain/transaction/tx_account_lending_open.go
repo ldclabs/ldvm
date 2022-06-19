@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxOpenLending struct {
@@ -21,7 +22,7 @@ func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxOpenLending.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxOpenLending.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -33,50 +34,55 @@ func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
 
 func (tx *TxOpenLending) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxOpenLending.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxOpenLending.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		return errp.Errorf("invalid to, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.LendingConfig{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxOpenLending) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxOpenLending.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxOpenLending.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.from.CheckOpenLending(tx.input); err != nil {
-		return fmt.Errorf("TxOpenLending.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxOpenLending) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxOpenLending.Accept error: ")
+
 	if err = tx.from.OpenLending(tx.input); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

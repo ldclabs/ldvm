@@ -23,7 +23,7 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxWithdrawStake.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxWithdrawStake.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -35,71 +35,77 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 
 func (tx *TxWithdrawStake) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxWithdrawStake.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxWithdrawStake.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to as stake account", errPrefix)
+		return errp.Errorf("nil to as stake account")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	if stake := util.StakeSymbol(*tx.ld.To); !stake.Valid() {
-		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
+		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 
 	tx.input = &ld.TxTransfer{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, constants.NativeToken.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			constants.NativeToken.GoString(), tx.token.GoString())
 
 	case tx.input.Token != nil && tx.token != *tx.input.Token:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, tx.input.Token.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			tx.input.Token.GoString(), tx.token.GoString())
 
 	case tx.input.Amount == nil || tx.input.Amount.Sign() <= 0:
-		return fmt.Errorf("%s invalid amount, expected >= 1", errPrefix)
+		return errp.Errorf("invalid amount, expected >= 1")
 	}
 	return nil
 }
 
 func (tx *TxWithdrawStake) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxWithdrawStake.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxWithdrawStake.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
-	if err = tx.to.CheckWithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount); err != nil {
-		return fmt.Errorf("TxWithdrawStake.Verify failed: %v", err)
+	if err = tx.to.CheckWithdrawStake(
+		tx.token, tx.ld.From, tx.signers, tx.input.Amount); err != nil {
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxWithdrawStake) Accept(bctx BlockContext, bs BlockState) error {
+	errp := util.ErrPrefix("TxWithdrawStake.Accept error: ")
+
 	// must WithdrawStake and then Accept
 	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
 	if err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if err = tx.to.Sub(tx.token, withdraw); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if err = tx.from.Add(tx.token, withdraw); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

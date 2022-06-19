@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -29,40 +28,40 @@ type TxExchanger struct {
 
 // SyntacticVerify verifies that a *TxExchanger is well-formed.
 func (t *TxExchanger) SyntacticVerify() error {
-	errPrefix := "TxExchanger.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxExchanger.SyntacticVerify error: ")
 
 	switch {
 	case t == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case t.Nonce == 0:
-		return fmt.Errorf("%s invalid nonce", errPrefix)
+		return errp.Errorf("invalid nonce")
 
 	case !t.Sell.Valid():
-		return fmt.Errorf("%s invalid sell token symbol %s", errPrefix, strconv.Quote(t.Sell.GoString()))
+		return errp.Errorf("invalid sell token symbol %s", strconv.Quote(t.Sell.GoString()))
 
 	case !t.Receive.Valid():
-		return fmt.Errorf("%s invalid receive token symbol %s", errPrefix, strconv.Quote(t.Receive.GoString()))
+		return errp.Errorf("invalid receive token symbol %s", strconv.Quote(t.Receive.GoString()))
 
 	case t.Sell == t.Receive:
-		return fmt.Errorf("%s sell and receive token should not equal", errPrefix)
+		return errp.Errorf("sell and receive token should not equal")
 
 	case t.Minimum == nil || t.Minimum.Sign() < 1:
-		return fmt.Errorf("%s invalid minimum", errPrefix)
+		return errp.Errorf("invalid minimum")
 
 	case t.Quota == nil || t.Quota.Cmp(t.Minimum) < 0:
-		return fmt.Errorf("%s invalid quota", errPrefix)
+		return errp.Errorf("invalid quota")
 
 	case t.Price == nil || t.Price.Sign() < 1:
-		return fmt.Errorf("%s invalid price", errPrefix)
+		return errp.Errorf("invalid price")
 
 	case t.Payee == util.EthIDEmpty:
-		return fmt.Errorf("%s invalid payee", errPrefix)
+		return errp.Errorf("invalid payee")
 	}
 
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -75,9 +74,16 @@ func (t *TxExchanger) Bytes() []byte {
 }
 
 func (t *TxExchanger) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("TxExchanger.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *TxExchanger) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("TxExchanger.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

@@ -4,7 +4,7 @@
 package ld
 
 import (
-	"fmt"
+	"github.com/ldclabs/ldvm/util"
 )
 
 // TxTester TODO
@@ -17,14 +17,14 @@ type TxTester struct {
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
 func (t *TxTester) SyntacticVerify() error {
-	errPrefix := "TxTester.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxTester.SyntacticVerify error: ")
 	if t == nil {
-		return fmt.Errorf("%s invalid TxTester", errPrefix)
+		return errp.Errorf("invalid TxTester")
 	}
 
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -37,9 +37,16 @@ func (t *TxTester) Bytes() []byte {
 }
 
 func (t *TxTester) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("TxTester.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *TxTester) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("TxTester.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

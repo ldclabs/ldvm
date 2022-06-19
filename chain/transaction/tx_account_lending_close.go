@@ -4,7 +4,7 @@
 package transaction
 
 import (
-	"fmt"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxCloseLending struct {
@@ -13,39 +13,44 @@ type TxCloseLending struct {
 
 func (tx *TxCloseLending) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxCloseLending.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxCloseLending.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		return errp.Errorf("invalid to, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 	}
 	return nil
 }
 
 func (tx *TxCloseLending) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxCloseLending.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxCloseLending.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.from.CheckCloseLending(); err != nil {
-		return fmt.Errorf("TxCloseLending.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxCloseLending) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxCloseLending.Accept error: ")
+
 	if err = tx.from.CloseLending(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

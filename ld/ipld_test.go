@@ -6,6 +6,7 @@ package ld
 import (
 	"testing"
 
+	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,13 +17,13 @@ func TestIPLDModel(t *testing.T) {
 	type SomeModel string
 	`
 	_, err := NewIPLDModel("SomeModel", []byte(sch))
-	assert.ErrorContains(err, `NewIPLDModel "SomeModel" error: should be a map, list or struct`)
+	assert.ErrorContains(err, `NewIPLDModel("SomeModel") error: should be a map, list or struct`)
 
 	sch = `
 	type SomeModel {String:Any}
 	`
 	_, err = NewIPLDModel("SomeModel2", []byte(sch))
-	assert.ErrorContains(err, `NewIPLDModel "SomeModel2" error: type not found`)
+	assert.ErrorContains(err, `NewIPLDModel("SomeModel2") error: type not found`)
 
 	sch = `
 	abc
@@ -39,13 +40,13 @@ func TestIPLDModel(t *testing.T) {
 	assert.Equal(sch, string(im.Schema()))
 	assert.Equal("map", im.Type().TypeKind().String())
 
-	data, err := MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
+	data, err := util.MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
 	assert.NoError(err)
 	assert.NoError(im.Valid(data))
 
-	data, err = MarshalCBOR([]interface{}{"a", "b", 1})
+	data, err = util.MarshalCBOR([]interface{}{"a", "b", 1})
 	assert.NoError(err)
-	assert.ErrorContains(im.Valid(data), `IPLDModel "SomeModel" error`)
+	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").decode error`)
 
 	sch = `
 	type NameService struct {
@@ -57,15 +58,15 @@ func TestIPLDModel(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal("struct", im.Type().TypeKind().String())
 
-	data, err = MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
+	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
 	assert.NoError(err)
 	assert.NoError(im.Valid(data))
 
-	data, err = MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
+	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `invalid key: "x"`)
 
-	data, err = MarshalCBOR(map[string]interface{}{"n": "test"})
+	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test"})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `missing required fields`)
 }

@@ -160,7 +160,7 @@ func TestAccount(t *testing.T) {
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "maxTotalSupply should be nil")
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid maxTotalSupply, should be nil")
 
 	acc = &Account{
 		Type:       NativeAccount,
@@ -259,7 +259,7 @@ func TestAccount(t *testing.T) {
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
-	assert.ErrorContains(acc.SyntacticVerify(), "maxTotalSupply should be nil")
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid maxTotalSupply, should be nil")
 
 	acc = &Account{
 		Type:       StakeAccount,

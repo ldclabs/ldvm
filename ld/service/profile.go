@@ -69,62 +69,60 @@ func ProfileModel() (*ld.IPLDModel, error) {
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
 	var err error
-	errPrefix := "Profile.SyntacticVerify failed: "
+	errp := util.ErrPrefix("Profile.SyntacticVerify error: ")
 	switch {
 	case p == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case !util.ValidName(p.Name):
-		return fmt.Errorf("%s invalid name %s", errPrefix, strconv.Quote(p.Name))
+		return errp.Errorf("invalid name %s", strconv.Quote(p.Name))
 
 	case !util.ValidLink(p.Image):
-		return fmt.Errorf("%s invalid image %s", errPrefix, strconv.Quote(p.Image))
+		return errp.Errorf("invalid image %s", strconv.Quote(p.Image))
 
 	case !util.ValidLink(p.URL):
-		return fmt.Errorf("%s invalid url %s", errPrefix, strconv.Quote(p.URL))
+		return errp.Errorf("invalid url %s", strconv.Quote(p.URL))
 
 	case p.Follows == nil:
-		return fmt.Errorf("%s nil follows", errPrefix)
+		return errp.Errorf("nil follows")
 	}
 
 	if err = p.Follows.CheckDuplicate(); err != nil {
-		return fmt.Errorf("%s invalid follows, %v", errPrefix, err)
+		return errp.Errorf("invalid follows, %v", err)
 	}
 
 	if err = p.Follows.CheckEmptyID(); err != nil {
-		return fmt.Errorf("%s invalid follows, %v", errPrefix, err)
+		return errp.Errorf("invalid follows, %v", err)
 	}
 
 	if err = p.Members.CheckDuplicate(); err != nil {
-		return fmt.Errorf("%s invalid members, %v", errPrefix, err)
+		return errp.Errorf("invalid members, %v", err)
 	}
 
 	if err = p.Members.CheckEmptyID(); err != nil {
-		return fmt.Errorf("%s invalid members, %v", errPrefix, err)
+		return errp.Errorf("invalid members, %v", err)
 	}
 
 	if p.Extensions == nil {
-		return fmt.Errorf("%s nil extensions", errPrefix)
+		return errp.Errorf("nil extensions")
 	}
 	set := make(map[string]struct{}, len(p.Extensions))
 	for i, ex := range p.Extensions {
 		if ex == nil {
-			return fmt.Errorf("%s nil extension at %d", errPrefix, i)
+			return errp.Errorf("nil extension at %d", i)
 		}
 		if !util.ValidName(ex.Title) {
-			return fmt.Errorf("%s invalid extension title %s at %d",
-				errPrefix, strconv.Quote(ex.Title), i)
+			return errp.Errorf("invalid extension title %s at %d", strconv.Quote(ex.Title), i)
 		}
 		id := string(ex.ModelID[:]) + ex.Title
 		if _, ok := set[id]; ok {
-			return fmt.Errorf("%s %s exists in extensions at %d",
-				errPrefix, strconv.Quote(ex.Title), i)
+			return errp.Errorf("%s exists in extensions at %d", strconv.Quote(ex.Title), i)
 		}
 		set[id] = struct{}{}
 	}
 
 	if p.raw, err = p.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -137,9 +135,16 @@ func (p *Profile) Bytes() []byte {
 }
 
 func (p *Profile) Unmarshal(data []byte) error {
-	return ld.UnmarshalCBOR(data, p)
+	if err := util.UnmarshalCBOR(data, p); err != nil {
+		return util.ErrPrefix("Profile.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (p *Profile) Marshal() ([]byte, error) {
-	return ld.MarshalCBOR(p)
+	data, err := util.MarshalCBOR(p)
+	if err != nil {
+		return nil, util.ErrPrefix("Profile.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

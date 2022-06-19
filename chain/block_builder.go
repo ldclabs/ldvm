@@ -104,7 +104,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	nblk.InitState(preferred.State().VersionDB(), false)
 	vbs, err := nblk.State().DeriveState()
 	if err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
 
 	// 1. BuildMiner
@@ -115,12 +115,12 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		for i := range txs {
 			nvbs, err := vbs.DeriveState()
 			if err != nil {
-				return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+				return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 			}
 			tx := txs[i]
 			switch {
 			case tx.Type == ld.TypeTest:
-				tx.Err = fmt.Errorf("BlockBuilder.Build failed: TextTx should be in Batch Tx")
+				tx.Err = fmt.Errorf("BlockBuilder.Build error: TextTx should be in Batch Tx")
 				status = choices.Rejected
 			case tx.IsBatched():
 				status = nblk.BuildTxs(nvbs, tx.Txs()...)
@@ -141,16 +141,16 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas, ts)
 	}
 	if len(blk.Txs) == 0 {
-		return nil, fmt.Errorf("BlockBuilder.Build failed: no txs to build")
+		return nil, fmt.Errorf("BlockBuilder.Build error: no txs to build")
 	}
 
 	// 3. BuildMinerFee
 	if err := nblk.BuildMinerFee(vbs); err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
 	// 4. BuildState
 	if err := nblk.BuildState(vbs); err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build failed: %v", err)
+		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
 	b.lastBuildHeight = blk.Height
 	logging.Log.Info("Build block %s at %d", blk.ID, blk.Height)

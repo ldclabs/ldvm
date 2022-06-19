@@ -37,8 +37,9 @@ func (id Signature) MarshalText() ([]byte, error) {
 }
 
 func (id *Signature) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("Signature.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("Signature.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -53,7 +54,7 @@ func (id *Signature) UnmarshalText(b []byte) error {
 	case len(sid) == crypto.SignatureLength:
 		copy(id[:], sid)
 	default:
-		return fmt.Errorf("Signature.UnmarshalText failed: invalid bytes length, expected 64, got %d", len(sid))
+		return errp.Errorf("invalid bytes length, expected 65, got %d", len(sid))
 	}
 	return err
 }
@@ -63,8 +64,9 @@ func (id Signature) MarshalJSON() ([]byte, error) {
 }
 
 func (id *Signature) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("Signature.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("Signature.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -73,26 +75,31 @@ func (id *Signature) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("Signature.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	return id.UnmarshalText([]byte(str[1:lastIndex]))
 }
 
 func (id Signature) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("Signature.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *Signature) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("Signature.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("Signature.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
 	if err := cbor.Unmarshal(data, &b); err != nil {
 		return err
 	}
 	if len(b) != crypto.SignatureLength {
-		return fmt.Errorf("Signature.UnmarshalCBOR failed: invalid bytes length, expected 65, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 65, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	return nil
@@ -102,7 +109,7 @@ func SignaturesFromStrings(ss []string) ([]Signature, error) {
 	sigs := make([]Signature, len(ss))
 	for i, s := range ss {
 		if err := (&sigs[i]).UnmarshalText([]byte(s)); err != nil {
-			return nil, err
+			return nil, ErrPrefix("SignaturesFromStrings error: ").ErrorIf(err)
 		}
 	}
 	return sigs, nil
@@ -115,50 +122,53 @@ func Sign(data []byte, priv *ecdsa.PrivateKey) (Signature, error) {
 
 func SignHash(datahash []byte, priv *ecdsa.PrivateKey) (Signature, error) {
 	sig := Signature{}
+	errp := ErrPrefix("SignHash error: ")
 	data, err := crypto.Sign(datahash, priv)
 	if err != nil {
-		return sig, err
+		return sig, errp.ErrorIf(err)
 	}
 	if len(data) != crypto.SignatureLength {
-		return sig, fmt.Errorf("Sign: invalid signature length, expected 65, got %d", len(data))
+		return sig, errp.Errorf("invalid signature length, expected 65, got %d", len(data))
 	}
 	copy(sig[:], data)
 	return sig, nil
 }
 
 func DeriveSigner(data []byte, sig []byte) (EthID, error) {
+	errp := ErrPrefix("DeriveSigner error: ")
 	if len(data) == 0 {
-		return EthIDEmpty, fmt.Errorf("DeriveSigner: empty data")
+		return EthIDEmpty, errp.Errorf("empty data")
 	}
 	if len(sig) != crypto.SignatureLength {
-		return EthIDEmpty, fmt.Errorf("DeriveSigner: invalid signature")
+		return EthIDEmpty, errp.Errorf("invalid signature")
 	}
 	dh := sha3.Sum256(data)
 	pk, err := DerivePublicKey(dh[:], sig)
 	if err != nil {
-		return EthIDEmpty, fmt.Errorf("DeriveSigner: %v", err)
+		return EthIDEmpty, errp.ErrorIf(err)
 	}
 	return EthID(crypto.PubkeyToAddress(*pk)), nil
 }
 
 func DeriveSigners(data []byte, sigs []Signature) (EthIDs, error) {
+	errp := ErrPrefix("DeriveSigners error: ")
 	if len(data) == 0 {
-		return nil, fmt.Errorf("DeriveSigners: empty data")
+		return nil, errp.Errorf("empty data")
 	}
 	if len(sigs) == 0 {
-		return nil, fmt.Errorf("DeriveSigners: no signature")
+		return nil, errp.Errorf("no signature")
 	}
 	signers := make(EthIDs, len(sigs))
 	dh := sha3.Sum256(data)
 	for i, sig := range sigs {
 		pk, err := DerivePublicKey(dh[:], sig[:])
 		if err != nil {
-			return nil, fmt.Errorf("DeriveSigners: %v", err)
+			return nil, errp.ErrorIf(err)
 		}
 		signers[i] = EthID(crypto.PubkeyToAddress(*pk))
 	}
 	if err := signers.CheckDuplicate(); err != nil {
-		return nil, fmt.Errorf("DeriveSigners: %v", err)
+		return nil, errp.ErrorIf(err)
 	}
 	return signers, nil
 }

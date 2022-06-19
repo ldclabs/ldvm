@@ -40,7 +40,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
@@ -294,7 +294,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.ErrorContains(err,
-		"DeriveSigners: duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"DeriveSigners error: duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,

@@ -6,15 +6,12 @@ package util
 import (
 	"encoding/base32"
 	"encoding/hex"
-	"fmt"
 	"strconv"
 	"strings"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/fxamacker/cbor/v2"
+	"golang.org/x/crypto/sha3"
 )
 
 // EthID ==========
@@ -41,8 +38,9 @@ func (id EthID) MarshalText() ([]byte, error) {
 }
 
 func (id *EthID) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("EthID.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("EthID.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -67,7 +65,7 @@ func (id *EthID) UnmarshalText(b []byte) error {
 	if err == nil {
 		*id = EthID(sid)
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (id EthID) MarshalJSON() ([]byte, error) {
@@ -75,8 +73,9 @@ func (id EthID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *EthID) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("EthID.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("EthID.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -86,27 +85,32 @@ func (id *EthID) UnmarshalJSON(b []byte) error {
 
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("EthID.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	return errp.ErrorIf(id.UnmarshalText([]byte(str)))
 }
 
 func (id EthID) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("EthID.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *EthID) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("EthID.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("EthID.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
-	if err := cbor.Unmarshal(data, &b); err != nil {
+	if err := UnmarshalCBOR(data, &b); err != nil {
 		return err
 	}
 	if len(b) != 20 {
-		return fmt.Errorf("EthID.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	return nil
@@ -137,7 +141,7 @@ func ModelIDFromString(str string) (ModelID, error) {
 	}
 	id, err := ids.ShortFromPrefixedString(str, "LM")
 	if err != nil {
-		return ModelIDEmpty, err
+		return ModelIDEmpty, ErrPrefix("ModelIDFromString error: ").ErrorIf(err)
 	}
 	return ModelID(id), nil
 }
@@ -155,8 +159,9 @@ func (id ModelID) MarshalText() ([]byte, error) {
 }
 
 func (id *ModelID) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("ModelID.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("ModelID.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -168,7 +173,7 @@ func (id *ModelID) UnmarshalText(b []byte) error {
 	if err == nil {
 		*id = sid
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (id ModelID) MarshalJSON() ([]byte, error) {
@@ -176,8 +181,9 @@ func (id ModelID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *ModelID) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("ModelID.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("ModelID.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -186,7 +192,7 @@ func (id *ModelID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("ModelID.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	str = str[1:lastIndex]
@@ -194,19 +200,24 @@ func (id *ModelID) UnmarshalJSON(b []byte) error {
 }
 
 func (id ModelID) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("ModelID.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *ModelID) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("ModelID.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("ModelID.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
-	if err := cbor.Unmarshal(data, &b); err != nil {
+	if err := UnmarshalCBOR(data, &b); err != nil {
 		return err
 	}
 	if len(b) != 20 {
-		return fmt.Errorf("ModelID.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	return nil
@@ -223,7 +234,7 @@ func DataIDFromString(str string) (DataID, error) {
 	}
 	id, err := ids.ShortFromPrefixedString(str, "LD")
 	if err != nil {
-		return DataIDEmpty, err
+		return DataIDEmpty, ErrPrefix("DataIDFromString error: ").ErrorIf(err)
 	}
 	return DataID(id), nil
 }
@@ -241,8 +252,9 @@ func (id DataID) MarshalText() ([]byte, error) {
 }
 
 func (id *DataID) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("DataID.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -254,7 +266,7 @@ func (id *DataID) UnmarshalText(b []byte) error {
 	if err == nil {
 		*id = sid
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (id DataID) MarshalJSON() ([]byte, error) {
@@ -262,8 +274,9 @@ func (id DataID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *DataID) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("DataID.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -272,7 +285,7 @@ func (id *DataID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("DataID.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	str = str[1:lastIndex]
@@ -280,19 +293,24 @@ func (id *DataID) UnmarshalJSON(b []byte) error {
 }
 
 func (id DataID) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("DataID.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *DataID) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("DataID.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
-	if err := cbor.Unmarshal(data, &b); err != nil {
+	if err := UnmarshalCBOR(data, &b); err != nil {
 		return err
 	}
 	if len(b) != 20 {
-		return fmt.Errorf("DataID.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	return nil
@@ -316,7 +334,7 @@ func NewToken(s string) (TokenSymbol, error) {
 		}
 	}
 
-	return symbol, fmt.Errorf("NewToken: invalid token symbol %s", strconv.Quote(s))
+	return symbol, ErrPrefix("NewToken error: ").Errorf("invalid token symbol %s", strconv.Quote(s))
 }
 
 func (id TokenSymbol) String() string {
@@ -363,8 +381,9 @@ func (id TokenSymbol) MarshalText() ([]byte, error) {
 }
 
 func (id *TokenSymbol) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("TokenSymbol.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("TokenSymbol.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -376,7 +395,7 @@ func (id *TokenSymbol) UnmarshalText(b []byte) error {
 	if err == nil {
 		*id = sid
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (id TokenSymbol) MarshalJSON() ([]byte, error) {
@@ -384,8 +403,9 @@ func (id TokenSymbol) MarshalJSON() ([]byte, error) {
 }
 
 func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("TokenSymbol.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("TokenSymbol.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -394,7 +414,7 @@ func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("TokenSymbol.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	str = str[1:lastIndex]
@@ -402,23 +422,28 @@ func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
 }
 
 func (id TokenSymbol) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("TokenSymbol.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *TokenSymbol) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("TokenSymbol.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("TokenSymbol.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
-	if err := cbor.Unmarshal(data, &b); err != nil {
+	if err := UnmarshalCBOR(data, &b); err != nil {
 		return err
 	}
 	if len(b) != 20 {
-		return fmt.Errorf("TokenSymbol.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	if !id.Valid() {
-		return fmt.Errorf("TokenSymbol.UnmarshalCBOR failed: invalid TokenSymbol: %s", id.GoString())
+		return errp.Errorf("invalid TokenSymbol: %s", id.GoString())
 	}
 	return nil
 }
@@ -441,7 +466,7 @@ func NewStake(s string) (StakeSymbol, error) {
 		}
 	}
 
-	return symbol, fmt.Errorf("NewStake: invalid stake symbol")
+	return symbol, ErrPrefix("NewStake error: ").Errorf("invalid stake symbol")
 }
 
 func (id StakeSymbol) String() string {
@@ -485,8 +510,9 @@ func (id StakeSymbol) MarshalText() ([]byte, error) {
 }
 
 func (id *StakeSymbol) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("StakeSymbol.UnmarshalText error: ")
 	if id == nil {
-		return fmt.Errorf("StakeSymbol.UnmarshalText failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -498,7 +524,7 @@ func (id *StakeSymbol) UnmarshalText(b []byte) error {
 	if err == nil {
 		*id = sid
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (id StakeSymbol) MarshalJSON() ([]byte, error) {
@@ -506,8 +532,9 @@ func (id StakeSymbol) MarshalJSON() ([]byte, error) {
 }
 
 func (id *StakeSymbol) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("StakeSymbol.UnmarshalJSON error: ")
 	if id == nil {
-		return fmt.Errorf("StakeSymbol.UnmarshalJSON failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	str := string(b)
@@ -516,7 +543,7 @@ func (id *StakeSymbol) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return fmt.Errorf("StakeSymbol.UnmarshalJSON failed: invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %s", strconv.Quote(str))
 	}
 
 	str = str[1:lastIndex]
@@ -524,23 +551,28 @@ func (id *StakeSymbol) UnmarshalJSON(b []byte) error {
 }
 
 func (id StakeSymbol) MarshalCBOR() ([]byte, error) {
-	return cbor.Marshal(id[:])
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("StakeSymbol.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (id *StakeSymbol) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("StakeSymbol.UnmarshalCBOR error: ")
 	if id == nil {
-		return fmt.Errorf("StakeSymbol.UnmarshalCBOR failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	var b []byte
-	if err := cbor.Unmarshal(data, &b); err != nil {
-		return err
+	if err := UnmarshalCBOR(data, &b); err != nil {
+		return errp.ErrorIf(err)
 	}
 	if len(b) != 20 {
-		return fmt.Errorf("StakeSymbol.UnmarshalCBOR failed: invalid bytes length, expected 20, got %d", len(b))
+		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
 	}
 	copy((*id)[:], b)
 	if *id != StakeEmpty && !id.Valid() {
-		return fmt.Errorf("StakeSymbol.UnmarshalCBOR failed: invalid StakeSymbol: %s", id.GoString())
+		return errp.Errorf("invalid StakeSymbol: %s", id.GoString())
 	}
 	return nil
 }

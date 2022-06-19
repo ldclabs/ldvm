@@ -40,7 +40,7 @@ func TestTxCreateModel(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateModel,
@@ -107,7 +107,7 @@ func TestTxCreateModel(t *testing.T) {
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.ModelInfo{}
-	assert.ErrorContains(input.SyntacticVerify(), "ModelInfo.SyntacticVerify failed: invalid name")
+	assert.ErrorContains(input.SyntacticVerify(), "ModelInfo.SyntacticVerify error: invalid name")
 	ipldm, err := service.ProfileModel()
 	assert.NoError(err)
 	input = &ld.ModelInfo{

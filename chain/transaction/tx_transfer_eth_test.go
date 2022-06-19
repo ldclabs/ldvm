@@ -94,7 +94,7 @@ func TestTxEth(t *testing.T) {
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 228, got 0")
+		"TxBase.Verify error: invalid gas, expected 228, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)

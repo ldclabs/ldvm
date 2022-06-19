@@ -22,7 +22,7 @@ func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxResetStakeAccount.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxResetStakeAccount.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -34,61 +34,66 @@ func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
 
 func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxResetStakeAccount.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxResetStakeAccount.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		return errp.Errorf("invalid to, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	if stake := util.StakeSymbol(tx.ld.From); !stake.Valid() {
-		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
+		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 
 	tx.input = &ld.StakeConfig{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	if tx.input.LockTime < tx.ld.Timestamp {
-		return fmt.Errorf("%s invalid lockTime, expected >= %d", errPrefix, tx.ld.Timestamp)
+		return errp.Errorf("invalid lockTime, expected >= %d", tx.ld.Timestamp)
 	}
 	return nil
 }
 
 func (tx *TxResetStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxResetStakeAccount.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("TxResetStakeAccount.Verify failed: invalid signatures for stake keepers")
+		return errp.Errorf("invalid signatures for stake keepers")
 	}
 	if err = tx.from.CheckResetStake(tx.input); err != nil {
-		return fmt.Errorf("TxResetStakeAccount.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxResetStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
+	errp := util.ErrPrefix("TxResetStakeAccount.Accept error: ")
+
 	if err := tx.TxBase.Accept(bctx, bs); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	// do it after TxBase.Accept
-	return tx.from.ResetStake(tx.input)
+	return errp.ErrorIf(tx.from.ResetStake(tx.input))
 }

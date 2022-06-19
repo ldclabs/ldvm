@@ -60,7 +60,7 @@ func TestTxBase(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(1000),
 	}).ToTransaction()}
 	assert.NoError(tx.ld.SyntacticVerify())
-	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigners: no signature")
+	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigners error: no signature")
 
 	// Verify
 	tx = &TxBase{ld: (&ld.TxData{

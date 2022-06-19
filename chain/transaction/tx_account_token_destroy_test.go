@@ -40,7 +40,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
@@ -351,7 +351,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.NoError(err)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid signature for approver")
+		"TxBase.Verify error: invalid signature for approver")
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
@@ -370,7 +370,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 
 	// AddNonceTable
 	ns := []uint64{bs.Timestamp() + 1, 1, 2, 3}
-	ndData, err := ld.MarshalCBOR(ns)
+	ndData, err := util.MarshalCBOR(ns)
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -444,7 +444,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid signature for approver")
+		"TxBase.Verify error: invalid signature for approver")
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
@@ -532,7 +532,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid signatures for sender")
+		"TxBase.Verify error: invalid signatures for sender")
 
 	assert.NoError(bs.VerifyState())
 }

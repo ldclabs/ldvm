@@ -19,10 +19,10 @@ type DataInfo struct {
 	// the maximum value is len(keepers)
 	Threshold uint16 `cbor:"th" json:"threshold"`
 	// keepers who owned this data, no more than 1024
-	Keepers     util.EthIDs `cbor:"kp" json:"keepers"`
-	Approver    *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes     `cbor:"apl,omitempty" json:"approveList,omitempty"`
-	Data        RawData     `cbor:"d" json:"data"`
+	Keepers     util.EthIDs  `cbor:"kp" json:"keepers"`
+	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Data        util.RawData `cbor:"d" json:"data"`
 	// full data signature signing by Data Keeper
 	KSig util.Signature `cbor:"ks" json:"kSig"`
 	// full data signature signing by ModelService Authority
@@ -59,50 +59,50 @@ func (t *DataInfo) Clone() *DataInfo {
 // SyntacticVerify verifies that a *DataInfo is well-formed.
 func (t *DataInfo) SyntacticVerify() error {
 	var err error
-	errPrefix := "DataInfo.SyntacticVerify failed:"
+	errp := util.ErrPrefix("DataInfo.SyntacticVerify error: ")
 
 	switch {
 	case t == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case len(t.Keepers) > MaxKeepers:
-		return fmt.Errorf("%s too many keepers", errPrefix)
+		return errp.Errorf("too many keepers")
 
 	case int(t.Threshold) > len(t.Keepers):
-		return fmt.Errorf("%s invalid threshold", errPrefix)
+		return errp.Errorf("invalid threshold")
 
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
-		return fmt.Errorf("%s invalid approver", errPrefix)
+		return errp.Errorf("invalid approver")
 	}
 
 	if err = t.Keepers.CheckDuplicate(); err != nil {
-		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+		return errp.Errorf("invalid keepers, %v", err)
 	}
 
 	if err = t.Keepers.CheckEmptyID(); err != nil {
-		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+		return errp.Errorf("invalid keepers, %v", err)
 	}
 
 	if t.ApproveList != nil {
 		if err = t.ApproveList.CheckDuplicate(); err != nil {
-			return fmt.Errorf("%s invalid approveList, %v", errPrefix, err)
+			return errp.Errorf("invalid approveList, %v", err)
 		}
 
 		for _, ty := range t.ApproveList {
 			if !DataTxTypes.Has(ty) {
-				return fmt.Errorf("%s invalid TxType %s in approveList", errPrefix, ty)
+				return errp.Errorf("invalid TxType %s in approveList", ty)
 			}
 		}
 	}
 
 	if t.KSig != util.SignatureEmpty && len(t.Keepers) > 0 {
 		if err = t.VerifySig(t.Keepers, t.KSig); err != nil {
-			return fmt.Errorf("%s invalid kSig, %v", errPrefix, err)
+			return errp.Errorf("invalid kSig, %v", err)
 		}
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -136,9 +136,16 @@ func (t *DataInfo) Bytes() []byte {
 }
 
 func (t *DataInfo) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("DataInfo.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *DataInfo) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("DataInfo.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

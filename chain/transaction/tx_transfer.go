@@ -4,10 +4,10 @@
 package transaction
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTransfer struct {
@@ -16,16 +16,18 @@ type TxTransfer struct {
 
 func (tx *TxTransfer) SyntacticVerify() error {
 	var err error
+	errp := util.ErrPrefix("TxTransfer.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid to")
+		return errp.Errorf("invalid to")
 
 	case tx.ld.Amount == nil:
-		return fmt.Errorf("TxTransfer.SyntacticVerify failed: invalid amount")
+		return errp.Errorf("invalid amount")
 	}
 	return nil
 }
@@ -33,22 +35,24 @@ func (tx *TxTransfer) SyntacticVerify() error {
 // VerifyGenesis skipping signature verification
 func (tx *TxTransfer) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxTransfer.VerifyGenesis error: ")
+
 	tx.amount = new(big.Int).Set(tx.ld.Amount)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
 	if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
