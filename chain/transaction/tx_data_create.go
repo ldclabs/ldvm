@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -20,9 +19,8 @@ type TxCreateData struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataInfo
+	di        *ld.DataInfo
 	name      *service.Name
-	mSigner   *util.EthID
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
@@ -86,12 +84,20 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		return fmt.Errorf("%s nil kSig", errPrefix)
 	}
 
-	kSigner, err := util.DeriveSigner(tx.input.Data, (*tx.input.KSig)[:])
-	if err != nil {
-		return fmt.Errorf("%s invalid kSig: %v", errPrefix, err)
+	tx.di = &ld.DataInfo{
+		ModelID:     *tx.input.ModelID,
+		Version:     1,
+		Threshold:   *tx.input.Threshold,
+		Keepers:     *tx.input.Keepers,
+		Approver:    tx.input.Approver,
+		ApproveList: tx.input.ApproveList,
+		Data:        tx.input.Data,
+		KSig:        *tx.input.KSig,
+		MSig:        tx.input.MSig,
+		ID:          util.DataID(tx.ld.ShortID()),
 	}
-	if !tx.input.Keepers.Has(kSigner) {
-		return fmt.Errorf("%s invalid kSig for keepers", errPrefix)
+	if err := tx.di.VerifySig(tx.di.Keepers, tx.di.KSig); err != nil {
+		return fmt.Errorf("%s invalid kSig, %v", errPrefix, err)
 	}
 
 	if tx.input.To == nil {
@@ -101,6 +107,12 @@ func (tx *TxCreateData) SyntacticVerify() error {
 
 		case tx.ld.Amount != nil:
 			return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+		case tx.ld.ExSignatures != nil:
+			return fmt.Errorf("%s invalid exSignatures, should be nil", errPrefix)
+
+		case tx.input.MSig != nil:
+			return fmt.Errorf("%s invalid mSig, should be nil", errPrefix)
 		}
 	} else {
 		// with model keepers
@@ -123,29 +135,10 @@ func (tx *TxCreateData) SyntacticVerify() error {
 				errPrefix, tx.input.Amount, tx.ld.Amount)
 		}
 
-		mSigner, err := util.DeriveSigner(tx.input.Data, (*tx.input.MSig)[:])
-		if err != nil {
-			return fmt.Errorf("%s invalid mSig: %v", errPrefix, err)
-		}
-		tx.mSigner = &mSigner
-
 		tx.exSigners, err = tx.ld.ExSigners()
 		if err != nil {
 			return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
 		}
-	}
-
-	tx.dm = &ld.DataInfo{
-		ModelID:     *tx.input.ModelID,
-		Version:     1,
-		Threshold:   *tx.input.Threshold,
-		Keepers:     *tx.input.Keepers,
-		Approver:    tx.input.Approver,
-		ApproveList: tx.input.ApproveList,
-		Data:        tx.input.Data,
-		KSig:        *tx.input.KSig,
-		MSig:        tx.input.MSig,
-		ID:          util.DataID(tx.ld.ShortID()),
 	}
 	return nil
 }
@@ -164,17 +157,21 @@ func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	switch {
 	case tx.input.ModelID == nil:
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: nil mid")
+
 	case tx.input.Version != 1:
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: invalid version, expected 1")
+
 	case tx.input.Threshold == nil:
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: nil threshold")
+
 	case len(*tx.input.Keepers) == 0:
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: tx.input.Keepers keepers")
+
 	case len(tx.input.Data) == 0:
 		return fmt.Errorf("TxCreateData.VerifyGenesis failed: invalid data")
 	}
 
-	tx.dm = &ld.DataInfo{
+	tx.di = &ld.DataInfo{
 		ModelID:   *tx.input.ModelID,
 		Version:   1,
 		Threshold: *tx.input.Threshold,
@@ -205,41 +202,63 @@ func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	switch tx.dm.ModelID {
+	switch tx.di.ModelID {
 	case constants.RawModelID:
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		}
 		return nil
+
 	case constants.CBORModelID:
-		if err = cbor.Valid(tx.input.Data); err != nil {
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		}
+		if err = ld.ValidCBOR(tx.input.Data); err != nil {
 			return fmt.Errorf("%s invalid CBOR encoding data: %v", errPrefix, err)
 		}
 		return nil
+
 	case constants.JSONModelID:
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		}
 		if !json.Valid(tx.input.Data) {
 			return fmt.Errorf("%s invalid JSON encoding data", errPrefix)
 		}
 		return nil
 	}
 
-	mm, err := bs.LoadModel(tx.dm.ModelID)
+	mi, err := bs.LoadModel(tx.di.ModelID)
 	if err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
-	if mm.Threshold > 0 {
-		if tx.mSigner == nil || !mm.Keepers.Has(*tx.mSigner) {
-			return fmt.Errorf("%s invalid mSig for model keepers", errPrefix)
+
+	switch {
+	case mi.Threshold == 0:
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 		}
-		if !util.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
+
+	case mi.Threshold > 0:
+		if tx.input.To == nil {
+			return fmt.Errorf("%s nil to", errPrefix)
+		}
+		if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
+			return fmt.Errorf("%s invalid mSig for model keepers, %v", errPrefix, err)
+		}
+		if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
 			return fmt.Errorf("%s invalid exSignatures for model keepers", errPrefix)
 		}
+		tx.di.MSig = tx.input.MSig
 	}
 
-	if err = mm.Model().Valid(tx.dm.Data); err != nil {
+	if err = mi.Model().Valid(tx.di.Data); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if bctx.Chain().IsNameService(tx.dm.ModelID) {
+	if bctx.Chain().IsNameService(tx.di.ModelID) {
 		tx.name = &service.Name{}
-		if err = tx.name.Unmarshal(tx.dm.Data); err != nil {
+		if err = tx.name.Unmarshal(tx.di.Data); err != nil {
 			return err
 		}
 		if err = tx.name.SyntacticVerify(); err != nil {
@@ -257,11 +276,11 @@ func (tx *TxCreateData) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
 	if tx.name != nil {
-		if err = bs.SetName(tx.name.Name, tx.dm.ID); err != nil {
+		if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
 			return err
 		}
 	}
-	if err = bs.SaveData(tx.dm.ID, tx.dm); err != nil {
+	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

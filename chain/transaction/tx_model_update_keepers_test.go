@@ -193,14 +193,14 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 
 	ipldm, err := service.ProfileModel()
 	assert.NoError(err)
-	mm := &ld.ModelInfo{
+	mi := &ld.ModelInfo{
 		Name:      ipldm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      ipldm.Schema(),
 	}
-	assert.NoError(mm.SyntacticVerify())
-	assert.NoError(bs.SaveModel(mid, mm))
+	assert.NoError(mi.SyntacticVerify())
+	assert.NoError(bs.SaveModel(mid, mi))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
@@ -211,10 +211,10 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	mm, err = bs.LoadModel(mid)
+	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)
-	assert.NotNil(mm.Approver)
-	assert.Equal(approver, *mm.Approver)
+	assert.NotNil(mi.Approver)
+	assert.Equal(approver, *mi.Approver)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -265,10 +265,10 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	mm, err = bs.LoadModel(mid)
+	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)
-	assert.Nil(mm.Approver)
-	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, mm.Keepers)
+	assert.Nil(mi.Approver)
+	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, mi.Keepers)
 
 	// check SatisfySigningPlus
 	input = ld.TxUpdater{
@@ -311,11 +311,11 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	mm, err = bs.LoadModel(mid)
+	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)
-	assert.Nil(mm.Approver)
-	assert.Equal(uint16(0), mm.Threshold)
-	assert.Equal(util.EthIDs{util.Signer2.Address()}, mm.Keepers)
+	assert.Nil(mi.Approver)
+	assert.Equal(uint16(0), mi.Threshold)
+	assert.Equal(util.EthIDs{util.Signer2.Address()}, mi.Keepers)
 
 	assert.NoError(bs.VerifyState())
 }

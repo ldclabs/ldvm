@@ -10,7 +10,7 @@ import (
 )
 
 type DataInfo struct {
-	ModelID util.ModelID `cbor:"mid" json:"mid"` // model id
+	ModelID util.ModelID `cbor:"m" json:"mid"` // model id
 	// data version，the initial value is 1, should increase 1 when updating,
 	// 0 indicates that the data is invalid, for example, deleted or punished.
 	Version uint64 `cbor:"v" json:"version"`
@@ -96,17 +96,24 @@ func (t *DataInfo) SyntacticVerify() error {
 	}
 
 	if t.KSig != util.SignatureEmpty && len(t.Keepers) > 0 {
-		kSigner, err := util.DeriveSigner(t.Data, t.KSig[:])
-		if err != nil {
-			return fmt.Errorf("%s %v", errPrefix, err)
-		}
-		if !t.Keepers.Has(kSigner) {
-			return fmt.Errorf("%s invalid kSig", errPrefix)
+		if err = t.VerifySig(t.Keepers, t.KSig); err != nil {
+			return fmt.Errorf("%s invalid kSig, %v", errPrefix, err)
 		}
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
+	}
+	return nil
+}
+
+func (t *DataInfo) VerifySig(signers util.EthIDs, sig util.Signature) error {
+	signer, err := util.DeriveSigner(t.Data, sig[:])
+	switch {
+	case err != nil:
+		return err
+	case !signers.Has(signer):
+		return fmt.Errorf("invalid signature")
 	}
 	return nil
 }

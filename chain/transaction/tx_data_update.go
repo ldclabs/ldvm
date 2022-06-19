@@ -21,8 +21,8 @@ type TxUpdateData struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataInfo
-	prevDM    *ld.DataInfo
+	di        *ld.DataInfo
+	prevDI    *ld.DataInfo
 }
 
 func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
@@ -94,8 +94,15 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 		switch {
 		case tx.ld.To != nil:
 			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+
 		case tx.ld.Amount != nil:
 			return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+
+		case tx.ld.ExSignatures != nil:
+			return fmt.Errorf("%s invalid exSignatures, should be nil", errPrefix)
+
+		case tx.input.MSig != nil:
+			return fmt.Errorf("%s invalid mSig, should be nil", errPrefix)
 		}
 	} else {
 		// with model keepers
@@ -132,101 +139,100 @@ func (tx *TxUpdateData) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	tx.dm, err = bs.LoadData(*tx.input.ID)
+	tx.di, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s %v", errPrefix, err)
 
-	case tx.dm.Version != tx.input.Version:
+	case tx.di.Version != tx.input.Version:
 		return fmt.Errorf("%s invalid version, expected %d, got %d",
-			errPrefix, tx.dm.Version, tx.input.Version)
+			errPrefix, tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false):
+	case !util.SatisfySigning(tx.di.Threshold, tx.di.Keepers, tx.signers, false):
 		return fmt.Errorf("%s invalid signatures for data keepers", errPrefix)
 
-	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver):
+	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.signers.Has(*tx.di.Approver):
 		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 
-	tx.prevDM = tx.dm.Clone()
-	switch tx.dm.ModelID {
+	tx.prevDI = tx.di.Clone()
+	switch tx.di.ModelID {
 	case constants.RawModelID:
-		tx.dm.Data = tx.input.Data
 		if tx.input.To != nil {
 			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 		}
+		tx.di.Data = tx.input.Data
 
 	case constants.CBORModelID:
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		}
 		var patch cborpatch.Patch
 		if patch, err = cborpatch.NewPatch(tx.input.Data); err != nil {
 			return fmt.Errorf("%s invalid CBOR patch, %v", errPrefix, err)
 		}
 
-		if tx.dm.Data, err = patch.Apply(tx.dm.Data); err != nil {
+		if tx.di.Data, err = patch.Apply(tx.di.Data); err != nil {
 			return fmt.Errorf("%s apply patch failed, %v", errPrefix, err)
-		}
-		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 		}
 
 	case constants.JSONModelID:
+		if tx.input.To != nil {
+			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		}
 		var patch jsonpatch.Patch
 		if patch, err = jsonpatch.NewPatch(tx.input.Data); err != nil {
 			return fmt.Errorf("%s invalid JSON patch, %v", errPrefix, err)
 		}
-
-		if tx.dm.Data, err = patch.Apply(tx.dm.Data); err != nil {
+		if tx.di.Data, err = patch.Apply(tx.di.Data); err != nil {
 			return fmt.Errorf("%s apply patch failed, %v", errPrefix, err)
-		}
-		if tx.input.To != nil {
-			return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 		}
 
 	default:
-		mm, err := bs.LoadModel(tx.dm.ModelID)
+		mi, err := bs.LoadModel(tx.di.ModelID)
 		if err != nil {
 			return fmt.Errorf("%s load model error, %v", errPrefix, err)
 		}
 
-		if tx.dm.Data, err = mm.Model().ApplyPatch(tx.dm.Data, tx.input.Data); err != nil {
+		if tx.di.Data, err = mi.Model().ApplyPatch(tx.di.Data, tx.input.Data); err != nil {
 			return fmt.Errorf("%s apply patch error, %v", errPrefix, err)
 		}
 
 		switch {
-		case mm.Threshold == 0:
+		case mi.Threshold == 0:
 			if tx.input.To != nil {
 				return fmt.Errorf("%s invalid to, should be nil", errPrefix)
 			}
 
-		case mm.Threshold > 0:
+		case mi.Threshold > 0:
 			if tx.input.To == nil {
 				return fmt.Errorf("%s nil to", errPrefix)
 			}
-			if !util.SatisfySigning(mm.Threshold, mm.Keepers, tx.exSigners, true) {
+			if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
+				return fmt.Errorf("%s invalid mSig for model keepers, %v", errPrefix, err)
+			}
+			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
 				return fmt.Errorf("%s invalid exSignature for model keepers", errPrefix)
 			}
-			if err = tx.verifyDataSig(mm.Keepers, *tx.input.MSig); err != nil {
-				return fmt.Errorf("%s invalid data signature for model keepers, %v", errPrefix, err)
-			}
-			tx.dm.MSig = tx.input.MSig
+			tx.di.MSig = tx.input.MSig
 		}
 	}
 
-	if err = tx.verifyDataSig(tx.dm.Keepers, *tx.input.KSig); err != nil {
+	if err = tx.di.VerifySig(tx.di.Keepers, *tx.input.KSig); err != nil {
 		return fmt.Errorf("%s invalid data signature for data keepers, %v", errPrefix, err)
 	}
-	tx.dm.KSig = *tx.input.KSig
-	tx.dm.Version++
-	if err = tx.dm.SyntacticVerify(); err != nil {
+	tx.di.KSig = *tx.input.KSig
+	tx.di.Version++
+	if err = tx.di.SyntacticVerify(); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	if bctx.Chain().IsNameService(tx.dm.ModelID) {
+	if bctx.Chain().IsNameService(tx.di.ModelID) {
 		var n1, n2 string
-		if n1, err = service.GetName(tx.prevDM.Data); err != nil {
+		if n1, err = service.GetName(tx.prevDI.Data); err != nil {
 			return fmt.Errorf("%s invalid NameService data, %v", errPrefix, err)
 		}
-		if n2, err = service.GetName(tx.dm.Data); err != nil {
+		if n2, err = service.GetName(tx.di.Data); err != nil {
 			return fmt.Errorf("%s invalid NameService data, %v", errPrefix, err)
 		}
 		if n1 != n2 {
@@ -237,24 +243,13 @@ func (tx *TxUpdateData) Verify(bctx BlockContext, bs BlockState) error {
 	return nil
 }
 
-func (tx *TxUpdateData) verifyDataSig(signers util.EthIDs, sig util.Signature) error {
-	signer, err := util.DeriveSigner(tx.dm.Data, sig[:])
-	switch {
-	case err != nil:
-		return err
-	case !signers.Has(signer):
-		return fmt.Errorf("invalid signer")
-	}
-	return nil
-}
-
 func (tx *TxUpdateData) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	if err = bs.SavePrevData(*tx.input.ID, tx.prevDM); err != nil {
+	if err = bs.SavePrevData(*tx.input.ID, tx.prevDI); err != nil {
 		return err
 	}
-	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
+	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

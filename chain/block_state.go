@@ -247,23 +247,23 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	mm := &ld.ModelInfo{}
-	if err := mm.Unmarshal(data); err != nil {
+	mi := &ld.ModelInfo{}
+	if err := mi.Unmarshal(data); err != nil {
 		return nil, err
 	}
-	if err := mm.SyntacticVerify(); err != nil {
+	if err := mi.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	mm.ID = id
-	return mm, nil
+	mi.ID = id
+	return mi, nil
 }
 
-func (bs *blockState) SaveModel(id util.ModelID, mm *ld.ModelInfo) error {
-	if err := mm.SyntacticVerify(); err != nil {
+func (bs *blockState) SaveModel(id util.ModelID, mi *ld.ModelInfo) error {
+	if err := mi.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.s.UpdateModel(id, mm.Bytes())
-	return bs.modelDB.Put(id[:], mm.Bytes())
+	bs.s.UpdateModel(id, mi.Bytes())
+	return bs.modelDB.Put(id[:], mi.Bytes())
 }
 
 func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
@@ -271,43 +271,43 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	dm := &ld.DataInfo{}
-	if err := dm.Unmarshal(data); err != nil {
+	di := &ld.DataInfo{}
+	if err := di.Unmarshal(data); err != nil {
 		return nil, err
 	}
-	if err := dm.SyntacticVerify(); err != nil {
+	if err := di.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	dm.ID = id
-	return dm, nil
+	di.ID = id
+	return di, nil
 }
 
-func (bs *blockState) SaveData(id util.DataID, dm *ld.DataInfo) error {
-	if err := dm.SyntacticVerify(); err != nil {
+func (bs *blockState) SaveData(id util.DataID, di *ld.DataInfo) error {
+	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.s.UpdateData(id, dm.Bytes())
-	return bs.dataDB.Put(id[:], dm.Bytes())
+	bs.s.UpdateData(id, di.Bytes())
+	return bs.dataDB.Put(id[:], di.Bytes())
 }
 
-func (bs *blockState) SavePrevData(id util.DataID, dm *ld.DataInfo) error {
-	if err := dm.SyntacticVerify(); err != nil {
+func (bs *blockState) SavePrevData(id util.DataID, di *ld.DataInfo) error {
+	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
 
-	v := database.PackUInt64(dm.Version)
+	v := database.PackUInt64(di.Version)
 	key := make([]byte, 20+len(v))
 	copy(key, id[:])
 	copy(key[20:], v)
-	return bs.prevDataDB.Put(key, dm.Bytes())
+	return bs.prevDataDB.Put(key, di.Bytes())
 }
 
-func (bs *blockState) DeleteData(id util.DataID, dm *ld.DataInfo, message []byte) error {
-	version := dm.Version
-	if err := dm.MarkDeleted(message); err != nil {
+func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) error {
+	version := di.Version
+	if err := di.MarkDeleted(message); err != nil {
 		return err
 	}
-	if err := bs.SaveData(id, dm); err != nil {
+	if err := bs.SaveData(id, di); err != nil {
 		return err
 	}
 	for version > 0 {

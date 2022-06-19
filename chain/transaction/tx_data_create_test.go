@@ -218,7 +218,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "invalid kSig: DeriveSigner: recovery failed")
+	assert.ErrorContains(err, "invalid kSig, DeriveSigner: recovery failed")
 
 	kSig, err := util.Signer2.Sign(input.Data)
 	assert.NoError(err)
@@ -235,7 +235,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "invalid kSig for keepers")
+	assert.ErrorContains(err, "invalid kSig, invalid signature")
 
 	// RawModel
 	input = &ld.TxUpdater{
@@ -309,6 +309,56 @@ func TestTxCreateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
+	assert.NoError(txData.ExSignWith(util.Signer1))
+	_, err = NewTx(txData.ToTransaction(), true)
+	assert.ErrorContains(err, "invalid exSignatures, should be nil")
+
+	input = &ld.TxUpdater{
+		ModelID:   &constants.RawModelID,
+		Version:   1,
+		Threshold: ld.Uint16Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Data:      []byte(`42`),
+	}
+	kSig, err = util.Signer1.Sign(input.Data)
+	assert.NoError(err)
+	input.KSig = &kSig
+	input.MSig = &kSig
+	assert.NoError(input.SyntacticVerify())
+	txData = &ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	_, err = NewTx(txData.ToTransaction(), true)
+	assert.ErrorContains(err, "invalid mSig, should be nil")
+
+	input = &ld.TxUpdater{
+		ModelID:   &constants.RawModelID,
+		Version:   1,
+		Threshold: ld.Uint16Ptr(0),
+		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Data:      []byte(`42`),
+	}
+	kSig, err = util.Signer1.Sign(input.Data)
+	assert.NoError(err)
+	input.KSig = &kSig
+	assert.NoError(input.SyntacticVerify())
+	txData = &ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      from.id,
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
@@ -331,17 +381,17 @@ func TestTxCreateData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(constants.RawModelID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(0), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal([]byte(`42`), []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Nil(dm.MSig)
+	assert.Equal(constants.RawModelID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(0), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal([]byte(`42`), []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Nil(di.MSig)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -445,17 +495,17 @@ func TestTxCreateCBORData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(constants.CBORModelID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(0), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal(data, []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Nil(dm.MSig)
+	assert.Equal(constants.CBORModelID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(0), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal(data, []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Nil(di.MSig)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -559,17 +609,17 @@ func TestTxCreateJSONData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(constants.JSONModelID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(0), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal(data, []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Nil(dm.MSig)
+	assert.Equal(constants.JSONModelID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(0), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal(data, []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Nil(di.MSig)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -601,7 +651,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	p := &service.Profile{
 		Type:       1,
 		Name:       "tester",
-		Follows:    []util.DataID{},
+		Follows:    util.DataIDs{},
 		Extensions: []*service.Extension{},
 	}
 	assert.NoError(p.SyntacticVerify())
@@ -681,20 +731,20 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(ps.ID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(1), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal(data, []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Nil(dm.MSig)
+	assert.Equal(ps.ID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(1), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal(data, []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Nil(di.MSig)
 
 	p2 := &service.Profile{}
-	assert.NoError(p2.Unmarshal(dm.Data))
+	assert.NoError(p2.Unmarshal(di.Data))
 	assert.NoError(p2.SyntacticVerify())
 	assert.Equal(p.Type, p2.Type)
 	assert.Equal(p.Name, p2.Name)
@@ -723,7 +773,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
-	ps := &ld.ModelInfo{
+	mi := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -731,16 +781,16 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		ID:        bctx.Chain().ProfileServiceID,
 	}
 
-	p := &service.Profile{
+	pf := &service.Profile{
 		Type:       1,
 		Name:       "LDC",
-		Follows:    []util.DataID{},
+		Follows:    util.DataIDs{},
 		Extensions: []*service.Extension{},
 	}
-	assert.NoError(p.SyntacticVerify())
-	data := p.Bytes()
+	assert.NoError(pf.SyntacticVerify())
+	data := pf.Bytes()
 	input := &ld.TxUpdater{
-		ModelID:   &ps.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -765,12 +815,12 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs), "LMDWuG2ggqziTRsZRvVwCf5W9Vr6j1QqWNt not found")
-	assert.NoError(bs.SaveModel(ps.ID, ps))
-	assert.ErrorContains(itx.Verify(bctx, bs), `invalid mSig for model keepers`)
+	assert.ErrorContains(itx.Verify(bctx, bs), "LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK not found")
+	assert.NoError(bs.SaveModel(mi.ID, mi))
+	assert.ErrorContains(itx.Verify(bctx, bs), `TxCreateData.Verify failed: nil to`)
 
 	input = &ld.TxUpdater{
-		ModelID:   &ps.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -832,7 +882,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 
 	input = &ld.TxUpdater{
-		ModelID:   &ps.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -883,7 +933,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.ErrorContains(err, "nil amount")
 
 	input = &ld.TxUpdater{
-		ModelID:   &ps.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -916,26 +966,6 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.ErrorContains(err, "invalid amount, expected 0, got 1")
-
-	input.MSig = &util.Signature{1, 2, 3}
-	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
-		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Amount:    new(big.Int).SetUint64(0),
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = 10
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.ErrorContains(err, "invalid mSig: DeriveSigner: recovery failed")
 
 	input.MSig = &mSig
 	assert.NoError(input.SyntacticVerify())
@@ -979,7 +1009,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		"invalid mSig for model keepers")
 
 	input = &ld.TxUpdater{
-		ModelID:   &ps.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -1044,31 +1074,31 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(ps.ID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(1), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal(data, []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Equal(mSig, *dm.MSig)
+	assert.Equal(mi.ID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(1), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal(data, []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Equal(mSig, *di.MSig)
 
 	p2 := &service.Profile{}
-	assert.NoError(p2.Unmarshal(dm.Data))
+	assert.NoError(p2.Unmarshal(di.Data))
 	assert.NoError(p2.SyntacticVerify())
-	assert.Equal(p.Type, p2.Type)
-	assert.Equal(p.Name, p2.Name)
-	assert.Equal(p.Follows, p2.Follows)
-	assert.Equal(p.Extensions, p2.Extensions)
-	assert.Equal(p.Bytes(), p2.Bytes())
+	assert.Equal(pf.Type, p2.Type)
+	assert.Equal(pf.Name, p2.Name)
+	assert.Equal(pf.Follows, p2.Follows)
+	assert.Equal(pf.Extensions, p2.Extensions)
+	assert.Equal(pf.Bytes(), p2.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"LMDWuG2ggqziTRsZRvVwCf5W9Vr6j1QqWNt","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"kSig":"075b5688d926286f26c6d04e4be059fbf6e4d9f493f028579881652b2b03cb5a3a459aead16b779bcc6636d3469f8cee83a54b855bd94d165d88d93638c1415a00","mSig":"f8ad98293d17b364b613d51b9e9abc5aa7e28eddae7c9dd04cad52c81eb9b5471ae870b2f9267293cf9015a362096e2087417eea9ae1305673187a71fbba6d6101","expire":100,"data":"0xa6616960616e634c444361740161756062657880626673807f1775c3"},"signatures":["6e5018fa44c5eaff3a2ea73bbf535ffae3a35ac0c32705f80dc4ff6889c956e32f7205fb66daa0a4f5250e8490220d2d59600bf61358fb2aa234dc211670252500"],"exSignatures":["a15d6b62ad7b94f8244648bbdc704ff23be86bd74e69648fb2fc47964d3c3a1d47d7ed9beedd6e9fa0401ffd7c61bad2e89280277e2cbd38c627d7a278b5ad1300"],"gas":438,"id":"wfcZU9b8s11idXxkq5oY1kFDPTU7A3K5kjMs2Quvave4ohGvF"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"kSig":"075b5688d926286f26c6d04e4be059fbf6e4d9f493f028579881652b2b03cb5a3a459aead16b779bcc6636d3469f8cee83a54b855bd94d165d88d93638c1415a00","mSig":"f8ad98293d17b364b613d51b9e9abc5aa7e28eddae7c9dd04cad52c81eb9b5471ae870b2f9267293cf9015a362096e2087417eea9ae1305673187a71fbba6d6101","expire":100,"data":"0xa6616960616e634c444361740161756062657880626673807f1775c3"},"signatures":["f16ef6921e2c81d69c7368f84b2806182e901354b30dfa14b5b1d0b52a12546261be6225edc8ab73043424b8817ea692a4ae4c8b0167f38b7f0b075755e8e75701"],"exSignatures":["20204b5cb08f7e33ebc591ec7e4d741b5b83af0f283933bd43e1aea5c6f4021b76a39775c0cf1cb6bf8cfca6f1e8233ab3bd043cc209534870c8e51148899a4e00"],"gas":438,"id":"2cTLEq6QGqdzo5eR9FhkcD3DUoyky834b43mUHiRSP27CnqEgF"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -1086,7 +1116,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 
 	nm, err := service.NameModel()
 	assert.NoError(err)
-	mm := &ld.ModelInfo{
+	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -1102,7 +1132,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	data := name.Bytes()
 
 	input := &ld.TxUpdater{
-		ModelID:   &mm.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -1132,7 +1162,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	assert.NoError(from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
-	assert.NoError(bs.SaveModel(mm.ID, mm))
+	assert.NoError(bs.SaveModel(mi.ID, mi))
 
 	tt := txData.ToTransaction()
 	tt.Timestamp = 10
@@ -1155,22 +1185,22 @@ func TestTxCreateNameModelData(t *testing.T) {
 
 	id, err = bs.ResolveNameID("ldc.to.")
 	assert.NoError(err)
-	assert.Equal(id, tx.dm.ID)
+	assert.Equal(id, tx.di.ID)
 
-	dm, err := bs.ResolveName("ldc.to.")
+	di, err := bs.ResolveName("ldc.to.")
 	assert.NoError(err)
-	assert.Equal(mm.ID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(1), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.Equal(data, []byte(dm.Data))
-	assert.Equal(kSig, dm.KSig)
-	assert.Equal(mSig, *dm.MSig)
+	assert.Equal(mi.ID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(1), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.Equal(data, []byte(di.Data))
+	assert.Equal(kSig, di.KSig)
+	assert.Equal(mSig, *di.MSig)
 
 	n2 := &service.Name{}
-	assert.NoError(n2.Unmarshal(dm.Data))
+	assert.NoError(n2.Unmarshal(di.Data))
 	assert.NoError(n2.SyntacticVerify())
 	assert.Equal(n2.Name, name.Name)
 	assert.Equal(n2.Records, name.Records)
@@ -1191,7 +1221,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	data = name2.Bytes()
 
 	input = &ld.TxUpdater{
-		ModelID:   &mm.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -1237,7 +1267,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	data = name2.Bytes()
 
 	input = &ld.TxUpdater{
-		ModelID:   &mm.ID,
+		ModelID:   &mi.ID,
 		Version:   1,
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
@@ -1314,15 +1344,15 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.Equal(uint64(0), from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm, err := bs.LoadData(tx.dm.ID)
+	di, err := bs.LoadData(tx.di.ID)
 	assert.NoError(err)
-	assert.Equal(constants.JSONModelID, dm.ModelID)
-	assert.Equal(uint64(1), dm.Version)
-	assert.Equal(uint16(1), dm.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm.Keepers)
-	assert.Nil(dm.Approver)
-	assert.Nil(dm.ApproveList)
-	assert.True(jsonpatch.Equal(cfg, dm.Data))
+	assert.Equal(constants.JSONModelID, di.ModelID)
+	assert.Equal(uint64(1), di.Version)
+	assert.Equal(uint16(1), di.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di.Keepers)
+	assert.Nil(di.Approver)
+	assert.Nil(di.ApproveList)
+	assert.True(jsonpatch.Equal(cfg, di.Data))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

@@ -170,7 +170,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -179,11 +179,11 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err := util.Signer2.Sign(dm.Data)
+	kSig, err := util.Signer2.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(di.ID, di))
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 2, got 1")
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
@@ -203,7 +203,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
 
-	dm = &ld.DataInfo{
+	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -212,14 +212,14 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(di.ID, di))
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for data approver")
 
-	dm = &ld.DataInfo{
+	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -227,11 +227,11 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(di.ID, di))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
@@ -242,10 +242,10 @@ func TestTxDeleteData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(0), dm2.Version)
-	assert.Equal(util.SignatureEmpty, dm2.KSig)
+	assert.Equal(uint64(0), di2.Version)
+	assert.Equal(util.SignatureEmpty, di2.KSig)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -269,7 +269,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 0, got 2")
 
-	dm = &ld.DataInfo{
+	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -277,11 +277,11 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(di.ID, di))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2, Data: []byte(`421`)}
 	txData = &ld.TxData{
@@ -301,11 +301,11 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	dm2, err = bs.LoadData(dm.ID)
+	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(0), dm2.Version)
-	assert.Equal(util.SignatureEmpty, dm2.KSig)
-	assert.Equal([]byte(`421`), []byte(dm2.Data))
+	assert.Equal(uint64(0), di2.Version)
+	assert.Equal(util.SignatureEmpty, di2.KSig)
+	assert.Equal([]byte(`421`), []byte(di2.Data))
 
 	assert.NoError(bs.VerifyState())
 }

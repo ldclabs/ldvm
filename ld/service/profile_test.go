@@ -32,16 +32,16 @@ func TestProfile(t *testing.T) {
 
 	p = &Profile{Type: 0, Name: "LDC"}
 	assert.ErrorContains(p.SyntacticVerify(), "nil follows")
-	p = &Profile{Type: 0, Name: "LDC", Follows: []util.DataID{util.DataIDEmpty}}
-	assert.ErrorContains(p.SyntacticVerify(), "invalid follow address")
+	p = &Profile{Type: 0, Name: "LDC", Follows: util.DataIDs{util.DataIDEmpty}}
+	assert.ErrorContains(p.SyntacticVerify(), "invalid follows")
 
-	p = &Profile{Type: 0, Name: "LDC", Follows: []util.DataID{}}
+	p = &Profile{Type: 0, Name: "LDC", Follows: util.DataIDs{}}
 	assert.ErrorContains(p.SyntacticVerify(), "nil extensions")
 
 	p = &Profile{
 		Type:    1,
 		Name:    "LDC",
-		Follows: []util.DataID{},
+		Follows: util.DataIDs{},
 		Extensions: []*Extension{{
 			ModelID: constants.JSONModelID,
 			Title:   "test",
@@ -70,7 +70,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 	assert.NoError(pm.Valid(p.Bytes()))
 
-	p.Members = []util.DataID{{1, 2, 3}}
+	p.Members = util.DataIDs{{1, 2, 3}}
 	assert.NoError(p.SyntacticVerify())
 	assert.NoError(pm.Valid(p.Bytes()))
 

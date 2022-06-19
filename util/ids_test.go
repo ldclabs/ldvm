@@ -163,7 +163,7 @@ func TestDataID(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"`, string(data))
 
-	mids := make([]DataID, 0)
+	mids := make(DataIDs, 0)
 	err = json.Unmarshal([]byte(`[
 		"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
 		"",

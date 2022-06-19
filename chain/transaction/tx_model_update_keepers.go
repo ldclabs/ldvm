@@ -14,7 +14,7 @@ import (
 type TxUpdateModelKeepers struct {
 	TxBase
 	input *ld.TxUpdater
-	mm    *ld.ModelInfo
+	mi    *ld.ModelInfo
 }
 
 func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
@@ -75,15 +75,15 @@ func (tx *TxUpdateModelKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	tx.mm, err = bs.LoadModel(*tx.input.ModelID)
+	tx.mi, err = bs.LoadModel(*tx.input.ModelID)
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s %v", errPrefix, err)
 
-	case !util.SatisfySigningPlus(tx.mm.Threshold, tx.mm.Keepers, tx.signers):
+	case !util.SatisfySigningPlus(tx.mi.Threshold, tx.mi.Keepers, tx.signers):
 		return fmt.Errorf("%s invalid signatures for keepers", errPrefix)
 
-	case tx.ld.NeedApprove(tx.mm.Approver, nil) && !tx.signers.Has(*tx.mm.Approver):
+	case tx.ld.NeedApprove(tx.mi.Approver, nil) && !tx.signers.Has(*tx.mi.Approver):
 		return fmt.Errorf("%s invalid signature for approver", errPrefix)
 	}
 	return nil
@@ -94,16 +94,16 @@ func (tx *TxUpdateModelKeepers) Accept(bctx BlockContext, bs BlockState) error {
 
 	if tx.input.Approver != nil {
 		if *tx.input.Approver == util.EthIDEmpty {
-			tx.mm.Approver = nil
+			tx.mi.Approver = nil
 		} else {
-			tx.mm.Approver = tx.input.Approver
+			tx.mi.Approver = tx.input.Approver
 		}
 	}
 	if tx.input.Threshold != nil {
-		tx.mm.Threshold = *tx.input.Threshold
-		tx.mm.Keepers = *tx.input.Keepers
+		tx.mi.Threshold = *tx.input.Threshold
+		tx.mi.Keepers = *tx.input.Keepers
 	}
-	if err = bs.SaveModel(*tx.input.ModelID, tx.mm); err != nil {
+	if err = bs.SaveModel(*tx.input.ModelID, tx.mi); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

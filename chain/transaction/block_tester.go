@@ -141,21 +141,21 @@ func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadModel: %s not found", id)
 	}
-	mm := &ld.ModelInfo{}
-	if err := mm.Unmarshal(data); err != nil {
+	mi := &ld.ModelInfo{}
+	if err := mi.Unmarshal(data); err != nil {
 		return nil, err
 	}
-	if err := mm.SyntacticVerify(); err != nil {
+	if err := mi.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	return mm, nil
+	return mi, nil
 }
 
-func (m *MockBS) SaveModel(id util.ModelID, mm *ld.ModelInfo) error {
-	if err := mm.SyntacticVerify(); err != nil {
+func (m *MockBS) SaveModel(id util.ModelID, mi *ld.ModelInfo) error {
+	if err := mi.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.MC[id] = mm.Bytes()
+	m.MC[id] = mi.Bytes()
 	return nil
 }
 
@@ -164,37 +164,37 @@ func (m *MockBS) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	if !ok {
 		return nil, fmt.Errorf("MBS.LoadData: %s not found", id)
 	}
-	dm := &ld.DataInfo{}
-	if err := dm.Unmarshal(data); err != nil {
+	di := &ld.DataInfo{}
+	if err := di.Unmarshal(data); err != nil {
 		return nil, err
 	}
-	if err := dm.SyntacticVerify(); err != nil {
+	if err := di.SyntacticVerify(); err != nil {
 		return nil, err
 	}
-	return dm, nil
+	return di, nil
 }
 
-func (m *MockBS) SaveData(id util.DataID, dm *ld.DataInfo) error {
-	if err := dm.SyntacticVerify(); err != nil {
+func (m *MockBS) SaveData(id util.DataID, di *ld.DataInfo) error {
+	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.DC[id] = dm.Bytes()
+	m.DC[id] = di.Bytes()
 	return nil
 }
 
-func (m *MockBS) SavePrevData(id util.DataID, dm *ld.DataInfo) error {
-	if err := dm.SyntacticVerify(); err != nil {
+func (m *MockBS) SavePrevData(id util.DataID, di *ld.DataInfo) error {
+	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.PDC[id] = dm.Bytes()
+	m.PDC[id] = di.Bytes()
 	return nil
 }
 
-func (m *MockBS) DeleteData(id util.DataID, dm *ld.DataInfo, message []byte) error {
-	if err := dm.MarkDeleted(message); err != nil {
+func (m *MockBS) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) error {
+	if err := di.MarkDeleted(message); err != nil {
 		return err
 	}
-	if err := m.SaveData(id, dm); err != nil {
+	if err := m.SaveData(id, di); err != nil {
 		return err
 	}
 	delete(m.PDC, id)

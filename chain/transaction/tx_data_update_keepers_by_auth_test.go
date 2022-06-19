@@ -338,7 +338,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -347,11 +347,11 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 		Approver:  &from.id,
 		ID:        did,
 	}
-	kSig, err := util.Signer2.Sign(dm.Data)
+	kSig, err := util.Signer2.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(di.ID, di))
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 2, got 1")
 
 	input = &ld.TxUpdater{ID: &did, Version: 2, To: &to.id,
@@ -427,15 +427,15 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	assert.Equal(constants.MilliLDC, to.balanceOf(token).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(dm.Version+1, dm2.Version)
-	assert.Equal(util.SignatureEmpty, dm2.KSig)
-	assert.Equal(uint16(1), dm2.Threshold)
-	assert.Equal(util.EthIDs{from.id}, dm2.Keepers)
-	assert.Equal(dm.Data, dm2.Data)
-	assert.Nil(dm2.Approver)
-	assert.Nil(dm2.ApproveList)
+	assert.Equal(di.Version+1, di2.Version)
+	assert.Equal(util.SignatureEmpty, di2.KSig)
+	assert.Equal(uint16(1), di2.Threshold)
+	assert.Equal(util.EthIDs{from.id}, di2.Keepers)
+	assert.Equal(di.Data, di2.Data)
+	assert.Nil(di2.Approver)
+	assert.Nil(di2.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

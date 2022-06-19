@@ -14,7 +14,7 @@ import (
 
 var EncOpts = cbor.EncOptions{
 	Sort:          cbor.SortLengthFirst,
-	Time:          cbor.TimeUnix,
+	Time:          cbor.TimeRFC3339Nano,
 	ShortestFloat: cbor.ShortestFloat16,
 	NaNConvert:    cbor.NaNConvert7e00,
 	InfConvert:    cbor.InfConvertFloat16,
@@ -48,6 +48,10 @@ func MustMarshalCBOR(v interface{}) []byte {
 
 func UnmarshalCBOR(data []byte, v interface{}) error {
 	return DecMode.Unmarshal(data, v)
+}
+
+func ValidCBOR(data []byte) error {
+	return DecMode.Valid(data)
 }
 
 type RawData []byte

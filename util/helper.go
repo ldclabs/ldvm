@@ -84,6 +84,37 @@ func (s EthIDs) CheckDuplicate() error {
 	return nil
 }
 
+type DataIDs []DataID
+
+func (s DataIDs) Has(id DataID) bool {
+	for _, v := range s {
+		if v == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (s DataIDs) CheckEmptyID() error {
+	for _, v := range s {
+		if v == DataIDEmpty {
+			return fmt.Errorf("empty data id exists")
+		}
+	}
+	return nil
+}
+
+func (s DataIDs) CheckDuplicate() error {
+	set := make(map[DataID]struct{}, len(s))
+	for _, v := range s {
+		if _, ok := set[v]; ok {
+			return fmt.Errorf("duplicate data id %s", v)
+		}
+		set[v] = struct{}{}
+	}
+	return nil
+}
+
 type Uint64Set map[uint64]struct{}
 
 func (us Uint64Set) Has(u uint64) bool {
