@@ -4,7 +4,6 @@
 package transaction
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -413,7 +412,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -421,15 +420,15 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	bs.SaveData(dm.ID, dm)
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	bs.SaveData(di.ID, di)
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid version, expected 2, got 1")
 
-	dm = &ld.DataInfo{
+	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   1,
 		Threshold: 1,
@@ -437,11 +436,11 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	bs.SaveData(dm.ID, dm)
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	bs.SaveData(di.ID, di)
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid to, should be nil")
 
@@ -466,7 +465,7 @@ func TestTxUpdateData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"invalid data signature for data keepers, invalid signer")
+		"invalid data signature for data keepers, invalid signature")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
@@ -498,14 +497,14 @@ func TestTxUpdateData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(2), dm2.Version)
-	assert.NotEqual(kSig, dm.KSig)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal([]byte(`42`), []byte(dm.Data))
-	assert.Equal([]byte(`421`), []byte(dm2.Data))
-	assert.Equal(bs.PDC[dm.ID], dm.Bytes())
+	assert.Equal(uint64(2), di2.Version)
+	assert.NotEqual(kSig, di.KSig)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal([]byte(`42`), []byte(di.Data))
+	assert.Equal([]byte(`421`), []byte(di2.Data))
+	assert.Equal(bs.PDC[di.ID], di.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -539,7 +538,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	data, err := ld.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
 	assert.NoError(err)
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.CBORModelID,
 		Version:   2,
 		Threshold: 1,
@@ -547,14 +546,14 @@ func TestTxUpdateCBORData(t *testing.T) {
 		Data:      data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
-	kSig, err := util.Signer1.Sign(dm.Data)
+	kSig, err := util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	bs.SaveData(dm.ID, dm)
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	bs.SaveData(di.ID, di)
 
-	input := &ld.TxUpdater{ID: &dm.ID, Version: 2,
-		Data: dm.Data[2:],
+	input := &ld.TxUpdater{ID: &di.ID, Version: 2,
+		Data: di.Data[2:],
 	}
 	kSig, err = util.Signer1.Sign(input.Data)
 	assert.NoError(err)
@@ -579,7 +578,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		{Op: "add", Path: "/no/-", Value: ld.MustMarshalCBOR(4)},
 	}
 	patchdata := ld.MustMarshalCBOR(patch)
-	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
+	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: patchdata,
 	}
 	input.KSig = &kSig
@@ -598,12 +597,12 @@ func TestTxUpdateCBORData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"invalid data signature for data keepers, invalid signer")
+		"invalid data signature for data keepers, invalid signature")
 
-	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
+	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: patchdata,
 	}
-	newData, err := patch.Apply(dm.Data)
+	newData, err := patch.Apply(di.Data)
 	assert.NoError(err)
 	kSig, err = util.Signer1.Sign(newData)
 	assert.NoError(err)
@@ -632,22 +631,22 @@ func TestTxUpdateCBORData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(3), dm2.Version)
-	assert.NotEqual(kSig, dm.KSig)
-	assert.Equal(kSig, dm2.KSig)
-	assert.NotEqual(newData, []byte(dm.Data))
-	assert.Equal(newData, []byte(dm2.Data))
-	assert.Equal(bs.PDC[dm.ID], dm.Bytes())
+	assert.Equal(uint64(3), di2.Version)
+	assert.NotEqual(kSig, di.KSig)
+	assert.Equal(kSig, di2.KSig)
+	assert.NotEqual(newData, []byte(di.Data))
+	assert.Equal(newData, []byte(di2.Data))
+	assert.Equal(bs.PDC[di.ID], di.Bytes())
 
 	var nc cborData
-	assert.NoError(ld.UnmarshalCBOR(dm2.Data, &nc))
+	assert.NoError(ld.UnmarshalCBOR(di2.Data, &nc))
 	assert.Equal([]int{1, 2, 3, 4}, nc.Nonces)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
-	fmt.Println(string(jsondata))
+	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["1a0306bf9768771d9806458fea0162940e398630b27f4eaf209d0bcd276d0a3e50aeeac718ec43da7b02ac453185d7c447167d64bb8430588f1bfed6bb25b62001"],"gas":280,"id":"LdoZA49wq9kbkxQGd1XCxcmLSp7mS7XfuMuvoJ243pVgYNY2X"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
@@ -670,7 +669,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
 
 	data := []byte(`{"name":"test","nonces":[1,2,3]}`)
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.JSONModelID,
 		Version:   2,
 		Threshold: 1,
@@ -678,13 +677,13 @@ func TestTxUpdateJSONData(t *testing.T) {
 		Data:      data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
-	kSig, err := util.Signer1.Sign(dm.Data)
+	kSig, err := util.Signer1.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
-	bs.SaveData(dm.ID, dm)
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
+	bs.SaveData(di.ID, di)
 
-	input := &ld.TxUpdater{ID: &dm.ID, Version: 2,
+	input := &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: []byte(`{}`),
 	}
 	kSig, err = util.Signer1.Sign(input.Data)
@@ -706,7 +705,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid JSON patch")
 
-	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
+	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: []byte(`[{"op": "replace", "path": "/name", "value": "Tester"}]`),
 	}
 	kSig, err = util.Signer1.Sign(input.Data)
@@ -727,9 +726,9 @@ func TestTxUpdateJSONData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"invalid data signature for data keepers, invalid signer")
+		"invalid data signature for data keepers, invalid signature")
 
-	input = &ld.TxUpdater{ID: &dm.ID, Version: 2,
+	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: []byte(`[{"op": "replace", "path": "/name", "value": "Tester"}]`),
 	}
 	kSig, err = util.Signer1.Sign([]byte(`{"name":"Tester","nonces":[1,2,3]}`))
@@ -759,14 +758,14 @@ func TestTxUpdateJSONData(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(3), dm2.Version)
-	assert.NotEqual(kSig, dm.KSig)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal([]byte(`{"name":"test","nonces":[1,2,3]}`), []byte(dm.Data))
-	assert.Equal([]byte(`{"name":"Tester","nonces":[1,2,3]}`), []byte(dm2.Data))
-	assert.Equal(bs.PDC[dm.ID], dm.Bytes())
+	assert.Equal(uint64(3), di2.Version)
+	assert.NotEqual(kSig, di.KSig)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal([]byte(`{"name":"test","nonces":[1,2,3]}`), []byte(di.Data))
+	assert.Equal([]byte(`{"name":"Tester","nonces":[1,2,3]}`), []byte(di2.Data))
+	assert.Equal(bs.PDC[di.ID], di.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

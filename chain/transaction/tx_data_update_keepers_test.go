@@ -149,7 +149,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	_, err = NewTx(txData.ToTransaction(), true)
 	assert.ErrorContains(err, "no thing to update")
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
 		Version:   2,
 		Threshold: 1,
@@ -157,10 +157,10 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err := util.Signer2.Sign(dm.Data)
+	kSig, err := util.Signer2.Sign(di.Data)
 	assert.NoError(err)
-	dm.KSig = kSig
-	assert.NoError(dm.SyntacticVerify())
+	di.KSig = kSig
+	assert.NoError(di.SyntacticVerify())
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Approver:    &approver,
@@ -194,7 +194,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 
-	assert.NoError(bs.SaveData(dm.ID, dm))
+	assert.NoError(bs.SaveData(di.ID, di))
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"invalid version, expected 2, got 1")
 
@@ -228,7 +228,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs), "invalid kSig")
 
-	kSig, err = util.Signer1.Sign(dm.Data)
+	kSig, err = util.Signer1.Sign(di.Data)
 	assert.NoError(err)
 	input = &ld.TxUpdater{ID: &did, Version: 2,
 		Approver: &approver,
@@ -265,23 +265,23 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
-	dm2, err := bs.LoadData(dm.ID)
+	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(dm.Version+1, dm2.Version)
-	assert.NotEqual(kSig, dm.KSig)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint16(1), dm2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer2.Address()}, dm.Keepers)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
-	assert.Equal(dm.Data, dm2.Data)
-	assert.Nil(dm.Approver)
-	assert.NotNil(dm2.Approver)
-	assert.Equal(util.Signer2.Address(), *dm2.Approver)
-	assert.Nil(dm.ApproveList)
+	assert.Equal(di.Version+1, di2.Version)
+	assert.NotEqual(kSig, di.KSig)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal(uint16(1), di2.Threshold)
+	assert.Equal(util.EthIDs{util.Signer2.Address()}, di.Keepers)
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
+	assert.Equal(di.Data, di2.Data)
+	assert.Nil(di.Approver)
+	assert.NotNil(di2.Approver)
+	assert.Equal(util.Signer2.Address(), *di2.Approver)
+	assert.Nil(di.ApproveList)
 	assert.Equal(ld.TxTypes{
 		ld.TypeUpdateDataKeepers,
 		ld.TypeUpdateDataKeepersByAuth,
-		ld.TypeDeleteData}, dm2.ApproveList)
+		ld.TypeDeleteData}, di2.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -315,15 +315,15 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	dm2, err = bs.LoadData(dm.ID)
+	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(4), dm2.Version)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint16(1), dm2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
-	assert.Equal(dm.Data, dm2.Data)
-	assert.Nil(dm2.Approver)
-	assert.Nil(dm2.ApproveList)
+	assert.Equal(uint64(4), di2.Version)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal(uint16(1), di2.Threshold)
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
+	assert.Equal(di.Data, di2.Data)
+	assert.Nil(di2.Approver)
+	assert.Nil(di2.ApproveList)
 
 	// clear threshold
 	input = &ld.TxUpdater{ID: &did, Version: 4,
@@ -347,12 +347,12 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	dm2, err = bs.LoadData(dm.ID)
+	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(5), dm2.Version)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint16(0), dm2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, dm2.Keepers)
+	assert.Equal(uint64(5), di2.Version)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal(uint16(0), di2.Threshold)
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
 
 	// clear keepers
 	input = &ld.TxUpdater{ID: &did, Version: 5,
@@ -376,12 +376,12 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
-	dm2, err = bs.LoadData(dm.ID)
+	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
-	assert.Equal(uint64(6), dm2.Version)
-	assert.Equal(kSig, dm2.KSig)
-	assert.Equal(uint16(0), dm2.Threshold)
-	assert.Equal(util.EthIDs{}, dm2.Keepers)
+	assert.Equal(uint64(6), di2.Version)
+	assert.Equal(kSig, di2.KSig)
+	assert.Equal(uint16(0), di2.Threshold)
+	assert.Equal(util.EthIDs{}, di2.Keepers)
 
 	// can't update keepers
 	input = &ld.TxUpdater{ID: &did, Version: 6,

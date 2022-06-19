@@ -180,17 +180,17 @@ func TestTxPunish(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8 not found")
 
-	dm := &ld.DataInfo{
+	di := &ld.DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Data:      []byte(`"test...."`),
 	}
-	dm.KSig, err = util.Signer2.Sign(dm.Data)
+	di.KSig, err = util.Signer2.Sign(di.Data)
 	assert.NoError(err)
-	assert.NoError(dm.SyntacticVerify())
-	assert.NoError(bs.SaveData(did, dm))
-	assert.NoError(bs.SavePrevData(did, dm))
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(bs.SaveData(did, di))
+	assert.NoError(bs.SavePrevData(did, di))
 	assert.NoError(itx.Verify(bctx, bs))
 	assert.NoError(itx.Accept(bctx, bs))
 
@@ -201,12 +201,12 @@ func TestTxPunish(t *testing.T) {
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), tx.from.Nonce())
 
-	dm, err = bs.LoadData(did)
+	di, err = bs.LoadData(did)
 	assert.NoError(err)
-	assert.Equal(uint64(0), dm.Version)
-	assert.Equal(util.SignatureEmpty, dm.KSig)
-	assert.Nil(dm.MSig)
-	assert.Equal(input.Data, dm.Data)
+	assert.Equal(uint64(0), di.Version)
+	assert.Equal(util.SignatureEmpty, di.KSig)
+	assert.Nil(di.MSig)
+	assert.Equal(input.Data, di.Data)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

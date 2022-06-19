@@ -15,7 +15,7 @@ import (
 type TxPunish struct {
 	TxBase
 	input *ld.TxUpdater
-	dm    *ld.DataInfo
+	di    *ld.DataInfo
 }
 
 func (tx *TxPunish) MarshalJSON() ([]byte, error) {
@@ -82,7 +82,7 @@ func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("TxPunish.Verify failed: %v", err)
 	}
 
-	if tx.dm, err = bs.LoadData(*tx.input.ID); err != nil {
+	if tx.di, err = bs.LoadData(*tx.input.ID); err != nil {
 		return fmt.Errorf("TxPunish.Verify failed: %v", err)
 	}
 	return nil
@@ -91,7 +91,7 @@ func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxPunish) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	if err = bs.DeleteData(*tx.input.ID, tx.dm, tx.input.Data); err != nil {
+	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

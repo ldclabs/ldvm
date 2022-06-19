@@ -14,7 +14,7 @@ import (
 type TxUpdateDataKeepers struct {
 	TxBase
 	input *ld.TxUpdater
-	dm    *ld.DataInfo
+	di    *ld.DataInfo
 }
 
 func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
@@ -80,29 +80,29 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	tx.dm, err = bs.LoadData(*tx.input.ID)
+	tx.di, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s %v", errPrefix, err)
 
-	case tx.dm.Version != tx.input.Version:
+	case tx.di.Version != tx.input.Version:
 		return fmt.Errorf("%s invalid version, expected %d, got %d",
-			errPrefix, tx.dm.Version, tx.input.Version)
+			errPrefix, tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.signers):
+	case !util.SatisfySigningPlus(tx.di.Threshold, tx.di.Keepers, tx.signers):
 		return fmt.Errorf("%s invalid signatures for data keepers", errPrefix)
 
-	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) &&
-		!tx.signers.Has(*tx.dm.Approver):
+	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) &&
+		!tx.signers.Has(*tx.di.Approver):
 		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 
 	if tx.input.KSig != nil {
-		kSigner, err := util.DeriveSigner(tx.dm.Data, (*tx.input.KSig)[:])
+		kSigner, err := util.DeriveSigner(tx.di.Data, (*tx.input.KSig)[:])
 		if err != nil {
 			return fmt.Errorf("%s invalid kSig: %v", errPrefix, err)
 		}
-		keepers := tx.dm.Keepers
+		keepers := tx.di.Keepers
 		if tx.input.Keepers != nil {
 			keepers = *tx.input.Keepers
 		}
@@ -116,26 +116,26 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxUpdateDataKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	tx.dm.Version++
+	tx.di.Version++
 	if tx.input.Approver != nil {
 		if *tx.input.Approver == util.EthIDEmpty {
-			tx.dm.Approver = nil
-			tx.dm.ApproveList = nil
+			tx.di.Approver = nil
+			tx.di.ApproveList = nil
 		} else {
-			tx.dm.Approver = tx.input.Approver
+			tx.di.Approver = tx.input.Approver
 		}
 	}
 	if tx.input.ApproveList != nil {
-		tx.dm.ApproveList = tx.input.ApproveList
+		tx.di.ApproveList = tx.input.ApproveList
 	}
 	if tx.input.Threshold != nil {
-		tx.dm.Threshold = *tx.input.Threshold
-		tx.dm.Keepers = *tx.input.Keepers
+		tx.di.Threshold = *tx.input.Threshold
+		tx.di.Keepers = *tx.input.Keepers
 	}
 	if tx.input.KSig != nil {
-		tx.dm.KSig = *tx.input.KSig
+		tx.di.KSig = *tx.input.KSig
 	}
-	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
+	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

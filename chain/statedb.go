@@ -286,23 +286,23 @@ func (s *stateDB) Bootstrap() error {
 	s.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
 
 	// load latest fee config from chain.
-	var dm *ld.DataInfo
+	var di *ld.DataInfo
 	feeConfigID := s.genesis.Chain.FeeConfigID
-	dm, err = s.LoadData(feeConfigID)
+	di, err = s.LoadData(feeConfigID)
 	if err != nil {
 		return fmt.Errorf("load last fee config failed: %v", err)
 	}
-	cfg, err := s.genesis.Chain.AppendFeeConfig(dm.Data)
+	cfg, err := s.genesis.Chain.AppendFeeConfig(di.Data)
 	if err != nil {
 		return fmt.Errorf("unmarshal fee config failed: %v", err)
 	}
 
-	for dm.Version > 1 && cfg.StartHeight >= lastAcceptedBlock.ld.Height {
-		dm, err = s.LoadPrevData(feeConfigID, dm.Version-1)
+	for di.Version > 1 && cfg.StartHeight >= lastAcceptedBlock.ld.Height {
+		di, err = s.LoadPrevData(feeConfigID, di.Version-1)
 		if err != nil {
 			return fmt.Errorf("load previous fee config failed: %v", err)
 		}
-		cfg, err = s.genesis.Chain.AppendFeeConfig(dm.Data)
+		cfg, err = s.genesis.Chain.AppendFeeConfig(di.Data)
 		if err != nil {
 			return fmt.Errorf("unmarshal fee config failed: %v", err)
 		}

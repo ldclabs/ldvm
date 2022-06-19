@@ -16,7 +16,7 @@ type TxUpdateDataKeepersByAuth struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
-	dm        *ld.DataInfo
+	di        *ld.DataInfo
 }
 
 func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
@@ -112,19 +112,19 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	tx.dm, err = bs.LoadData(*tx.input.ID)
+	tx.di, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s %v", errPrefix, err)
 
-	case tx.dm.Version != tx.input.Version:
+	case tx.di.Version != tx.input.Version:
 		return fmt.Errorf("%s invalid version, expected %d, got %d",
-			errPrefix, tx.dm.Version, tx.input.Version)
+			errPrefix, tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigningPlus(tx.dm.Threshold, tx.dm.Keepers, tx.exSigners):
+	case !util.SatisfySigningPlus(tx.di.Threshold, tx.di.Keepers, tx.exSigners):
 		return fmt.Errorf("%s invalid exSignatures for data keepers", errPrefix)
 
-	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.exSigners.Has(*tx.dm.Approver):
+	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.exSigners.Has(*tx.di.Approver):
 		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 	return nil
@@ -133,18 +133,18 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	tx.dm.Version++
-	tx.dm.KSig = util.Signature{}
-	tx.dm.Threshold = tx.from.Threshold()
-	tx.dm.Keepers = tx.from.Keepers()
-	if len(tx.dm.Keepers) == 0 {
-		tx.dm.Threshold = 1
-		tx.dm.Keepers = util.EthIDs{tx.from.id}
+	tx.di.Version++
+	tx.di.KSig = util.Signature{}
+	tx.di.Threshold = tx.from.Threshold()
+	tx.di.Keepers = tx.from.Keepers()
+	if len(tx.di.Keepers) == 0 {
+		tx.di.Threshold = 1
+		tx.di.Keepers = util.EthIDs{tx.from.id}
 	}
-	tx.dm.Approver = nil
-	tx.dm.ApproveList = nil
+	tx.di.Approver = nil
+	tx.di.ApproveList = nil
 
-	if err = bs.SaveData(*tx.input.ID, tx.dm); err != nil {
+	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

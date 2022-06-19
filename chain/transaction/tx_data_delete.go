@@ -14,7 +14,7 @@ import (
 type TxDeleteData struct {
 	TxBase
 	input *ld.TxUpdater
-	dm    *ld.DataInfo
+	di    *ld.DataInfo
 }
 
 func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
@@ -79,19 +79,19 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
 
-	tx.dm, err = bs.LoadData(*tx.input.ID)
+	tx.di, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s %v", errPrefix, err)
 
-	case tx.dm.Version != tx.input.Version:
+	case tx.di.Version != tx.input.Version:
 		return fmt.Errorf("%s invalid version, expected %d, got %d",
-			errPrefix, tx.dm.Version, tx.input.Version)
+			errPrefix, tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigning(tx.dm.Threshold, tx.dm.Keepers, tx.signers, false):
+	case !util.SatisfySigning(tx.di.Threshold, tx.di.Keepers, tx.signers, false):
 		return fmt.Errorf("%s invalid signatures for data keepers", errPrefix)
 
-	case tx.ld.NeedApprove(tx.dm.Approver, tx.dm.ApproveList) && !tx.signers.Has(*tx.dm.Approver):
+	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.signers.Has(*tx.di.Approver):
 		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
 	}
 	return nil
@@ -100,7 +100,7 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 func (tx *TxDeleteData) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
 
-	if err = bs.DeleteData(*tx.input.ID, tx.dm, tx.input.Data); err != nil {
+	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
 		return err
 	}
 	return tx.TxBase.Accept(bctx, bs)

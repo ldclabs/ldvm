@@ -32,21 +32,20 @@ func (pt ProfileType) MarshalJSON() ([]byte, error) {
 
 // https://schema.org/Thing
 type Profile struct {
-	Type       ProfileType   `cbor:"t" json:"@type"`                        // Thing, Person, Organization...
-	Name       string        `cbor:"n" json:"name"`                         // Thing property
-	Image      string        `cbor:"i" json:"image"`                        // Thing property
-	URL        string        `cbor:"u" json:"url"`                          // Thing property
-	KYC        *util.DataID  `cbor:"k,omitempty" json:"kyc,omitempty"`      // optional, KYC (SomeKYCService) data id
-	Follows    []util.DataID `cbor:"fs" json:"follows"`                     // optional, other ProfileService data id
-	Members    []util.DataID `cbor:"ms,omitempty" json:"members,omitempty"` // optional, other ProfileService data id
-	Extensions []*Extension  `cbor:"ex" json:"extensions"`                  // optional, extra properties
+	Type       ProfileType  `cbor:"t" json:"@type"`                        // Thing, Person, Organization...
+	Name       string       `cbor:"n" json:"name"`                         // Thing property
+	Image      string       `cbor:"i" json:"image"`                        // Thing property
+	URL        string       `cbor:"u" json:"url"`                          // Thing property
+	Follows    util.DataIDs `cbor:"fs" json:"follows"`                     // optional, other ProfileService data id
+	Members    util.DataIDs `cbor:"ms,omitempty" json:"members,omitempty"` // optional, other ProfileService data id
+	Extensions []*Extension `cbor:"ex" json:"extensions"`                  // optional, extra properties
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
 }
 
 type Extension struct {
-	ModelID    util.ModelID           `cbor:"mid" json:"mid"` // model id
+	ModelID    util.ModelID           `cbor:"m" json:"mid"`   // model id
 	Title      string                 `cbor:"t" json:"title"` // extension title
 	Properties map[string]interface{} `cbor:"ps" json:"properties"`
 }
@@ -59,7 +58,6 @@ func ProfileModel() (*ld.IPLDModel, error) {
 		name       String          (rename "n")
 		image      String          (rename "i")
 		url        String          (rename "u")
-		kyc        optional ID20   (rename "k")
 		follows    [ID20]          (rename "fs")
 		members    optional [ID20] (rename "ms")
 		extensions [Any]           (rename "ex")
@@ -70,6 +68,7 @@ func ProfileModel() (*ld.IPLDModel, error) {
 
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
+	var err error
 	errPrefix := "Profile.SyntacticVerify failed: "
 	switch {
 	case p == nil:
@@ -88,33 +87,42 @@ func (p *Profile) SyntacticVerify() error {
 		return fmt.Errorf("%s nil follows", errPrefix)
 	}
 
-	for _, id := range p.Follows {
-		if id == util.DataIDEmpty {
-			return fmt.Errorf("%s invalid follow address", errPrefix)
-		}
+	if err = p.Follows.CheckDuplicate(); err != nil {
+		return fmt.Errorf("%s invalid follows, %v", errPrefix, err)
 	}
 
-	for _, id := range p.Members {
-		if id == util.DataIDEmpty {
-			return fmt.Errorf("%s invalid member address", errPrefix)
-		}
+	if err = p.Follows.CheckEmptyID(); err != nil {
+		return fmt.Errorf("%s invalid follows, %v", errPrefix, err)
+	}
+
+	if err = p.Members.CheckDuplicate(); err != nil {
+		return fmt.Errorf("%s invalid members, %v", errPrefix, err)
+	}
+
+	if err = p.Members.CheckEmptyID(); err != nil {
+		return fmt.Errorf("%s invalid members, %v", errPrefix, err)
 	}
 
 	if p.Extensions == nil {
 		return fmt.Errorf("%s nil extensions", errPrefix)
 	}
 	set := make(map[string]struct{}, len(p.Extensions))
-	for _, ex := range p.Extensions {
+	for i, ex := range p.Extensions {
+		if ex == nil {
+			return fmt.Errorf("%s nil extension at %d", errPrefix, i)
+		}
 		if !util.ValidName(ex.Title) {
-			return fmt.Errorf("%s invalid extension title %s", errPrefix, strconv.Quote(ex.Title))
+			return fmt.Errorf("%s invalid extension title %s at %d",
+				errPrefix, strconv.Quote(ex.Title), i)
 		}
-		if _, ok := set[ex.Title]; ok {
-			return fmt.Errorf("%s %s exists in extensions", errPrefix, strconv.Quote(ex.Title))
+		id := string(ex.ModelID[:]) + ex.Title
+		if _, ok := set[id]; ok {
+			return fmt.Errorf("%s %s exists in extensions at %d",
+				errPrefix, strconv.Quote(ex.Title), i)
 		}
-		set[ex.Title] = struct{}{}
+		set[id] = struct{}{}
 	}
 
-	var err error
 	if p.raw, err = p.Marshal(); err != nil {
 		return fmt.Errorf("%s %v", errPrefix, err)
 	}
