@@ -10,6 +10,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxUpdateAccountKeepers struct {
@@ -23,7 +24,7 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateAccountKeepers.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxUpdateAccountKeepers.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -35,38 +36,39 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxUpdateAccountKeepers.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To != nil:
-		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		return errp.Errorf("invalid to, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	if tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil {
-		return fmt.Errorf("%s no keepers nor approver", errPrefix)
+		return errp.Errorf("no keepers nor approver")
 	}
 	if tx.input.Threshold != nil && *tx.input.Threshold == 0 {
-		return fmt.Errorf("%s invalid threshold, expected >= 1", errPrefix)
+		return errp.Errorf("invalid threshold, expected >= 1")
 	}
 	return nil
 }
@@ -74,12 +76,14 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 // VerifyGenesis skipping signature verification
 func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.VerifyGenesis error: ")
+
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers.VerifyGenesis failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers.VerifyGenesis failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	tx.amount = new(big.Int)
@@ -88,32 +92,36 @@ func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState
 	tx.cost = new(big.Int)
 
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (tx *TxUpdateAccountKeepers) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("TxUpdateAccountKeepers.Verify failed: invalid signatures for keepers")
+		return errp.Errorf("invalid signatures for keepers")
 	}
 	return nil
 }
 
 func (tx *TxUpdateAccountKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.Accept error: ")
+
 	if err = tx.from.UpdateKeepers(
 		tx.input.Threshold, tx.input.Keepers, tx.input.Approver, tx.input.ApproveList); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

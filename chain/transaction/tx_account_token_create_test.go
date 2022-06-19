@@ -42,7 +42,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -369,7 +369,7 @@ func TestTxCreateTokenAccount(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid signature for approver")
+		"TxBase.Verify error: invalid signature for approver")
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
@@ -511,7 +511,7 @@ func TestTxCreateTokenAccountGenesis(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
-	assert.ErrorContains(err, "TxBase.SyntacticVerify failed: invalid from")
+	assert.ErrorContains(err, "TxBase.SyntacticVerify error: invalid from")
 
 	assert.NoError(bs.VerifyState())
 }

@@ -179,13 +179,13 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		tx.Timestamp = b.ld.Timestamp
 		if tx.Type != ld.TypeTest {
 			if tx.GasFeeCap < b.ld.GasPrice {
-				tx.Err = fmt.Errorf("Block.TryBuildTxs failed: invalid gasFeeCap, expected >= %d, got %d",
+				tx.Err = fmt.Errorf("Block.TryBuildTxs error: invalid gasFeeCap, expected >= %d, got %d",
 					b.ld.GasPrice, tx.GasFeeCap)
 				return choices.Unknown, tx.Err
 			}
 			tx.Gas = tx.RequiredGas(feeCfg.ThresholdGas)
 			if tx.Gas > feeCfg.MaxTxGas {
-				tx.Err = fmt.Errorf("Block.TryBuildTxs failed: gas too large, expected <= %d, got %d",
+				tx.Err = fmt.Errorf("Block.TryBuildTxs error: gas too large, expected <= %d, got %d",
 					feeCfg.MaxTxGas, tx.Gas)
 				return choices.Rejected, tx.Err
 			}
@@ -212,7 +212,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 	}
 
 	if len(ntxs) == 0 {
-		return choices.Rejected, fmt.Errorf("Block.TryBuildTxs failed: no valid transaction")
+		return choices.Rejected, fmt.Errorf("Block.TryBuildTxs error: no valid transaction")
 	}
 
 	if add {
@@ -247,12 +247,12 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 		var err error
 		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight()
 		if err != nil {
-			return fmt.Errorf("Block.BuildFee ValidatorState.GetCurrentHeight failed: %v", err)
+			return fmt.Errorf("Block.BuildFee ValidatorState.GetCurrentHeight error: %v", err)
 		}
 		var vs map[ids.NodeID]uint64
 		vs, err = b.ctx.ValidatorState.GetValidatorSet(b.ld.PCHeight, b.ctx.SubnetID)
 		if err != nil {
-			return fmt.Errorf("Block.BuildFee ValidatorState.GetValidatorSet failed: %v", err)
+			return fmt.Errorf("Block.BuildFee ValidatorState.GetValidatorSet error: %v", err)
 		}
 		vv := make([]ids.NodeID, 0, len(vs))
 		for nid := range vs {
@@ -293,7 +293,7 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 	total := new(big.Int).Mul(fee, num)
 	total = total.Add(total, b.GasRebate20())
 	if err := ldc.Sub(constants.NativeToken, total); err != nil {
-		return fmt.Errorf("Block.BuildFee failed: %v", err)
+		return fmt.Errorf("Block.BuildFee error: %v", err)
 	}
 
 	for _, share := range shares {
@@ -328,7 +328,7 @@ func (b *Block) VerifyGenesis() error {
 	}
 
 	if err := b.bs.SaveBlock(b.ld); err != nil {
-		return fmt.Errorf("save block failed: %v", err)
+		return fmt.Errorf("save block error: %v", err)
 	}
 	b.status = choices.Processing
 	b.ctx.StateDB().AddVerifiedBlock(b)
@@ -418,10 +418,10 @@ func (b *Block) verify() error {
 
 	// TODO verify miners
 	if err := b.VerifyMinerFee(); err != nil {
-		return fmt.Errorf("set mint fee failed: %v", err)
+		return fmt.Errorf("set mint fee error: %v", err)
 	}
 	if err := b.bs.SaveBlock(b.ld); err != nil {
-		return fmt.Errorf("save block failed: %v", err)
+		return fmt.Errorf("save block error: %v", err)
 	}
 	return nil
 }
@@ -440,7 +440,7 @@ func (b *Block) Accept() error {
 
 	if err := b.ctx.StateDB().SetLastAccepted(b); err != nil {
 		b.reject()
-		return fmt.Errorf("Block.Accept set last accepted failed: %v", err)
+		return fmt.Errorf("Block.Accept set last accepted error: %v", err)
 	}
 
 	for i := range b.txs {

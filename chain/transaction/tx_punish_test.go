@@ -43,7 +43,7 @@ func TestTxPunish(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
@@ -169,7 +169,7 @@ func TestTxPunish(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 138, got 0")
+		"TxBase.Verify error: invalid gas, expected 138, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)

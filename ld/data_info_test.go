@@ -39,7 +39,7 @@ func TestDataInfo(t *testing.T) {
 		Data:    []byte(`42`),
 		KSig:    util.Signature{1, 2, 3},
 	}
-	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigner: recovery failed")
+	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigner error: recovery failed")
 	tx = &DataInfo{
 		Version: 0,
 		Data:    []byte(`42`),

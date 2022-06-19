@@ -42,7 +42,7 @@ func TestTxTransferExchange(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -252,7 +252,7 @@ func TestTxTransferExchange(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 	tt.Timestamp = 1
 	_, err = NewTx(tt, true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,

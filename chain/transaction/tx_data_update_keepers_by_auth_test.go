@@ -41,7 +41,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
@@ -317,13 +317,13 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "invalid exSignatures: DeriveSigners: no signature")
+	assert.ErrorContains(err, "invalid exSignatures, DeriveSigners error: no signature")
 
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	itx, err := NewTx(txData.ToTransaction(), true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 389, got 0")
+		"TxBase.Verify error: invalid gas, expected 389, got 0")
 
 	tt := txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)

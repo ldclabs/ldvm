@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ldclabs/ldvm/util"
 	"golang.org/x/net/idna"
 )
 
@@ -19,8 +20,9 @@ type DN struct {
 }
 
 func NewDN(name string) (*DN, error) {
+	errp := util.ErrPrefix(fmt.Sprintf("NewDN(%s) error: ", strconv.Quote(name)))
 	if !utf8.ValidString(name) || name == "" {
-		return nil, fmt.Errorf("NewDN(%s): invalid utf8 name", strconv.Quote(name))
+		return nil, errp.Errorf("invalid utf8 name")
 	}
 
 	var err error
@@ -30,17 +32,17 @@ func NewDN(name string) (*DN, error) {
 		dn.isDomain = true
 		dn.ascii, err = idna.Registration.ToASCII(name)
 		if err != nil {
-			return nil, fmt.Errorf("NewDN(%s): ToASCII error, %v", strconv.Quote(name), err)
+			return nil, errp.Errorf("ToASCII error, %v", err)
 		}
 		if dn.ascii[len(dn.ascii)-1] != '.' {
-			return nil, fmt.Errorf("NewDN(%s): invalid domain name, no trailing dot", strconv.Quote(name))
+			return nil, errp.Errorf("invalid domain name, no trailing dot")
 		}
 		dn.name, err = idna.Registration.ToUnicode(dn.ascii)
 		if err != nil {
-			return nil, fmt.Errorf("NewDN(%s): ToUnicode error, %v", strconv.Quote(name), err)
+			return nil, errp.Errorf("ToUnicode error, %v", err)
 		}
 		if name != dn.name && name != dn.ascii {
-			return nil, fmt.Errorf("NewDN(%s): invalid domain name", strconv.Quote(name))
+			return nil, errp.Errorf("invalid domain name")
 		}
 		return dn, nil
 	}
@@ -50,17 +52,17 @@ func NewDN(name string) (*DN, error) {
 	for i, n := range ns {
 		as[i], err = idna.Registration.ToASCII(n)
 		if err != nil {
-			return nil, fmt.Errorf("NewDN(%s): ToASCII error, %v", strconv.Quote(name), err)
+			return nil, errp.Errorf("ToASCII error, %v", err)
 		}
 		ns[i], err = idna.Registration.ToUnicode(as[i])
 		if err != nil {
-			return nil, fmt.Errorf("NewDN(%s): ToUnicode error, %v", strconv.Quote(name), err)
+			return nil, errp.Errorf("ToUnicode error, %v", err)
 		}
 	}
 	dn.name = strings.Join(ns, ":")
 	dn.ascii = strings.Join(as, ":")
 	if name != dn.name && name != dn.ascii {
-		return nil, fmt.Errorf("NewDN(%s): invalid decentralized name", strconv.Quote(name))
+		return nil, errp.Errorf("invalid decentralized name")
 	}
 	return dn, nil
 }

@@ -38,37 +38,38 @@ func (t *TxEth) MarshalJSON() ([]byte, error) {
 
 // SyntacticVerify verifies that a *TxEth is well-formed.
 func (t *TxEth) SyntacticVerify() error {
-	errPrefix := "TxEth.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxEth.SyntacticVerify error: ")
+
 	if t == nil || t.tx == nil {
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 	}
 
 	if chainID := t.tx.ChainId().Uint64(); chainID > 0 && chainID != gChainID {
-		return fmt.Errorf("%s invalid chainId, expected %d, got %d", errPrefix, gChainID, chainID)
+		return errp.Errorf("invalid chainId, expected %d, got %d", gChainID, chainID)
 	}
 
 	if t.tx.Value().Sign() < 0 {
-		return fmt.Errorf("%s invalid value", errPrefix)
+		return errp.Errorf("invalid value")
 	}
 
 	from, err := types.Sender(EthSigner, t.tx)
 	if err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	t.from = util.EthID(from)
 
 	to := t.tx.To()
 	if to == nil {
-		return fmt.Errorf("%s invalid to", errPrefix)
+		return errp.Errorf("invalid to")
 	}
 	t.to = util.EthID(*to)
 	if t.to == util.EthIDEmpty {
-		return fmt.Errorf("%s invalid recipient", errPrefix)
+		return errp.Errorf("invalid recipient")
 	}
 
 	t.sigs = []util.Signature{encodeSignature(t.tx.RawSignatureValues())}
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -82,11 +83,19 @@ func (t *TxEth) Bytes() []byte {
 
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
-	return t.tx.UnmarshalBinary(data)
+	if err := t.tx.UnmarshalBinary(data); err != nil {
+		return util.ErrPrefix("TxEth.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *TxEth) Marshal() ([]byte, error) {
-	return t.tx.MarshalBinary()
+	data, err := t.tx.MarshalBinary()
+	if err != nil {
+		return nil, util.ErrPrefix("TxEth.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
+
 }
 
 func (t *TxEth) TxData(tx *TxData) *TxData {
@@ -115,7 +124,7 @@ func (t *TxEth) ToTransaction() *Transaction {
 
 func (t *TxEth) Signers() (util.EthIDs, error) {
 	if t.from == util.EthIDEmpty {
-		return nil, fmt.Errorf("TxEth.Signers failed: invalid signature")
+		return nil, fmt.Errorf("TxEth.Signers error: invalid signature")
 	}
 	return util.EthIDs{t.from}, nil
 }

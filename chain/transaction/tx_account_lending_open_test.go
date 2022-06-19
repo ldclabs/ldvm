@@ -40,7 +40,7 @@ func TestTxOpenLending(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
@@ -182,7 +182,7 @@ func TestTxOpenLending(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckOpenLending failed: lending exists")
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckOpenLending error: lending exists")
 
 	assert.NoError(from.UpdateKeepers(nil, nil, &approver, ld.TxTypes{ld.TypeOpenLending}))
 	// close lending

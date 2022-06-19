@@ -4,8 +4,6 @@
 package ld
 
 import (
-	"fmt"
-
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -32,23 +30,25 @@ func NewState(parent ids.ID) *State {
 
 // SyntacticVerify verifies that a *State is well-formed.
 func (s *State) SyntacticVerify() error {
+	errp := util.ErrPrefix("State.SyntacticVerify error: ")
+
 	switch {
 	case s == nil:
-		return fmt.Errorf("State.SyntacticVerify failed: nil pointer")
+		return errp.Errorf("nil pointer")
 
 	case s.Accounts == nil:
-		return fmt.Errorf("State.SyntacticVerify failed: nil accounts")
+		return errp.Errorf("nil accounts")
 
 	case s.Datas == nil:
-		return fmt.Errorf("State.SyntacticVerify failed: nil datas")
+		return errp.Errorf("nil datas")
 
 	case s.Models == nil:
-		return fmt.Errorf("State.SyntacticVerify failed: nil models")
+		return errp.Errorf("nil models")
 	}
 
 	var err error
 	if s.raw, err = s.Marshal(); err != nil {
-		return fmt.Errorf("State.SyntacticVerify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	s.ID = util.IDFromData(s.raw)
@@ -94,9 +94,16 @@ func (s *State) Bytes() []byte {
 }
 
 func (s *State) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, s)
+	if err := util.UnmarshalCBOR(data, s); err != nil {
+		return util.ErrPrefix("State.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (s *State) Marshal() ([]byte, error) {
-	return MarshalCBOR(s)
+	data, err := util.MarshalCBOR(s)
+	if err != nil {
+		return nil, util.ErrPrefix("State.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

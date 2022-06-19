@@ -38,7 +38,7 @@ type TxData struct {
 	To           *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`
 	Token        *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
 	Amount       *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
-	Data         RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	Data         util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 	Signatures   []util.Signature  `cbor:"ss,omitempty" json:"signatures,omitempty"`
 	ExSignatures []util.Signature  `cbor:"es,omitempty" json:"exSignatures,omitempty"`
 
@@ -51,49 +51,49 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *Tx is well-formed.
 func (t *TxData) SyntacticVerify() error {
-	errPrefix := "TxData.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxData.SyntacticVerify error: ")
 
 	switch {
 	case t == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case !AllTxTypes.Has(t.Type):
-		return fmt.Errorf("%s invalid type %d", errPrefix, t.Type)
+		return errp.Errorf("invalid type %d", t.Type)
 
 	case t.ChainID != gChainID:
-		return fmt.Errorf("%s invalid ChainID, expected %d, got %d", errPrefix, gChainID, t.ChainID)
+		return errp.Errorf("invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
 
 	case t.Token != nil && !t.Token.Valid():
-		return fmt.Errorf("%s invalid token symbol %s", errPrefix, strconv.Quote(t.Token.GoString()))
+		return errp.Errorf("invalid token symbol %s", strconv.Quote(t.Token.GoString()))
 
 	case t.Data != nil && len(t.Data) == 0:
-		return fmt.Errorf("%s empty data", errPrefix)
+		return errp.Errorf("empty data")
 
 	case t.Signatures != nil && len(t.Signatures) == 0:
-		return fmt.Errorf("%s empty signatures", errPrefix)
+		return errp.Errorf("empty signatures")
 
 	case t.ExSignatures != nil && len(t.ExSignatures) == 0:
-		return fmt.Errorf("%s empty exSignatures", errPrefix)
+		return errp.Errorf("empty exSignatures")
 
 	case len(t.Signatures) > MaxKeepers:
-		return fmt.Errorf("%s too many signatures", errPrefix)
+		return errp.Errorf("too many signatures")
 
 	case len(t.ExSignatures) > MaxKeepers:
-		return fmt.Errorf("%s too many exSignatures", errPrefix)
+		return errp.Errorf("too many exSignatures")
 	}
 
 	if t.Amount != nil {
 		if t.Amount.Sign() < 0 {
-			return fmt.Errorf("%s invalid amount", errPrefix)
+			return errp.Errorf("invalid amount")
 		}
 		if t.To == nil {
-			return fmt.Errorf("%s nil to together with amount", errPrefix)
+			return errp.Errorf("nil to together with amount")
 		}
 	}
 
 	var err error
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	t.unsigned = t.calcUnsignedBytes()
 	t.ID = util.IDFromData(t.Bytes())
@@ -126,11 +126,18 @@ func (t *TxData) calcUnsignedBytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("TxData.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("TxData.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (t *TxData) RequiredGas(threshold uint64) uint64 {
@@ -181,7 +188,7 @@ type Transaction struct {
 	To           *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`
 	Token        *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
 	Amount       *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
-	Data         RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	Data         util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 	Signatures   []util.Signature  `cbor:"ss,omitempty" json:"signatures,omitempty"`
 	ExSignatures []util.Signature  `cbor:"es,omitempty" json:"exSignatures,omitempty"`
 
@@ -203,8 +210,9 @@ type Transaction struct {
 
 // SyntacticVerify verifies that a *Transaction is well-formed.
 func (t *Transaction) SyntacticVerify() error {
+	errp := util.ErrPrefix("Transaction.SyntacticVerify error: ")
 	if t == nil {
-		return fmt.Errorf("Transaction.SyntacticVerify failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 
 	t.tx = t.TxData(t.tx)
@@ -216,7 +224,7 @@ func (t *Transaction) SyntacticVerify() error {
 	t.ID = t.tx.ID
 	t.gas = t.Gas
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("Transaction.SyntacticVerify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -286,11 +294,18 @@ func (t *Transaction) TxData(tx *TxData) *TxData {
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("Transaction.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("Transaction.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 func (t *Transaction) SetPriority(threshold, delay uint64) {
@@ -334,7 +349,7 @@ func (t *Transaction) Signers() (util.EthIDs, error) {
 	switch t.Type {
 	case TypeEth:
 		if t.tx.eth == nil {
-			return nil, fmt.Errorf("Transaction.Signers invalid TypeEth tx")
+			return nil, fmt.Errorf("Transaction.Signers error: invalid TypeEth tx")
 		}
 		return t.tx.eth.Signers()
 	}
@@ -387,7 +402,7 @@ func (t *Transaction) Copy() *Transaction {
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 	if len(txs) <= 1 {
-		return nil, fmt.Errorf("NewBatchTx: not batch transactions")
+		return nil, fmt.Errorf("NewBatchTx error: not batch transactions")
 	}
 
 	maxSize := -1
@@ -406,7 +421,7 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 		}
 	}
 	if maxSize == -1 {
-		return nil, fmt.Errorf("NewBatchTx: no invalid transaction")
+		return nil, fmt.Errorf("NewBatchTx error: no invalid transaction")
 	}
 	tx = tx.Copy()
 	if err = tx.SyntacticVerify(); err != nil {
@@ -420,11 +435,18 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, txs)
+	if err := util.UnmarshalCBOR(data, txs); err != nil {
+		return util.ErrPrefix("Txs.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	return MarshalCBOR(txs)
+	data, err := util.MarshalCBOR(txs)
+	if err != nil {
+		return nil, util.ErrPrefix("Txs.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }
 
 type group struct {

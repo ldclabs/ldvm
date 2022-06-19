@@ -51,14 +51,14 @@ func (tx *TxTest) SetStatus(s choices.Status) {
 
 func (tx *TxTest) SyntacticVerify() error {
 	if tx == nil || tx.ld == nil {
-		return fmt.Errorf("TxTest.SyntacticVerify failed: nil tx")
+		return fmt.Errorf("TxTest.SyntacticVerify error: nil tx")
 	}
 	return nil
 }
 
 // call after SyntacticVerify
 func (tx *TxTest) Verify(bctx BlockContext, bs BlockState) error {
-	return fmt.Errorf("TxTest.Verify failed: not implemented, TODO")
+	return fmt.Errorf("TxTest.Verify error: not implemented, TODO")
 }
 
 func (tx *TxTest) Accept(bctx BlockContext, bs BlockState) error {

@@ -25,7 +25,7 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateDataKeepersByAuth.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxUpdateDataKeepersByAuth.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -37,101 +37,104 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxUpdateDataKeepersByAuth.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to", errPrefix)
+		return errp.Errorf("nil to")
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
-		return fmt.Errorf("%s invalid data id", errPrefix)
+		return errp.Errorf("invalid data id")
 
 	case tx.input.Version == 0:
-		return fmt.Errorf("%s invalid data version", errPrefix)
+		return errp.Errorf("invalid data version")
 
 	case tx.input.Keepers != nil:
-		return fmt.Errorf("%s invalid keepers, should be nil", errPrefix)
+		return errp.Errorf("invalid keepers, should be nil")
 
 	case tx.input.KSig != nil:
-		return fmt.Errorf("%s invalid kSig, should be nil", errPrefix)
+		return errp.Errorf("invalid kSig, should be nil")
 
 	case tx.input.Approver != nil:
-		return fmt.Errorf("%s invalid approver, should be nil", errPrefix)
+		return errp.Errorf("invalid approver, should be nil")
 
 	case tx.input.ApproveList != nil:
-		return fmt.Errorf("%s invalid approveList, should be nil", errPrefix)
+		return errp.Errorf("invalid approveList, should be nil")
 
 	case tx.input.To == nil:
-		return fmt.Errorf("%s nil to", errPrefix)
+		return errp.Errorf("nil to")
 
 	case *tx.input.To != *tx.ld.To:
-		return fmt.Errorf("%s invalid to, expected %s, got %s",
-			errPrefix, tx.input.To, tx.ld.To)
+		return errp.Errorf("invalid to, expected %s, got %s",
+			tx.input.To, tx.ld.To)
 
 	case tx.input.Amount == nil:
-		return fmt.Errorf("%s nil amount", errPrefix)
+		return errp.Errorf("nil amount")
 
 	case tx.input.Amount.Cmp(tx.amount) != 0:
-		return fmt.Errorf("%s invalid amount, expected %v, got %v",
-			errPrefix, tx.input.Amount, tx.amount)
+		return errp.Errorf("invalid amount, expected %v, got %v",
+			tx.input.Amount, tx.amount)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
-		return fmt.Errorf("%s invalid token, expected NativeToken, got %s",
-			errPrefix, tx.token.GoString())
+		return errp.Errorf("invalid token, expected NativeToken, got %s",
+			tx.token.GoString())
 
 	case tx.input.Token != nil && tx.token != *tx.input.Token:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, tx.input.Token.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			tx.input.Token.GoString(), tx.token.GoString())
 	}
 
 	if tx.exSigners, err = tx.ld.ExSigners(); err != nil {
-		return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
+		return errp.Errorf("invalid exSignatures, %v", err)
 	}
 	return nil
 }
 
 func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
-	errPrefix := "TxUpdateDataKeepersByAuth.Verify failed:"
+	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	tx.di, err = bs.LoadData(*tx.input.ID)
 	switch {
 	case err != nil:
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 
 	case tx.di.Version != tx.input.Version:
-		return fmt.Errorf("%s invalid version, expected %d, got %d",
-			errPrefix, tx.di.Version, tx.input.Version)
+		return errp.Errorf("invalid version, expected %d, got %d",
+			tx.di.Version, tx.input.Version)
 
 	case !util.SatisfySigningPlus(tx.di.Threshold, tx.di.Keepers, tx.exSigners):
-		return fmt.Errorf("%s invalid exSignatures for data keepers", errPrefix)
+		return errp.Errorf("invalid exSignatures for data keepers")
 
 	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.exSigners.Has(*tx.di.Approver):
-		return fmt.Errorf("%s invalid signature for data approver", errPrefix)
+		return errp.Errorf("invalid signature for data approver")
 	}
 	return nil
 }
 
 func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Accept error: ")
 
 	tx.di.Version++
 	tx.di.KSig = util.Signature{}
@@ -145,7 +148,7 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) er
 	tx.di.ApproveList = nil
 
 	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

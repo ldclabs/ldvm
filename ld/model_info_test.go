@@ -52,7 +52,7 @@ func TestModelInfo(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
 	tx = &ModelInfo{Name: "Name", Data: []byte(sch)}
-	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel "Name" error`)
+	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel("Name") error`)
 
 	tx = &ModelInfo{
 		Name:      "NameService",

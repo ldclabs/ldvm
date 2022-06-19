@@ -22,7 +22,7 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateStakeApprover.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxUpdateStakeApprover.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -34,43 +34,44 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxUpdateStakeApprover.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxUpdateStakeApprover.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to as stake account", errPrefix)
+		return errp.Errorf("nil to as stake account")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	if stake := util.StakeSymbol(*tx.ld.To); !stake.Valid() {
-		return fmt.Errorf("%s invalid stake account %s", errPrefix, stake.GoString())
+		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.Approver == nil:
-		return fmt.Errorf("%s nil approver", errPrefix)
+		return errp.Errorf("nil approver")
 
 	case tx.input.ApproveList != nil:
-		return fmt.Errorf("%s invalid approveList, should be nil", errPrefix)
+		return errp.Errorf("invalid approveList, should be nil")
 	}
 
 	return nil
@@ -78,19 +79,23 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 
 func (tx *TxUpdateStakeApprover) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxUpdateStakeApprover.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxUpdateStakeApprover.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.to.CheckUpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers); err != nil {
-		return fmt.Errorf("TxUpdateStakeApprover.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxUpdateStakeApprover) Accept(bctx BlockContext, bs BlockState) error {
+	errp := util.ErrPrefix("TxUpdateStakeApprover.Accept error: ")
+
 	err := tx.to.UpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers)
 	if err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

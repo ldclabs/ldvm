@@ -5,7 +5,6 @@ package genesis
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -77,32 +76,34 @@ type FeeConfig struct {
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
+	errp := util.ErrPrefix("FeeConfig.SyntacticVerify error: ")
+
 	if cfg == nil {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: nil pointer")
+		return errp.Errorf("nil pointer")
 	}
 	if cfg.ThresholdGas <= 500 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid thresholdGas")
+		return errp.Errorf("invalid thresholdGas")
 	}
 	if cfg.MinGasPrice <= 500 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minGasPrice")
+		return errp.Errorf("invalid minGasPrice")
 	}
 	if cfg.MaxGasPrice <= cfg.MinGasPrice {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxGasPrice")
+		return errp.Errorf("invalid maxGasPrice")
 	}
 	if cfg.MaxTxGas <= 1000000 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxTxGas")
+		return errp.Errorf("invalid maxTxGas")
 	}
 	if cfg.MaxBlockTxsSize <= 1000000 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid maxBlockTxsSize")
+		return errp.Errorf("invalid maxBlockTxsSize")
 	}
 	if cfg.GasRebateRate > 1000 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid gasRebateRate")
+		return errp.Errorf("invalid gasRebateRate")
 	}
 	if cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minTokenPledge")
+		return errp.Errorf("invalid minTokenPledge")
 	}
 	if cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
-		return fmt.Errorf("FeeConfig.SyntacticVerify failed: invalid minStakePledge")
+		return errp.Errorf("invalid minStakePledge")
 	}
 	return nil
 }
@@ -120,9 +121,11 @@ func FromJSON(data []byte) (*Genesis, error) {
 }
 
 func (g *Genesis) ToTxs() (ld.Txs, error) {
+	errp := util.ErrPrefix("Genesis.ToTxs error: ")
+
 	genesisAccount, ok := g.Alloc[constants.GenesisAccount]
 	if !ok {
-		return nil, fmt.Errorf("Genesis.ToTxs failed: genesis account not found")
+		return nil, errp.Errorf("genesis account not found")
 	}
 
 	var err error
@@ -142,7 +145,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:    ld.MustMarshal(token),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	txs = append(txs, tx)
 
@@ -165,7 +168,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 			Amount:  v.Balance,
 		}
 		if err = tx.SyntacticVerify(); err != nil {
-			return nil, err
+			return nil, errp.ErrorIf(err)
 		}
 		nonce++
 		txs = append(txs, tx)
@@ -183,7 +186,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 				Data:    ld.MustMarshal(update),
 			}
 			if err = tx.SyntacticVerify(); err != nil {
-				return nil, err
+				return nil, errp.ErrorIf(err)
 			}
 			txs = append(txs, tx)
 		}
@@ -192,7 +195,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	// config data tx
 	cfg, err := json.Marshal(g.Chain.FeeConfig)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	cfgData := &ld.TxUpdater{
 		ModelID:   &constants.JSONModelID,
@@ -202,7 +205,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:      cfg,
 	}
 	if err = cfgData.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
@@ -211,7 +214,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:    ld.MustMarshal(cfgData),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
 	txs = append(txs, tx)
@@ -219,7 +222,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	// name app tx
 	nm, err := service.NameModel()
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	ns := &ld.ModelInfo{
 		Name:      nm.Name(),
@@ -228,7 +231,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:      nm.Schema(),
 	}
 	if err = ns.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
@@ -237,7 +240,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:    ld.MustMarshal(ns),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
@@ -245,7 +248,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	// Profile app tx
 	pm, err := service.ProfileModel()
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	ps := &ld.ModelInfo{
 		Name:      pm.Name(),
@@ -254,7 +257,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:      pm.Schema(),
 	}
 	if err = ps.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
@@ -263,7 +266,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Data:    ld.MustMarshal(ps),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)

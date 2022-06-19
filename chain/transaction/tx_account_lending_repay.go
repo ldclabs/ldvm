@@ -4,7 +4,7 @@
 package transaction
 
 import (
-	"fmt"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxRepay struct {
@@ -13,37 +13,42 @@ type TxRepay struct {
 
 func (tx *TxRepay) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxRepay.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxRepay.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to as lender", errPrefix)
+		return errp.Errorf("nil to as lender")
 
 	case tx.ld.Amount == nil || tx.ld.Amount.Sign() <= 0:
-		return fmt.Errorf("%s invalid amount, expected > 0, got %v", errPrefix, tx.ld.Amount)
+		return errp.Errorf("invalid amount, expected > 0, got %v", tx.ld.Amount)
 	}
 	return nil
 }
 
 func (tx *TxRepay) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxRepay.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxRepay.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount); err != nil {
-		return fmt.Errorf("TxRepay.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxRepay) Accept(bctx BlockContext, bs BlockState) error {
+	errp := util.ErrPrefix("TxRepay.Accept error: ")
+
 	actual, err := tx.to.Repay(tx.token, tx.ld.From, tx.ld.Amount)
 	if err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	tx.amount.Set(actual)
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

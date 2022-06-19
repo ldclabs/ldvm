@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -63,21 +62,23 @@ func (tx *TxBase) SetStatus(s choices.Status) {
 }
 
 func (tx *TxBase) SyntacticVerify() error {
+	var err error
+	errp := util.ErrPrefix("TxBase.SyntacticVerify error: ")
+
 	switch {
 	case tx == nil || tx.ld == nil:
-		return fmt.Errorf("TxBase.SyntacticVerify failed: nil pointer")
+		return errp.Errorf("nil pointer")
 
 	case tx.ld.From == util.EthIDEmpty:
-		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid from")
+		return errp.Errorf("invalid from")
 
 	case tx.ld.To != nil && tx.ld.From == *tx.ld.To:
-		return fmt.Errorf("TxBase.SyntacticVerify failed: invalid to")
+		return errp.Errorf("invalid to")
 	}
 
-	var err error
 	tx.signers, err = tx.ld.Signers()
 	if err != nil {
-		return fmt.Errorf("TxBase.SyntacticVerify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	if tx.ld.Token != nil {
 		tx.token = *tx.ld.Token
@@ -92,18 +93,19 @@ func (tx *TxBase) SyntacticVerify() error {
 // call after SyntacticVerify
 func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
-	errPrefix := "TxBase.Verify failed:"
+	errp := util.ErrPrefix("TxBase.Verify error: ")
+
 	feeCfg := bctx.FeeConfig()
 	requireGas := tx.ld.RequiredGas(feeCfg.ThresholdGas)
 
 	if price := bctx.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
-		return fmt.Errorf("%s invalid gasFeeCap, expected >= %d, got %d",
-			errPrefix, price, tx.ld.GasFeeCap)
+		return errp.Errorf("invalid gasFeeCap, expected >= %d, got %d",
+			price, tx.ld.GasFeeCap)
 	}
 
 	if tx.ld.Gas != requireGas || tx.ld.Gas > feeCfg.MaxTxGas {
-		return fmt.Errorf("%s invalid gas, expected %d, got %d",
-			errPrefix, requireGas, tx.ld.Gas)
+		return errp.Errorf("invalid gas, expected %d, got %d",
+			requireGas, tx.ld.Gas)
 	}
 
 	tx.tip = new(big.Int).Mul(tx.ld.GasUnits(), new(big.Int).SetUint64(tx.ld.GasTip))
@@ -111,52 +113,52 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
 
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if err = tx.from.CheckAsFrom(tx.ld.Type); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if tx.ld.To != nil {
 		if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 		if err = tx.to.CheckAsTo(tx.ld.Type); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 	}
 
 	switch {
 	case tx.ld.Nonce != tx.from.Nonce():
-		return fmt.Errorf("%s invalid nonce for sender, expected %d, got %d",
-			errPrefix, tx.from.Nonce(), tx.ld.Nonce)
+		return errp.Errorf("invalid nonce for sender, expected %d, got %d",
+			tx.from.Nonce(), tx.ld.Nonce)
 
 	case !tx.from.SatisfySigning(tx.signers):
-		return fmt.Errorf("%s invalid signatures for sender", errPrefix)
+		return errp.Errorf("invalid signatures for sender")
 
 	case tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) &&
 		!tx.signers.Has(*tx.from.ld.Approver):
-		return fmt.Errorf("%s invalid signature for approver", errPrefix)
+		return errp.Errorf("invalid signature for approver")
 	}
 
 	switch tx.token {
 	case constants.NativeToken:
 		if err = tx.from.CheckBalance(constants.NativeToken,
 			new(big.Int).Add(tx.amount, tx.cost)); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 
 	default:
 		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 		if err = tx.from.CheckBalance(tx.token, tx.amount); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 	}
 	return nil
@@ -164,24 +166,26 @@ func (tx *TxBase) Verify(bctx BlockContext, bs BlockState) error {
 
 func (tx *TxBase) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxBase.Accept error: ")
+
 	if err = tx.from.SubByNonce(constants.NativeToken, tx.ld.Nonce, tx.cost); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
 	if tx.amount.Sign() > 0 {
 		if err = tx.from.Sub(tx.token, tx.amount); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 		if err = tx.to.Add(tx.token, tx.amount); err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 	}
 	if err = tx.miner.Add(constants.NativeToken, tx.tip); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	// burning fee
 	if err = tx.ldc.Add(constants.NativeToken, tx.fee); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	return nil
 }

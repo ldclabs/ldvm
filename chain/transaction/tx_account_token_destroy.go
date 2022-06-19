@@ -4,8 +4,6 @@
 package transaction
 
 import (
-	"fmt"
-
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -15,49 +13,52 @@ type TxDestroyTokenAccount struct {
 
 func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxDestroyTokenAccount.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxDestroyTokenAccount.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s nil to as pledge recipient", errPrefix)
+		return errp.Errorf("nil to as pledge recipient")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 	}
 
 	if token := util.TokenSymbol(tx.ld.From); !token.Valid() {
-		return fmt.Errorf("%s invalid token %s", errPrefix, token.GoString())
+		return errp.Errorf("invalid token %s", token.GoString())
 	}
 	return nil
 }
 
 func (tx *TxDestroyTokenAccount) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
-	errPrefix := "TxDestroyTokenAccount.Verify failed:"
+	errp := util.ErrPrefix("TxDestroyTokenAccount.Verify error: ")
 
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return fmt.Errorf("%s invalid signature for keepers", errPrefix)
+		return errp.Errorf("invalid signature for keepers")
 	}
 	if err = tx.from.CheckDestroyToken(tx.to); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxDestroyTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
+	errp := util.ErrPrefix("TxDestroyTokenAccount.Accept error: ")
+
 	if err := tx.TxBase.Accept(bctx, bs); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	// DestroyToken after TxBase.Accept
 	tx.from.pledge.SetUint64(0)
-	return tx.from.DestroyToken(tx.to)
+	return errp.ErrorIf(tx.from.DestroyToken(tx.to))
 }

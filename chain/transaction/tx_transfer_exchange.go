@@ -26,7 +26,7 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxTransferExchange.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxTransferExchange.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -38,29 +38,30 @@ func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTransferExchange) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxTransferExchange.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxTransferExchange.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.To == nil:
-		return fmt.Errorf("%s invalid to", errPrefix)
+		return errp.Errorf("invalid to")
 
 	case tx.ld.Amount == nil:
-		return fmt.Errorf("%s invalid amount", errPrefix)
+		return errp.Errorf("invalid amount")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxExchanger{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	// quantity = amount * 1_000_000_000 / price
@@ -72,61 +73,66 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	case tx.quantity.Cmp(tx.input.Minimum) < 0:
 		min := new(big.Int).Mul(tx.input.Minimum, tx.input.Price)
 		min.Quo(min, new(big.Int).SetUint64(constants.LDC))
-		return fmt.Errorf("%s invalid amount, expected >=%v, got %v",
-			errPrefix, min, tx.ld.Amount)
+		return errp.Errorf("invalid amount, expected >=%v, got %v",
+			min, tx.ld.Amount)
 
 	case tx.quantity.Cmp(tx.input.Quota) > 0:
 		max := new(big.Int).Mul(tx.input.Quota, tx.input.Price)
 		max.Quo(max, new(big.Int).SetUint64(constants.LDC))
-		return fmt.Errorf("%s invalid amount, expected <=%v, got %v",
-			errPrefix, max, tx.ld.Amount)
+		return errp.Errorf("invalid amount, expected <=%v, got %v",
+			max, tx.ld.Amount)
 
 	case tx.input.Purchaser != nil && *tx.input.Purchaser != tx.ld.From:
-		return fmt.Errorf("%s invalid from, expected %s, got %s",
-			errPrefix, *tx.input.Purchaser, tx.ld.From)
+		return errp.Errorf("invalid from, expected %s, got %s",
+			*tx.input.Purchaser, tx.ld.From)
 
 	case tx.input.Payee != *tx.ld.To:
-		return fmt.Errorf("%s invalid to, expected %s, got %s",
-			errPrefix, tx.input.Payee, tx.ld.To)
+		return errp.Errorf("invalid to, expected %s, got %s",
+			tx.input.Payee, tx.ld.To)
 
 	case tx.input.Receive != tx.token:
-		return fmt.Errorf("%s invalid token, expected %s, got %s",
-			errPrefix, tx.input.Receive.GoString(), tx.token.GoString())
+		return errp.Errorf("invalid token, expected %s, got %s",
+			tx.input.Receive.GoString(), tx.token.GoString())
 
 	case tx.input.Expire < tx.ld.Timestamp:
-		return fmt.Errorf("%s data expired", errPrefix)
+		return errp.Errorf("data expired")
 	}
 
 	tx.exSigners, err = tx.ld.ExSigners()
 	if err != nil {
-		return fmt.Errorf("%s invalid exSignatures: %v", errPrefix, err)
+		return errp.Errorf("invalid exSignatures, %v", err)
 	}
 	return nil
 }
 
 func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxTransferExchange.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxTransferExchange.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
-		return fmt.Errorf("TxTransferExchange.Verify failed: invalid signatures for seller")
+		return errp.Errorf("invalid signatures for seller")
 	}
 	if err = tx.to.CheckSubByNonceTable(
 		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
-		return fmt.Errorf("TxTransferExchange.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxTransferExchange) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
-	if err = tx.to.SubByNonceTable(tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
-		return err
+	errp := util.ErrPrefix("TxTransferExchange.Accept error: ")
+
+	if err = tx.to.SubByNonceTable(
+		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
+		return errp.ErrorIf(err)
 	}
 	if err = tx.from.Add(tx.input.Sell, tx.quantity); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

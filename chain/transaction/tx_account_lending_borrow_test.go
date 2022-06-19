@@ -45,7 +45,7 @@ func TestTxBorrow(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -246,7 +246,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 
 	dueTime := bs.Timestamp()
-	dueTimeData, err := ld.MarshalCBOR(dueTime)
+	dueTimeData, err := util.MarshalCBOR(dueTime)
 	assert.NoError(err)
 	input = &ld.TxTransfer{
 		From:   &lender.id,
@@ -274,7 +274,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.ErrorContains(err, "invalid dueTime, expected > 1000, got 1000")
 
 	dueTime = bs.Timestamp() + 3600*24
-	dueTimeData, err = ld.MarshalCBOR(dueTime)
+	dueTimeData, err = util.MarshalCBOR(dueTime)
 	assert.NoError(err)
 	input = &ld.TxTransfer{
 		From:   &lender.id,
@@ -299,7 +299,7 @@ func TestTxBorrow(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	_, err = NewTx(tt, true)
-	assert.ErrorContains(err, "invalid exSignatures, DeriveSigners: no signature")
+	assert.ErrorContains(err, "invalid exSignatures, DeriveSigners error: no signature")
 
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
@@ -317,7 +317,7 @@ func TestTxBorrow(t *testing.T) {
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).CheckBorrow failed: invalid lending")
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).CheckBorrow error: invalid lending")
 
 	lcfg := &ld.LendingConfig{
 		DailyInterest:   10_000,
@@ -373,7 +373,7 @@ func TestTxBorrow(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"CheckBorrow failed: invalid token, expected NativeLDC, got $LDC")
+		"CheckBorrow error: invalid token, expected NativeLDC, got $LDC")
 
 	input = &ld.TxTransfer{
 		From:   &lender.id,
@@ -401,11 +401,11 @@ func TestTxBorrow(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).CheckBorrow failed: insufficient NativeLDC balance, expected 1000000000, got 998549100")
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).CheckBorrow error: insufficient NativeLDC balance, expected 1000000000, got 998549100")
 
 	assert.NoError(lender.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).SubByNonceTable failed: nonce 0 not exists at 1000")
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).CheckSubByNonceTable error: nonce 0 not exists at 1000")
 
 	assert.NoError(lender.AddNonceTable(bs.Timestamp(), []uint64{0, 1}))
 	assert.NoError(itx.Verify(bctx, bs))

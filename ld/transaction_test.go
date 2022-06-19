@@ -34,7 +34,7 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil to together with amount")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: RawData{}}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: util.RawData{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Signatures: []util.Signature{}}
@@ -175,7 +175,7 @@ func TestTransaction(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, signers)
 	_, err = tx.ExSigners()
-	assert.ErrorContains(err, `DeriveSigners: empty data`)
+	assert.ErrorContains(err, `DeriveSigners error: empty data`)
 
 	assert.False(tx.IsBatched())
 	assert.False(tx.NeedApprove(nil, nil))
@@ -196,7 +196,7 @@ func TestTxs(t *testing.T) {
 	assert.Equal(0, testTx.BytesSize())
 
 	_, err := NewBatchTx(testTx)
-	assert.ErrorContains(err, "NewBatchTx: not batch transactions")
+	assert.ErrorContains(err, "NewBatchTx error: not batch transactions")
 
 	to := util.Signer2.Address()
 	txData := &TxData{

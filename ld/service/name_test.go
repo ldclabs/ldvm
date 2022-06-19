@@ -18,7 +18,7 @@ func TestName(t *testing.T) {
 	assert.ErrorContains(name.SyntacticVerify(), "nil pointer")
 
 	name = &Name{Name: "ab=c"}
-	assert.ErrorContains(name.SyntacticVerify(), `NewDN("ab=c"): ToASCII error, idna: disallowed rune`)
+	assert.ErrorContains(name.SyntacticVerify(), `ToASCII error, idna: disallowed rune`)
 
 	name = &Name{Name: "xn--vuq70b.com."}
 	assert.ErrorContains(name.SyntacticVerify(), `"xn--vuq70b.com." is not unicode form`)

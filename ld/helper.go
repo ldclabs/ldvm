@@ -4,21 +4,22 @@
 package ld
 
 import (
-	"fmt"
 	"runtime/debug"
 	"strconv"
+
+	"github.com/ldclabs/ldvm/util"
 )
 
-func Recover(errName string, fn func() error) (err error) {
+func Recover(errp util.ErrPrefix, fn func() error) (err error) {
 	defer func() {
 		if re := recover(); re != nil {
 			buf := debug.Stack()
-			err = fmt.Errorf("%s panic: %v, stack: %s", errName, re, strconv.Quote(string(buf)))
+			err = errp.Errorf("panic: %v, stack: %s", re, strconv.Quote(string(buf)))
 		}
 	}()
 
 	if err = fn(); err != nil {
-		return fmt.Errorf("%s error: %v", errName, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }

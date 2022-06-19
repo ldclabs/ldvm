@@ -43,7 +43,7 @@ func TestBlock(t *testing.T) {
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
 
 	blk = &Block{State: ids.ID{1, 2, 3}, Txs: make([]*Transaction, 1)}
-	assert.ErrorContains(blk.SyntacticVerify(), "Block.SyntacticVerify failed: Transaction.SyntacticVerify failed: nil pointer")
+	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify error: nil pointer")
 
 	to := util.Signer2.Address()
 	txData := &TxData{

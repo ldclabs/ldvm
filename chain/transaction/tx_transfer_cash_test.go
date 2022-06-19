@@ -42,7 +42,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -289,7 +289,7 @@ func TestTxTransferCash(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
 	_, err = NewTx(tt, true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -309,7 +309,7 @@ func TestTxTransferCash(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 179, got 0")
+		"TxBase.Verify error: invalid gas, expected 179, got 0")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,

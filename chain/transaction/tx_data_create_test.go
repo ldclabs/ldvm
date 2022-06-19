@@ -42,7 +42,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
@@ -218,7 +218,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "invalid kSig, DeriveSigner: recovery failed")
+	assert.ErrorContains(err, "invalid kSig, DeriveSigner error: recovery failed")
 
 	kSig, err := util.Signer2.Sign(input.Data)
 	assert.NoError(err)
@@ -363,7 +363,7 @@ func TestTxCreateData(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 284, got 0")
+		"TxBase.Verify error: invalid gas, expected 284, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -415,7 +415,7 @@ func TestTxCreateCBORData(t *testing.T) {
 		Nonces []int  `cbor:"no"`
 	}
 
-	data, err := ld.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
+	data, err := util.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
 	assert.NoError(err)
 	invalidData := data[:len(data)-3]
 
@@ -445,7 +445,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 295, got 0")
+		"TxBase.Verify error: invalid gas, expected 295, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -480,7 +480,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 298, got 0")
+		"TxBase.Verify error: invalid gas, expected 298, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -559,7 +559,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 305, got 0")
+		"TxBase.Verify error: invalid gas, expected 305, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -594,7 +594,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 309, got 0")
+		"TxBase.Verify error: invalid gas, expected 309, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -682,7 +682,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify failed: invalid gas, expected 309, got 0")
+		"TxBase.Verify error: invalid gas, expected 309, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
@@ -692,7 +692,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs), "LM6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1 not found")
 	assert.NoError(bs.SaveModel(ps.ID, ps))
-	assert.ErrorContains(itx.Verify(bctx, bs), `IPLDModel "ProfileService" error`)
+	assert.ErrorContains(itx.Verify(bctx, bs), `IPLDModel("ProfileService").decode error`)
 
 	input = &ld.TxUpdater{
 		ModelID:   &ps.ID,
@@ -817,7 +817,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.ErrorContains(itx.Verify(bctx, bs), "LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK not found")
 	assert.NoError(bs.SaveModel(mi.ID, mi))
-	assert.ErrorContains(itx.Verify(bctx, bs), `TxCreateData.Verify failed: nil to`)
+	assert.ErrorContains(itx.Verify(bctx, bs), `TxCreateData.Verify error: nil to`)
 
 	input = &ld.TxUpdater{
 		ModelID:   &mi.ID,
@@ -985,7 +985,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	tt.Timestamp = 10
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
-	assert.ErrorContains(err, "invalid exSignatures: DeriveSigners: no signature")
+	assert.ErrorContains(err, "invalid exSignatures, DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
@@ -1257,7 +1257,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		`TxCreateData.Verify failed: name "ldc.to." conflict`)
+		`TxCreateData.Verify error: name "ldc.to." conflict`)
 
 	name2 = &service.Name{
 		Name:    "api.ldc.to.",

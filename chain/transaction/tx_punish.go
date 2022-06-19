@@ -24,7 +24,7 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 	}
 	v := tx.ld.Copy()
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxPunish.MarshalJSON failed: invalid tx.input")
+		return nil, fmt.Errorf("TxPunish.MarshalJSON error: invalid tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
@@ -36,63 +36,67 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 
 func (tx *TxPunish) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxPunish.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxPunish.SyntacticVerify error: ")
+
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.ld.From != constants.GenesisAccount:
-		return fmt.Errorf("%s invalid from, expected GenesisAccount, got %s", errPrefix, tx.ld.From)
+		return errp.Errorf("invalid from, expected GenesisAccount, got %s", tx.ld.From)
 
 	case tx.ld.To != nil:
-		return fmt.Errorf("%s invalid to, should be nil", errPrefix)
+		return errp.Errorf("invalid to, should be nil")
 
 	case tx.ld.Token != nil:
-		return fmt.Errorf("%s invalid token, should be nil", errPrefix)
+		return errp.Errorf("invalid token, should be nil")
 
 	case tx.ld.Amount != nil:
-		return fmt.Errorf("%s invalid amount, should be nil", errPrefix)
+		return errp.Errorf("invalid amount, should be nil")
 
 	case len(tx.ld.Data) == 0:
-		return fmt.Errorf("%s invalid data", errPrefix)
+		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 
 	switch {
 	case tx.input.ID == nil:
-		return fmt.Errorf("%s nil data id", errPrefix)
+		return errp.Errorf("nil data id")
 
 	case *tx.input.ID == util.DataIDEmpty:
-		return fmt.Errorf("%s invalid data id", errPrefix)
+		return errp.Errorf("invalid data id")
 	}
 	return nil
 }
 
 func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxPunish.Verify error: ")
+
 	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return fmt.Errorf("TxPunish.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 
 	if tx.di, err = bs.LoadData(*tx.input.ID); err != nil {
-		return fmt.Errorf("TxPunish.Verify failed: %v", err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
 
 func (tx *TxPunish) Accept(bctx BlockContext, bs BlockState) error {
 	var err error
+	errp := util.ErrPrefix("TxPunish.Accept error: ")
 
 	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return tx.TxBase.Accept(bctx, bs)
+	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
 }

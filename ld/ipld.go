@@ -14,6 +14,7 @@ import (
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipld/go-ipld-prime/node/bindnode"
 	"github.com/ipld/go-ipld-prime/schema"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type IPLDModel struct {
@@ -28,7 +29,9 @@ type IPLDModel struct {
 
 func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
 	b := &IPLDModel{name: name, sch: sch, buf: new(bytes.Buffer)}
-	err := Recover("NewIPLDModel "+strconv.Quote(name), func() error {
+
+	errp := util.ErrPrefix(fmt.Sprintf("NewIPLDModel(%s) error: ", strconv.Quote(name)))
+	err := Recover(errp, func() error {
 		ts, err := ipld.LoadSchemaBytes(sch)
 		if err != nil {
 			return err
@@ -67,7 +70,8 @@ func (l *IPLDModel) Type() schema.Type {
 func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
 	// defer l.builder.Reset() TODO: not supported yet
 
-	err = Recover("IPLDModel "+strconv.Quote(l.name), func() error {
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).decode error: ", strconv.Quote(l.name)))
+	err = Recover(errp, func() error {
 		builder := l.prototype.Representation().NewBuilder()
 		if er := dagcbor.Decode(builder, bytes.NewReader(data)); er != nil {
 			return er
@@ -79,7 +83,7 @@ func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
 		return nil
 	})
 	if err == nil && node == nil {
-		err = fmt.Errorf("IPLDModel %s decode error: %d bytes return nil", strconv.Quote(l.name), len(data))
+		err = errp.Errorf("%d bytes return nil", len(data))
 	}
 	return
 }
@@ -89,8 +93,9 @@ func (l *IPLDModel) ApplyPatch(original, patch []byte) ([]byte, error) {
 }
 
 func (l *IPLDModel) Valid(data []byte) error {
-	if err := DecMode.Valid(data); err != nil {
-		return err
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).Valid error: ", strconv.Quote(l.name)))
+	if err := util.ValidCBOR(data); err != nil {
+		return errp.ErrorIf(err)
 	}
 
 	l.mu.Lock()
@@ -102,12 +107,12 @@ func (l *IPLDModel) Valid(data []byte) error {
 
 	defer l.buf.Reset()
 	if err = dagcbor.Encode(node, l.buf); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	d := l.buf.Bytes()
 	if !bytes.Equal(data, d) {
-		err = fmt.Errorf("IPLDModel.Valid %s failed, data length expected %v, got %v",
-			strconv.Quote(l.name), len(data), len(d))
+		err = errp.Errorf("data not equal, bytes length expected %v, got %v",
+			len(data), len(d))
 	}
 	return err
 }

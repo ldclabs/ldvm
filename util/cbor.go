@@ -1,15 +1,13 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package ld
+package util
 
 import (
 	"errors"
 
 	"github.com/fxamacker/cbor/v2"
 	cborpatch "github.com/ldclabs/cbor-patch"
-
-	"github.com/ldclabs/ldvm/util"
 )
 
 var EncOpts = cbor.EncOptions{
@@ -57,14 +55,14 @@ func ValidCBOR(data []byte) error {
 type RawData []byte
 
 func (r RawData) MarshalJSON() ([]byte, error) {
-	return util.MarshalJSONData(r), nil
+	return MarshalJSONData(r), nil
 }
 
 func (r *RawData) UnmarshalJSON(b []byte) error {
 	if r == nil {
 		return errors.New("RawData: UnmarshalJSON on nil pointer")
 	}
-	data := util.UnmarshalJSONData(b)
+	data := UnmarshalJSONData(b)
 	*r = append((*r)[0:0], data...)
 	return nil
 }

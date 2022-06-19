@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -35,7 +34,7 @@ type TxUpdater struct {
 	KSig        *util.Signature   `cbor:"ks,omitempty" json:"kSig,omitempty"`  // full data signature signing by Data Keeper
 	MSig        *util.Signature   `cbor:"ms,omitempty" json:"mSig,omitempty"`  // full data signature signing by Model Service Authority
 	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
-	Data        RawData           `cbor:"d,omitempty" json:"data,omitempty"`
+	Data        util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -44,59 +43,59 @@ type TxUpdater struct {
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
 	var err error
-	errPrefix := "TxUpdater.SyntacticVerify failed:"
+	errp := util.ErrPrefix("TxUpdater.SyntacticVerify error: ")
 
 	switch {
 	case t == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case t.Token != nil && !t.Token.Valid():
-		return fmt.Errorf("%s invalid token symbol %s", errPrefix, strconv.Quote(t.Token.GoString()))
+		return errp.Errorf("invalid token symbol %s", strconv.Quote(t.Token.GoString()))
 
 	case t.Amount != nil && t.Amount.Sign() < 0:
-		return fmt.Errorf("%s invalid amount", errPrefix)
+		return errp.Errorf("invalid amount")
 	}
 
 	if t.Keepers != nil || t.Threshold != nil {
 		switch {
 		case t.Threshold == nil:
-			return fmt.Errorf("%s nil threshold together with keepers", errPrefix)
+			return errp.Errorf("nil threshold together with keepers")
 
 		case t.Keepers == nil:
-			return fmt.Errorf("%s nil keepers together with threshold", errPrefix)
+			return errp.Errorf("nil keepers together with threshold")
 
 		case int(*t.Threshold) > len(*t.Keepers):
-			return fmt.Errorf("%s invalid threshold, expected <= %d, got %d",
-				errPrefix, len(*t.Keepers), *t.Threshold)
+			return errp.Errorf("invalid threshold, expected <= %d, got %d",
+				len(*t.Keepers), *t.Threshold)
 
 		case len(*t.Keepers) > MaxKeepers:
-			return fmt.Errorf("%s invalid keepers, expected <= %d, got %d",
-				errPrefix, MaxKeepers, len(*t.Keepers))
+			return errp.Errorf("invalid keepers, expected <= %d, got %d",
+				MaxKeepers, len(*t.Keepers))
 		}
 
 		if err = t.Keepers.CheckDuplicate(); err != nil {
-			return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+			return errp.Errorf("invalid keepers, %v", err)
 		}
 
 		if err = t.Keepers.CheckEmptyID(); err != nil {
-			return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+			return errp.Errorf("invalid keepers, %v", err)
 		}
 	}
 
 	if t.ApproveList != nil {
 		if err = t.ApproveList.CheckDuplicate(); err != nil {
-			return fmt.Errorf("%s invalid approveList, %v", errPrefix, err)
+			return errp.Errorf("invalid approveList, %v", err)
 		}
 
 		for _, ty := range t.ApproveList {
 			if !DataTxTypes.Has(ty) {
-				return fmt.Errorf("%s invalid TxType %s in approveList", errPrefix, ty)
+				return errp.Errorf("invalid TxType %s in approveList", ty)
 			}
 		}
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -109,9 +108,16 @@ func (t *TxUpdater) Bytes() []byte {
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("TxUpdater.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("TxUpdater.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

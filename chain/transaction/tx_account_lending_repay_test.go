@@ -45,7 +45,7 @@ func TestTxRepay(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
-	assert.ErrorContains(err, "DeriveSigners: no signature")
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -87,7 +87,7 @@ func TestTxRepay(t *testing.T) {
 	assert.ErrorContains(itx.Verify(bctx, bs),
 		"insufficient NativeLDC balance, expected 1000638000, got 0")
 	borrower.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
-	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay failed: invalid lending")
+	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay error: invalid lending")
 
 	// open lending
 	lcfg := &ld.LendingConfig{
@@ -144,7 +144,7 @@ func TestTxRepay(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"CheckRepay failed: invalid token, expected $LDC, got NativeLDC")
+		"CheckRepay error: invalid token, expected $LDC, got NativeLDC")
 
 	txData = &ld.TxData{
 		Type:      ld.TypeRepay,
@@ -167,7 +167,7 @@ func TestTxRepay(t *testing.T) {
 		"insufficient $LDC balance, expected 1000000000, got 0")
 
 	borrower.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay failed: don't need to repay")
+	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay error: don't need to repay")
 
 	// borrow
 	input := &ld.TxTransfer{
@@ -198,7 +198,7 @@ func TestTxRepay(t *testing.T) {
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Verify(bctx, bs),
-		"CheckBorrow failed: insufficient $LDC balance, expected 1000000000, got 0")
+		"CheckBorrow error: insufficient $LDC balance, expected 1000000000, got 0")
 
 	assert.NoError(lender.Add(token, new(big.Int).SetUint64(constants.LDC)))
 	assert.NoError(lender.AddNonceTable(bs.Timestamp()+1, []uint64{1}))

@@ -4,7 +4,6 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 	"unicode/utf8"
 
@@ -43,7 +42,7 @@ type lazyName struct {
 
 func GetName(data []byte) (string, error) {
 	n := &lazyName{}
-	if err := ld.UnmarshalCBOR(data, n); err != nil {
+	if err := util.UnmarshalCBOR(data, n); err != nil {
 		return "", err
 	}
 	return n.Name, nil
@@ -51,29 +50,29 @@ func GetName(data []byte) (string, error) {
 
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
-	errPrefix := "Name.SyntacticVerify failed:"
+	errp := util.ErrPrefix("Name.SyntacticVerify error: ")
 	if n == nil {
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 	}
 
 	dn, err := NewDN(n.Name)
 	if err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if dn.String() != n.Name {
-		return fmt.Errorf("%s %s is not unicode form", errPrefix, strconv.Quote(n.Name))
+		return errp.Errorf("%s is not unicode form", strconv.Quote(n.Name))
 	}
 
 	if n.Records == nil {
-		return fmt.Errorf("%s nil records", errPrefix)
+		return errp.Errorf("nil records")
 	}
 	for _, s := range n.Records {
 		if !utf8.ValidString(s) {
-			return fmt.Errorf("%s invalid utf8 record %s", errPrefix, strconv.Quote(s))
+			return errp.Errorf("invalid utf8 record %s", strconv.Quote(s))
 		}
 	}
 	if n.raw, err = n.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -86,9 +85,16 @@ func (n *Name) Bytes() []byte {
 }
 
 func (n *Name) Unmarshal(data []byte) error {
-	return ld.UnmarshalCBOR(data, n)
+	if err := util.UnmarshalCBOR(data, n); err != nil {
+		return util.ErrPrefix("Name.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	return ld.MarshalCBOR(n)
+	data, err := util.MarshalCBOR(n)
+	if err != nil {
+		return nil, util.ErrPrefix("Name.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }

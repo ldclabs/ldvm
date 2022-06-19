@@ -221,7 +221,7 @@ func (s *stateDB) Context() *Context {
 func (s *stateDB) Bootstrap() error {
 	txs, err := s.genesis.ToTxs()
 	if err != nil {
-		logging.Log.Error("stateDB.Bootstrap failed: %v", err)
+		logging.Log.Error("stateDB.Bootstrap error: %v", err)
 		return err
 	}
 
@@ -253,13 +253,13 @@ func (s *stateDB) Bootstrap() error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("load last_accepted failed: %v", err)
+		return fmt.Errorf("load last_accepted error: %v", err)
 	}
 
 	// verify genesis data
 	genesisID, err := s.GetBlockIDAtHeight(0)
 	if err != nil {
-		return fmt.Errorf("load genesis id failed: %v", err)
+		return fmt.Errorf("load genesis id error: %v", err)
 	}
 	// not the one on blockchain, means that the genesis data changed
 	if genesisID != genesisBlock.ID() {
@@ -278,7 +278,7 @@ func (s *stateDB) Bootstrap() error {
 	// load the last accepted block
 	lastAcceptedBlock, err := s.GetBlock(lastAcceptedID)
 	if err != nil {
-		return fmt.Errorf("load last accepted block failed: %v", err)
+		return fmt.Errorf("load last accepted block error: %v", err)
 	}
 
 	lastAcceptedBlock.InitState(s.db, true)
@@ -290,21 +290,21 @@ func (s *stateDB) Bootstrap() error {
 	feeConfigID := s.genesis.Chain.FeeConfigID
 	di, err = s.LoadData(feeConfigID)
 	if err != nil {
-		return fmt.Errorf("load last fee config failed: %v", err)
+		return fmt.Errorf("load last fee config error: %v", err)
 	}
 	cfg, err := s.genesis.Chain.AppendFeeConfig(di.Data)
 	if err != nil {
-		return fmt.Errorf("unmarshal fee config failed: %v", err)
+		return fmt.Errorf("unmarshal fee config error: %v", err)
 	}
 
 	for di.Version > 1 && cfg.StartHeight >= lastAcceptedBlock.ld.Height {
 		di, err = s.LoadPrevData(feeConfigID, di.Version-1)
 		if err != nil {
-			return fmt.Errorf("load previous fee config failed: %v", err)
+			return fmt.Errorf("load previous fee config error: %v", err)
 		}
 		cfg, err = s.genesis.Chain.AppendFeeConfig(di.Data)
 		if err != nil {
-			return fmt.Errorf("unmarshal fee config failed: %v", err)
+			return fmt.Errorf("unmarshal fee config error: %v", err)
 		}
 	}
 

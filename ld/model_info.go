@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/ldclabs/ldvm/util"
@@ -22,9 +21,9 @@ type ModelInfo struct {
 	// keepers who owned this model, no more than 1024
 	// Creating data using this model requires keepers to sign.
 	// no keepers or threshold is 0 means don't need sign.
-	Keepers  util.EthIDs `cbor:"kp" json:"keepers"`
-	Approver *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
-	Data     RawData     `cbor:"d" json:"data"`
+	Keepers  util.EthIDs  `cbor:"kp" json:"keepers"`
+	Approver *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
+	Data     util.RawData `cbor:"d" json:"data"`
 
 	// external assignment fields
 	ID    util.ModelID `cbor:"-" json:"id"`
@@ -39,40 +38,41 @@ func (t *ModelInfo) Model() *IPLDModel {
 // SyntacticVerify verifies that a *ModelInfo is well-formed.
 func (t *ModelInfo) SyntacticVerify() error {
 	var err error
-	errPrefix := "ModelInfo.SyntacticVerify failed:"
+	errp := util.ErrPrefix("ModelInfo.SyntacticVerify error: ")
+
 	switch {
 	case t == nil:
-		return fmt.Errorf("%s nil pointer", errPrefix)
+		return errp.Errorf("nil pointer")
 
 	case !ModelNameReg.MatchString(t.Name):
-		return fmt.Errorf("%s invalid name", errPrefix)
+		return errp.Errorf("invalid name")
 
 	case len(t.Keepers) > MaxKeepers:
-		return fmt.Errorf("%s too many keepers", errPrefix)
+		return errp.Errorf("too many keepers")
 
 	case int(t.Threshold) > len(t.Keepers):
-		return fmt.Errorf("%s invalid threshold", errPrefix)
+		return errp.Errorf("invalid threshold")
 
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
-		return fmt.Errorf("%s invalid approver", errPrefix)
+		return errp.Errorf("invalid approver")
 
 	case len(t.Data) < 10:
-		return fmt.Errorf("%s invalid data bytes", errPrefix)
+		return errp.Errorf("invalid data bytes")
 	}
 
 	if err = t.Keepers.CheckDuplicate(); err != nil {
-		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+		return errp.Errorf("invalid keepers, %v", err)
 	}
 
 	if err = t.Keepers.CheckEmptyID(); err != nil {
-		return fmt.Errorf("%s invalid keepers, %v", errPrefix, err)
+		return errp.Errorf("invalid keepers, %v", err)
 	}
 
 	if t.model, err = NewIPLDModel(t.Name, t.Data); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	if t.raw, err = t.Marshal(); err != nil {
-		return fmt.Errorf("%s %v", errPrefix, err)
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -85,9 +85,16 @@ func (t *ModelInfo) Bytes() []byte {
 }
 
 func (t *ModelInfo) Unmarshal(data []byte) error {
-	return UnmarshalCBOR(data, t)
+	if err := util.UnmarshalCBOR(data, t); err != nil {
+		return util.ErrPrefix("ModelInfo.Unmarshal error: ").ErrorIf(err)
+	}
+	return nil
 }
 
 func (t *ModelInfo) Marshal() ([]byte, error) {
-	return MarshalCBOR(t)
+	data, err := util.MarshalCBOR(t)
+	if err != nil {
+		return nil, util.ErrPrefix("ModelInfo.Marshal error: ").ErrorIf(err)
+	}
+	return data, nil
 }
