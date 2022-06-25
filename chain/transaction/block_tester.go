@@ -134,7 +134,16 @@ func (m *MockBS) CheckoutAccounts() {
 		}
 		if acc, ok := m.AC[id]; ok {
 			acc.ld = ac.ld
-			acc.Init(acc.pledge, m.ctx.height, m.ctx.timestamp)
+			pledge := new(big.Int)
+			switch {
+			case acc.pledge.Sign() > 0:
+				pledge.Set(acc.pledge)
+			case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
+				pledge.Set(m.Fee.MinTokenPledge)
+			case acc.Type() == ld.StakeAccount:
+				pledge.Set(m.Fee.MinStakePledge)
+			}
+			acc.Init(pledge, m.ctx.height, m.ctx.timestamp)
 		}
 	}
 }

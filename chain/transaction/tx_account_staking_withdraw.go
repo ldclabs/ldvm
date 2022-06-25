@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -46,6 +45,9 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	case tx.ld.To == nil:
 		return errp.Errorf("nil to as stake account")
 
+	case tx.ld.Token != nil:
+		return errp.Errorf("invalid token, should be nil")
+
 	case tx.ld.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
@@ -66,16 +68,21 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.input.Token == nil && tx.token != constants.NativeToken:
-		return errp.Errorf("invalid token, expected %s, got %s",
-			constants.NativeToken.GoString(), tx.token.GoString())
+	case tx.input.Nonce != 0:
+		return errp.Errorf("invalid nonce, expected 0, got %d", tx.input.Nonce)
 
-	case tx.input.Token != nil && tx.token != *tx.input.Token:
-		return errp.Errorf("invalid token, expected %s, got %s",
-			tx.input.Token.GoString(), tx.token.GoString())
+	case tx.input.From != nil:
+		return errp.Errorf("invalid from, expected nil, got %s", tx.input.From)
 
-	case tx.input.Amount == nil || tx.input.Amount.Sign() <= 0:
-		return errp.Errorf("invalid amount, expected >= 1")
+	case tx.input.To != nil:
+		return errp.Errorf("invalid to, expected nil, got %s", tx.input.To)
+
+	case tx.input.Amount == nil:
+		return errp.Errorf("nil amount, expected >= 0")
+	}
+
+	if tx.input.Token != nil {
+		tx.token = *tx.input.Token
 	}
 	return nil
 }
@@ -88,7 +95,7 @@ func (tx *TxWithdrawStake) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
-	// must WithdrawStake and then Accept
+	// must WithdrawStake and then accept
 	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
 	if err != nil {
 		return errp.ErrorIf(err)

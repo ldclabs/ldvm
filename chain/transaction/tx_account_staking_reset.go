@@ -67,8 +67,9 @@ func (tx *TxResetStake) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.input.LockTime < tx.ld.Timestamp {
-		return errp.Errorf("invalid lockTime, expected >= %d", tx.ld.Timestamp)
+	if tx.input.LockTime > 0 && tx.input.LockTime <= tx.ld.Timestamp {
+		return errp.Errorf("invalid lockTime, expected > %d, got %d",
+			tx.ld.Timestamp, tx.input.LockTime)
 	}
 	return nil
 }

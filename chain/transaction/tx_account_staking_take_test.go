@@ -427,8 +427,7 @@ func TestTxTakeStake(t *testing.T) {
 		new(big.Int).SetUint64(bctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
-	stakeAcc, err := bs.LoadAccount(stakeid)
-
+	stakeAcc := bs.MustAccount(stakeid)
 	assert.Equal(keeperGas*bctx.Price,
 		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(keeperGas*100,
@@ -501,4 +500,87 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"0x1903e91a5af090"},"signatures":["230f5220839b3cf7f92fe6ea65c0c8cfdbeaa992f519ea583adbfff51725eb03721f5d6cdff64aafe7e1fada8391c8e017bf4ada63dc0bf0cf5954b45e64e63b00"],"exSignatures":["54b5fa755a0bd4e82c9f561f4a7493a647d1b114f4b48c62a4b95a5e82bb16dc65b5179a81109c14180b5c457b5fae91d1126ae935bf903ec1c03b68eb8b048300"],"gas":654,"id":"2Lohph5mLZZabmMo32G6uaHfoRDkjDsLzZpweprLvZRMvxVE6z"}`, string(jsondata))
+
+	// take more stake
+	stakeAcc.Add(constants.NativeToken, bctx.FeeConfig().MinStakePledge)
+	stakeAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*10))
+	senderAcc.Add(constants.NativeToken, bctx.FeeConfig().MinStakePledge)
+	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
+	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
+
+	input = &ld.TxTransfer{
+		Nonce:  1,
+		From:   &sender,
+		To:     &stakeid,
+		Amount: new(big.Int).SetUint64(constants.LDC * 100),
+		Expire: bs.Timestamp(),
+		Data:   util.MustMarshalCBOR(bs.Timestamp() + 1),
+	}
+	txData = &ld.TxData{
+		Type:      ld.TypeTakeStake,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      sender,
+		To:        &stakeid,
+		Amount:    new(big.Int).SetUint64(constants.LDC * 100),
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	assert.NoError(txData.ExSignWith(util.Signer2))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tt.Timestamp = bs.Timestamp()
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxTakeStake.Apply error: Account(0x0000000000000000000000000000002354455354).TakeStake error: invalid total amount for 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC, expected <= 100000000000, got 120000000000")
+	bs.CheckoutAccounts()
+
+	input = &ld.TxTransfer{
+		Nonce:  1,
+		From:   &sender,
+		To:     &stakeid,
+		Amount: new(big.Int).SetUint64(constants.LDC * 80),
+		Expire: bs.Timestamp(),
+	}
+	txData = &ld.TxData{
+		Type:      ld.TypeTakeStake,
+		ChainID:   bctx.Chain().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: bctx.Price,
+		From:      sender,
+		To:        &stakeid,
+		Amount:    new(big.Int).SetUint64(constants.LDC * 80),
+		Data:      input.Bytes(),
+	}
+	assert.NoError(txData.SignWith(util.Signer1))
+	assert.NoError(txData.ExSignWith(util.Signer2))
+	tt = txData.ToTransaction()
+	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
+	tt.Timestamp = bs.Timestamp()
+	itx, err = NewTx(tt, true)
+	assert.NoError(err)
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal((keeperGas+senderGas)*bctx.Price,
+		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((keeperGas+senderGas)*100,
+		itx.(*TxTakeStake).miner.balanceOf(constants.NativeToken).Uint64())
+
+	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*100,
+		stakeAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64()*2+constants.LDC*100,
+		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	senderEntry = stakeAcc.ld.StakeLedger[sender]
+	assert.Equal(constants.LDC*100, senderEntry.Amount.Uint64())
+	assert.Equal(bs.Timestamp()+1, senderEntry.LockTime)
+	keeperEntry = stakeAcc.ld.StakeLedger[keeper]
+	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64()*2, keeperEntry.Amount.Uint64())
+
+	assert.NoError(bs.VerifyState())
 }

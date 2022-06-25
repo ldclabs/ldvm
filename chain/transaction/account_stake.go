@@ -65,13 +65,16 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 		return errp.ErrorIf(err)
 	}
 	if cfg.Type != a.ld.Stake.Type {
-		return errp.Errorf("can't change stake type")
+		return errp.Errorf("can't change stake type, expected %d, got %d",
+			a.ld.Stake.Type, cfg.Type)
 	}
 	if cfg.Token != a.ld.Stake.Token {
-		return errp.Errorf("can't change stake token")
+		return errp.Errorf("can't change stake token, expected %s, got %s",
+			a.ld.Stake.Token.GoString(), cfg.Token.GoString())
 	}
-	if a.ld.Stake.LockTime > a.ld.Timestamp {
-		return errp.Errorf("stake in lock, please retry after lockTime")
+	if a.ld.Stake.LockTime >= a.ld.Timestamp {
+		return errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)",
+			a.ld.Stake.LockTime)
 	}
 
 	holders := 0
@@ -104,7 +107,8 @@ func (a *Account) DestroyStake(recipient *Account) error {
 		return errp.Errorf("invalid stake account")
 	}
 	if a.ld.Stake.LockTime >= a.ld.Timestamp {
-		return errp.Errorf("stake in lock, please retry after lockTime")
+		return errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)",
+			a.ld.Stake.LockTime)
 	}
 
 	holders := 0
@@ -180,7 +184,7 @@ func (a *Account) TakeStake(
 		total.Add(total, bonus)
 	}
 	if total.Cmp(stake.MaxAmount) > 0 {
-		return errp.Errorf("invalid total amount, expected <= %v, got %v", stake.MaxAmount, total)
+		return errp.Errorf("invalid total amount for %s, expected <= %v, got %v", from, stake.MaxAmount, total)
 	}
 	if lockTime > 0 && lockTime <= stake.LockTime {
 		return errp.Errorf("invalid lockTime, expected > %v, got %v", stake.LockTime, lockTime)
@@ -244,16 +248,16 @@ func (a *Account) WithdrawStake(
 	if token != stake.Token {
 		return nil, errp.Errorf("invalid token, expected %s, got %s", stake.Token.GoString(), token.GoString())
 	}
-	if stake.LockTime > a.ld.Timestamp {
-		return nil, errp.Errorf("stake in lock, please retry after lockTime")
+	if stake.LockTime >= a.ld.Timestamp {
+		return nil, errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)", stake.LockTime)
 	}
 
 	v := a.ld.StakeLedger[from]
 	if v == nil {
 		return nil, errp.Errorf("%s has no stake to withdraw", from)
 	}
-	if v.LockTime > a.ld.Timestamp {
-		return nil, errp.Errorf("stake in lock, please retry after lockTime")
+	if v.LockTime >= a.ld.Timestamp {
+		return nil, errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)", v.LockTime)
 	}
 	if v.Approver != nil && !signers.Has(*v.Approver) {
 		return nil, errp.Errorf("%s need approver signing", from)
@@ -265,7 +269,7 @@ func (a *Account) WithdrawStake(
 	total = total.Add(total, bonus)
 	if total.Cmp(amount) < 0 {
 		return nil, errp.Errorf("%s has an insufficient stake to withdraw, expected %v, got %v",
-			from, amount, total)
+			from, total, amount)
 	}
 
 	if ba := a.balanceOf(token); ba.Cmp(amount) < 0 {
