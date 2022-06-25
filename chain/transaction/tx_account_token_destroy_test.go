@@ -100,10 +100,10 @@ func TestTxDestroyToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 	}
 	testToken := NewAccount(util.EthID(token))
-	testToken.Init(new(big.Int).SetUint64(constants.LDC), 0, 0)
+	testToken.Init(bctx.FeeConfig().MinTokenPledge, 0, 0)
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
-	testToken.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	testToken.Add(constants.NativeToken, bctx.FeeConfig().MinTokenPledge)
 	assert.Equal(true, testToken.valid(ld.TokenAccount))
 	bs.AC[testToken.id] = testToken
 
@@ -209,7 +209,7 @@ func TestTxDestroyToken(t *testing.T) {
 		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal((tokenGas+recipientGas)*100,
 		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*2-tokenGas*(bctx.Price+100),
+	assert.Equal(bctx.FeeConfig().MinTokenPledge.Uint64()+constants.LDC-tokenGas*(bctx.Price+100),
 		testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, testToken.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-recipientGas*(bctx.Price+100),
@@ -243,7 +243,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
-	assert.Equal(constants.LDC*3-(tokenGas+recipientGas)*(bctx.Price+100),
+	assert.Equal(bctx.FeeConfig().MinTokenPledge.Uint64()+constants.LDC*2-(tokenGas+recipientGas)*(bctx.Price+100),
 		recipientAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), recipientAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), recipientAcc.balanceOfAll(token).Uint64())

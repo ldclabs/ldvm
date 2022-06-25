@@ -346,7 +346,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
 
 	assert.ErrorContains(sa.TakeStake(constants.NativeToken, addr1, ldc, 0),
-		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
+		"expected <= 10000000000, got 11000000000")
 	// No Bonus
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr2, ldc, 11))
 	sa.Add(constants.NativeToken, ldc)
@@ -376,6 +376,10 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime")
 	sa.ld.Timestamp = 10
 	_, err = sa.WithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err,
+		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime, Unix(10)")
+	sa.ld.Timestamp = 11
+	_, err = sa.WithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(0))
 	assert.NoError(err)
 	_, err = sa.WithdrawStake(constants.NativeToken, addr3, util.EthIDs{}, big.NewInt(0))
 	assert.ErrorContains(err, "has no stake to withdraw")
@@ -383,6 +387,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.ErrorContains(err,
 		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime")
 	sa.ld.Timestamp = 11
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err, "Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime, Unix(11)")
+	sa.ld.Timestamp = 12
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(0))
 	assert.NoError(err)
 
@@ -419,7 +426,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver},
 		new(big.Int).SetUint64(constants.LDC+1))
 	assert.ErrorContains(err,
-		"insufficient stake to withdraw, expected 1000000001, got 1000000000")
+		"insufficient stake to withdraw, expected 1000000000, got 1000000001")
 	am, err := sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver}, ldc)
 	assert.NoError(err)
 	sa.Sub(constants.NativeToken, am)
@@ -519,7 +526,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
 
 	assert.ErrorContains(sa.TakeStake(token, addr1, ldc, 0),
-		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
+		"expected <= 10000000000, got 11000000000")
 
 	// sa take a stake in sc
 	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
