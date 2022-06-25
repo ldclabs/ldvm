@@ -108,16 +108,11 @@ func (t *TxUpdater) Bytes() []byte {
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("TxUpdater.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("TxUpdater.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("TxUpdater.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("TxUpdater.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }

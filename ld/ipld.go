@@ -69,7 +69,6 @@ func (l *IPLDModel) Type() schema.Type {
 
 func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
 	// defer l.builder.Reset() TODO: not supported yet
-
 	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).decode error: ", strconv.Quote(l.name)))
 	err = Recover(errp, func() error {
 		builder := l.prototype.Representation().NewBuilder()

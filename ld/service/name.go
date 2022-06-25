@@ -43,7 +43,7 @@ type lazyName struct {
 func GetName(data []byte) (string, error) {
 	n := &lazyName{}
 	if err := util.UnmarshalCBOR(data, n); err != nil {
-		return "", err
+		return "", util.ErrPrefix("GetName error: ").ErrorIf(err)
 	}
 	return n.Name, nil
 }
@@ -85,16 +85,11 @@ func (n *Name) Bytes() []byte {
 }
 
 func (n *Name) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, n); err != nil {
-		return util.ErrPrefix("Name.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Name.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, n))
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(n)
-	if err != nil {
-		return nil, util.ErrPrefix("Name.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Name.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(n))
 }

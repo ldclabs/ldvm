@@ -23,11 +23,10 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	sender := util.Signer1.Address()
 	approver := util.Signer2.Address()
 
 	txData := &ld.TxData{
@@ -36,7 +35,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -48,7 +47,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -61,7 +60,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -74,7 +73,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -87,7 +86,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -99,7 +98,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -114,7 +113,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -138,40 +137,47 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 1532, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 1532, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 1685200, got 0")
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
+	bs.CheckoutAccounts()
 
-	assert.Equal(uint16(0), from.Threshold())
-	assert.Equal(util.EthIDs{}, from.Keepers())
-	assert.Nil(from.ld.Approver)
-	assert.Nil(from.ld.ApproveList)
-	assert.NoError(itx.Accept(bctx, bs))
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 
-	tx = itx.(*TxUpdateAccountKeepers)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), from.Nonce())
+	assert.Equal(uint16(0), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{}, senderAcc.Keepers())
+	assert.Nil(senderAcc.ld.Approver)
+	assert.Nil(senderAcc.ld.ApproveList)
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
-	assert.Equal(approver, *from.ld.Approver)
-	assert.Equal(ld.AccountTxTypes, from.ld.ApproveList)
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), senderAcc.Nonce())
+
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
+	assert.Equal(approver, *senderAcc.ld.Approver)
+	assert.Equal(ld.AccountTxTypes, senderAcc.ld.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -189,7 +195,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -197,21 +203,29 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
-	assert.Equal(approver, *from.ld.Approver)
-	assert.Equal(ld.TransferTxTypes, from.ld.ApproveList)
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
+	assert.Equal(approver, *senderAcc.ld.Approver)
+	assert.Equal(ld.TransferTxTypes, senderAcc.ld.ApproveList)
 
 	// clear Approver
 	input = ld.TxAccounter{
@@ -224,21 +238,27 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
-	assert.Nil(from.ld.Approver)
-	assert.Nil(from.ld.ApproveList)
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
+	assert.Nil(senderAcc.ld.Approver)
+	assert.Nil(senderAcc.ld.ApproveList)
 
 	// update Keepers
 	input = ld.TxAccounter{
@@ -252,19 +272,25 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     3,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, from.Keepers())
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, senderAcc.Keepers())
 
 	// add Approver again
 	input = ld.TxAccounter{
@@ -277,7 +303,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     4,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -285,8 +311,10 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid signatures for keepers")
+	bs.CheckoutAccounts()
 
 	// check duplicate signatures
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -302,22 +330,28 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     4,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, from.Keepers())
-	assert.Equal(approver, *from.ld.Approver)
-	assert.Nil(from.ld.ApproveList)
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, senderAcc.Keepers())
+	assert.Equal(approver, *senderAcc.ld.Approver)
+	assert.Nil(senderAcc.ld.ApproveList)
 
 	// clear keepers should failed
 	input = ld.TxAccounter{
@@ -331,7 +365,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		Nonce:     5,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -348,10 +382,8 @@ func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
 	assert := assert.New(t)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
-
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	bs := bctx.MockBS()
+	sender := util.Signer1.Address()
 
 	input := ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
@@ -361,22 +393,21 @@ func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
 	txData := &ld.TxData{
 		Type:    ld.TypeUpdateAccountKeepers,
 		ChainID: bctx.Chain().ChainID,
-		From:    from.id,
+		From:    sender,
 		Data:    input.Bytes(),
 	}
 	itx, err := NewGenesisTx(txData.ToTransaction())
 	assert.NoError(err)
-	tx := itx.(*TxUpdateAccountKeepers)
-	assert.NoError(tx.VerifyGenesis(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.(*TxUpdateAccountKeepers).ApplyGenesis(bctx, bs))
 
-	assert.Equal(uint64(0), tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), from.Nonce())
+	senderAcc := bs.MustAccount(sender)
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), senderAcc.Nonce())
 
-	assert.Equal(uint16(1), from.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, from.Keepers())
+	assert.Equal(uint16(1), senderAcc.Threshold())
+	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

@@ -24,14 +24,12 @@ func TestTxTransferPay(t *testing.T) {
 
 	token := ld.MustNewToken("$LDC")
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	from := bs.MustAccount(util.Signer1.Address())
 	from.ld.Nonce = 1
 	singer2 := util.Signer2.Address()
-	to, err := bs.LoadAccount(constants.GenesisAccount)
-	assert.NoError(err)
+	to := bs.MustAccount(constants.GenesisAccount)
 	assert.NoError(to.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer2}, nil, nil))
 
 	txData := &ld.TxData{
@@ -320,8 +318,10 @@ func TestTxTransferPay(t *testing.T) {
 	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid gas, expected 206, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxTransferPay.Apply error: invalid gas, expected 206, got 0")
+	bs.CheckoutAccounts()
 
 	input = ld.TxTransfer{
 		To:     &constants.GenesisAccount,
@@ -348,14 +348,21 @@ func TestTxTransferPay(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 226600, got 0")
+	bs.CheckoutAccounts()
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient $LDC balance, expected 1000000000, got 0")
+	bs.CheckoutAccounts()
 	from.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid exSignatures for recipient")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
@@ -376,16 +383,17 @@ func TestTxTransferPay(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	tx = itx.(*TxTransferPay)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxTransferPay).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*100,
+		itx.(*TxTransferPay).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC, to.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), from.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(2), tx.from.Nonce())
+	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -417,8 +425,7 @@ func TestTxTransferPay(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs), "should support 0 amount")
+	assert.NoError(itx.Apply(bctx, bs), "should support 0 amount")
 
 	assert.NoError(bs.VerifyState())
 }

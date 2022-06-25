@@ -32,25 +32,16 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxCloseLending) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxCloseLending) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxCloseLending.Verify error: ")
+	errp := util.ErrPrefix("TxCloseLending.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = tx.from.CheckCloseLending(); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxCloseLending) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCloseLending.Accept error: ")
 
 	if err = tx.from.CloseLending(); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

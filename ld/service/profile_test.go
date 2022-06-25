@@ -54,7 +54,7 @@ func TestProfile(t *testing.T) {
 	data, err := json.Marshal(p)
 	assert.NoError(err)
 
-	jsonStr := `{"@type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`
+	jsonStr := `{"type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`
 	assert.Equal(jsonStr, string(data))
 
 	p2 := &Profile{}

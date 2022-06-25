@@ -7,13 +7,13 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxDestroyStakeAccount struct {
+type TxDestroyStake struct {
 	TxBase
 }
 
-func (tx *TxDestroyStakeAccount) SyntacticVerify() error {
+func (tx *TxDestroyStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyStakeAccount.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxDestroyStake.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -36,26 +36,18 @@ func (tx *TxDestroyStakeAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxDestroyStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxDestroyStake) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyStakeAccount.Verify error: ")
+	errp := util.ErrPrefix("TxDestroyStake.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return errp.Errorf("invalid signatures for stake keepers")
 	}
-	if err = tx.from.CheckDestroyStake(tx.to); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
 
-func (tx *TxDestroyStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxDestroyStakeAccount.Accept error: ")
-
-	if err := tx.TxBase.Accept(bctx, bs); err != nil {
+	if err := tx.TxBase.accept(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	// do it after TxBase.Accept

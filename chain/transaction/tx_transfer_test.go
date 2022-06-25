@@ -23,10 +23,9 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	from := bs.MustAccount(util.Signer1.Address())
 	from.ld.Nonce = 1
 
 	txData := &ld.TxData{
@@ -75,21 +74,24 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	tt := txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	fromGas := tt.Gas
 	itx, err := NewTx(tt, true)
-	assert.ErrorContains(itx.Verify(bctx, bs), "insufficient NativeLDC balance")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance")
+	bs.CheckoutAccounts()
 
-	tx = itx.(*TxTransfer)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
-	ldcbalance := tx.ldc.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(tx.ld.Gas*bctx.Price, ldcbalance)
-	minerbalance := tx.miner.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(tx.ld.Gas*100, minerbalance)
-	assert.Equal(uint64(1000), tx.to.balanceOf(constants.NativeToken).Uint64())
-	accbalance := tx.from.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100)-1000, accbalance)
-	assert.Equal(uint64(2), tx.from.Nonce())
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal(fromGas*bctx.Price,
+		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(fromGas*100,
+		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1000),
+		itx.(*TxTransfer).to.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-fromGas*(bctx.Price+100)-1000,
+		from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -112,20 +114,24 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	fromGas += tt.Gas
 	itx, err = NewTx(tt, true)
-	assert.ErrorContains(itx.Verify(bctx, bs), "insufficient $LDC balance")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient $LDC balance")
+	bs.CheckoutAccounts()
 
-	tx = itx.(*TxTransfer)
 	from.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64()-ldcbalance)
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64()-minerbalance)
-	assert.Equal(uint64(1000), tx.to.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-1000, tx.from.balanceOf(token).Uint64())
-	assert.Equal(accbalance-tx.ld.Gas*(bctx.Price+100),
-		tx.from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(3), tx.from.Nonce())
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal(fromGas*bctx.Price,
+		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(fromGas*100,
+		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1000), itx.(*TxTransfer).to.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC-1000, from.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC-fromGas*(bctx.Price+100)-1000,
+		from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(3), from.Nonce())
 
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
@@ -149,8 +155,7 @@ func TestTxTransfer(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs), "should support 0 amount")
+	assert.NoError(itx.Apply(bctx, bs), "should support 0 amount")
 
 	assert.NoError(bs.VerifyState())
 }
@@ -159,11 +164,10 @@ func TestTxTransferGenesis(t *testing.T) {
 	assert := assert.New(t)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(constants.LDCAccount)
+	from := bs.MustAccount(constants.LDCAccount)
 	from.Add(constants.NativeToken, bctx.Chain().MaxTotalSupply)
-	assert.NoError(err)
 
 	txData := &ld.TxData{
 		Type:    ld.TypeTransfer,
@@ -176,14 +180,18 @@ func TestTxTransferGenesis(t *testing.T) {
 	itx, err := NewGenesisTx(txData.ToTransaction())
 	assert.NoError(err)
 
-	tx := itx.(*TxTransfer)
-	assert.NoError(tx.VerifyGenesis(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
-	assert.Equal(uint64(0), tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(), tx.to.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.NoError(itx.(*TxTransfer).ApplyGenesis(bctx, bs))
+
+	assert.Equal(uint64(0),
+		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0),
+		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(),
+		itx.(*TxTransfer).to.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0),
+		itx.(*TxTransfer).from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1),
+		itx.(*TxTransfer).from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

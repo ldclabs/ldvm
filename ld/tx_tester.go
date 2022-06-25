@@ -37,16 +37,11 @@ func (t *TxTester) Bytes() []byte {
 }
 
 func (t *TxTester) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("TxTester.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("TxTester.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTester) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("TxTester.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("TxTester.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }

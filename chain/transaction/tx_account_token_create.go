@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -14,30 +13,32 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxCreateTokenAccount struct {
+type TxCreateToken struct {
 	TxBase
 	input *ld.TxAccounter
 }
 
-func (tx *TxCreateTokenAccount) MarshalJSON() ([]byte, error) {
+func (tx *TxCreateToken) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxCreateToken.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxCreateTokenAccount.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxCreateTokenAccount) SyntacticVerify() error {
+func (tx *TxCreateToken) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCreateTokenAccount.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxCreateToken.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -88,29 +89,10 @@ func (tx *TxCreateTokenAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxCreateTokenAccount) Verify(bctx BlockContext, bs BlockState) error {
+// ApplyGenesis skipping signature verification
+func (tx *TxCreateToken) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateTokenAccount.Verify error: ")
-
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
-		return errp.ErrorIf(err)
-	}
-
-	feeCfg := bctx.FeeConfig()
-	if tx.ld.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
-		return errp.Errorf("invalid amount, expected >= %v, got %v",
-			feeCfg.MinTokenPledge, tx.ld.Amount)
-	}
-	if err = tx.to.CheckCreateToken(tx.input); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-// VerifyGenesis skipping signature verification
-func (tx *TxCreateTokenAccount) VerifyGenesis(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCreateTokenAccount.VerifyGenesis error: ")
+	errp := util.ErrPrefix("TxCreateToken.ApplyGenesis error: ")
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
@@ -135,13 +117,9 @@ func (tx *TxCreateTokenAccount) VerifyGenesis(bctx BlockContext, bs BlockState) 
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.to, err = bs.LoadAccount(*tx.ld.To)
-	return errp.ErrorIf(err)
-}
-
-func (tx *TxCreateTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCreateTokenAccount.Accept error: ")
+	if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
+		return errp.ErrorIf(err)
+	}
 
 	if err = tx.to.CreateToken(tx.input); err != nil {
 		return errp.ErrorIf(err)
@@ -150,5 +128,29 @@ func (tx *TxCreateTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
 		pledge := new(big.Int).Set(bctx.FeeConfig().MinTokenPledge)
 		tx.to.Init(pledge, bs.Height(), bs.Timestamp())
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
+}
+
+func (tx *TxCreateToken) Apply(bctx BlockContext, bs BlockState) error {
+	var err error
+	errp := util.ErrPrefix("TxCreateToken.Apply error: ")
+
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	feeCfg := bctx.FeeConfig()
+	if tx.ld.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
+		return errp.Errorf("invalid amount, expected >= %v, got %v",
+			feeCfg.MinTokenPledge, tx.ld.Amount)
+	}
+
+	if err = tx.to.CreateToken(tx.input); err != nil {
+		return errp.ErrorIf(err)
+	}
+	if tx.to.id != constants.LDCAccount {
+		pledge := new(big.Int).Set(bctx.FeeConfig().MinTokenPledge)
+		tx.to.Init(pledge, bs.Height(), bs.Timestamp())
+	}
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

@@ -4,7 +4,6 @@
 package ld
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -126,18 +125,13 @@ func (t *TxData) calcUnsignedBytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("TxData.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("TxData.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("TxData.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("TxData.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }
 
 func (t *TxData) RequiredGas(threshold uint64) uint64 {
@@ -153,7 +147,7 @@ func (t *TxData) SignWith(signers ...Signer) error {
 	for _, signer := range signers {
 		sig, err := signer.Sign(data)
 		if err != nil {
-			return err
+			return util.ErrPrefix("TxData.SignWith error: ").ErrorIf(err)
 		}
 		t.Signatures = append(t.Signatures, sig)
 	}
@@ -164,7 +158,7 @@ func (t *TxData) ExSignWith(signers ...Signer) error {
 	for _, signer := range signers {
 		sig, err := signer.Sign(t.Data)
 		if err != nil {
-			return err
+			return util.ErrPrefix("TxData.ExSignWith error: ").ErrorIf(err)
 		}
 		t.ExSignatures = append(t.ExSignatures, sig)
 	}
@@ -218,7 +212,7 @@ func (t *Transaction) SyntacticVerify() error {
 	t.tx = t.TxData(t.tx)
 	var err error
 	if err = t.tx.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
 	t.ID = t.tx.ID
@@ -252,7 +246,7 @@ func (t *Transaction) BytesSize() int {
 func (t *Transaction) UnmarshalTx(data []byte) error {
 	tx := new(TxData)
 	if err := tx.Unmarshal(data); err != nil {
-		return err
+		return util.ErrPrefix("Transaction.UnmarshalTx error: ").ErrorIf(err)
 	}
 	t.setTxData(tx)
 	return nil
@@ -294,18 +288,13 @@ func (t *Transaction) TxData(tx *TxData) *TxData {
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("Transaction.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Transaction.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("Transaction.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Transaction.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }
 
 func (t *Transaction) SetPriority(threshold, delay uint64) {
@@ -345,19 +334,33 @@ func (t *Transaction) GasUnits() *big.Int {
 	return new(big.Int).SetUint64(t.Gas)
 }
 
-func (t *Transaction) Signers() (util.EthIDs, error) {
+func (t *Transaction) Signers() (signers util.EthIDs, err error) {
+	errp := util.ErrPrefix("Transaction.Signers error: ")
+
 	switch t.Type {
 	case TypeEth:
 		if t.tx.eth == nil {
-			return nil, fmt.Errorf("Transaction.Signers error: invalid TypeEth tx")
+			return nil, errp.Errorf("invalid TypeEth tx")
 		}
-		return t.tx.eth.Signers()
+		signers, err = t.tx.eth.Signers()
+	default:
+		signers, err = util.DeriveSigners(t.tx.UnsignedBytes(), t.Signatures)
 	}
-	return util.DeriveSigners(t.tx.UnsignedBytes(), t.Signatures)
+
+	if err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+	return signers, nil
 }
 
 func (t *Transaction) ExSigners() (util.EthIDs, error) {
-	return util.DeriveSigners(t.Data, t.ExSignatures)
+	errp := util.ErrPrefix("Transaction.ExSigners error: ")
+
+	signers, err := util.DeriveSigners(t.Data, t.ExSignatures)
+	if err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+	return signers, nil
 }
 
 func (t *Transaction) NeedApprove(approver *util.EthID, approveList TxTypes) bool {
@@ -401,8 +404,10 @@ func (t *Transaction) Copy() *Transaction {
 }
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
+	errp := util.ErrPrefix("NewBatchTx error: ")
+
 	if len(txs) <= 1 {
-		return nil, fmt.Errorf("NewBatchTx error: not batch transactions")
+		return nil, errp.Errorf("not batch transactions")
 	}
 
 	maxSize := -1
@@ -413,7 +418,7 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 			continue
 		}
 		if err = t.SyntacticVerify(); err != nil {
-			return nil, err
+			return nil, errp.ErrorIf(err)
 		}
 		if size := len(t.tx.UnsignedBytes()); size > maxSize {
 			tx = txs[i] // find the max UnsignedBytes tx as batch transactions' container
@@ -421,11 +426,11 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 		}
 	}
 	if maxSize == -1 {
-		return nil, fmt.Errorf("NewBatchTx error: no invalid transaction")
+		return nil, errp.Errorf("no invalid transaction")
 	}
 	tx = tx.Copy()
 	if err = tx.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 
 	tx.batch = txs
@@ -435,18 +440,13 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, txs); err != nil {
-		return util.ErrPrefix("Txs.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Txs.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, txs))
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(txs)
-	if err != nil {
-		return nil, util.ErrPrefix("Txs.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Txs.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(txs))
 }
 
 type group struct {

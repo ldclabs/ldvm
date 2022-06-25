@@ -66,7 +66,7 @@ var AllTxTypes = TxTypes{TypeTest, TypePunish, TypeCreateModel, TypeCreateData}.
 
 var TokenFromTxTypes = TxTypes{TypeEth, TypeTransfer, TypeUpdateAccountKeepers, TypeAddNonceTable, TypeDestroyToken, TypeOpenLending, TypeCloseLending}
 var TokenToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeExchange, TypeCreateToken, TypeBorrow, TypeRepay}
-var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountKeepers, TypeAddNonceTable, TypeResetStake}
+var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountKeepers, TypeAddNonceTable, TypeResetStake, TypeDestroyStake}
 var StakeFromTxTypes1 = TxTypes{TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending}.Union(StakeFromTxTypes0)
 var StakeFromTxTypes2 = TxTypes{TypeEth, TypeTransfer}.Union(StakeFromTxTypes1)
 var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeBorrow, TypeRepay}

@@ -58,35 +58,36 @@ func (m *MockBCtx) Miner() util.StakeSymbol {
 	return m.MinerID
 }
 
-type MockBS struct {
-	height, timestamp uint64
-	Fee               *genesis.FeeConfig
-	AC                AccountCache
-	NC                map[string]util.DataID
-	MC                map[util.ModelID][]byte
-	DC                map[util.DataID][]byte
-	PDC               map[util.DataID][]byte
-}
-
-func NewMockBS(m *MockBCtx) *MockBS {
+func (m *MockBCtx) MockBS() *MockBS {
 	return &MockBS{
-		height:    m.height,
-		timestamp: m.timestamp,
-		Fee:       m.ChainConfig.FeeConfig,
-		AC:        make(AccountCache),
-		NC:        make(map[string]util.DataID),
-		MC:        make(map[util.ModelID][]byte),
-		DC:        make(map[util.DataID][]byte),
-		PDC:       make(map[util.DataID][]byte),
+		ctx: m,
+		Fee: m.ChainConfig.FeeConfig,
+		AC:  make(AccountCache),
+		NC:  make(map[string]util.DataID),
+		MC:  make(map[util.ModelID][]byte),
+		DC:  make(map[util.DataID][]byte),
+		PDC: make(map[util.DataID][]byte),
+		ac:  make(map[util.EthID][]byte),
 	}
 }
 
+type MockBS struct {
+	ctx *MockBCtx
+	Fee *genesis.FeeConfig
+	AC  AccountCache
+	NC  map[string]util.DataID
+	MC  map[util.ModelID][]byte
+	DC  map[util.DataID][]byte
+	PDC map[util.DataID][]byte
+	ac  map[util.EthID][]byte
+}
+
 func (m *MockBS) Height() uint64 {
-	return m.height
+	return m.ctx.height
 }
 
 func (m *MockBS) Timestamp() uint64 {
-	return m.timestamp
+	return m.ctx.timestamp
 }
 
 func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
@@ -101,10 +102,41 @@ func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
 		case acc.Type() == ld.StakeAccount:
 			pledge.Set(m.Fee.MinStakePledge)
 		}
-		acc.Init(pledge, m.height, m.timestamp)
+		acc.Init(pledge, m.ctx.height, m.ctx.timestamp)
 		m.AC[id] = acc
 	}
 	return m.AC[id], nil
+}
+
+func (m *MockBS) MustAccount(id util.EthID) *Account {
+	acc, err := m.LoadAccount(id)
+	if err != nil {
+		panic(err)
+	}
+	return acc
+}
+
+func (m *MockBS) CommitAccounts() {
+	for id, acc := range m.AC {
+		data, err := acc.Marshal()
+		if err != nil {
+			panic(err)
+		}
+		m.ac[id] = data
+	}
+}
+
+func (m *MockBS) CheckoutAccounts() {
+	for id, data := range m.ac {
+		ac, err := ParseAccount(id, data)
+		if err != nil {
+			panic(err)
+		}
+		if acc, ok := m.AC[id]; ok {
+			acc.ld = ac.ld
+			acc.Init(acc.pledge, m.ctx.height, m.ctx.timestamp)
+		}
+	}
 }
 
 func (m *MockBS) LoadMiner(id util.StakeSymbol) (*Account, error) {

@@ -24,20 +24,13 @@ func TestTokenAccount(t *testing.T) {
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Amount:    amount,
 	}
-	assert.ErrorContains(acc.CheckCreateToken(cfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCreateToken error: invalid token 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 	assert.ErrorContains(acc.CreateToken(cfg),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CreateToken error: invalid token 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
-	assert.ErrorContains(acc.CheckDestroyToken(acc),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckDestroyToken error: invalid token account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 	assert.ErrorContains(acc.DestroyToken(acc),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).DestroyToken error: invalid token account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	// create NativeToken
 	nativeToken := NewAccount(constants.LDCAccount)
-	assert.NoError(nativeToken.CheckCreateToken(&ld.TxAccounter{
-		Amount: amount,
-	}))
 	assert.NoError(nativeToken.CreateToken(&ld.TxAccounter{
 		Amount: amount,
 	}))
@@ -51,8 +44,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.False(nativeToken.SatisfySigning(util.EthIDs{util.Signer1.Address()}), "no controller")
 	assert.False(nativeToken.SatisfySigningPlus(util.EthIDs{}), "no controller")
 	assert.False(nativeToken.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}), "no controller")
-	assert.ErrorContains(nativeToken.CheckDestroyToken(acc), "invalid token")
-	assert.ErrorContains(nativeToken.CheckDestroyToken(acc), "invalid token")
+	assert.ErrorContains(nativeToken.DestroyToken(acc), "invalid token")
 
 	nativeToken.Sub(constants.NativeToken, big.NewInt(1000))
 	acc.Add(constants.NativeToken, big.NewInt(1000))
@@ -89,7 +81,6 @@ func TestTokenAccount(t *testing.T) {
 	token := ld.MustNewToken("$TEST")
 	testToken := NewAccount(util.EthID(token))
 	testToken.Init(big.NewInt(100), 0, 0)
-	assert.NoError(testToken.CheckCreateToken(cfg))
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
 	testToken.Add(constants.NativeToken, big.NewInt(100))
@@ -134,27 +125,21 @@ func TestTokenAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
-	assert.NoError(testToken.CheckOpenLending(lcfg))
 	assert.NoError(testToken.OpenLending(lcfg))
-	assert.NoError(testToken.CheckCloseLending())
 	assert.NotNil(testToken.ld.Lending)
 	assert.NotNil(testToken.ld.LendingLedger)
 
 	// Destroy
-	assert.ErrorContains(testToken.CheckDestroyToken(acc), "some token in the use")
+	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
 	assert.NoError(testToken.Borrow(token, acc.id, big.NewInt(1000), 0))
-	assert.ErrorContains(testToken.CheckDestroyToken(acc),
-		"Account(0x0000000000000000000000000000002454455354).CheckDestroyToken error: please repay all before close")
 	assert.ErrorContains(testToken.DestroyToken(acc),
-		"Account(0x0000000000000000000000000000002454455354).DestroyToken error: please repay all before close")
+		"Account(0x0000000000000000000000000000002454455354).DestroyToken error: some token in the use, maxTotalSupply expected 1000000, got 998000")
 	actual, err := testToken.Repay(token, acc.id, big.NewInt(1000))
 	assert.NoError(err)
 	assert.Equal(uint64(1000), actual.Uint64())
 
-	assert.ErrorContains(testToken.CheckDestroyToken(acc), "some token in the use")
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
 	testToken.Add(token, big.NewInt(2000))
-	assert.NoError(testToken.CheckDestroyToken(acc))
 	assert.NoError(testToken.DestroyToken(acc))
 	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
@@ -169,7 +154,6 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(uint64(1100), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// Destroy again
-	assert.ErrorContains(testToken.CheckDestroyToken(acc), "invalid token account")
 	assert.ErrorContains(testToken.DestroyToken(acc), "invalid token account")
 
 	// Marshal again
@@ -180,7 +164,6 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(testToken.ld.Bytes(), acc2.ld.Bytes())
 
 	// Create again
-	assert.NoError(testToken.CheckCreateToken(cfg))
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
 	testToken.Add(constants.NativeToken, big.NewInt(100))

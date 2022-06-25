@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -20,16 +19,18 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxUpdateStakeApprover.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateStakeApprover.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
@@ -77,25 +78,16 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateStakeApprover) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateStakeApprover) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateStakeApprover.Verify error: ")
+	errp := util.ErrPrefix("TxUpdateStakeApprover.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = tx.to.CheckUpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers); err != nil {
+
+	if err = tx.to.UpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return nil
-}
-
-func (tx *TxUpdateStakeApprover) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxUpdateStakeApprover.Accept error: ")
-
-	err := tx.to.UpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers)
-	if err != nil {
-		return errp.ErrorIf(err)
-	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

@@ -7,13 +7,13 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxDestroyTokenAccount struct {
+type TxDestroyToken struct {
 	TxBase
 }
 
-func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
+func (tx *TxDestroyToken) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyTokenAccount.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxDestroyToken.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -36,29 +36,21 @@ func (tx *TxDestroyTokenAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxDestroyTokenAccount) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxDestroyToken) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyTokenAccount.Verify error: ")
+	errp := util.ErrPrefix("TxDestroyToken.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return errp.Errorf("invalid signature for keepers")
 	}
-	if err = tx.from.CheckDestroyToken(tx.to); err != nil {
+
+	if err := tx.TxBase.accept(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return nil
-}
-
-func (tx *TxDestroyTokenAccount) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxDestroyTokenAccount.Accept error: ")
-
-	if err := tx.TxBase.Accept(bctx, bs); err != nil {
-		return errp.ErrorIf(err)
-	}
-	// DestroyToken after TxBase.Accept
+	// DestroyToken after TxBase.accept
 	tx.from.pledge.SetUint64(0)
 	return errp.ErrorIf(tx.from.DestroyToken(tx.to))
 }

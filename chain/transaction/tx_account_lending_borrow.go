@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -23,16 +22,18 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxBorrow.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxBorrow.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxBorrow) SyntacticVerify() error {
@@ -67,13 +68,13 @@ func (tx *TxBorrow) SyntacticVerify() error {
 		return errp.Errorf("nil from as lender")
 
 	case *tx.input.From != *tx.ld.To:
-		return errp.Errorf("invalid to, expected %s, got %s", tx.input.From, tx.ld.To)
+		return errp.Errorf("invalid to as borrower, expected %s, got %s", tx.input.From, tx.ld.To)
 
 	case tx.input.To == nil:
 		return errp.Errorf("nil to as borrower")
 
 	case *tx.input.To != tx.ld.From:
-		return errp.Errorf("invalid from, expected %s, got %s", tx.input.To, tx.ld.From)
+		return errp.Errorf("invalid from as lender, expected %s, got %s", tx.input.To, tx.ld.From)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
 		return errp.Errorf("invalid token, expected %s, got %s",
@@ -109,30 +110,18 @@ func (tx *TxBorrow) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxBorrow) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxBorrow) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxBorrow.Verify error: ")
+	errp := util.ErrPrefix("TxBorrow.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
+
 	// verify lender's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return errp.Errorf("invalid exSignatures for lending keepers")
 	}
-	if err = tx.to.CheckBorrow(tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
-		return errp.ErrorIf(err)
-	}
-	if err = tx.to.CheckSubByNonceTable(
-		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxBorrow) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxBorrow.Accept error: ")
 
 	if err = tx.to.Borrow(
 		tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
@@ -145,5 +134,5 @@ func (tx *TxBorrow) Accept(bctx BlockContext, bs BlockState) error {
 	if err = tx.from.Add(tx.token, tx.input.Amount); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

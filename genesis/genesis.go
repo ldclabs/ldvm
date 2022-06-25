@@ -53,11 +53,13 @@ func (c *ChainConfig) Fee(height uint64) *FeeConfig {
 
 func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 	fee := new(FeeConfig)
+	errp := util.ErrPrefix("ChainConfig.AppendFeeConfig error: ")
+
 	if err := json.Unmarshal(data, fee); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	if err := fee.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	c.FeeConfigs = append(c.FeeConfigs, fee)
 	return fee, nil
@@ -110,11 +112,13 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 
 func FromJSON(data []byte) (*Genesis, error) {
 	g := new(Genesis)
+	errp := util.ErrPrefix("FromJSON error: ")
+
 	if err := json.Unmarshal(data, g); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	if err := g.Chain.FeeConfig.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	g.Chain.FeeConfigs = []*FeeConfig{}
 	return g, nil

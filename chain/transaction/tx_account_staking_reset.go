@@ -5,36 +5,37 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxResetStakeAccount struct {
+type TxResetStake struct {
 	TxBase
 	input *ld.StakeConfig
 }
 
-func (tx *TxResetStakeAccount) MarshalJSON() ([]byte, error) {
+func (tx *TxResetStake) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxResetStake.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxResetStakeAccount.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxResetStakeAccount) SyntacticVerify() error {
+func (tx *TxResetStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxResetStakeAccount.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxResetStake.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -72,26 +73,18 @@ func (tx *TxResetStakeAccount) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxResetStakeAccount) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxResetStake) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxResetStakeAccount.Verify error: ")
+	errp := util.ErrPrefix("TxResetStake.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if !tx.from.SatisfySigningPlus(tx.signers) {
 		return errp.Errorf("invalid signatures for stake keepers")
 	}
-	if err = tx.from.CheckResetStake(tx.input); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
 
-func (tx *TxResetStakeAccount) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxResetStakeAccount.Accept error: ")
-
-	if err := tx.TxBase.Accept(bctx, bs); err != nil {
+	if err := tx.TxBase.accept(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	// do it after TxBase.Accept

@@ -24,11 +24,10 @@ func TestTxCreateModel(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	owner := util.Signer1.Address()
 
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateModel,
@@ -36,7 +35,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -48,7 +47,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -61,7 +60,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -74,7 +73,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -87,7 +86,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -99,7 +98,7 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -122,32 +121,35 @@ func TestTxCreateModel(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 952, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 952, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 1047200, got 0")
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	ownerAcc := bs.MustAccount(owner)
+	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxCreateModel)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxCreateModel).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*100,
+		itx.(*TxCreateModel).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
+		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), ownerAcc.Nonce())
 
-	mi, err := bs.LoadModel(tx.input.ID)
+	mi, err := bs.LoadModel(itx.(*TxCreateModel).input.ID)
 	assert.NoError(err)
 	assert.Equal(input.Name, mi.Name)
 	assert.Equal(input.Data, mi.Data)
@@ -164,10 +166,8 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert := assert.New(t)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
-
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	bs := bctx.MockBS()
+	owner := util.Signer1.Address()
 
 	nm, err := service.NameModel()
 	assert.NoError(err)
@@ -182,26 +182,24 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	tt := &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: bctx.Chain().ChainID,
-		From:    from.id,
+		From:    owner,
 		Data:    ld.MustMarshal(mi),
 	}
 	assert.NoError(tt.SyntacticVerify())
 
 	itx, err := NewGenesisTx(tt)
 	assert.NoError(err)
-	assert.NoError(itx.(GenesisTx).VerifyGenesis(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.(GenesisTx).ApplyGenesis(bctx, bs))
 
-	tx := itx.(*TxCreateModel)
-	assert.Equal(uint64(0), tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), from.Nonce())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), itx.(*TxCreateModel).from.Nonce())
 
-	mi2, err := bs.LoadModel(tx.input.ID)
+	mi2, err := bs.LoadModel(itx.(*TxCreateModel).input.ID)
 	assert.NoError(err)
 	assert.Equal(uint16(1), mi2.Threshold)
-	assert.Equal(util.EthIDs{from.id}, mi2.Keepers)
+	assert.Equal(util.EthIDs{owner}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
 	assert.Equal(mi.Name, mi2.Name)
 	assert.Equal(mi.Data, mi2.Data)
@@ -225,26 +223,24 @@ func TestTxCreateModelGenesis(t *testing.T) {
 		Type:    ld.TypeCreateModel,
 		ChainID: bctx.Chain().ChainID,
 		Nonce:   1,
-		From:    from.id,
+		From:    owner,
 		Data:    ld.MustMarshal(mi),
 	}
 	assert.NoError(tt.SyntacticVerify())
 
 	itx, err = NewGenesisTx(tt)
 	assert.NoError(err)
-	assert.NoError(itx.(GenesisTx).VerifyGenesis(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.(GenesisTx).ApplyGenesis(bctx, bs))
 
-	tx = itx.(*TxCreateModel)
-	assert.Equal(uint64(0), tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(2), from.Nonce())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateModel).from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(2), itx.(*TxCreateModel).from.Nonce())
 
-	mi2, err = bs.LoadModel(tx.input.ID)
+	mi2, err = bs.LoadModel(itx.(*TxCreateModel).input.ID)
 	assert.NoError(err)
 	assert.Equal(uint16(1), mi2.Threshold)
-	assert.Equal(util.EthIDs{from.id}, mi2.Keepers)
+	assert.Equal(util.EthIDs{owner}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
 	assert.Equal(mi.Name, mi2.Name)
 	assert.Equal(mi.Data, mi2.Data)

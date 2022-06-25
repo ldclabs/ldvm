@@ -23,9 +23,9 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(constants.GenesisAccount)
+	from := bs.MustAccount(constants.GenesisAccount)
 	assert.NoError(err)
 	singer1 := util.Signer1.Address()
 	assert.NoError(from.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer1}, nil, nil))
@@ -168,17 +168,24 @@ func TestTxPunish(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid gas, expected 138, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxPunish.Apply error: invalid gas, expected 138, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 151800, got 0")
+	bs.CheckoutAccounts()
+
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8 not found")
+	bs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		Version:   1,
@@ -191,15 +198,15 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(bs.SaveData(did, di))
 	assert.NoError(bs.SavePrevData(did, di))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxPunish)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxPunish).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*100,
+		itx.(*TxPunish).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.Equal(uint64(1), from.Nonce())
 
 	di, err = bs.LoadData(did)
 	assert.NoError(err)

@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -21,16 +20,18 @@ func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxUpdateDataKeepers.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateDataKeepers.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
@@ -74,11 +75,11 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateDataKeepers) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepers.Verify error: ")
+	errp := util.ErrPrefix("TxUpdateDataKeepers.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -112,12 +113,6 @@ func (tx *TxUpdateDataKeepers) Verify(bctx BlockContext, bs BlockState) error {
 			return errp.Errorf("invalid kSig")
 		}
 	}
-	return nil
-}
-
-func (tx *TxUpdateDataKeepers) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepers.Accept error: ")
 
 	tx.di.Version++
 	if tx.input.Approver != nil {
@@ -141,5 +136,5 @@ func (tx *TxUpdateDataKeepers) Accept(bctx BlockContext, bs BlockState) error {
 	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

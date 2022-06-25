@@ -137,8 +137,9 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 	for _, a := range bs.accountCache {
 		data, err := a.Marshal()
 		if err == nil {
-			nbs.s.UpdateAccount(a.ID(), data)
-			err = nbs.accountDB.Put(a.IDBytes(), data)
+			id := a.ID()
+			nbs.s.UpdateAccount(id, data)
+			err = nbs.accountDB.Put(id[:], data)
 		}
 		if err != nil {
 			return nil, err
@@ -325,8 +326,9 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	for _, a := range bs.accountCache {
 		data, err := a.Marshal()
 		if err == nil {
-			bs.s.UpdateAccount(a.ID(), data)
-			err = bs.accountDB.Put(a.IDBytes(), data)
+			id := a.ID()
+			bs.s.UpdateAccount(id, data)
+			err = bs.accountDB.Put(id[:], data)
 		}
 		if err != nil {
 			return err

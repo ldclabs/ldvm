@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strconv"
 
@@ -27,16 +26,18 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxCreateData.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxCreateModel.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 // TxCreateData{ID, Version, Threshold, Keepers, Data, KSig} no model keepers
@@ -144,10 +145,10 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	return nil
 }
 
-// VerifyGenesis skipping signature verification
-func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
+// ApplyGenesis skipping signature verification
+func (tx *TxCreateData) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateData.VerifyGenesis error: ")
+	errp := util.ErrPrefix("TxCreateData.ApplyGenesis error: ")
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
@@ -194,91 +195,10 @@ func (tx *TxCreateData) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.from, err = bs.LoadAccount(tx.ld.From)
-	return errp.ErrorIf(err)
-}
 
-func (tx *TxCreateData) Verify(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCreateData.Verify error: ")
-
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
 		return errp.ErrorIf(err)
 	}
-
-	switch tx.di.ModelID {
-	case constants.RawModelID:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-		return nil
-
-	case constants.CBORModelID:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-		if err = util.ValidCBOR(tx.input.Data); err != nil {
-			return errp.Errorf("invalid CBOR encoding data: %v", err)
-		}
-		return nil
-
-	case constants.JSONModelID:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-		if !json.Valid(tx.input.Data) {
-			return errp.Errorf("invalid JSON encoding data")
-		}
-		return nil
-	}
-
-	mi, err := bs.LoadModel(tx.di.ModelID)
-	if err != nil {
-		return errp.ErrorIf(err)
-	}
-
-	switch {
-	case mi.Threshold == 0:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-
-	case mi.Threshold > 0:
-		if tx.input.To == nil {
-			return errp.Errorf("nil to")
-		}
-		if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
-			return errp.Errorf("invalid mSig for model keepers, %v", err)
-		}
-		if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
-			return errp.Errorf("invalid exSignatures for model keepers")
-		}
-		tx.di.MSig = tx.input.MSig
-	}
-
-	if err = mi.Model().Valid(tx.di.Data); err != nil {
-		return errp.ErrorIf(err)
-	}
-
-	if bctx.Chain().IsNameService(tx.di.ModelID) {
-		tx.name = &service.Name{}
-		if err = tx.name.Unmarshal(tx.di.Data); err != nil {
-			return errp.ErrorIf(err)
-		}
-		if err = tx.name.SyntacticVerify(); err != nil {
-			return errp.ErrorIf(err)
-		}
-		_, err = bs.ResolveNameID(tx.name.Name)
-		if err == nil {
-			return errp.Errorf("name %s conflict", strconv.Quote(tx.name.Name))
-		}
-	}
-	return nil
-}
-
-func (tx *TxCreateData) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCreateData.Accept error: ")
 
 	if tx.name != nil {
 		if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
@@ -288,5 +208,88 @@ func (tx *TxCreateData) Accept(bctx BlockContext, bs BlockState) error {
 	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
+}
+
+func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
+	var err error
+	errp := util.ErrPrefix("TxCreateData.Apply error: ")
+
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	switch tx.di.ModelID {
+	case constants.RawModelID:
+		if tx.input.To != nil {
+			return errp.Errorf("invalid to, should be nil")
+		}
+
+	case constants.CBORModelID:
+		if tx.input.To != nil {
+			return errp.Errorf("invalid to, should be nil")
+		}
+		if err = util.ValidCBOR(tx.input.Data); err != nil {
+			return errp.Errorf("invalid CBOR encoding data: %v", err)
+		}
+
+	case constants.JSONModelID:
+		if tx.input.To != nil {
+			return errp.Errorf("invalid to, should be nil")
+		}
+		if !json.Valid(tx.input.Data) {
+			return errp.Errorf("invalid JSON encoding data")
+		}
+
+	default:
+		mi, err := bs.LoadModel(tx.di.ModelID)
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		switch {
+		case mi.Threshold == 0:
+			if tx.input.To != nil {
+				return errp.Errorf("invalid to, should be nil")
+			}
+
+		case mi.Threshold > 0:
+			if tx.input.To == nil {
+				return errp.Errorf("nil to")
+			}
+			if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
+				return errp.Errorf("invalid mSig for model keepers, %v", err)
+			}
+			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
+				return errp.Errorf("invalid exSignatures for model keepers")
+			}
+			tx.di.MSig = tx.input.MSig
+		}
+
+		if err = mi.Model().Valid(tx.di.Data); err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		if bctx.Chain().IsNameService(tx.di.ModelID) {
+			tx.name = &service.Name{}
+			if err = tx.name.Unmarshal(tx.di.Data); err != nil {
+				return errp.ErrorIf(err)
+			}
+			if err = tx.name.SyntacticVerify(); err != nil {
+				return errp.ErrorIf(err)
+			}
+			if _, err = bs.ResolveNameID(tx.name.Name); err == nil {
+				return errp.Errorf("name %s conflict", strconv.Quote(tx.name.Name))
+			}
+
+			if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
+				return errp.ErrorIf(err)
+			}
+		}
+	}
+
+	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
+		return errp.ErrorIf(err)
+	}
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

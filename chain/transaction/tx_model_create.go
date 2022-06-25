@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -22,16 +21,18 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxCreateModel.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxCreateModel.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxCreateModel) SyntacticVerify() error {
@@ -67,10 +68,10 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 	return nil
 }
 
-// VerifyGenesis skipping signature verification
-func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
+// ApplyGenesis skipping signature verification
+func (tx *TxCreateModel) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateModel.VerifyGenesis error: ")
+	errp := util.ErrPrefix("TxCreateModel.ApplyGenesis error: ")
 
 	tx.input = &ld.ModelInfo{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
@@ -93,15 +94,22 @@ func (tx *TxCreateModel) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
-	return errp.ErrorIf(err)
-}
-
-func (tx *TxCreateModel) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxCreateModel.Accept error: ")
 
 	if err = bs.SaveModel(tx.input.ID, tx.input); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
+}
+
+func (tx *TxCreateModel) Apply(bctx BlockContext, bs BlockState) error {
+	var err error
+	errp := util.ErrPrefix("TxCreateModel.Apply error: ")
+
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
+		return errp.ErrorIf(err)
+	}
+	if err = bs.SaveModel(tx.input.ID, tx.input); err != nil {
+		return errp.ErrorIf(err)
+	}
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

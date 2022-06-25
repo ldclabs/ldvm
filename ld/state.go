@@ -94,16 +94,11 @@ func (s *State) Bytes() []byte {
 }
 
 func (s *State) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, s); err != nil {
-		return util.ErrPrefix("State.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("State.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, s))
 }
 
 func (s *State) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(s)
-	if err != nil {
-		return nil, util.ErrPrefix("State.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("State.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(s))
 }

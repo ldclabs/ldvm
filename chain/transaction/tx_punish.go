@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -22,16 +21,18 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxPunish.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxPunish.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxPunish) SyntacticVerify() error {
@@ -77,26 +78,20 @@ func (tx *TxPunish) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxPunish) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxPunish) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxPunish.Verify error: ")
+	errp := util.ErrPrefix("TxPunish.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
 	if tx.di, err = bs.LoadData(*tx.input.ID); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return nil
-}
-
-func (tx *TxPunish) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxPunish.Accept error: ")
 
 	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

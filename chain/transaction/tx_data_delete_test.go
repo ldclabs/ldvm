@@ -23,10 +23,9 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	sender := util.Signer1.Address()
 	approver := util.Signer2.Address()
 
 	txData := &ld.TxData{
@@ -35,7 +34,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -47,7 +46,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -60,7 +59,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Token:     &constants.NativeToken,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -73,7 +72,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -86,7 +85,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -98,7 +97,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -112,7 +111,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -126,7 +125,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -141,7 +140,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -155,20 +154,25 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 279, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 279, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
+	bs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		ModelID:   constants.RawModelID,
@@ -184,7 +188,9 @@ func TestTxDeleteData(t *testing.T) {
 	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(bs.SaveData(di.ID, di))
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 2, got 1")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid version, expected 2, got 1")
+	bs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
@@ -193,15 +199,18 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for data keepers")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")
+	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
@@ -217,7 +226,10 @@ func TestTxDeleteData(t *testing.T) {
 	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(bs.SaveData(di.ID, di))
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for data approver")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for data approver")
+	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
@@ -232,15 +244,15 @@ func TestTxDeleteData(t *testing.T) {
 	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(bs.SaveData(di.ID, di))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxDeleteData)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxDeleteData).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxDeleteData).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
@@ -259,7 +271,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -267,7 +279,9 @@ func TestTxDeleteData(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid version, expected 0, got 2")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid version, expected 0, got 2")
+	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
 		ModelID:   constants.RawModelID,
@@ -290,7 +304,7 @@ func TestTxDeleteData(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -298,8 +312,7 @@ func TestTxDeleteData(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
 	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)

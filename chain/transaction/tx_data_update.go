@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
@@ -29,16 +28,18 @@ func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxUpdateData.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateData.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxUpdateData) SyntacticVerify() error {
@@ -133,11 +134,11 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateData) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateData.Verify error: ")
+	errp := util.ErrPrefix("TxUpdateData.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -242,12 +243,6 @@ func (tx *TxUpdateData) Verify(bctx BlockContext, bs BlockState) error {
 				strconv.Quote(n1), strconv.Quote(n2))
 		}
 	}
-	return nil
-}
-
-func (tx *TxUpdateData) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxUpdateData.Accept error: ")
 
 	if err = bs.SavePrevData(*tx.input.ID, tx.prevDI); err != nil {
 		return errp.ErrorIf(err)
@@ -255,5 +250,5 @@ func (tx *TxUpdateData) Accept(bctx BlockContext, bs BlockState) error {
 	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

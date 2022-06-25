@@ -13,21 +13,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxDestroyTokenAccount(t *testing.T) {
+func TestTxDestroyToken(t *testing.T) {
 	assert := assert.New(t)
 
 	// SyntacticVerify
-	tx := &TxDestroyTokenAccount{}
+	tx := &TxDestroyToken{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
-
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	tokenid := token.EthID()
+	sender := util.Signer1.Address()
 	recipient := util.Signer2.Address()
 
 	txData := &ld.TxData{
@@ -36,7 +35,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      tokenid,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -48,7 +47,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      tokenid,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -60,7 +59,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      tokenid,
 		To:        &recipient,
 		Token:     &token,
 	}
@@ -74,7 +73,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      tokenid,
 		To:        &recipient,
 		Amount:    big.NewInt(1),
 	}
@@ -88,7 +87,7 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &recipient,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -102,7 +101,6 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	}
 	testToken := NewAccount(util.EthID(token))
 	testToken.Init(new(big.Int).SetUint64(constants.LDC), 0, 0)
-	assert.NoError(testToken.CheckCreateToken(cfg))
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
 	testToken.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -124,37 +122,37 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 145, got 0")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 145, got 0")
+	bs.CheckoutAccounts()
+
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tokenGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 159500, got 0")
+	bs.CheckoutAccounts()
 	testToken.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	acc, err := bs.LoadAccount(recipient)
-	assert.NoError(err)
-	ldc, err := bs.LoadAccount(constants.LDCAccount)
-	assert.NoError(err)
-	miner, err := bs.LoadMiner(bctx.Miner())
-	assert.NoError(err)
+	recipientAcc := bs.MustAccount(recipient)
 
-	ldcBa := ldc.balanceOf(constants.NativeToken).Uint64()
-	minerBa := miner.balanceOf(constants.NativeToken).Uint64()
-	tokenBa := testToken.balanceOf(constants.NativeToken).Uint64()
-
-	tx2 := itx.(*TxTransfer)
-	assert.Equal(tx2.ld.Gas*bctx.Price, ldcBa)
-	assert.Equal(tx2.ld.Gas*100, minerBa)
-	assert.Equal(constants.LDC-tx2.ld.Gas*(bctx.Price+100), tokenBa)
+	assert.Equal(tokenGas*bctx.Price,
+		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tokenGas*100,
+		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-tokenGas*(bctx.Price+100),
+		testToken.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*9,
 		testToken.balanceOf(token).Uint64())
 	assert.Equal(uint64(0),
-		acc.balanceOf(constants.NativeToken).Uint64())
+		recipientAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC,
-		acc.balanceOf(token).Uint64())
+		recipientAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(1), testToken.Nonce())
 
 	txData = &ld.TxData{
@@ -171,15 +169,21 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for keepers")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for keepers")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"some token in the use, expected 10000000000, got 9000000000")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"some token in the use, maxTotalSupply expected 10000000000, got 9000000000")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -195,28 +199,22 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	recipientGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx2 = itx.(*TxTransfer)
-	assert.Equal(tx2.ld.Gas*bctx.Price+ldcBa,
-		ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx2.ld.Gas*100+minerBa,
-		miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tokenBa, testToken.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC+tokenBa, testToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+recipientGas)*bctx.Price,
+		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+recipientGas)*100,
+		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*2-tokenGas*(bctx.Price+100),
+		testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, testToken.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tx2.ld.Gas*(bctx.Price+100),
-		acc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), acc.balanceOf(token).Uint64())
-
-	ldcBa = ldc.balanceOf(constants.NativeToken).Uint64()
-	minerBa = miner.balanceOf(constants.NativeToken).Uint64()
-	tokenBa = testToken.balanceOf(constants.NativeToken).Uint64()
-	accBa := acc.balanceOf(constants.NativeToken).Uint64()
+	assert.Equal(constants.LDC-recipientGas*(bctx.Price+100),
+		recipientAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), recipientAcc.balanceOf(token).Uint64())
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
@@ -231,22 +229,24 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tokenGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxDestroyTokenAccount)
-	assert.Equal(tx.ld.Gas*bctx.Price+ldcBa,
-		ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100+minerBa,
-		miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+recipientGas)*bctx.Price,
+		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+recipientGas)*100,
+		itx.(*TxDestroyToken).miner.balanceOf(constants.NativeToken).Uint64())
+
 	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC+accBa+tokenBa-tx.ld.Gas*(bctx.Price+100),
-		acc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
+	assert.Equal(constants.LDC*3-(tokenGas+recipientGas)*(bctx.Price+100),
+		recipientAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), recipientAcc.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), recipientAcc.balanceOfAll(token).Uint64())
 
 	assert.Equal(uint64(2), testToken.Nonce())
 	assert.Equal(uint16(0), testToken.Threshold())
@@ -260,16 +260,15 @@ func TestTxDestroyTokenAccount(t *testing.T) {
 	assert.NoError(bs.VerifyState())
 }
 
-func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
+func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert := assert.New(t)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
 	tokenid := util.EthID(token)
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	sender := util.Signer1.Address()
 	approver := util.Signer2.Address()
 
 	// CreateToken
@@ -288,7 +287,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &tokenid,
 		Amount:    bctx.FeeConfig().MinTokenPledge,
 		Data:      input.Bytes(),
@@ -296,30 +295,28 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas := tt.Gas
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	from.Add(constants.NativeToken, bctx.FeeConfig().MinTokenPledge)
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
 
-	tokenAcc, err := bs.LoadAccount(tokenid)
-	assert.NoError(err)
-	ldc, err := bs.LoadAccount(constants.LDCAccount)
-	assert.NoError(err)
-	miner, err := bs.LoadMiner(bctx.Miner())
-	assert.NoError(err)
+	tokenAcc := bs.MustAccount(tokenid)
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.Add(constants.NativeToken, bctx.FeeConfig().MinTokenPledge)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
-		ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas*100,
-		miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tokenAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0),
+		tokenAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(bctx.FeeConfig().MinTokenPledge.Uint64(),
 		tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*10,
+		tokenAcc.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
 
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
@@ -349,21 +346,32 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid signature for approver")
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxOpenLending.Apply error: invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tokenGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"insufficient NativeLDC balance, expected 1416800, got 0")
-	tokenAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
 
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"insufficient NativeLDC balance, expected 1416800, got 0")
+	bs.CheckoutAccounts()
+
+	tokenAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal((tokenGas+senderGas)*bctx.Price,
+		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+senderGas)*100,
+		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.NotNil(tokenAcc.ld.Lending)
 	assert.NotNil(tokenAcc.ld.LendingLedger)
 	assert.Equal(uint64(1), tokenAcc.Nonce())
@@ -385,11 +393,15 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tokenGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
+	assert.Equal((tokenGas+senderGas)*bctx.Price,
+		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+senderGas)*100,
+		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal([]uint64{1, 2, 3}, tokenAcc.ld.NonceTable[bs.Timestamp()+1])
 	assert.Equal(uint64(2), tokenAcc.Nonce())
 
@@ -397,7 +409,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	tf := &ld.TxTransfer{
 		Nonce:  3,
 		From:   &tokenAcc.id,
-		To:     &from.id,
+		To:     &sender,
 		Token:  &token,
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: bs.Timestamp() + 1,
@@ -409,7 +421,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &tokenid,
 		Token:     &token,
 		Data:      tf.Bytes(),
@@ -419,14 +431,18 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
+	assert.Equal((tokenGas+senderGas)*bctx.Price,
+		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+senderGas)*100,
+		itx.(*TxBorrow).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal([]uint64{1, 2}, tokenAcc.ld.NonceTable[bs.Timestamp()+1])
 	assert.Equal(constants.LDC*9, tokenAcc.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC, senderAcc.balanceOf(token).Uint64())
 
 	// DestroyToken
 	txData = &ld.TxData{
@@ -436,23 +452,28 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
 		From:      tokenid,
-		To:        &from.id,
+		To:        &sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid signature for approver")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxDestroyToken.Apply error: invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"please repay all before close")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxDestroyToken.Apply error: Account(0x00000000000000000000000000000000244C4443).DestroyToken error: some token in the use, maxTotalSupply expected 10000000000, got 9000000000")
+	bs.CheckoutAccounts()
 
 	// TypeRepay
 	txData = &ld.TxData{
@@ -461,7 +482,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &tokenid,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
@@ -469,13 +490,17 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
+	assert.Equal((tokenGas+senderGas)*bctx.Price,
+		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+senderGas)*100,
+		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
-	assert.Equal(uint64(0), from.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), senderAcc.balanceOf(token).Uint64())
 
 	// DestroyToken
 	txData = &ld.TxData{
@@ -485,17 +510,21 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
 		From:      tokenid,
-		To:        &from.id,
+		To:        &sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	tokenGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
+	assert.Equal((tokenGas+senderGas)*bctx.Price,
+		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((tokenGas+senderGas)*100,
+		itx.(*TxDestroyToken).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(3), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
@@ -523,7 +552,7 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
 		From:      tokenid,
-		To:        &from.id,
+		To:        &sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
@@ -531,8 +560,8 @@ func TestTxDestroyTokenAccountWithApproverAndLending(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid signatures for sender")
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxDestroyToken.Apply error: invalid signatures for sender")
 
 	assert.NoError(bs.VerifyState())
 }
