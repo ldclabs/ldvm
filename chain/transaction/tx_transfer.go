@@ -32,10 +32,10 @@ func (tx *TxTransfer) SyntacticVerify() error {
 	return nil
 }
 
-// VerifyGenesis skipping signature verification
-func (tx *TxTransfer) VerifyGenesis(bctx BlockContext, bs BlockState) error {
+// ApplyGenesis skipping signature verification
+func (tx *TxTransfer) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransfer.VerifyGenesis error: ")
+	errp := util.ErrPrefix("TxTransfer.ApplyGenesis error: ")
 
 	tx.amount = new(big.Int).Set(tx.ld.Amount)
 	tx.tip = new(big.Int)
@@ -54,5 +54,6 @@ func (tx *TxTransfer) VerifyGenesis(bctx BlockContext, bs BlockState) error {
 	if tx.to, err = bs.LoadAccount(*tx.ld.To); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return nil
+
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

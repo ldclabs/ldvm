@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -21,16 +20,18 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxWithdrawStake.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxWithdrawStake.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxWithdrawStake) SyntacticVerify() error {
@@ -79,22 +80,13 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxWithdrawStake) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxWithdrawStake) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxWithdrawStake.Verify error: ")
+	errp := util.ErrPrefix("TxWithdrawStake.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = tx.to.CheckWithdrawStake(
-		tx.token, tx.ld.From, tx.signers, tx.input.Amount); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxWithdrawStake) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxWithdrawStake.Accept error: ")
 
 	// must WithdrawStake and then Accept
 	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
@@ -107,5 +99,5 @@ func (tx *TxWithdrawStake) Accept(bctx BlockContext, bs BlockState) error {
 	if err = tx.from.Add(tx.token, withdraw); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

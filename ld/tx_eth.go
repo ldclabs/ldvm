@@ -83,19 +83,13 @@ func (t *TxEth) Bytes() []byte {
 
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
-	if err := t.tx.UnmarshalBinary(data); err != nil {
-		return util.ErrPrefix("TxEth.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("TxEth.Unmarshal error: ").
+		ErrorIf(t.tx.UnmarshalBinary(data))
 }
 
 func (t *TxEth) Marshal() ([]byte, error) {
-	data, err := t.tx.MarshalBinary()
-	if err != nil {
-		return nil, util.ErrPrefix("TxEth.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
-
+	return util.ErrPrefix("TxEth.Marshal error: ").
+		ErrorMap(t.tx.MarshalBinary())
 }
 
 func (t *TxEth) TxData(tx *TxData) *TxData {

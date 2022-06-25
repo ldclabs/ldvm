@@ -24,10 +24,10 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
+	owner := util.Signer1.Address()
 	assert.NoError(err)
 	approver := util.Signer2.Address()
 
@@ -37,7 +37,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -49,7 +49,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -62,7 +62,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -75,7 +75,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -88,7 +88,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -100,7 +100,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -115,7 +115,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -130,7 +130,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -154,7 +154,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -173,23 +173,28 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 601, got 0")
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 601, got 0")
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 661100, got 0")
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CheckoutAccounts()
+	ownerAcc := bs.MustAccount(owner)
+	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"LM5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB not found")
+	bs.CheckoutAccounts()
 
 	ipldm, err := service.ProfileModel()
 	assert.NoError(err)
@@ -201,15 +206,15 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	}
 	assert.NoError(mi.SyntacticVerify())
 	assert.NoError(bs.SaveModel(mid, mi))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxUpdateModelKeepers)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxUpdateModelKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*100,
+		itx.(*TxUpdateModelKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
+		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)
@@ -237,7 +242,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -245,7 +250,9 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signature for approver")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateModelKeepers,
@@ -253,7 +260,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -262,8 +269,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
 	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)
@@ -283,7 +289,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -291,7 +297,10 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for keepers")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for keepers")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateModelKeepers,
@@ -299,7 +308,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      owner,
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -308,8 +317,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
 	mi, err = bs.LoadModel(mid)
 	assert.NoError(err)

@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -21,16 +20,18 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxDeleteData.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxDeleteData.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxDeleteData) SyntacticVerify() error {
@@ -73,11 +74,11 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxDeleteData) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxDeleteData.Verify error: ")
+	errp := util.ErrPrefix("TxDeleteData.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -96,15 +97,9 @@ func (tx *TxDeleteData) Verify(bctx BlockContext, bs BlockState) error {
 	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.signers.Has(*tx.di.Approver):
 		return errp.Errorf("invalid signature for data approver")
 	}
-	return nil
-}
-
-func (tx *TxDeleteData) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxDeleteData.Accept error: ")
 
 	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

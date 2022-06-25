@@ -24,13 +24,11 @@ func TestTxTransferCash(t *testing.T) {
 
 	token := ld.MustNewToken("$LDC")
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	from := bs.MustAccount(util.Signer1.Address())
 	from.ld.Nonce = 2
-	to, err := bs.LoadAccount(util.Signer2.Address())
-	assert.NoError(err)
+	to := bs.MustAccount(util.Signer2.Address())
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -308,8 +306,10 @@ func TestTxTransferCash(t *testing.T) {
 	tt.Timestamp = 10
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid gas, expected 179, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxTransferCash.Apply error: invalid gas, expected 179, got 0")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -329,11 +329,15 @@ func TestTxTransferCash(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 196900, got 0")
+	bs.CheckoutAccounts()
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid signature for issuer")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -353,14 +357,18 @@ func TestTxTransferCash(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"nonce 0 not exists at 10")
+	bs.CheckoutAccounts()
 	assert.NoError(to.AddNonceTable(bs.Timestamp(), []uint64{2, 1, 0}))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 1000000000, got 0")
+	bs.CheckoutAccounts()
 	to.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
 	tx = itx.(*TxTransferCash)
 	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())

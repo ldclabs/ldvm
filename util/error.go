@@ -21,3 +21,10 @@ func (p ErrPrefix) Errorf(format string, a ...any) error {
 	err := fmt.Sprintf(format, a...)
 	return errors.New(string(p) + err)
 }
+
+func (p ErrPrefix) ErrorMap(data []byte, err error) ([]byte, error) {
+	if err != nil {
+		return nil, errors.New(string(p) + err.Error())
+	}
+	return data, nil
+}

@@ -198,11 +198,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 			tx.Err = err
 			return choices.Rejected, tx.Err
 		}
-		if err := ntx.Verify(b, vbs); err != nil {
-			tx.Err = err
-			return choices.Rejected, tx.Err
-		}
-		if err := ntx.Accept(b, vbs); err != nil {
+		if err := ntx.Apply(b, vbs); err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
 		}
@@ -318,10 +314,7 @@ func (b *Block) VerifyGenesis() error {
 		if !ok {
 			return fmt.Errorf("invalid genesis tx")
 		}
-		if err := tx.VerifyGenesis(b, b.bs); err != nil {
-			return err
-		}
-		if err := b.txs[i].Accept(b, b.bs); err != nil {
+		if err := tx.ApplyGenesis(b, b.bs); err != nil {
 			return err
 		}
 		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Processing)
@@ -395,10 +388,7 @@ func (b *Block) verify() error {
 	txsSize := 0
 	for i := range b.ld.Txs {
 		tx := b.txs[i]
-		if err := tx.Verify(b, b.bs); err != nil {
-			return err
-		}
-		if err := tx.Accept(b, b.bs); err != nil {
+		if err := tx.Apply(b, b.bs); err != nil {
 			return err
 		}
 		b.ctx.StateDB().RemoveTx(tx.ID())

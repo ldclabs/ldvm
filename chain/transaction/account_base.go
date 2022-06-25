@@ -61,10 +61,6 @@ func (a *Account) ID() util.EthID {
 	return a.id
 }
 
-func (a *Account) IDBytes() []byte {
-	return a.id[:]
-}
-
 func (a *Account) Type() ld.AccountType {
 	return a.ld.Type
 }
@@ -346,17 +342,6 @@ func (a *Account) SubByNonce(
 	return nil
 }
 
-func (a *Account) CheckSubByNonceTable(
-	token util.TokenSymbol,
-	expire, nonce uint64,
-	amount *big.Int) error {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckSubByNonceTable error: ", a.id))
-	return errp.ErrorIf(a.subByNonceTable(token, expire, nonce, amount, false))
-}
-
 func (a *Account) SubByNonceTable(
 	token util.TokenSymbol,
 	expire, nonce uint64,
@@ -365,14 +350,6 @@ func (a *Account) SubByNonceTable(
 	defer a.mu.Unlock()
 
 	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).SubByNonceTable error: ", a.id))
-	return errp.ErrorIf(a.subByNonceTable(token, expire, nonce, amount, true))
-}
-
-func (a *Account) subByNonceTable(
-	token util.TokenSymbol,
-	expire, nonce uint64,
-	amount *big.Int,
-	write bool) error {
 	uu, ok := a.ld.NonceTable[expire]
 	i := -1
 	if ok {
@@ -384,32 +361,22 @@ func (a *Account) subByNonceTable(
 		}
 	}
 	if i == -1 {
-		return fmt.Errorf("nonce %d not exists at %d", nonce, expire)
+		return errp.Errorf("nonce %d not exists at %d", nonce, expire)
 	}
 
 	if err := a.checkBalance(token, amount); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
-	if write {
-		copy(uu[i:], uu[i+1:])
-		uu = uu[:len(uu)-1]
-		if len(uu) == 0 {
-			delete(a.ld.NonceTable, expire)
-		} else {
-			a.ld.NonceTable[expire] = uu
-		}
-		a.subNoCheck(token, amount)
+	copy(uu[i:], uu[i+1:])
+	uu = uu[:len(uu)-1]
+	if len(uu) == 0 {
+		delete(a.ld.NonceTable, expire)
+	} else {
+		a.ld.NonceTable[expire] = uu
 	}
+	a.subNoCheck(token, amount)
 	return nil
-}
-
-func (a *Account) CheckNonceTable(expire uint64, ns []uint64) error {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckNonceTable error: ", a.id))
-	return errp.ErrorIf(a.updateNonceTable(expire, ns, false))
 }
 
 func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
@@ -417,12 +384,8 @@ func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
 	defer a.mu.Unlock()
 
 	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).AddNonceTable error: ", a.id))
-	return errp.ErrorIf(a.updateNonceTable(expire, ns, true))
-}
-
-func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error {
-	if len(a.ld.NonceTable) >= 64 {
-		return fmt.Errorf("too many NonceTable groups, expected <= 64")
+	if len(a.ld.NonceTable) >= 1024 {
+		return errp.Errorf("too many NonceTable groups, expected <= 1024")
 	}
 
 	us := util.Uint64Set(make(map[uint64]struct{}, len(a.ld.NonceTable[expire])+len(ns)))
@@ -431,18 +394,16 @@ func (a *Account) updateNonceTable(expire uint64, ns []uint64, write bool) error
 	}
 	for _, u := range ns {
 		if us.Has(u) {
-			return fmt.Errorf("nonce %d exists at %d", u, expire)
+			return errp.Errorf("nonce %d exists at %d", u, expire)
 		}
 		us.Add(u)
 	}
 
-	if write {
-		a.ld.NonceTable[expire] = us.List()
-		// clear expired nonces
-		for e := range a.ld.NonceTable {
-			if e < a.ld.Timestamp {
-				delete(a.ld.NonceTable, e)
-			}
+	a.ld.NonceTable[expire] = us.List()
+	// clear expired nonces
+	for e := range a.ld.NonceTable {
+		if e < a.ld.Timestamp {
+			delete(a.ld.NonceTable, e)
 		}
 	}
 	return nil

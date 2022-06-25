@@ -13,24 +13,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxTransferExchange(t *testing.T) {
+func TestTxExchange(t *testing.T) {
 	assert := assert.New(t)
 
 	// SyntacticVerify
-	tx := &TxTransferExchange{}
+	tx := &TxExchange{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
 	assert.NoError(err)
 
 	token := ld.MustNewToken("$LDC")
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	from := bs.MustAccount(util.Signer1.Address())
 	from.ld.Nonce = 1
-	to, err := bs.LoadAccount(util.Signer2.Address())
-	assert.NoError(err)
+	to := bs.MustAccount(util.Signer2.Address())
 
 	txData := &ld.TxData{
 		Type:      ld.TypeExchange,
@@ -271,7 +269,9 @@ func TestTxTransferExchange(t *testing.T) {
 	tt = txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 229, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 229, got 0")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
@@ -292,9 +292,14 @@ func TestTxTransferExchange(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "insufficient NativeLDC balance, expected 1251900, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 1251900, got 0")
+	bs.CheckoutAccounts()
+
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid signatures for seller")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for seller")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
@@ -315,24 +320,28 @@ func TestTxTransferExchange(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"nonce 1 not exists at 1")
+	bs.CheckoutAccounts()
 	assert.NoError(to.AddNonceTable(bs.Timestamp(), []uint64{1, 2, 3}))
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient $LDC balance, expected 1000000000, got 0")
+	bs.CheckoutAccounts()
 	to.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxTransferExchange)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxExchange).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas*100,
+		itx.(*TxExchange).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), to.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100)-1_000_000,
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100)-1_000_000,
 		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(2), tx.from.Nonce())
+	assert.Equal(uint64(2), from.Nonce())
 	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[bs.Timestamp()])
 
 	jsondata, err := itx.MarshalJSON()

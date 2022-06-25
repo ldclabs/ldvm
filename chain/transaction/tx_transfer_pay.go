@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -22,16 +21,18 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxTransferPay.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxTransferPay.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxTransferPay) SyntacticVerify() error {
@@ -100,16 +101,17 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxTransferPay) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxTransferPay) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransferPay.Verify error: ")
+	errp := util.ErrPrefix("TxTransferPay.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return errp.Errorf("invalid exSignatures for recipient")
 	}
-	return nil
+
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

@@ -362,6 +362,10 @@ func (id TokenSymbol) String() string {
 	return string(id[start:])
 }
 
+func (id TokenSymbol) Valid() bool {
+	return id == NativeToken || id.String() != ""
+}
+
 func (id TokenSymbol) GoString() string {
 	if id == NativeToken {
 		return "NativeLDC"
@@ -372,8 +376,8 @@ func (id TokenSymbol) GoString() string {
 	return EthID(id).String()
 }
 
-func (id TokenSymbol) Valid() bool {
-	return id == NativeToken || id.String() != ""
+func (id TokenSymbol) EthID() EthID {
+	return EthID(id)
 }
 
 func (id TokenSymbol) MarshalText() ([]byte, error) {
@@ -503,6 +507,10 @@ func (id StakeSymbol) GoString() string {
 		return str
 	}
 	return EthID(id).String()
+}
+
+func (id StakeSymbol) EthID() EthID {
+	return EthID(id)
 }
 
 func (id StakeSymbol) MarshalText() ([]byte, error) {

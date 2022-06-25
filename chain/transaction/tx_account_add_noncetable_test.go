@@ -13,20 +13,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxAddAccountNonceTable(t *testing.T) {
+func TestTxAddNonceTable(t *testing.T) {
 	assert := assert.New(t)
 
 	// SyntacticVerify
-	tx := &TxAddAccountNonceTable{}
+	tx := &TxAddNonceTable{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
-
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	bs := bctx.MockBS()
+	sender := util.Signer1.Address()
 
 	txData := &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -34,7 +32,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -46,7 +44,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -59,7 +57,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Token:     &constants.NativeToken,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -72,7 +70,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -85,7 +83,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -97,7 +95,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -113,7 +111,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -132,7 +130,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -148,7 +146,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -166,7 +164,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -184,7 +182,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -192,25 +190,32 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 101, got 0")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 101, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "insufficient NativeLDC balance, expected 111100, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 111100, got 0")
+	bs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxAddAccountNonceTable)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), from.Nonce())
-	assert.Equal(1, len(from.ld.NonceTable))
-	assert.Equal([]uint64{1, 3, 5, 7}, tx.from.ld.NonceTable[bs.Timestamp()+1])
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1), senderAcc.Nonce())
+	assert.Equal(1, len(senderAcc.ld.NonceTable))
+	assert.Equal([]uint64{1, 3, 5, 7}, senderAcc.ld.NonceTable[bs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -226,7 +231,7 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -235,7 +240,10 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "nonce 1 exists at 1001")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "nonce 1 exists at 1001")
+	bs.CheckoutAccounts()
 
 	input = []uint64{bs.Timestamp() + 1, 2, 4, 6}
 	inputData, err = util.MarshalCBOR(input)
@@ -246,21 +254,25 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint64(2), from.Nonce())
-	assert.Equal(1, len(from.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, tx.from.ld.NonceTable[bs.Timestamp()+1])
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(2), senderAcc.Nonce())
+	assert.Equal(1, len(senderAcc.ld.NonceTable))
+	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[bs.Timestamp()+1])
 
 	input = []uint64{bs.Timestamp() + 2, 0}
 	inputData, err = util.MarshalCBOR(input)
@@ -271,30 +283,33 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint64(3), from.Nonce())
-	assert.Equal(2, len(from.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, tx.from.ld.NonceTable[bs.Timestamp()+1])
-	assert.Equal([]uint64{0}, tx.from.ld.NonceTable[bs.Timestamp()+2])
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(3), senderAcc.Nonce())
+	assert.Equal(2, len(senderAcc.ld.NonceTable))
+	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[bs.Timestamp()+1])
+	assert.Equal([]uint64{0}, senderAcc.ld.NonceTable[bs.Timestamp()+2])
 
 	// consume nonce table
-	to, err := bs.LoadAccount(util.Signer2.Address())
-	assert.NoError(err)
+	recipientAcc := bs.MustAccount(util.Signer2.Address())
 	input2 := ld.TxTransfer{
 		Nonce:  0,
-		From:   &from.id,
-		To:     &to.id,
+		From:   &sender,
+		To:     &recipientAcc.id,
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		Expire: bs.Timestamp() + 1,
 	}
@@ -305,8 +320,8 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      to.id,
-		To:        &from.id,
+		From:      recipientAcc.id,
+		To:        &sender,
 		Data:      input2.Bytes(),
 	}
 	assert.NoError(txData.SyntacticVerify())
@@ -315,15 +330,18 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	to.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "nonce 0 not exists at 1001")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "nonce 0 not exists at 1001")
+	bs.CheckoutAccounts()
 
 	input2 = ld.TxTransfer{
 		Nonce:  0,
-		From:   &from.id,
-		To:     &to.id,
+		From:   &sender,
+		To:     &recipientAcc.id,
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		Expire: bs.Timestamp() + 2,
 	}
@@ -334,8 +352,8 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      to.id,
-		To:        &from.id,
+		From:      recipientAcc.id,
+		To:        &sender,
 		Data:      input2.Bytes(),
 	}
 	assert.NoError(txData.SyntacticVerify())
@@ -344,14 +362,18 @@ func TestTxAddAccountNonceTable(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(1, len(from.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, tx.from.ld.NonceTable[bs.Timestamp()+1])
-	assert.Nil(tx.from.ld.NonceTable[bs.Timestamp()+2], "should clean emtpy nonce table")
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxTransferCash).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxTransferCash).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(1, len(senderAcc.ld.NonceTable))
+	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[bs.Timestamp()+1])
+	assert.Nil(senderAcc.ld.NonceTable[bs.Timestamp()+2], "should clean emtpy nonce table")
 
 	assert.NoError(bs.VerifyState())
 }

@@ -189,18 +189,13 @@ func (a *Account) Bytes() []byte {
 }
 
 func (a *Account) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, a); err != nil {
-		return util.ErrPrefix("Account.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Account.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, a))
 }
 
 func (a *Account) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(a)
-	if err != nil {
-		return nil, util.ErrPrefix("Account.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Account.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(a))
 }
 
 type StakeConfig struct {
@@ -243,18 +238,13 @@ func (c *StakeConfig) SyntacticVerify() error {
 }
 
 func (c *StakeConfig) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, c); err != nil {
-		return util.ErrPrefix("StakeConfig.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("StakeConfig.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, c))
 }
 
 func (c *StakeConfig) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(c)
-	if err != nil {
-		return nil, util.ErrPrefix("StakeConfig.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("StakeConfig.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(c))
 }
 
 type LendingConfig struct {
@@ -294,16 +284,11 @@ func (c *LendingConfig) SyntacticVerify() error {
 }
 
 func (c *LendingConfig) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, c); err != nil {
-		return util.ErrPrefix("LendingConfig.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("LendingConfig.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, c))
 }
 
 func (c *LendingConfig) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(c)
-	if err != nil {
-		return nil, util.ErrPrefix("LendingConfig.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("LendingConfig.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(c))
 }

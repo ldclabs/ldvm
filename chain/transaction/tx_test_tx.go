@@ -57,10 +57,6 @@ func (tx *TxTest) SyntacticVerify() error {
 }
 
 // call after SyntacticVerify
-func (tx *TxTest) Verify(bctx BlockContext, bs BlockState) error {
-	return fmt.Errorf("TxTest.Verify error: not implemented, TODO")
-}
-
-func (tx *TxTest) Accept(bctx BlockContext, bs BlockState) error {
-	return nil
+func (tx *TxTest) Apply(bctx BlockContext, bs BlockState) error {
+	return fmt.Errorf("TxTest.Apply error: not implemented, TODO")
 }

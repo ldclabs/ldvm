@@ -116,34 +116,22 @@ func TestNativeAccount(t *testing.T) {
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonce error: insufficient $TEST balance, expected 100, got 80")
 
 	// NonceTable
-	assert.ErrorContains(acc.CheckSubByNonceTable(constants.NativeToken, 12345, 1000, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckSubByNonceTable error: nonce 1000 not exists at 12345")
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 1000, big.NewInt(10)),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 1000 not exists at 12345")
 
-	assert.NoError(acc.CheckNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
 	assert.NoError(acc.AddNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
-	assert.ErrorContains(acc.CheckNonceTable(12345, []uint64{0, 10}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckNonceTable error: nonce 0 exists at 12345")
 	assert.ErrorContains(acc.AddNonceTable(12345, []uint64{2, 10}),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: nonce 2 exists at 12345")
-	assert.NoError(acc.CheckSubByNonceTable(constants.NativeToken, 12345, 0, big.NewInt(10)))
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 0, big.NewInt(10)))
 
-	assert.ErrorContains(acc.CheckSubByNonceTable(token, 12345, 0, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckSubByNonceTable error: nonce 0 not exists at 12345")
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 0, big.NewInt(10)),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 0 not exists at 12345")
-	assert.ErrorContains(acc.CheckSubByNonceTable(token, 123456, 2, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckSubByNonceTable error: nonce 2 not exists at 123456")
 	assert.ErrorContains(acc.SubByNonceTable(token, 123456, 2, big.NewInt(10)),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 2 not exists at 123456")
-	assert.NoError(acc.CheckSubByNonceTable(token, 12345, 2, big.NewInt(10)))
 	assert.NoError(acc.SubByNonceTable(token, 12345, 2, big.NewInt(10)))
 	assert.Equal(uint64(70), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(70), acc.balanceOfAll(token).Uint64())
 
-	assert.NoError(acc.CheckNonceTable(12345, []uint64{0}))
 	assert.NoError(acc.AddNonceTable(12345, []uint64{0}))
 	assert.Equal([]uint64{0, 1, 3, 4}, acc.ld.NonceTable[12345])
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 1, big.NewInt(10)))
@@ -154,17 +142,14 @@ func TestNativeAccount(t *testing.T) {
 	assert.Equal(uint64(50), acc.balanceOfAll(token).Uint64())
 	assert.Equal(0, len(acc.ld.NonceTable))
 
-	for i := uint64(0); i < 66; i++ {
-		assert.NoError(acc.CheckNonceTable(i, []uint64{i}))
+	for i := uint64(0); i < 1026; i++ {
 		assert.NoError(acc.AddNonceTable(i, []uint64{i}))
 	}
 	assert.Nil(acc.ld.NonceTable[0])
 	assert.Nil(acc.ld.NonceTable[1])
-	assert.Equal(64, len(acc.ld.NonceTable))
-	assert.ErrorContains(acc.CheckNonceTable(100, []uint64{100}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckNonceTable error: too many NonceTable groups, expected <= 64")
+	assert.Equal(1024, len(acc.ld.NonceTable))
 	assert.ErrorContains(acc.AddNonceTable(100, []uint64{100}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: too many NonceTable groups, expected <= 64")
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: too many NonceTable groups, expected <= 1024")
 
 	// Marshal
 	data, err := acc.Marshal()
@@ -180,8 +165,6 @@ func TestNativeAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
-	assert.NoError(acc.CheckOpenLending(cfg))
 	assert.NoError(acc.OpenLending(cfg))
-	assert.NoError(acc.CheckCloseLending())
 	assert.NoError(acc.CloseLending())
 }

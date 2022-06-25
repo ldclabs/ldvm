@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -23,16 +22,18 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxTransferCash.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxTransferCash.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxTransferCash) SyntacticVerify() error {
@@ -98,28 +99,17 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxTransferCash) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxTransferCash) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransferCash.Verify error: ")
+	errp := util.ErrPrefix("TxTransferCash.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	// verify issuer's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return errp.Errorf("invalid signature for issuer")
 	}
-
-	if err = tx.to.CheckSubByNonceTable(
-		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxTransferCash) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxTransferCash.Accept error: ")
 
 	if err = tx.to.SubByNonceTable(
 		tx.token, tx.input.Expire, tx.input.Nonce, tx.input.Amount); err != nil {
@@ -128,5 +118,5 @@ func (tx *TxTransferCash) Accept(bctx BlockContext, bs BlockState) error {
 	if err = tx.from.Add(tx.token, tx.input.Amount); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

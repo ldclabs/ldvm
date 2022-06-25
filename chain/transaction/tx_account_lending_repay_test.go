@@ -23,17 +23,10 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
-
-	ldc, err := bs.LoadAccount(constants.LDCAccount)
-	assert.NoError(err)
-	miner, err := bs.LoadMiner(bctx.Miner())
-	assert.NoError(err)
-	borrower, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
-	lender, err := bs.LoadAccount(util.Signer2.Address())
-	assert.NoError(err)
+	borrower := util.Signer1.Address()
+	lender := util.Signer2.Address()
 
 	txData := &ld.TxData{
 		Type:      ld.TypeRepay,
@@ -41,7 +34,7 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
+		From:      borrower,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -57,8 +50,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Amount:    new(big.Int).SetUint64(0),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -71,23 +64,35 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 580, got 0")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 580, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 1000638000, got 0")
-	borrower.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
-	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay error: invalid lending")
+	bs.CheckoutAccounts()
+
+	borrowerAcc := bs.MustAccount(borrower)
+	borrowerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: invalid lending")
+	bs.CheckoutAccounts()
 
 	// open lending
 	lcfg := &ld.LendingConfig{
@@ -104,7 +109,7 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      lender.id,
+		From:      lender,
 		Data:      ld.MustMarshal(lcfg),
 	}
 	assert.NoError(txData.SignWith(util.Signer2))
@@ -114,17 +119,19 @@ func TestTxRepay(t *testing.T) {
 	lenderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	lender.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
 
-	assert.Equal(lenderGas*bctx.Price, ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(lenderGas*100, miner.balanceOf(constants.NativeToken).Uint64())
+	lenderAcc := bs.MustAccount(lender)
+	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(itx.Apply(bctx, bs))
+
+	tx2 := itx.(*TxOpenLending)
+	assert.Equal(lenderGas*bctx.Price, tx2.ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(lenderGas*100, tx2.miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
-		lender.balanceOf(constants.NativeToken).Uint64())
-	assert.NotNil(lender.ld.Lending)
-	assert.NotNil(lender.ld.LendingLedger)
-	assert.Equal(0, len(lender.ld.LendingLedger))
+		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.NotNil(lenderAcc.ld.Lending)
+	assert.NotNil(lenderAcc.ld.LendingLedger)
+	assert.Equal(0, len(lenderAcc.ld.LendingLedger))
 
 	// repay again
 	txData = &ld.TxData{
@@ -133,8 +140,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -143,8 +150,11 @@ func TestTxRepay(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"CheckRepay error: invalid token, expected $LDC, got NativeLDC")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: invalid token, expected $LDC, got NativeLDC")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeRepay,
@@ -152,8 +162,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}
@@ -163,17 +173,23 @@ func TestTxRepay(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"insufficient $LDC balance, expected 1000000000, got 0")
 
-	borrower.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs), "CheckRepay error: don't need to repay")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"insufficient $LDC balance, expected 1000000000, got 0")
+	bs.CheckoutAccounts()
+
+	borrowerAcc.Add(token, new(big.Int).SetUint64(constants.LDC))
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxRepay.Apply error: Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: don't need to repay")
+	bs.CheckoutAccounts()
 
 	// borrow
 	input := &ld.TxTransfer{
 		Nonce:  1,
-		From:   &lender.id,
-		To:     &borrower.id,
+		From:   &lender,
+		To:     &borrower,
 		Token:  &token,
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: bs.Timestamp() + 1,
@@ -184,8 +200,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Token:     &token,
 		Data:      input.Bytes(),
 	}
@@ -197,41 +213,39 @@ func TestTxRepay(t *testing.T) {
 	borrowerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"CheckBorrow error: insufficient $LDC balance, expected 1000000000, got 0")
 
-	assert.NoError(lender.Add(token, new(big.Int).SetUint64(constants.LDC)))
-	assert.NoError(lender.AddNonceTable(bs.Timestamp()+1, []uint64{1}))
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxBorrow.Apply error: Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: insufficient $LDC balance, expected 1000000000, got 0")
+	bs.CheckoutAccounts()
 
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(lenderAcc.Add(token, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(lenderAcc.AddNonceTable(bs.Timestamp()+1, []uint64{1}))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal((lenderGas+borrowerGas)*bctx.Price, ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal((lenderGas+borrowerGas)*100, miner.balanceOf(constants.NativeToken).Uint64())
+	tx3 := itx.(*TxBorrow)
+	assert.Equal((lenderGas+borrowerGas)*bctx.Price, tx3.ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*100, tx3.miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(bctx.Price+100),
-		borrower.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
-		lender.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), lender.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC*2, borrower.balanceOf(token).Uint64())
+		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), lenderAcc.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC*2, borrowerAcc.balanceOf(token).Uint64())
 
-	assert.Equal(1, len(lender.ld.LendingLedger))
-	assert.Equal(0, len(lender.ld.NonceTable))
-	assert.NotNil(lender.ld.LendingLedger[borrower.id])
-	entry := lender.ld.LendingLedger[borrower.id]
+	assert.Equal(1, len(lenderAcc.ld.LendingLedger))
+	assert.Equal(0, len(lenderAcc.ld.NonceTable))
+	assert.NotNil(lenderAcc.ld.LendingLedger[borrower])
+	entry := lenderAcc.ld.LendingLedger[borrower]
 	assert.Equal(constants.LDC, entry.Amount.Uint64())
 	assert.Equal(bs.Timestamp(), entry.UpdateAt)
 	assert.Equal(uint64(0), entry.DueTime)
 
 	// repay after a day
+	bs.CommitAccounts()
 	bctx.height++
 	bctx.timestamp += 3600 * 24
-	bs.height++
-	bs.timestamp = bctx.timestamp
-	lender.ld.Height++
-	lender.ld.Timestamp = bs.Timestamp()
-	borrower.ld.Height++
-	borrower.ld.Timestamp = bs.Timestamp()
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeRepay,
@@ -239,8 +253,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}
@@ -251,20 +265,21 @@ func TestTxRepay(t *testing.T) {
 	borrowerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal((lenderGas+borrowerGas)*bctx.Price, ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal((lenderGas+borrowerGas)*100, miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*bctx.Price,
+		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*100,
+		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(bctx.Price+100),
-		borrower.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
-		lender.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC, lender.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC, borrower.balanceOf(token).Uint64())
+		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, lenderAcc.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC, borrowerAcc.balanceOf(token).Uint64())
 
-	assert.NotNil(lender.ld.LendingLedger[borrower.id])
-	entry = lender.ld.LendingLedger[borrower.id]
+	assert.NotNil(lenderAcc.ld.LendingLedger[borrower])
+	entry = lenderAcc.ld.LendingLedger[borrower]
 
 	interest := uint64(float64(constants.LDC) * 10_000 / 1_000_000)
 	assert.Equal(interest, entry.Amount.Uint64(), "with 1 day interest")
@@ -283,8 +298,8 @@ func TestTxRepay(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      borrower.id,
-		To:        &lender.id,
+		From:      borrower,
+		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 20),
 	}
@@ -295,18 +310,19 @@ func TestTxRepay(t *testing.T) {
 	borrowerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal((lenderGas+borrowerGas)*bctx.Price, ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal((lenderGas+borrowerGas)*100, miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*bctx.Price,
+		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*100,
+		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(bctx.Price+100),
-		borrower.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
-		lender.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC+interest, lender.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-interest, borrower.balanceOf(token).Uint64())
-	assert.Nil(lender.ld.LendingLedger[borrower.id], "clear entry when repay all")
+		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC+interest, lenderAcc.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC-interest, borrowerAcc.balanceOf(token).Uint64())
+	assert.Nil(lenderAcc.ld.LendingLedger[borrower], "clear entry when repay all")
 
 	assert.NoError(bs.VerifyState())
 }

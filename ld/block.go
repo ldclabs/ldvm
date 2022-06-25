@@ -119,16 +119,11 @@ func (b *Block) Bytes() []byte {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, b); err != nil {
-		return util.ErrPrefix("Block.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Block.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, b))
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(b)
-	if err != nil {
-		return nil, util.ErrPrefix("Block.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Block.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(b))
 }

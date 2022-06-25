@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -22,16 +21,18 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateAccountKeepers.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
@@ -73,10 +74,10 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 	return nil
 }
 
-// VerifyGenesis skipping signature verification
-func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState) error {
+// ApplyGenesis skipping signature verification
+func (tx *TxUpdateAccountKeepers) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.VerifyGenesis error: ")
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.ApplyGenesis error: ")
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
@@ -97,31 +98,33 @@ func (tx *TxUpdateAccountKeepers) VerifyGenesis(bctx BlockContext, bs BlockState
 	if tx.miner, err = bs.LoadMiner(bctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.from, err = bs.LoadAccount(tx.ld.From)
-	return errp.ErrorIf(err)
-}
-
-func (tx *TxUpdateAccountKeepers) Verify(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.Verify error: ")
-
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if tx.from, err = bs.LoadAccount(tx.ld.From); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.from.SatisfySigningPlus(tx.signers) {
-		return errp.Errorf("invalid signatures for keepers")
-	}
-	return nil
-}
-
-func (tx *TxUpdateAccountKeepers) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.Accept error: ")
 
 	if err = tx.from.UpdateKeepers(
 		tx.input.Threshold, tx.input.Keepers, tx.input.Approver, tx.input.ApproveList); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
+}
+
+func (tx *TxUpdateAccountKeepers) Apply(bctx BlockContext, bs BlockState) error {
+	var err error
+	errp := util.ErrPrefix("TxUpdateAccountKeepers.Apply error: ")
+
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
+		return errp.ErrorIf(err)
+	}
+	if !tx.from.SatisfySigningPlus(tx.signers) {
+		return errp.Errorf("invalid signatures for keepers")
+	}
+
+	if err = tx.from.UpdateKeepers(
+		tx.input.Threshold, tx.input.Keepers, tx.input.Approver, tx.input.ApproveList); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

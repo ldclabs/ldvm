@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -13,32 +12,34 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxTransferExchange struct {
+type TxExchange struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxExchanger
 	quantity  *big.Int
 }
 
-func (tx *TxTransferExchange) MarshalJSON() ([]byte, error) {
+func (tx *TxExchange) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxExchange.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxTransferExchange.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxTransferExchange) SyntacticVerify() error {
+func (tx *TxExchange) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxTransferExchange.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxExchange.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -105,27 +106,17 @@ func (tx *TxTransferExchange) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxTransferExchange) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxExchange) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransferExchange.Verify error: ")
+	errp := util.ErrPrefix("TxExchange.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	// verify seller's signatures
 	if !tx.to.SatisfySigning(tx.exSigners) {
 		return errp.Errorf("invalid signatures for seller")
 	}
-	if err = tx.to.CheckSubByNonceTable(
-		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxTransferExchange) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxTransferExchange.Accept error: ")
 
 	if err = tx.to.SubByNonceTable(
 		tx.input.Sell, tx.input.Expire, tx.input.Nonce, tx.quantity); err != nil {
@@ -134,5 +125,5 @@ func (tx *TxTransferExchange) Accept(bctx BlockContext, bs BlockState) error {
 	if err = tx.from.Add(tx.input.Sell, tx.quantity); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

@@ -23,11 +23,9 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
-
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	sender := util.Signer1.Address()
 
 	txData := &ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -35,7 +33,7 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
 	_, err = NewTx(txData.ToTransaction(), true)
@@ -47,7 +45,7 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -60,7 +58,7 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Token:     &constants.NativeToken,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -73,7 +71,7 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
@@ -86,24 +84,33 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs), "invalid gas, expected 1137, got 0")
+
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 1137, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"insufficient NativeLDC balance, expected 1250700, got 0")
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending error: invalid lending")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"insufficient NativeLDC balance, expected 1250700, got 0")
+	bs.CheckoutAccounts()
+
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid lending")
+	bs.CheckoutAccounts()
 
 	input := &ld.LendingConfig{
 		Token:           token,
@@ -119,23 +126,22 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		Data:      ld.MustMarshal(input),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	gas1 := tt.Gas
+	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(uint64(1), from.Nonce())
-	assert.NotNil(from.ld.Lending)
-	assert.Equal(token, from.ld.Lending.Token)
-	assert.Equal(make(map[util.EthID]*ld.LendingEntry), from.ld.LendingLedger)
+	assert.Equal(uint64(1), senderAcc.Nonce())
+	assert.NotNil(senderAcc.ld.Lending)
+	assert.Equal(token, senderAcc.ld.Lending.Token)
+	assert.Equal(make(map[util.EthID]*ld.LendingEntry), senderAcc.ld.LendingLedger)
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -143,24 +149,25 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
+	assert.NoError(itx.Apply(bctx, bs))
 
-	tx = itx.(*TxCloseLending)
-	assert.Equal((gas1+tx.ld.Gas)*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal((gas1+tx.ld.Gas)*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-(gas1+tx.ld.Gas)*(bctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Nil(from.ld.Lending)
-	assert.Nil(from.ld.LendingLedger)
+	assert.Equal(senderGas*bctx.Price,
+		itx.(*TxCloseLending).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		itx.(*TxCloseLending).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Nil(senderAcc.ld.Lending)
+	assert.Nil(senderAcc.ld.LendingLedger)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -173,7 +180,7 @@ func TestTxCloseLending(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
@@ -181,8 +188,8 @@ func TestTxCloseLending(t *testing.T) {
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCloseLending error: invalid lending")
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid lending")
 
 	assert.NoError(bs.VerifyState())
 }

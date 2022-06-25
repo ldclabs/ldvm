@@ -29,26 +29,18 @@ func (tx *TxRepay) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxRepay) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxRepay) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxRepay.Verify error: ")
+	errp := util.ErrPrefix("TxRepay.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = tx.to.CheckRepay(tx.token, tx.ld.From, tx.ld.Amount); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxRepay) Accept(bctx BlockContext, bs BlockState) error {
-	errp := util.ErrPrefix("TxRepay.Accept error: ")
 
 	actual, err := tx.to.Repay(tx.token, tx.ld.From, tx.ld.Amount)
 	if err != nil {
 		return errp.ErrorIf(err)
 	}
 	tx.amount.Set(actual)
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

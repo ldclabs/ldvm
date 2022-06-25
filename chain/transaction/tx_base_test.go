@@ -23,13 +23,13 @@ func TestTxBase(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
+	sender := util.Signer1.Address()
 	approver := util.Signer2.Address()
-	from.ld.Approver = &approver
-	from.ld.Nonce = 1
+	senderAcc := bs.MustAccount(sender)
+	senderAcc.ld.Approver = &approver
+	senderAcc.ld.Nonce = 1
 
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -55,7 +55,7 @@ func TestTxBase(t *testing.T) {
 		ChainID:   bctx.Chain().ChainID,
 		Nonce:     0,
 		GasFeeCap: 0,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 		Amount:    new(big.Int).SetUint64(1000),
 	}).ToTransaction()}
@@ -68,27 +68,33 @@ func TestTxBase(t *testing.T) {
 		ChainID:   bctx.Chain().ChainID,
 		Nonce:     0,
 		GasFeeCap: bctx.Price - 1,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}).ToTransaction()}
-	assert.ErrorContains(tx.Verify(bctx, bs), "invalid gasFeeCap")
+	assert.ErrorContains(tx.verify(bctx, bs), "invalid gasFeeCap")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "invalid gasFeeCap")
+	bs.CheckoutAccounts()
 
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   bctx.Chain().ChainID,
 		Nonce:     0,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 	}).ToTransaction()}
-	assert.ErrorContains(tx.Verify(bctx, bs), "invalid gas")
+	assert.ErrorContains(tx.verify(bctx, bs), "invalid gas")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "invalid gas")
+	bs.CheckoutAccounts()
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   bctx.Chain().ChainID,
 		Nonce:     0,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 		Amount:    new(big.Int).SetUint64(1000),
 	}
@@ -98,14 +104,17 @@ func TestTxBase(t *testing.T) {
 	tx.ld.Gas = tx.ld.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	assert.NoError(tx.ld.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
-	assert.ErrorContains(tx.Verify(bctx, bs), "invalid nonce for sender")
+	assert.ErrorContains(tx.verify(bctx, bs), "invalid nonce for sender")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "invalid nonce for sender")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   bctx.Chain().ChainID,
 		Nonce:     1,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 		Amount:    new(big.Int).SetUint64(1000),
 	}
@@ -115,7 +124,10 @@ func TestTxBase(t *testing.T) {
 	tx.ld.Gas = tx.ld.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	assert.NoError(tx.ld.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
-	assert.ErrorContains(tx.Verify(bctx, bs), "invalid signatures for sender")
+	assert.ErrorContains(tx.verify(bctx, bs), "invalid signatures for sender")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "invalid signatures for sender")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -123,7 +135,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 		Amount:    new(big.Int).SetUint64(1000),
 	}
@@ -133,33 +145,40 @@ func TestTxBase(t *testing.T) {
 	tx.ld.Gas = tx.ld.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	assert.NoError(tx.ld.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
-	assert.ErrorContains(tx.Verify(bctx, bs), "invalid signature for approver")
+	assert.ErrorContains(tx.verify(bctx, bs), "invalid signature for approver")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tx = &TxBase{ld: txData.ToTransaction()}
 	tx.ld.Gas = tx.ld.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas := tx.ld.Gas
 	assert.NoError(tx.ld.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
-	assert.ErrorContains(tx.Verify(bctx, bs), "insufficient NativeLDC balance")
+	assert.ErrorContains(tx.verify(bctx, bs), "insufficient NativeLDC balance")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "insufficient NativeLDC balance")
+	bs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(tx.Verify(bctx, bs))
-	assert.NoError(tx.Accept(bctx, bs))
-	ldcbalance := tx.ldc.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(tx.ld.Gas*bctx.Price, ldcbalance)
-	minerbalance := tx.miner.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(tx.ld.Gas*100, minerbalance)
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(tx.Apply(bctx, bs))
+
+	assert.Equal(senderGas*bctx.Price,
+		tx.ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100)-1000,
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1000), tx.to.balanceOf(constants.NativeToken).Uint64())
-	accbalance := tx.from.balanceOf(constants.NativeToken).Uint64()
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100)-1000, accbalance)
-	assert.Equal(uint64(2), tx.from.Nonce())
+	assert.Equal(uint64(2), senderAcc.Nonce())
 
 	jsondata, err := tx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"signatures":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01","70c90b4dee8b2442d8974a568bc0640c858fcaa100d4888daf582e33be5510622e5de01281cc2bc7c4a9269caf959dbca03f7fce68032dd03121d375721c2fbb00"],"gas":119,"id":"KtpU3iErfEz63uBEhoWPLk816UhNF3kjUj1dV3Zi6rfBPqewg"}`, string(jsondata))
 
-	from.ld.Approver = nil
+	senderAcc.ld.Approver = nil
 	token := ld.MustNewToken("$LDC")
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -167,7 +186,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
-		From:      from.id,
+		From:      sender,
 		To:        &constants.GenesisAccount,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(1000),
@@ -176,19 +195,25 @@ func TestTxBase(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tx = &TxBase{ld: txData.ToTransaction()}
 	tx.ld.Gas = tx.ld.RequiredGas(bctx.FeeConfig().ThresholdGas)
+	senderGas += tx.ld.Gas
 	assert.NoError(tx.ld.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
-	assert.ErrorContains(tx.Verify(bctx, bs), "insufficient $LDC balance")
+	assert.ErrorContains(tx.verify(bctx, bs), "insufficient $LDC balance")
+	bs.CommitAccounts()
+	assert.ErrorContains(tx.Apply(bctx, bs), "insufficient $LDC balance")
+	bs.CheckoutAccounts()
 
-	from.Add(token, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(tx.Verify(bctx, bs))
-	assert.NoError(tx.Accept(bctx, bs))
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64()-ldcbalance)
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64()-minerbalance)
+	senderAcc.Add(token, new(big.Int).SetUint64(constants.LDC))
+	assert.NoError(tx.Apply(bctx, bs))
+
+	assert.Equal(senderGas*bctx.Price,
+		tx.ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*100,
+		tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(bctx.Price+100)-1000,
+		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1000), tx.to.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-1000, tx.from.balanceOf(token).Uint64())
-	assert.Equal(accbalance-tx.ld.Gas*(bctx.Price+100),
-		tx.from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
 
 	jsondata, err = tx.MarshalJSON()

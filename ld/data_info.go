@@ -136,16 +136,11 @@ func (t *DataInfo) Bytes() []byte {
 }
 
 func (t *DataInfo) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("DataInfo.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("DataInfo.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *DataInfo) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("DataInfo.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("DataInfo.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }

@@ -32,7 +32,7 @@ func (pt ProfileType) MarshalJSON() ([]byte, error) {
 
 // https://schema.org/Thing
 type Profile struct {
-	Type       ProfileType  `cbor:"t" json:"@type"`                        // Thing, Person, Organization...
+	Type       ProfileType  `cbor:"t" json:"type"`                         // Thing, Person, Organization...
 	Name       string       `cbor:"n" json:"name"`                         // Thing property
 	Image      string       `cbor:"i" json:"image"`                        // Thing property
 	URL        string       `cbor:"u" json:"url"`                          // Thing property
@@ -70,6 +70,7 @@ func ProfileModel() (*ld.IPLDModel, error) {
 func (p *Profile) SyntacticVerify() error {
 	var err error
 	errp := util.ErrPrefix("Profile.SyntacticVerify error: ")
+
 	switch {
 	case p == nil:
 		return errp.Errorf("nil pointer")
@@ -135,16 +136,11 @@ func (p *Profile) Bytes() []byte {
 }
 
 func (p *Profile) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, p); err != nil {
-		return util.ErrPrefix("Profile.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("Profile.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, p))
 }
 
 func (p *Profile) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(p)
-	if err != nil {
-		return nil, util.ErrPrefix("Profile.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("Profile.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(p))
 }

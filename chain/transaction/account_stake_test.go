@@ -31,23 +31,16 @@ func TestStakeAccount(t *testing.T) {
 		MinAmount:   big.NewInt(100),
 		MaxAmount:   big.NewInt(1000),
 	}
-	assert.ErrorContains(acc.CheckCreateStake(util.Signer1.Address(), pledge, cfg, scfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckCreateStake error: invalid stake account")
 	assert.ErrorContains(acc.CreateStake(util.Signer1.Address(), pledge, cfg, scfg),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CreateStake error: invalid stake account")
-	assert.ErrorContains(acc.CheckResetStake(scfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckResetStake error: invalid stake account")
 	assert.ErrorContains(acc.ResetStake(scfg),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).ResetStake error: invalid stake account")
-	assert.ErrorContains(acc.CheckResetStake(scfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckResetStake error: invalid stake account")
 	assert.ErrorContains(acc.ResetStake(scfg),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).ResetStake error: invalid stake account")
 
 	stake := ld.MustNewStake("#TEST")
 	testStake := NewAccount(util.EthID(stake))
 	testStake.Init(big.NewInt(100), 1, 1)
-	assert.NoError(testStake.CheckCreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 	assert.Equal(false, testStake.valid(ld.StakeAccount))
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
@@ -84,39 +77,35 @@ func TestStakeAccount(t *testing.T) {
 
 	// Reset
 	token := ld.MustNewToken("$TEST")
-	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
+	assert.ErrorContains(testStake.ResetStake(&ld.StakeConfig{
 		Type:        1,
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account(0x0000000000000000000000000000002354455354).CheckResetStake error: can't change stake type")
-	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
+	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: can't change stake type")
+	assert.ErrorContains(testStake.ResetStake(&ld.StakeConfig{
 		Token:       token,
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account(0x0000000000000000000000000000002354455354).CheckResetStake error: can't change stake token")
-	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
+	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: can't change stake token")
+	assert.ErrorContains(testStake.ResetStake(&ld.StakeConfig{
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account(0x0000000000000000000000000000002354455354).CheckResetStake error: stake in lock, please retry after lockTime")
-	assert.ErrorContains(testStake.CheckDestroyStake(acc),
-		"Account(0x0000000000000000000000000000002354455354).CheckDestroyStake error: stake in lock, please retry after lockTime")
+	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: stake in lock, please retry after lockTime")
+	assert.ErrorContains(testStake.DestroyStake(acc),
+		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: stake in lock, please retry after lockTime")
 	testStake.ld.Timestamp = 10
-	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
+	assert.ErrorContains(testStake.ResetStake(&ld.StakeConfig{
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account(0x0000000000000000000000000000002354455354).CheckResetStake error: stake holders should not more than 1")
-	assert.ErrorContains(testStake.CheckDestroyStake(acc),
-		"Account(0x0000000000000000000000000000002354455354).CheckDestroyStake error: stake ledger not empty, please withdraw all except recipient")
+	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: stake holders should not more than 1")
+	assert.ErrorContains(testStake.DestroyStake(acc),
+		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: stake ledger not empty, please withdraw all except recipient")
 	delete(testStake.ld.StakeLedger, util.Signer2.Address())
-	assert.NoError(testStake.CheckResetStake(&ld.StakeConfig{
-		WithdrawFee: 10_000,
-		MinAmount:   big.NewInt(1000),
-		MaxAmount:   big.NewInt(10000),
-	}))
+
 	assert.Equal(uint64(100_000), testStake.ld.Stake.WithdrawFee)
 	assert.NoError(testStake.ResetStake(&ld.StakeConfig{
 		WithdrawFee: 10_000,
@@ -134,26 +123,20 @@ func TestStakeAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
-	assert.NoError(testStake.CheckOpenLending(lcfg))
 	assert.NoError(testStake.OpenLending(lcfg))
-	assert.NoError(testStake.CheckCloseLending())
 	assert.NotNil(testStake.ld.Lending)
 	assert.NotNil(testStake.ld.LendingLedger)
 
 	// Destroy
 	assert.NoError(testStake.Borrow(constants.NativeToken, acc.id, big.NewInt(1000), 0))
-	assert.ErrorContains(testStake.CheckDestroyToken(acc),
-		"Account(0x0000000000000000000000000000002354455354).CheckDestroyToken error: please repay all before close")
-	assert.ErrorContains(testStake.DestroyToken(acc),
-		"Account(0x0000000000000000000000000000002354455354).DestroyToken error: please repay all before close")
+	assert.ErrorContains(testStake.DestroyStake(acc),
+		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: please repay all before close")
 	actual, err := testStake.Repay(constants.NativeToken, acc.id, big.NewInt(1000))
 	assert.NoError(err)
 	assert.Equal(uint64(1000), actual.Uint64())
 
-	assert.ErrorContains(testStake.CheckDestroyStake(acc2),
-		"Account(0x0000000000000000000000000000002354455354).CheckDestroyStake error: recipient not exists")
-	assert.NoError(testStake.CheckDestroyStake(acc))
-	assert.NotNil(testStake.ld.Stake)
+	assert.ErrorContains(testStake.DestroyStake(acc2),
+		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: recipient not exists")
 	assert.NoError(testStake.DestroyStake(acc))
 	assert.Equal(uint64(0), testStake.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testStake.balanceOfAll(constants.NativeToken).Uint64())
@@ -167,13 +150,13 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(uint64(2000), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// Destroy again
-	assert.ErrorContains(testStake.CheckDestroyStake(acc),
-		"Account(0x0000000000000000000000000000002354455354).CheckDestroyStake error: invalid stake account")
-	assert.ErrorContains(testStake.CheckResetStake(&ld.StakeConfig{
+	assert.ErrorContains(testStake.DestroyStake(acc),
+		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: invalid stake account")
+	assert.ErrorContains(testStake.ResetStake(&ld.StakeConfig{
 		WithdrawFee: 10_000,
 		MinAmount:   big.NewInt(1000),
 		MaxAmount:   big.NewInt(10000),
-	}), "Account(0x0000000000000000000000000000002354455354).CheckResetStake error: invalid stake account")
+	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: invalid stake account")
 
 	// Marshal again
 	data, err = testStake.Marshal()
@@ -183,7 +166,6 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
 
 	// Create again
-	assert.NoError(testStake.CheckCreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 }
 
@@ -330,19 +312,18 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
 
 	// Invalid TakeStake args
-	assert.ErrorContains(sk.CheckTakeStake(constants.NativeToken, addr1, big.NewInt(1000), 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckTakeStake error: invalid stake account")
-	assert.ErrorContains(sa.CheckTakeStake(token, addr2, big.NewInt(1000), 0),
-		"Account(0x00000000000000000000000000000000234c4443).CheckTakeStake error: invalid token, expected NativeLDC, got $LDC")
-	assert.ErrorContains(sa.CheckTakeStake(constants.NativeToken, addr3, big.NewInt(1000), 0),
-		"Account(0x00000000000000000000000000000000234c4443).CheckTakeStake error: invalid amount, expected >= 1000000000, got 1000")
+	assert.ErrorContains(sk.TakeStake(constants.NativeToken, addr1, big.NewInt(1000), 0),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).TakeStake error: invalid stake account")
+	assert.ErrorContains(sa.TakeStake(token, addr2, big.NewInt(1000), 0),
+		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid token, expected NativeLDC, got $LDC")
+	assert.ErrorContains(sa.TakeStake(constants.NativeToken, addr3, big.NewInt(1000), 0),
+		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid amount, expected >= 1000000000, got 1000")
 
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*11, sa.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
 
-	assert.NoError(sa.CheckTakeStake(constants.NativeToken, addr0, ldc, 0))
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr0, ldc, 0))
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC*2, sa.balanceOf(constants.NativeToken).Uint64())
@@ -356,7 +337,6 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*11, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
 	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr0].Amount.Uint64())
 
-	assert.NoError(sa.CheckTakeStake(constants.NativeToken, addr1, pledge, 0))
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr1, pledge, 0))
 	sa.Add(constants.NativeToken, pledge)
 	assert.Equal(constants.LDC*13, sa.balanceOf(constants.NativeToken).Uint64())
@@ -365,10 +345,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(uint64(ldcf*(1+float64(1)/12)), sa.ld.StakeLedger[addr0].Amount.Uint64())
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
 
-	assert.ErrorContains(sa.CheckTakeStake(constants.NativeToken, addr1, ldc, 0),
-		"Account(0x00000000000000000000000000000000234c4443).CheckTakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
+	assert.ErrorContains(sa.TakeStake(constants.NativeToken, addr1, ldc, 0),
+		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
 	// No Bonus
-	assert.NoError(sa.CheckTakeStake(constants.NativeToken, addr2, ldc, 11))
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr2, ldc, 11))
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC*14, sa.balanceOf(constants.NativeToken).Uint64())
@@ -386,68 +365,61 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	// check WithdrawStake
-	assert.ErrorContains(
-		sk.CheckWithdrawStake(constants.NativeToken, addr1, util.EthIDs{}, big.NewInt(1000)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckWithdrawStake error: invalid stake account")
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(token, addr0, util.EthIDs{}, big.NewInt(1000)),
-		"Account(0x00000000000000000000000000000000234c4443).CheckWithdrawStake error: invalid token, expected NativeLDC, got $LDC")
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(1000)),
-		"Account(0x00000000000000000000000000000000234c4443).CheckWithdrawStake error: stake in lock, please retry after lockTime")
+	_, err = sk.WithdrawStake(constants.NativeToken, addr1, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err,
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).WithdrawStake error: invalid stake account")
+	_, err = sa.WithdrawStake(token, addr0, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err,
+		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: invalid token, expected NativeLDC, got $LDC")
+	_, err = sa.WithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err,
+		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime")
 	sa.ld.Timestamp = 10
-	assert.NoError(
-		sa.CheckWithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(1000)))
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr3, util.EthIDs{}, big.NewInt(1000)),
-		"has no stake to withdraw")
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(1000)),
-		"Account(0x00000000000000000000000000000000234c4443).CheckWithdrawStake error: stake in lock, please retry after lockTime")
+	_, err = sa.WithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, big.NewInt(0))
+	assert.NoError(err)
+	_, err = sa.WithdrawStake(constants.NativeToken, addr3, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err, "has no stake to withdraw")
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(0))
+	assert.ErrorContains(err,
+		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: stake in lock, please retry after lockTime")
 	sa.ld.Timestamp = 11
-	assert.NoError(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(1000)))
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(0))
+	assert.NoError(err)
 
 	// check UpdateStakeApprover
 	assert.ErrorContains(
-		sk.CheckUpdateStakeApprover(addr1, approver, util.EthIDs{}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckUpdateStakeApprover error: invalid stake account")
+		sk.UpdateStakeApprover(addr1, approver, util.EthIDs{}),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).UpdateStakeApprover error: invalid stake account")
 	assert.ErrorContains(
-		sa.CheckUpdateStakeApprover(addr3, approver, util.EthIDs{}),
+		sa.UpdateStakeApprover(addr3, approver, util.EthIDs{}),
 		"has no stake ledger to update")
-	assert.NoError(
-		sa.CheckUpdateStakeApprover(addr0, approver, util.EthIDs{}))
 	assert.Nil(sa.ld.StakeLedger[addr0].Approver)
 	assert.NoError(sa.UpdateStakeApprover(addr0, approver, util.EthIDs{}))
 	assert.NotNil(sa.ld.StakeLedger[addr0].Approver)
 	assert.Equal(approver, *sa.ld.StakeLedger[addr0].Approver)
 	assert.ErrorContains(
-		sa.CheckUpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{}),
+		sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{}),
 		"need approver signing")
 	assert.ErrorContains(
-		sa.CheckUpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{addr0}),
+		sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{addr0}),
 		"need approver signing")
-	assert.NoError(sa.CheckUpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{approver}))
 	assert.NoError(sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{approver}))
 	assert.Nil(sa.ld.StakeLedger[addr0].Approver)
 
 	// continue to check WithdrawStake
-	assert.NoError(sa.CheckUpdateStakeApprover(addr2, approver, util.EthIDs{}))
 	assert.NoError(sa.UpdateStakeApprover(addr2, approver, util.EthIDs{}))
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(1000)),
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{}, big.NewInt(1000))
+	assert.ErrorContains(err,
 		"need approver signing")
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{addr2}, big.NewInt(1000)),
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{addr2}, big.NewInt(1000))
+	assert.ErrorContains(err,
 		"need approver signing")
-	assert.NoError(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver}, big.NewInt(1000)))
-	assert.ErrorContains(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver},
-			new(big.Int).SetUint64(constants.LDC+1)),
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver}, big.NewInt(0))
+	assert.NoError(err)
+	_, err = sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver},
+		new(big.Int).SetUint64(constants.LDC+1))
+	assert.ErrorContains(err,
 		"insufficient stake to withdraw, expected 1000000001, got 1000000000")
-	assert.NoError(
-		sa.CheckWithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver}, ldc))
 	am, err := sa.WithdrawStake(constants.NativeToken, addr2, util.EthIDs{approver}, ldc)
 	assert.NoError(err)
 	sa.Sub(constants.NativeToken, am)
@@ -484,11 +456,6 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	// Reset & Destroy
-	assert.NoError(sa.CheckResetStake(&ld.StakeConfig{
-		WithdrawFee: withdrawFee / 10,
-		MinAmount:   new(big.Int).SetUint64(constants.LDC),
-		MaxAmount:   pledge,
-	}))
 	assert.NoError(sa.ResetStake(&ld.StakeConfig{
 		WithdrawFee: withdrawFee / 10,
 		MinAmount:   new(big.Int).SetUint64(constants.LDC),
@@ -496,7 +463,6 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	}))
 
 	ba := sk.balanceOf(constants.NativeToken).Uint64()
-	assert.NoError(sa.CheckDestroyStake(sk))
 	assert.NoError(sa.DestroyStake(sk))
 	assert.Equal(uint64(0), sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), sa.balanceOfAll(constants.NativeToken).Uint64())
@@ -537,7 +503,6 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC, sa.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, sa.balanceOfAll(token).Uint64())
 
-	assert.Error(sa.CheckTakeStake(constants.NativeToken, addr0, ldc, 0))
 	assert.NoError(sa.TakeStake(token, addr0, ldc, 0))
 	sa.Add(token, ldc)
 	assert.Equal(constants.LDC*2, sa.balanceOf(token).Uint64())
@@ -553,8 +518,8 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*2, sa.ld.StakeLedger[addr0].Amount.Uint64())
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
 
-	assert.ErrorContains(sa.CheckTakeStake(token, addr1, ldc, 0),
-		"Account(0x00000000000000000000000000000000234c4443).CheckTakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
+	assert.ErrorContains(sa.TakeStake(token, addr1, ldc, 0),
+		"Account(0x00000000000000000000000000000000234c4443).TakeStake error: invalid total amount, expected <= 10000000000, got 11000000000")
 
 	// sa take a stake in sc
 	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
@@ -587,9 +552,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
 	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr2].Amount.Uint64())
 
-	assert.ErrorContains(sa.CheckWithdrawStake(token, addr1,
-		util.EthIDs{}, pledge),
-		"Account(0x00000000000000000000000000000000234c4443).CheckWithdrawStake error: insufficient $LDC balance for withdraw, expected 10000000000, got 1000000000")
+	_, err = sa.WithdrawStake(token, addr1, util.EthIDs{}, pledge)
+	assert.ErrorContains(err,
+		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: insufficient $LDC balance for withdraw, expected 10000000000, got 1000000000")
 
 	// Marshal again
 	data, err = sa.Marshal()

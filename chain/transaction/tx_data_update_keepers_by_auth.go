@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -23,16 +22,18 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxUpdateDataKeepersByAuth.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
@@ -106,11 +107,11 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateDataKeepersByAuth) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Verify error: ")
+	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -129,12 +130,6 @@ func (tx *TxUpdateDataKeepersByAuth) Verify(bctx BlockContext, bs BlockState) er
 	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.exSigners.Has(*tx.di.Approver):
 		return errp.Errorf("invalid signature for data approver")
 	}
-	return nil
-}
-
-func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Accept error: ")
 
 	tx.di.Version++
 	tx.di.KSig = util.Signature{}
@@ -150,5 +145,5 @@ func (tx *TxUpdateDataKeepersByAuth) Accept(bctx BlockContext, bs BlockState) er
 	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

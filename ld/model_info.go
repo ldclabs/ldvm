@@ -85,16 +85,11 @@ func (t *ModelInfo) Bytes() []byte {
 }
 
 func (t *ModelInfo) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("ModelInfo.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("ModelInfo.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *ModelInfo) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("ModelInfo.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("ModelInfo.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }

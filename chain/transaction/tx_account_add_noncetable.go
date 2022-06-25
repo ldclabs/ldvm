@@ -5,36 +5,37 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxAddAccountNonceTable struct {
+type TxAddNonceTable struct {
 	TxBase
 	input []uint64
 }
 
-func (tx *TxAddAccountNonceTable) MarshalJSON() ([]byte, error) {
+func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
+
 	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxAddNonceTable.MarshalJSON error: ")
 	if tx.input == nil {
-		return nil, fmt.Errorf("TxAddAccountNonceTable.MarshalJSON error: invalid tx.input")
+		return nil, errp.Errorf("nil tx.input")
 	}
 	d, err := json.Marshal(tx.input)
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	v.Data = d
-	return json.Marshal(v)
+	return errp.ErrorMap(json.Marshal(v))
 }
 
-// VerifyGenesis skipping signature verification
-func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
+// ApplyGenesis skipping signature verification
+func (tx *TxAddNonceTable) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxAddAccountNonceTable.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxAddNonceTable.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -76,26 +77,16 @@ func (tx *TxAddAccountNonceTable) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxAddAccountNonceTable) Verify(bctx BlockContext, bs BlockState) error {
+func (tx *TxAddNonceTable) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxAddAccountNonceTable.Verify error: ")
+	errp := util.ErrPrefix("TxAddNonceTable.Apply error: ")
 
-	if err = tx.TxBase.Verify(bctx, bs); err != nil {
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = tx.from.CheckNonceTable(tx.input[0], tx.input[1:]); err != nil {
-		return errp.ErrorIf(err)
-	}
-	return nil
-}
-
-func (tx *TxAddAccountNonceTable) Accept(bctx BlockContext, bs BlockState) error {
-	var err error
-	errp := util.ErrPrefix("TxAddAccountNonceTable.Accept error: ")
 
 	if err = tx.from.AddNonceTable(tx.input[0], tx.input[1:]); err != nil {
 		return errp.ErrorIf(err)
 	}
-
-	return errp.ErrorIf(tx.TxBase.Accept(bctx, bs))
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

@@ -25,13 +25,11 @@ func TestTxEth(t *testing.T) {
 	assert.NoError(err)
 
 	bctx := NewMockBCtx()
-	bs := NewMockBS(bctx)
+	bs := bctx.MockBS()
 	token := ld.MustNewToken("$LDC")
 
-	from, err := bs.LoadAccount(util.Signer1.Address())
-	assert.NoError(err)
-	to, err := bs.LoadAccount(util.Signer2.Address())
-	assert.NoError(err)
+	from := bs.MustAccount(util.Signer1.Address())
+	to := bs.MustAccount(util.Signer2.Address())
 
 	testTo := common.Address(to.id)
 
@@ -93,24 +91,27 @@ func TestTxEth(t *testing.T) {
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid exSignatures")
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
-	assert.ErrorContains(itx.Verify(bctx, bs),
-		"TxBase.Verify error: invalid gas, expected 228, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"TxBase.Apply error: invalid gas, expected 228, got 0")
+	bs.CheckoutAccounts()
 
 	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
-	tx = itx.(*TxEth)
-	assert.ErrorContains(itx.Verify(bctx, bs),
+	assert.ErrorContains(itx.Apply(bctx, bs),
 		"insufficient NativeLDC balance, expected 1228000, got 0")
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	assert.NoError(itx.Verify(bctx, bs))
-	assert.NoError(itx.Accept(bctx, bs))
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.NoError(itx.Apply(bctx, bs))
+
+	assert.Equal(tt.Gas*bctx.Price,
+		itx.(*TxEth).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0),
+		itx.(*TxEth).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price)-1_000_000,
+	assert.Equal(constants.LDC-tt.Gas*(bctx.Price)-1_000_000,
 		from.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1), tx.from.Nonce())
+	assert.Equal(uint64(1), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

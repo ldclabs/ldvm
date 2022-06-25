@@ -58,16 +58,11 @@ func (t *TxTransfer) Bytes() []byte {
 }
 
 func (t *TxTransfer) Unmarshal(data []byte) error {
-	if err := util.UnmarshalCBOR(data, t); err != nil {
-		return util.ErrPrefix("TxTransfer.Unmarshal error: ").ErrorIf(err)
-	}
-	return nil
+	return util.ErrPrefix("TxTransfer.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTransfer) Marshal() ([]byte, error) {
-	data, err := util.MarshalCBOR(t)
-	if err != nil {
-		return nil, util.ErrPrefix("TxTransfer.Marshal error: ").ErrorIf(err)
-	}
-	return data, nil
+	return util.ErrPrefix("TxTransfer.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(t))
 }
