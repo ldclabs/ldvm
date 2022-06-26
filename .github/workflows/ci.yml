@@ -1,4 +1,4 @@
-name: ci
+name: LDVM-CI
 on: [push]
 jobs:
   # Test on various OS with default Go version.
@@ -28,5 +28,14 @@ jobs:
       run: go get -v -t -d ./...
 
     - name: Run tests
-      run: |
-        go test -race -v ./...
+      run: ./scripts/build_test.sh
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        directory: ./
+        fail_ci_if_error: true
+        files: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        verbose: true
