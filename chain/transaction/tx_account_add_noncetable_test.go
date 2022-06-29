@@ -192,21 +192,14 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 101, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 111100, got 0")
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 583000, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas := tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -220,7 +213,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5],"signatures":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"gas":101,"id":"svYgQEJj8X7cydgowuZ3Dj4pZftQFA4fzVreLeVUbUbhGxkwS"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5],"signatures":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"id":"svYgQEJj8X7cydgowuZ3Dj4pZftQFA4fzVreLeVUbUbhGxkwS"}`, string(jsondata))
 
 	input = []uint64{bs.Timestamp() + 1, 2, 4, 1}
 	inputData, err = util.MarshalCBOR(input)
@@ -237,7 +230,6 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -260,12 +252,11 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -289,12 +280,11 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -329,7 +319,6 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
@@ -361,12 +350,11 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxTransferCash).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,

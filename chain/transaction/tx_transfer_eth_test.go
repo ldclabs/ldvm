@@ -91,32 +91,31 @@ func TestTxEth(t *testing.T) {
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid exSignatures")
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"TxBase.Apply error: invalid gas, expected 228, got 0")
-	bs.CheckoutAccounts()
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
+
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1228000, got 0")
+		"insufficient NativeLDC balance, expected 2204000, got 0")
+	bs.CheckoutAccounts()
+
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		itx.(*TxEth).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0),
 		itx.(*TxEth).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price)-1_000_000,
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price)-1_000_000,
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x01f866820935808203e8809444171c37ff5d7b7bb8dcad5c81f16284a229e641830f424080c080a03b6f2401a270681519ba730c2f53bb87c2fd41ed7d91434ddfbfec506e6c8768a018cb0cde3ef83bdd83809f63852d7fc07de699239007a8046d48006ec5cb66ac271d15b9","signatures":["3b6f2401a270681519ba730c2f53bb87c2fd41ed7d91434ddfbfec506e6c876818cb0cde3ef83bdd83809f63852d7fc07de699239007a8046d48006ec5cb66ac00"],"gas":228,"id":"LahrjRUUeJfjsvWAc9GLpN2ArK5sTNN2kJnHoS8RggVE5dMzi"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x01f866820935808203e8809444171c37ff5d7b7bb8dcad5c81f16284a229e641830f424080c080a03b6f2401a270681519ba730c2f53bb87c2fd41ed7d91434ddfbfec506e6c8768a018cb0cde3ef83bdd83809f63852d7fc07de699239007a8046d48006ec5cb66ac271d15b9","signatures":["3b6f2401a270681519ba730c2f53bb87c2fd41ed7d91434ddfbfec506e6c876818cb0cde3ef83bdd83809f63852d7fc07de699239007a8046d48006ec5cb66ac00"],"id":"LahrjRUUeJfjsvWAc9GLpN2ArK5sTNN2kJnHoS8RggVE5dMzi"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

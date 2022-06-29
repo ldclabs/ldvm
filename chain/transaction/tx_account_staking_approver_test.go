@@ -172,16 +172,8 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(err)
 
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 601, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-
-	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 661100, got 0")
+		"insufficient NativeLDC balance, expected 1316700, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -218,14 +210,13 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
 	stakeAcc := bs.MustAccount(stakeid)
 
+	senderGas := tt.Gas()
 	tx2 := itx.(*TxCreateStake)
 	assert.Equal(senderGas*bctx.Price,
 		tx2.ldc.balanceOf(constants.NativeToken).Uint64())
@@ -256,8 +247,6 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -269,6 +258,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	stakeAcc.ld.StakeLedger[sender] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxUpdateStakeApprover).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -284,7 +274,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["a605b8679f7413b8e1b8a1f637e3a0febf1856edebca5b037d67f4d83554014162d9979a664eacfef2be97a5bcabe1b73b16265eb09faf4ba619cc5f1fa4e1bf00"],"gas":601,"id":"HrZYtiYDqeQxGN8jpz8HgPi7rZgGw71UHHLnRKqzRz8DvS2V5"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["a605b8679f7413b8e1b8a1f637e3a0febf1856edebca5b037d67f4d83554014162d9979a664eacfef2be97a5bcabe1b73b16265eb09faf4ba619cc5f1fa4e1bf00"],"id":"HrZYtiYDqeQxGN8jpz8HgPi7rZgGw71UHHLnRKqzRz8DvS2V5"}`, string(jsondata))
 
 	// clear Approver but need approver signing
 	input = &ld.TxAccounter{Approver: &util.EthIDEmpty}
@@ -300,20 +290,21 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
+
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
 		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover error: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC need approver signing")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxUpdateStakeApprover).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -329,7 +320,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x0000000000000000000000000000000000000000"},"signatures":["b4f9e8762a9290f7c36d86a7f187086017b397ad21497bc2ec3137be8eede9616bedc5fc0bc79eda0cbfa532bf484247b2850c018ec1dde0acb8e43c07b3bbfb01","070ddb6c1e5ced0031343f0e9940de31fc34b973252d445638717c3c7ec909a87a94215c0dc6640a414b759433219b0dca972baf168d0b37a78510418337d04801"],"gas":601,"id":"2C7YHue3h8TKn9trj1bdKYeSaAPCV7CCotC7yaguBLSuHV1G5u"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x0000000000000000000000000000000000000000"},"signatures":["b4f9e8762a9290f7c36d86a7f187086017b397ad21497bc2ec3137be8eede9616bedc5fc0bc79eda0cbfa532bf484247b2850c018ec1dde0acb8e43c07b3bbfb01","070ddb6c1e5ced0031343f0e9940de31fc34b973252d445638717c3c7ec909a87a94215c0dc6640a414b759433219b0dca972baf168d0b37a78510418337d04801"],"id":"2C7YHue3h8TKn9trj1bdKYeSaAPCV7CCotC7yaguBLSuHV1G5u"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

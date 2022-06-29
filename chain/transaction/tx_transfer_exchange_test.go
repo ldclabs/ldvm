@@ -267,33 +267,13 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
+	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 229, got 0")
-	bs.CheckoutAccounts()
 
-	txData = &ld.TxData{
-		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
-		Nonce:     1,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Amount:    new(big.Int).SetUint64(1_000_000),
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.ExSignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 1251900, got 0")
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		"insufficient NativeLDC balance, expected 2796300, got 0")
 	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -317,7 +297,6 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -332,14 +311,14 @@ func TestTxExchange(t *testing.T) {
 	to.Add(token, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		itx.(*TxExchange).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas*100,
+	assert.Equal(tt.Gas()*100,
 		itx.(*TxExchange).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), to.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100)-1_000_000,
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price+100)-1_000_000,
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(2), from.Nonce())
 	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[bs.Timestamp()])
@@ -347,7 +326,7 @@ func TestTxExchange(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1000,"payee":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["44a43280624de00dd1847a6fe933ff21cf11032659aa9ef83d3326fa674dea9d116d623520c7e6e6d7af569c3bf887ada476e757cc13e506348df7b835c60c5601"],"exSignatures":["af5416b1b07d2b0392ed0fe43ab56fee32839d8cba3b1bc0c619e338aa960b1c4b6c7dff6339d645d6169cfe85893664c5697f3cf45ccdef0a130f65b69aeb6f00"],"gas":229,"id":"2P26g7bdsHRBUZpJb3s7muHWxaJHYsiCbwZuTBjzJLDo7SGWY6"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1000,"payee":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["44a43280624de00dd1847a6fe933ff21cf11032659aa9ef83d3326fa674dea9d116d623520c7e6e6d7af569c3bf887ada476e757cc13e506348df7b835c60c5601"],"exSignatures":["af5416b1b07d2b0392ed0fe43ab56fee32839d8cba3b1bc0c619e338aa960b1c4b6c7dff6339d645d6169cfe85893664c5697f3cf45ccdef0a130f65b69aeb6f00"],"id":"2P26g7bdsHRBUZpJb3s7muHWxaJHYsiCbwZuTBjzJLDo7SGWY6"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

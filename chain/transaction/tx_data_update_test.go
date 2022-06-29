@@ -398,17 +398,10 @@ func TestTxUpdateData(t *testing.T) {
 	tt.Timestamp = 10
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid gas, expected 390, got 0")
-	bs.CheckoutAccounts()
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1429000, got 0")
+		"insufficient NativeLDC balance, expected 3586100, got 0")
 	bs.CheckoutAccounts()
 
 	ownerAcc := bs.MustAccount(owner)
@@ -471,7 +464,6 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -496,12 +488,11 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*bctx.Price,
 		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(ownerGas*100,
@@ -522,7 +513,7 @@ func TestTxUpdateData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":1,"kSig":"a7ea3017929b5c73b2a3d83f01514c1cbd311b799e2baa25aedb32bb6d8843eb51b30264f29ea32f37676e75de95664c1a64a3ed719259409395d8b09e14fe1100","data":421},"signatures":["2af27438a4d317195e2237dcddf6da4e94371195a3c7ed58934b69318a0d5d607c73692fd341ca8f56d3b7477fddaf957875b19ab1acba3c2ebba25db579bad301"],"gas":255,"id":"2aabVr5bHFzNHzSjC4VSxNN1MeZZUxf3NzJKucBReRxP8r73hF"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":1,"kSig":"a7ea3017929b5c73b2a3d83f01514c1cbd311b799e2baa25aedb32bb6d8843eb51b30264f29ea32f37676e75de95664c1a64a3ed719259409395d8b09e14fe1100","data":421},"signatures":["2af27438a4d317195e2237dcddf6da4e94371195a3c7ed58934b69318a0d5d607c73692fd341ca8f56d3b7477fddaf957875b19ab1acba3c2ebba25db579bad301"],"id":"2aabVr5bHFzNHzSjC4VSxNN1MeZZUxf3NzJKucBReRxP8r73hF"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -582,7 +573,6 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -608,7 +598,6 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -635,12 +624,11 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas := tt.Gas()
 	tx = itx.(*TxUpdateData)
 	assert.Equal(ownerGas*bctx.Price,
 		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
@@ -666,7 +654,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["1a0306bf9768771d9806458fea0162940e398630b27f4eaf209d0bcd276d0a3e50aeeac718ec43da7b02ac453185d7c447167d64bb8430588f1bfed6bb25b62001"],"gas":280,"id":"LdoZA49wq9kbkxQGd1XCxcmLSp7mS7XfuMuvoJ243pVgYNY2X"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["1a0306bf9768771d9806458fea0162940e398630b27f4eaf209d0bcd276d0a3e50aeeac718ec43da7b02ac453185d7c447167d64bb8430588f1bfed6bb25b62001"],"id":"LdoZA49wq9kbkxQGd1XCxcmLSp7mS7XfuMuvoJ243pVgYNY2X"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -719,7 +707,6 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -743,7 +730,6 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -768,12 +754,11 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*bctx.Price,
 		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(ownerGas*100,
@@ -794,7 +779,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"5ea1b80028d7b80a1545ae788183bc7be028ac2fc9d0e2859203378b53e678106bdfc3fa4960277d48ed6025e2b461b10f16a6c6034a4b290aaa696facfedbc501","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["8a6a5d649497eb1aec1e50026b179474a9f2f42055b3a3437aab983ac85317c15220f0423a3328b0823c88812e8fc442061ab18efc2ed5ccdbf3aa39154b02cb00"],"gas":308,"id":"GPLaz3tZacJDwa9AEYQYZyanwjb5xW23CCD5wA6fVdRzGqcX6"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"5ea1b80028d7b80a1545ae788183bc7be028ac2fc9d0e2859203378b53e678106bdfc3fa4960277d48ed6025e2b461b10f16a6c6034a4b290aaa696facfedbc501","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["8a6a5d649497eb1aec1e50026b179474a9f2f42055b3a3437aab983ac85317c15220f0423a3328b0823c88812e8fc442061ab18efc2ed5ccdbf3aa39154b02cb00"],"id":"GPLaz3tZacJDwa9AEYQYZyanwjb5xW23CCD5wA6fVdRzGqcX6"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

@@ -303,16 +303,7 @@ func TestTxBorrow(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid gas, expected 694, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 763400, got 0")
+		"insufficient NativeLDC balance, expected 2348500, got 0")
 	bs.CheckoutAccounts()
 
 	bs.MustAccount(borrower).Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -340,8 +331,6 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	lenderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -349,6 +338,7 @@ func TestTxBorrow(t *testing.T) {
 	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	lenderGas := tt.Gas()
 	assert.Equal(lenderGas*bctx.Price,
 		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(lenderGas*100,
@@ -374,7 +364,6 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -404,14 +393,12 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	borrowerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: insufficient NativeLDC balance, expected 1000000000, got 998549100")
+		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: insufficient NativeLDC balance, expected 1000000000, got 998178400")
 	bs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
@@ -424,6 +411,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(itx.Apply(bctx, bs))
 	bs.CommitAccounts()
 
+	borrowerGas := tt.Gas()
 	borrowerAcc := bs.MustAccount(borrower)
 	assert.Equal((lenderGas+borrowerGas)*bctx.Price,
 		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
@@ -442,7 +430,7 @@ func TestTxBorrow(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000,"data":"0x1a00015568c54d609b"},"signatures":["d23a9c587172465060d4fce7cf73770e3914a2d8f35622856083dab0fdd0bb4a1a8b65671392c6bd15d4eff1ae4cd79516ad5d5ea25571b6278571967c87458701"],"exSignatures":["b82d77943d8761685f7ca432cf5059455a278bb34089cbb02d85b20cd87c430500002e111cb2f693c0c75ba2c96085fce89827c39d9c827b349fb873fac32eaa01"],"gas":646,"id":"2qNonZbDwMaPFV3K8fWhCe27DVerF5WsjDp5cMCKnuzmxwXT6M"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000,"data":"0x1a00015568c54d609b"},"signatures":["d23a9c587172465060d4fce7cf73770e3914a2d8f35622856083dab0fdd0bb4a1a8b65671392c6bd15d4eff1ae4cd79516ad5d5ea25571b6278571967c87458701"],"exSignatures":["b82d77943d8761685f7ca432cf5059455a278bb34089cbb02d85b20cd87c430500002e111cb2f693c0c75ba2c96085fce89827c39d9c827b349fb873fac32eaa01"],"id":"2qNonZbDwMaPFV3K8fWhCe27DVerF5WsjDp5cMCKnuzmxwXT6M"}`, string(jsondata))
 
 	// borrow again after a day
 	bctx.height++
@@ -471,12 +459,11 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	borrowerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	borrowerGas += tt.Gas()
 	assert.Equal((lenderGas+borrowerGas)*bctx.Price,
 		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,

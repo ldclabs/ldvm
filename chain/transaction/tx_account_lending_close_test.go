@@ -93,16 +93,8 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(err)
 
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 1137, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-
-	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1250700, got 0")
+		"insufficient NativeLDC balance, expected 1579600, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -132,12 +124,11 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas := tt.Gas()
 	assert.Equal(uint64(1), senderAcc.Nonce())
 	assert.NotNil(senderAcc.ld.Lending)
 	assert.Equal(token, senderAcc.ld.Lending.Token)
@@ -154,12 +145,11 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxCloseLending).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -172,7 +162,7 @@ func TestTxCloseLending(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCloseLending","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","signatures":["ceb99eaf8a7825a8c9d26eeeea7fe3672eede4e0a4d0c18cb50638c00fca73831d50efafc6533b29258b3938811d5fe02a15688911f9958b121c7e14f6e01e8500"],"gas":1137,"id":"242SMs7S5niL4YYNsaNrQgASCKh4Brcnep9sjhxv7toj8R1PNB"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCloseLending","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","signatures":["ceb99eaf8a7825a8c9d26eeeea7fe3672eede4e0a4d0c18cb50638c00fca73831d50efafc6533b29258b3938811d5fe02a15688911f9958b121c7e14f6e01e8500"],"id":"242SMs7S5niL4YYNsaNrQgASCKh4Brcnep9sjhxv7toj8R1PNB"}`, string(jsondata))
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -185,7 +175,6 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Apply(bctx, bs),

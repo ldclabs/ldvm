@@ -28,7 +28,7 @@ func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Tr
 		Type:      ty,
 		ChainID:   gChainID,
 		Nonce:     signer.Nonce(),
-		GasTip:    constants.MilliLDC / 100,
+		GasTip:    0,
 		GasFeeCap: constants.LDC,
 		From:      signer.Address(),
 		To:        to,

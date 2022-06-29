@@ -282,15 +282,15 @@ func TestTxCreateStake(t *testing.T) {
 	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 1749, got 0")
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 1924000, got 0")
+	bs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 2353000, got 0")
+	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid amount, expected >= 1000000000000, got 100")
+	bs.CheckoutAccounts()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
@@ -306,11 +306,12 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1001001947000, got 1000000000")
+		"insufficient NativeLDC balance, expected 1001002378200, got 1000000000")
+	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
 	assert.NoError(itx.Apply(bctx, bs))
@@ -323,13 +324,13 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(err)
 
 	tx = itx.(*TxCreateStake)
-	assert.Equal(tx.ld.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100,
+	assert.Equal(tt.Gas()*100,
 		miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC, stakeAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*1001, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tx.ld.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 
 	assert.Equal(uint64(0), stakeAcc.Nonce())
@@ -346,7 +347,7 @@ func TestTxCreateStake(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":1001000000000,"data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":"0x86540000000000000000000000000000000000000000001907d01a000186a0c2443b9aca00c2443b9aca004cc0e681"},"signatures":["cd310d21b3eeec3e8e05d0215c5899c354981049dbeaf3607821c58c6eb47b5059f56e810200c51a8095866d3caa26a2171db6e4aaffd6f9eee3686b4def337d00"],"gas":1770,"id":"pKBvsUijk7qQtEKb6hDzCvRoig2GmqqDrvix1puPuS9KDeTsX"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":1001000000000,"data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":"0x86540000000000000000000000000000000000000000001907d01a000186a0c2443b9aca00c2443b9aca004cc0e681"},"signatures":["cd310d21b3eeec3e8e05d0215c5899c354981049dbeaf3607821c58c6eb47b5059f56e810200c51a8095866d3caa26a2171db6e4aaffd6f9eee3686b4def337d00"],"id":"pKBvsUijk7qQtEKb6hDzCvRoig2GmqqDrvix1puPuS9KDeTsX"}`, string(jsondata))
 
 	// create again
 	txData = &ld.TxData{
@@ -363,12 +364,14 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
+
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
 		"Account(0x0000000000000000000000000000002354455354).CreateStake error: stake account #TEST exists")
+	bs.CheckoutAccounts()
 
 	// destroy and create again
 	bctx.timestamp += 1001
@@ -384,17 +387,18 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	tt.Timestamp = bs.Timestamp()
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
+
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
 		"TxDestroyStake.Apply error: invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
@@ -436,7 +440,6 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))

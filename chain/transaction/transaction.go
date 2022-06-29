@@ -29,6 +29,7 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 			return nil, err
 		}
 	}
+
 	var tt Transaction
 	switch tx.Type {
 	case ld.TypeTest:

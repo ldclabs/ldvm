@@ -161,15 +161,9 @@ func TestTxDeleteData(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 279, got 0")
-	bs.CheckoutAccounts()
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	senderAcc := bs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
 	bs.CheckoutAccounts()
@@ -204,8 +198,6 @@ func TestTxDeleteData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -246,6 +238,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(bs.SaveData(di.ID, di))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas := tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxDeleteData).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -262,7 +255,7 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2},"signatures":["412d5a180fee8b76b36f0811584338dd0d084d8840e52b29988bc1fd2c00d37d01b3df69af6a524cebbe5f015f9c200c79d50d58d5ab6bf7fb7ce2b27f94c07300"],"gas":279,"id":"3xLkdg8i7DbhUR8u4aAr1BKEuYjDYiJ4HT3QYH1rwyK6acPA2"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2},"signatures":["412d5a180fee8b76b36f0811584338dd0d084d8840e52b29988bc1fd2c00d37d01b3df69af6a524cebbe5f015f9c200c79d50d58d5ab6bf7fb7ce2b27f94c07300"],"id":"3xLkdg8i7DbhUR8u4aAr1BKEuYjDYiJ4HT3QYH1rwyK6acPA2"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
@@ -276,7 +269,6 @@ func TestTxDeleteData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -309,7 +301,6 @@ func TestTxDeleteData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))

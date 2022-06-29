@@ -60,28 +60,26 @@ func TestBlock(t *testing.T) {
 	assert.NoError(err)
 	txData.Signatures = append(txData.Signatures, sig1)
 	tx := txData.ToTransaction()
+	assert.NoError(tx.SyntacticVerify())
+
 	blk = &Block{
 		State:         ids.ID{1, 2, 3},
-		Gas:           tx.RequiredGas(1000),
+		Gas:           tx.Gas(),
 		GasPrice:      1000,
 		GasRebateRate: 200,
 		Txs:           Txs{tx},
 	}
 
 	assert.NoError(blk.SyntacticVerify())
-	assert.Equal(uint64(119000), blk.FeeCost().Uint64())
+	assert.Equal(uint64(618000), blk.FeeCost().Uint64())
 	cbordata, err := blk.Marshal()
 	assert.NoError(err)
+
 	assert.NoError(blk.TxsMarshalJSON())
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
-
-	assert.Contains(string(jsondata), `"parent":"11111111111111111111111111111111LpoYY"`)
-	assert.Contains(string(jsondata), `"parentState":"11111111111111111111111111111111LpoYY"`)
-	assert.Contains(string(jsondata), `"height":0,"timestamp":0`)
-	assert.Contains(string(jsondata), `"gas":119,"gasPrice":1000,"gasRebateRate":200`)
-	assert.Contains(string(jsondata), `"miner":"","validators":null`)
-	assert.Contains(string(jsondata), `"type":"TypeTransfer"`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"parentState":"11111111111111111111111111111111LpoYY","state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":618,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"xWsvbg7GqCJMiusDTqZTsCPxgQemES7sZfJJcRAfE9XkVcc8v","txs":[{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}]}`, string(jsondata))
 
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))
@@ -95,7 +93,6 @@ func TestBlock(t *testing.T) {
 	assert.Equal(cbordata, blk2.Bytes())
 
 	blk.Gas++
-	assert.NoError(blk.SyntacticVerify())
-	assert.NotEqual(blk.ID, blk2.ID)
-	assert.NotEqual(blk.Bytes(), blk2.Bytes())
+	assert.ErrorContains(blk.SyntacticVerify(),
+		"Block.SyntacticVerify error: invalid gas, expected 618, got 619")
 }

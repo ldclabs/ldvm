@@ -38,7 +38,7 @@ func TestGenesis(t *testing.T) {
 	assert.Equal(uint64(1000), gs.Chain.FeeConfig.ThresholdGas)
 	assert.Equal(uint64(10000), gs.Chain.FeeConfig.MinGasPrice)
 	assert.Equal(uint64(100000), gs.Chain.FeeConfig.MaxGasPrice)
-	assert.Equal(uint64(42000000), gs.Chain.FeeConfig.MaxTxGas)
+	assert.Equal(uint64(4200000), gs.Chain.FeeConfig.MaxTxGas)
 	assert.Equal(uint64(4200000), gs.Chain.FeeConfig.MaxBlockTxsSize)
 	assert.Equal(uint64(1000), gs.Chain.FeeConfig.GasRebateRate)
 	assert.Equal(0, gs.Chain.FeeConfig.MinTokenPledge.Cmp(big.NewInt(10000000000000)))
@@ -107,7 +107,7 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	assert.NoError(err)
-	assert.Equal("LDBu29pdwT1xK2CZr8DCVx5NqvLiSUzwzEG", gs.Chain.FeeConfigID.String())
+	assert.Equal("LDDKSXt98Utt7WqzHfXzmohH9nDHWTUsD89", gs.Chain.FeeConfigID.String())
 	assert.Equal("LM4rB4RoU8Xa2FAJRVAER8bcprHcpAYFRBs", gs.Chain.NameServiceID.String())
 	assert.Equal("LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK", gs.Chain.ProfileServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))

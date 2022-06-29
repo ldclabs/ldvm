@@ -182,16 +182,10 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 308, got 0")
-	bs.CheckoutAccounts()
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 338800, got 0")
+		"insufficient NativeLDC balance, expected 1529000, got 0")
 	bs.CheckoutAccounts()
 
 	ownerAcc := bs.MustAccount(owner)
@@ -225,7 +219,6 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -234,7 +227,6 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -265,12 +257,11 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*bctx.Price,
 		itx.(*TxUpdateDataKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(ownerGas*100,
@@ -300,7 +291,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataKeepers","TypeUpdateDataKeepersByAuth","TypeDeleteData"],"kSig":"505a3dfb3372ef790ba8237ab40a53f8e626b56b3778f9edcb67436ea1ac9fd65a7a10f80921aa34809a056c18f8cd9f905367c65b30734e137428554e71735001"},"signatures":["2062c8e0867f4dd2cbac4137ab7ced3d57deafed9393904c3b3d0a6ed631f942101466787868cffb55262bd5e8c4f460d646b2e645ffd660eb8b8da3a0ab7c7a00","6bc7e9fcf0c89d4a754373842293f2996665f208470b69e6176627a1bb8099bc1825ff22cb171b89c06346039da4a4ba47a90642ce6699c57065ddb4f40afedc00"],"gas":310,"id":"D7b91sptH22A7J3mmhpFhNwrkFxfdhcr3jgP4nFCpLeXyGgkP"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataKeepers","TypeUpdateDataKeepersByAuth","TypeDeleteData"],"kSig":"505a3dfb3372ef790ba8237ab40a53f8e626b56b3778f9edcb67436ea1ac9fd65a7a10f80921aa34809a056c18f8cd9f905367c65b30734e137428554e71735001"},"signatures":["2062c8e0867f4dd2cbac4137ab7ced3d57deafed9393904c3b3d0a6ed631f942101466787868cffb55262bd5e8c4f460d646b2e645ffd660eb8b8da3a0ab7c7a00","6bc7e9fcf0c89d4a754373842293f2996665f208470b69e6176627a1bb8099bc1825ff22cb171b89c06346039da4a4ba47a90642ce6699c57065ddb4f40afedc00"],"id":"D7b91sptH22A7J3mmhpFhNwrkFxfdhcr3jgP4nFCpLeXyGgkP"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
 		Approver: &util.EthIDEmpty,
@@ -316,7 +307,6 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -325,12 +315,11 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas += tt.Gas()
 	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(4), di2.Version)
@@ -357,12 +346,11 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas += tt.Gas()
 	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(5), di2.Version)
@@ -386,12 +374,11 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	ownerGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	ownerGas += tt.Gas()
 	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(6), di2.Version)
@@ -415,7 +402,6 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -439,13 +425,11 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -465,7 +449,6 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")

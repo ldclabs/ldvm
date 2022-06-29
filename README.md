@@ -1,7 +1,7 @@
 Linked Data Virtual Machine (LDVM)
 ----------
 [![CI](https://github.com/ldclabs/ldvm/workflows/ci/badge.svg)](https://github.com/ldclabs/ldvm/actions?query=workflow%3Aci)
-[![Codecov](https://codecov.io/github.com/ldclabs/ldvm/branch/main/graph/badge.svg?token=H7FUKGVQIH)](https://app.codecov.io/github.com/ldclabs/ldvm)
+[![Codecov](https://codecov.io/gh/ldclabs/ldvm/branch/main/graph/badge.svg?token=H7FUKGVQIH)](https://codecov.io/gh/ldclabs/ldvm)
 
 > Linked Data Store On Avalanche Subnets
 

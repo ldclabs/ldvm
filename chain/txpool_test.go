@@ -50,7 +50,7 @@ func TestTxPoolBasic(t *testing.T) {
 	tp.Add(ld.MustNewTestTx(util.Signer1, ld.TypeTest, &constants.GenesisAccount, nil))
 	assert.Equal(0, len(tp.txQueue), "TypeTest tx should not be added")
 
-	txs := tp.PopTxsBySize(1000000, 1000, 12345)
+	txs := tp.PopTxsBySize(1000000)
 	assert.Equal(ld.Txs{}, txs, "no valid tx (1 rejected)")
 }
 
@@ -128,7 +128,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	btx, err := ld.NewBatchTx(stx0, stx1, stx2, stx3)
 	assert.NoError(err)
 	assert.Equal(stx3.ID, btx.ID)
-	assert.Equal(stx3.RequiredGas(1000), btx.RequiredGas(1000))
+	assert.Equal(stx3.Gas(), btx.Gas())
 
 	tx0 := ld.MustNewTestTx(s1, ld.TypeTransfer, &to, nil)
 	tx1 := ld.MustNewTestTx(s2, ld.TypeTransfer, &to, ld.GenJSONData(1000))
@@ -149,7 +149,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	// fmt.Println(tx3.BytesSize()) // 3198
 	// fmt.Println(btx.BytesSize()) // 3084
 
-	txs := tp.PopTxsBySize(5500, 500, 0)
+	txs := tp.PopTxsBySize(5500)
 	// tx2, btx, tx3, tx0, tx1
 	assert.Equal(3, tp.Len())
 	assert.Equal(3, len(tp.txQueue))
@@ -161,14 +161,14 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	tp.Add(tx4)
 	assert.Equal(4, tp.Len())
 	assert.Equal(4, len(tp.txQueue))
-	txs = tp.PopTxsBySize(5500, 500, 0)
+	txs = tp.PopTxsBySize(5500)
 	// tx4, tx3, tx1, tx0
 	assert.Equal(3, tp.Len())
 	assert.Equal(3, len(tp.txQueue))
 	assert.Equal(1, len(txs))
 	assert.Equal(tx4.ID, txs[0].ID)
 
-	txs = tp.PopTxsBySize(5500, 500, 0)
+	txs = tp.PopTxsBySize(5500)
 	// tx3, tx1, tx0
 	assert.Equal(0, tp.Len())
 	assert.Equal(0, len(tp.txQueue))
