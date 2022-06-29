@@ -315,42 +315,11 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Timestamp = bs.Timestamp()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"TxTransferPay.Apply error: invalid gas, expected 206, got 0")
-	bs.CheckoutAccounts()
-
-	input = ld.TxTransfer{
-		To:     &constants.GenesisAccount,
-		Token:  &token,
-		Amount: new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
-		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
-		Nonce:     1,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
-		Amount:    new(big.Int).SetUint64(constants.LDC),
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.ExSignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 226600, got 0")
+		"insufficient NativeLDC balance, expected 1642300, got 0")
 	bs.CheckoutAccounts()
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 
@@ -380,25 +349,24 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		itx.(*TxTransferPay).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas*100,
+	assert.Equal(tt.Gas()*100,
 		itx.(*TxTransferPay).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC, to.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), from.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000},"signatures":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSignatures":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"gas":206,"id":"2dsFu9TNZWVLW7pmfBVwVRCmCd9hbRXiFpr6X33KekRP3tFZCE"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000},"signatures":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSignatures":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"id":"2dsFu9TNZWVLW7pmfBVwVRCmCd9hbRXiFpr6X33KekRP3tFZCE"}`, string(jsondata))
 
 	// should support 0 amount
 	input = ld.TxTransfer{
@@ -422,7 +390,6 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs), "should support 0 amount")

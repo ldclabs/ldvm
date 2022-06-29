@@ -180,14 +180,10 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 601, got 0")
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 661100, got 0")
+		"insufficient NativeLDC balance, expected 1316700, got 0")
 	bs.CheckoutAccounts()
 	ownerAcc := bs.MustAccount(owner)
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -208,11 +204,11 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(bs.SaveModel(mid, mi))
 	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		itx.(*TxUpdateModelKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas*100,
+	assert.Equal(tt.Gas()*100,
 		itx.(*TxUpdateModelKeepers).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price+100),
 		ownerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
@@ -224,7 +220,7 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateModelKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB","approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["454b957046a4413fe6b9c7cc06f9d6b2ce77b0a0a57b236b66d966917e8e2abb6f763e9ecf9255b12e0e9a7c13f82c5004733df0ac9d38266198d465b0145fa100"],"gas":601,"id":"uMUvxUX46YdPKvuUpqVtEBTFpxQeF5fP4x9Jb9zePaNHEVRh1"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateModelKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB","approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["454b957046a4413fe6b9c7cc06f9d6b2ce77b0a0a57b236b66d966917e8e2abb6f763e9ecf9255b12e0e9a7c13f82c5004733df0ac9d38266198d465b0145fa100"],"id":"uMUvxUX46YdPKvuUpqVtEBTFpxQeF5fP4x9Jb9zePaNHEVRh1"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 
@@ -247,7 +243,6 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -266,7 +261,6 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
@@ -294,7 +288,6 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -314,7 +307,6 @@ func TestTxUpdateModelKeepers(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))

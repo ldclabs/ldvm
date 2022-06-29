@@ -168,17 +168,10 @@ func TestTxPunish(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"TxPunish.Apply error: invalid gas, expected 138, got 0")
-	bs.CheckoutAccounts()
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 151800, got 0")
+		"insufficient NativeLDC balance, expected 784300, got 0")
 	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -200,11 +193,11 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(bs.SavePrevData(did, di))
 	assert.NoError(itx.Apply(bctx, bs))
 
-	assert.Equal(tt.Gas*bctx.Price,
+	assert.Equal(tt.Gas()*bctx.Price,
 		itx.(*TxPunish).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas*100,
+	assert.Equal(tt.Gas()*100,
 		itx.(*TxPunish).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-tt.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC-tt.Gas()*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
@@ -218,7 +211,7 @@ func TestTxPunish(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8","data":"Illegal content"},"signatures":["c9f430b760115127737634c92ba2fb544134b00542703d1731239ddefa5ea28d06bc883916b3c8d08802c4109d7fadcaa7feeeb0900ac25b84f927424b8120c701"],"gas":138,"id":"2CfBQuuhuptvM81Hf9v4zZMmhaiQCurzh9Sgzu9YsJDSxF8nYy"}`, string(jsondata))
+	assert.Equal(`{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8","data":"Illegal content"},"signatures":["c9f430b760115127737634c92ba2fb544134b00542703d1731239ddefa5ea28d06bc883916b3c8d08802c4109d7fadcaa7feeeb0900ac25b84f927424b8120c701"],"id":"2CfBQuuhuptvM81Hf9v4zZMmhaiQCurzh9Sgzu9YsJDSxF8nYy"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

@@ -95,20 +95,20 @@ func (tx *TxBase) SyntacticVerify() error {
 func (tx *TxBase) verify(bctx BlockContext, bs BlockState) error {
 	var err error
 	feeCfg := bctx.FeeConfig()
-	requireGas := tx.ld.RequiredGas(feeCfg.ThresholdGas)
 
 	if price := bctx.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
 		return fmt.Errorf("invalid gasFeeCap, expected >= %d, got %d",
 			price, tx.ld.GasFeeCap)
 	}
 
-	if tx.ld.Gas != requireGas || tx.ld.Gas > feeCfg.MaxTxGas {
-		return fmt.Errorf("invalid gas, expected %d, got %d",
-			requireGas, tx.ld.Gas)
+	gas := tx.ld.Gas()
+	if gas > feeCfg.MaxTxGas {
+		return fmt.Errorf("gas too large, expected <= %d, got %d",
+			feeCfg.MaxTxGas, gas)
 	}
-
-	tx.tip = new(big.Int).Mul(tx.ld.GasUnits(), new(big.Int).SetUint64(tx.ld.GasTip))
-	tx.fee = new(big.Int).Mul(tx.ld.GasUnits(), bctx.GasPrice())
+	gb := new(big.Int).SetUint64(gas)
+	tx.tip = new(big.Int).Mul(gb, new(big.Int).SetUint64(tx.ld.GasTip))
+	tx.fee = new(big.Int).Mul(gb, bctx.GasPrice())
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
 
 	if tx.ldc, err = bs.LoadAccount(constants.LDCAccount); err != nil {

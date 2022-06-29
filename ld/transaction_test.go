@@ -46,7 +46,7 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{ChainID: gChainID}
 	assert.NoError(tx.SyntacticVerify())
 
-	data := [2022]byte{}
+	// data := [1024 * 128]byte{}
 	to := util.Signer2.Address()
 	tx = &TxData{
 		Type:    TypeTransfer,
@@ -54,49 +54,75 @@ func TestTxData(t *testing.T) {
 		From:    util.Signer1.Address(),
 		To:      &to,
 		Amount:  big.NewInt(1),
-		Data:    data[:],
 	}
 	assert.NoError(tx.SyntacticVerify())
 
-	unsignedBytes, err := tx.Marshal()
-	assert.NoError(err)
-	assert.Equal(unsignedBytes, tx.UnsignedBytes())
+	data := tx.Bytes()
+	assert.Equal(data, tx.UnsignedBytes())
 
-	assert.Equal(uint64(8751), tx.RequiredGas(1000))
-	assert.Equal(uint64(2142), tx.RequiredGas(3000))
+	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SyntacticVerify())
+	assert.Equal(data, tx.UnsignedBytes())
+	assert.NotEqual(data, tx.Bytes())
+	assert.Equal(73, len(tx.UnsignedBytes()))
+	assert.Equal(144, len(tx.Bytes()))
+	assert.Equal(uint64(598), tx.Gas(), "a very small gas transaction")
+
+	jsondata, err := json.Marshal(tx)
+	assert.NoError(err)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1,"signatures":["c137a94f3bcc4dd10a0b21472bd1e1af5744f3c8f3fe63d25ae23d379926c0c9223c5fc9fdd5d4de8e41c9426f49a397ed14033e0865cccfa1ee39a01404e57d01"]}`, string(jsondata))
+
+	tx = &TxData{
+		Type:    TypeTransfer,
+		ChainID: gChainID,
+		From:    util.Signer1.Address(),
+		To:      &to,
+		Amount:  big.NewInt(1),
+		Data:    GenJSONData(1024 * 256),
+	}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"TxData.SyntacticVerify error: size too large, expected <= 262144, got 262224")
+
+	tx = &TxData{
+		Type:    TypeTransfer,
+		ChainID: gChainID,
+		From:    util.Signer1.Address(),
+		To:      &to,
+		Amount:  big.NewInt(1),
+		Data:    GenJSONData(1024 * 255),
+	}
+	assert.NoError(tx.SyntacticVerify())
+	data = tx.Bytes()
+	assert.Equal(data, tx.UnsignedBytes())
 
 	tx2 := &TxData{}
-	assert.NoError(tx2.Unmarshal(unsignedBytes))
+	assert.NoError(tx2.Unmarshal(data))
 	assert.NoError(tx2.SyntacticVerify())
 
 	cbordata := tx2.Bytes()
-	assert.Equal(unsignedBytes, cbordata)
+	assert.Equal(data, cbordata)
 
-	sig, err := util.Signer1.Sign(tx.UnsignedBytes())
-	assert.NoError(err)
-	tx.Signatures = append(tx.Signatures, sig)
+	assert.NoError(tx.SignWith(util.Signer1))
 	assert.NoError(tx.SyntacticVerify())
-	assert.Equal(unsignedBytes, tx.UnsignedBytes())
-	assert.NotEqual(unsignedBytes, tx.Bytes())
-	assert.Equal(uint64(8751), tx.RequiredGas(1000))
+	assert.Equal(data, tx.UnsignedBytes())
+	assert.NotEqual(data, tx.Bytes())
+	assert.Equal(261200, len(tx.UnsignedBytes()))
+	assert.Equal(261271, len(tx.Bytes()))
+	assert.Equal(uint64(7774076), tx.Gas(), "a very big gas transaction")
 
 	tx2 = &TxData{}
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))
 	assert.NoError(tx2.SyntacticVerify())
-	assert.Equal(unsignedBytes, tx2.UnsignedBytes())
+	assert.Equal(data, tx2.UnsignedBytes())
 	assert.Equal(tx.Bytes(), tx2.Bytes())
 
 	txx := tx.ToTransaction()
 	assert.NoError(txx.SyntacticVerify())
-	assert.Equal(tx.ID, txx.ID)
-
-	jsondata, err := json.Marshal(txx)
+	assert.Equal(tx.ID(), txx.ID)
+	assert.Equal(tx.Gas(), txx.Gas())
+	jsondata, err = json.Marshal(txx)
 	assert.NoError(err)
-	assert.Contains(string(jsondata), `"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"`)
-	assert.Contains(string(jsondata), `"id":"2uhrWkwBpocDoL3wfadMhErPoz4dEPUX7StGSsbcxfmGjr152M"`)
-	assert.NotContains(string(jsondata), `"exSignatures":null`)
-	assert.Contains(string(jsondata), `"gas":0`)
-	assert.Contains(string(jsondata), `"type":"TypeTransfer"`)
 
 	txx2 := &Transaction{}
 	assert.NoError(txx2.Unmarshal(txx.Bytes()))
@@ -136,7 +162,7 @@ func TestTransaction(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"gas":0,"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}`, string(jsondata))
 
 	ctx := tx.Copy()
 	assert.NoError(ctx.SyntacticVerify())
@@ -162,8 +188,7 @@ func TestTransaction(t *testing.T) {
 	assert.Equal(tx.Bytes(), tx3.Bytes())
 	assert.Equal(tx.ShortID(), tx3.ShortID())
 
-	assert.Equal(uint64(119), tx.RequiredGas(1000))
-	assert.Equal(uint64(0), tx.GasUnits().Uint64())
+	assert.Equal(uint64(618), tx.Gas())
 
 	tx3.GasFeeCap++
 	assert.NoError(tx3.SyntacticVerify())
@@ -265,36 +290,67 @@ func TestTxsSort(t *testing.T) {
 	btx, err := NewBatchTx(stx0, stx1, stx2, stx3, stx4)
 	assert.NoError(err)
 	assert.Equal(stx3.ID, btx.ID)
-	assert.Equal(stx3.RequiredGas(1000), btx.RequiredGas(1000))
+	assert.Equal(stx3.Gas(), btx.Gas())
 	assert.Equal(len(stx1.Bytes())+len(stx2.Bytes())+len(stx3.Bytes())+len(stx4.Bytes()), btx.BytesSize())
-	assert.Equal(uint64(0), stx0.priority)
-	assert.Equal(uint64(0), stx1.priority)
-	assert.Equal(uint64(0), stx2.priority)
-	assert.Equal(uint64(0), stx3.priority)
-	assert.Equal(uint64(0), stx4.priority)
-	assert.Equal(uint64(0), btx.priority)
-
-	btx.SetPriority(1000, 0)
-	assert.Equal(uint64(0), stx0.priority)
-	assert.True(stx2.priority == stx1.priority, "small bytes size txs has the same priority")
-	assert.True(stx3.priority > stx2.priority)
-	assert.True(stx4.priority > stx2.priority)
-	assert.True(stx3.priority > stx4.priority)
 	assert.Equal(stx3.priority, btx.priority)
+	assert.Equal(uint64(436), stx0.priority)
+	assert.Equal(uint64(1193), stx1.priority)
+	assert.Equal(uint64(1795), stx2.priority)
+	assert.Equal(uint64(8791), stx3.priority)
+	assert.Equal(uint64(7915), stx4.priority)
+
+	txs := Txs{stx0, stx1, stx2, stx3, stx4}
+	txs.Sort()
+	assert.Equal(stx3.ID, txs[0].ID, "because of high priority")
+	assert.Equal(stx2.ID, txs[1].ID, "because of low nonce than stx4 from the same sender")
+	assert.Equal(stx4.ID, txs[2].ID)
+	assert.Equal(stx1.ID, txs[3].ID)
+	assert.Equal(stx0.ID, txs[4].ID, "because of TypeTest with 0 priority")
+
+	// sort again should not change the order
+	txs = Txs{stx4, stx3, stx2, stx1, stx0}
+	txs.Sort()
+	assert.Equal(stx3.ID, txs[0].ID)
+	assert.Equal(stx2.ID, txs[1].ID)
+	assert.Equal(stx4.ID, txs[2].ID)
+	assert.Equal(stx1.ID, txs[3].ID)
+	assert.Equal(stx0.ID, txs[4].ID)
+	assert.Equal(stx3.priority, btx.priority)
+	assert.Equal(uint64(436), stx0.priority)
+	assert.Equal(uint64(1193), stx1.priority)
+	assert.Equal(uint64(1795), stx2.priority)
+	assert.Equal(uint64(8791), stx3.priority)
+	assert.Equal(uint64(7915), stx4.priority)
 
 	tx0 := MustNewTestTx(s0, TypeTransfer, &to, nil)
 	tx1 := MustNewTestTx(s1, TypeTransfer, &to, GenJSONData(1000))
 	tx2 := MustNewTestTx(s2, TypeTransfer, &to, GenJSONData(1200))
 	tx3 := MustNewTestTx(s3, TypeTransfer, &to, GenJSONData(1500))
-	txs := Txs{tx0, tx1, tx2, tx3}
-	txs.SortWith(1000, 0)
+	txs = Txs{tx0, tx1, tx2, tx3}
+	txs.Sort()
 	assert.Equal(tx3.ID, txs[0].ID)
 	assert.Equal(tx2.ID, txs[1].ID)
 	assert.Equal(tx1.ID, txs[2].ID)
 	assert.Equal(tx0.ID, txs[3].ID)
 
 	txs = append(txs, btx)
-	txs.SortWith(1000, 0)
+	txs.Sort()
+	assert.Equal(tx3.ID, txs[0].ID)
+	assert.Equal(btx.ID, txs[1].ID)
+	assert.Equal(tx2.ID, txs[2].ID)
+	assert.Equal(tx1.ID, txs[3].ID)
+	assert.Equal(tx0.ID, txs[4].ID)
+
+	// should keep the origin order in batch txs
+	assert.Equal(stx0.ID, btx.batch[0].ID)
+	assert.Equal(stx1.ID, btx.batch[1].ID)
+	assert.Equal(stx2.ID, btx.batch[2].ID)
+	assert.Equal(stx3.ID, btx.batch[3].ID)
+	assert.Equal(stx4.ID, btx.batch[4].ID)
+
+	// sort again should not change the order
+	txs[1], txs[3] = txs[3], txs[1]
+	txs.Sort()
 	assert.Equal(tx3.ID, txs[0].ID)
 	assert.Equal(btx.ID, txs[1].ID)
 	assert.Equal(tx2.ID, txs[2].ID)
@@ -306,15 +362,4 @@ func TestTxsSort(t *testing.T) {
 	assert.Equal(stx2.ID, btx.batch[2].ID)
 	assert.Equal(stx3.ID, btx.batch[3].ID)
 	assert.Equal(stx4.ID, btx.batch[4].ID)
-
-	tx0.AddedTime = 121
-	tx1.AddedTime = 121
-	tx2.AddedTime = 121
-	tx3.AddedTime = 121
-	txs.SortWith(1000, 120)
-	assert.Equal(btx.ID, txs[0].ID, "delay should be feedback into priority")
-	assert.Equal(tx1.ID, txs[1].ID, "delay should be feedback into priority")
-	assert.Equal(tx2.ID, txs[2].ID, "delay should be feedback into priority")
-	assert.Equal(tx0.ID, txs[3].ID, "delay should be feedback into priority")
-	assert.Equal(tx3.ID, txs[4].ID)
 }

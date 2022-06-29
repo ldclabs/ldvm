@@ -33,7 +33,7 @@ type Block struct {
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
 	Validators []util.StakeSymbol `cbor:"vs" json:"validators"`
-	PCHeight   uint64             `cbor:"ph" json:"PChainHeight"`
+	PCHeight   uint64             `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
 	Txs        Txs                `cbor:"txs" json:"-"`
 
 	// external assignment fields
@@ -94,10 +94,15 @@ func (b *Block) SyntacticVerify() error {
 	}
 
 	var err error
+	gas := uint64(0)
 	for _, tx := range b.Txs {
 		if err = tx.SyntacticVerify(); err != nil {
 			return errp.ErrorIf(err)
 		}
+		gas += tx.Gas()
+	}
+	if b.Gas != gas {
+		return errp.Errorf("invalid gas, expected %d, got %d", gas, b.Gas)
 	}
 	if b.raw, err = b.Marshal(); err != nil {
 		return errp.ErrorIf(err)

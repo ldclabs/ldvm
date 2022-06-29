@@ -86,7 +86,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
-	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize), feeCfg.ThresholdGas, ts)
+	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize))
 	blk.GasPrice = preferred.GasPrice().Uint64()
 	if b.txPool.Len() > len(txs) {
 		blk.GasPrice = uint64(float64(blk.GasPrice) * math.SqrtPhi)
@@ -138,7 +138,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 				nblk.originTxs = append(nblk.originTxs, tx)
 			}
 		}
-		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize)-nblk.TxsSize(), feeCfg.ThresholdGas, ts)
+		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize) - nblk.TxsSize())
 	}
 	if len(blk.Txs) == 0 {
 		return nil, fmt.Errorf("BlockBuilder.Build error: no txs to build")

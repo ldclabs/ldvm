@@ -308,30 +308,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"TxTransferCash.Apply error: invalid gas, expected 179, got 0")
-	bs.CheckoutAccounts()
-
-	txData = &ld.TxData{
-		Type:      ld.TypeTransferCash,
-		ChainID:   bctx.Chain().ChainID,
-		Nonce:     2,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.ExSignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = 10
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 196900, got 0")
+		"insufficient NativeLDC balance, expected 1465200, got 0")
 	bs.CheckoutAccounts()
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	bs.CommitAccounts()
@@ -354,7 +331,6 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -371,10 +347,10 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(itx.Apply(bctx, bs))
 
 	tx = itx.(*TxTransferCash)
-	assert.Equal(tx.ld.Gas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tx.ld.Gas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas()*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas()*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), to.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*2-tx.ld.Gas*(bctx.Price+100),
+	assert.Equal(constants.LDC*2-tt.Gas()*(bctx.Price+100),
 		from.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
 	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[bs.Timestamp()])
@@ -382,7 +358,7 @@ func TestTxTransferCash(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000},"signatures":["65503bbaf2a1368b056e862adb9af46097c1a4cf38a47be223210b54969c936631d12376399a537c221a49829ce566731ff55dd9d00e23e10710dde949afbcdc00"],"exSignatures":["2315ac412bbf6573fa1accd7e45ce16101fb8221c1ebc76a8d1567d5c367a4fd0cd70406a11a3c4b2bde2ccec261e803ec8da7a8d18d6ffe47aeb9749219725001"],"gas":179,"id":"21tUfux5dxqMqUmxDtpGy3YqiXP12Q2Ca8Ao34QRtsfyZNZDHs"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000},"signatures":["65503bbaf2a1368b056e862adb9af46097c1a4cf38a47be223210b54969c936631d12376399a537c221a49829ce566731ff55dd9d00e23e10710dde949afbcdc00"],"exSignatures":["2315ac412bbf6573fa1accd7e45ce16101fb8221c1ebc76a8d1567d5c367a4fd0cd70406a11a3c4b2bde2ccec261e803ec8da7a8d18d6ffe47aeb9749219725001"],"id":"21tUfux5dxqMqUmxDtpGy3YqiXP12Q2Ca8Ao34QRtsfyZNZDHs"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

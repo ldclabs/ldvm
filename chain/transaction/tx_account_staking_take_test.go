@@ -374,15 +374,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid gas, expected 654, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 10000719400, got 0")
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 10002080100, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -417,8 +409,6 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	keeperGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 
@@ -427,6 +417,7 @@ func TestTxTakeStake(t *testing.T) {
 		new(big.Int).SetUint64(bctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	keeperGas := tt.Gas()
 	stakeAcc := bs.MustAccount(stakeid)
 	assert.Equal(keeperGas*bctx.Price,
 		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
@@ -472,13 +463,12 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
 	tt.Timestamp = bs.Timestamp()
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas := tt.Gas()
 	assert.Equal((keeperGas+senderGas)*bctx.Price,
 		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -499,7 +489,7 @@ func TestTxTakeStake(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"0x1903e91a5af090"},"signatures":["230f5220839b3cf7f92fe6ea65c0c8cfdbeaa992f519ea583adbfff51725eb03721f5d6cdff64aafe7e1fada8391c8e017bf4ada63dc0bf0cf5954b45e64e63b00"],"exSignatures":["54b5fa755a0bd4e82c9f561f4a7493a647d1b114f4b48c62a4b95a5e82bb16dc65b5179a81109c14180b5c457b5fae91d1126ae935bf903ec1c03b68eb8b048300"],"gas":654,"id":"2Lohph5mLZZabmMo32G6uaHfoRDkjDsLzZpweprLvZRMvxVE6z"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"0x1903e91a5af090"},"signatures":["230f5220839b3cf7f92fe6ea65c0c8cfdbeaa992f519ea583adbfff51725eb03721f5d6cdff64aafe7e1fada8391c8e017bf4ada63dc0bf0cf5954b45e64e63b00"],"exSignatures":["54b5fa755a0bd4e82c9f561f4a7493a647d1b114f4b48c62a4b95a5e82bb16dc65b5179a81109c14180b5c457b5fae91d1126ae935bf903ec1c03b68eb8b048300"],"id":"2Lohph5mLZZabmMo32G6uaHfoRDkjDsLzZpweprLvZRMvxVE6z"}`, string(jsondata))
 
 	// take more stake
 	stakeAcc.Add(constants.NativeToken, bctx.FeeConfig().MinStakePledge)
@@ -530,7 +520,6 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	tt.Timestamp = bs.Timestamp()
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
@@ -560,13 +549,12 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	tt.Timestamp = bs.Timestamp()
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas)*bctx.Price,
 		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal((keeperGas+senderGas)*100,

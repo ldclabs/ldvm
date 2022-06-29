@@ -28,7 +28,7 @@ type TxPool interface {
 	Remove(txID ids.ID)
 	Add(txs ...*ld.Transaction)
 	Get(txID ids.ID) transaction.Transaction
-	PopTxsBySize(askSize int, threshold, now uint64) ld.Txs
+	PopTxsBySize(askSize int) ld.Txs
 	Reject(*ld.Transaction)
 }
 
@@ -147,8 +147,8 @@ func (p *txPool) Reject(tx *ld.Transaction) {
 	p.rejected.Set(string(tx.ID[:]), tx, rejectedTxsTTL)
 }
 
-func (p *txPool) PopTxsBySize(askSize int, threshold, now uint64) ld.Txs {
-	if uint64(askSize) < threshold {
+func (p *txPool) PopTxsBySize(askSize int) ld.Txs {
+	if uint64(askSize) < 100 {
 		return ld.Txs{}
 	}
 
@@ -156,7 +156,7 @@ func (p *txPool) PopTxsBySize(askSize int, threshold, now uint64) ld.Txs {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.txQueue.SortWith(threshold, now)
+	p.txQueue.Sort()
 	total := 0
 	n := 0
 	for i, tx := range p.txQueue {

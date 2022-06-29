@@ -526,7 +526,6 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 		return err
 	}
 
-	tx.AddedTime = blk.ld.Timestamp
 	s.AddTxs(tx)
 	go s.notifyBuild()
 	return nil

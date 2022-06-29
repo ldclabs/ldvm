@@ -183,13 +183,12 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 					b.ld.GasPrice, tx.GasFeeCap)
 				return choices.Unknown, tx.Err
 			}
-			tx.Gas = tx.RequiredGas(feeCfg.ThresholdGas)
-			if tx.Gas > feeCfg.MaxTxGas {
+			if tx.Gas() > feeCfg.MaxTxGas {
 				tx.Err = fmt.Errorf("Block.TryBuildTxs error: gas too large, expected <= %d, got %d",
-					feeCfg.MaxTxGas, tx.Gas)
+					feeCfg.MaxTxGas, tx.Gas())
 				return choices.Rejected, tx.Err
 			}
-			gas += tx.Gas
+			gas += tx.Gas()
 		}
 
 		// syntacticVerify again after gas calculation
@@ -392,7 +391,7 @@ func (b *Block) verify() error {
 			return err
 		}
 		b.ctx.StateDB().RemoveTx(tx.ID())
-		gas += b.ld.Txs[i].Gas
+		gas += b.ld.Txs[i].Gas()
 		txsSize += len(b.ld.Txs[i].Bytes())
 
 		b.ctx.StateDB().AddRecentTx(tx, choices.Processing)

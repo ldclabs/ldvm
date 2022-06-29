@@ -127,22 +127,14 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(err)
 
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "invalid gas, expected 1297, got 0")
-	bs.CheckoutAccounts()
-
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
-
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 1426700, got 0")
+	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance, expected 1794100, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas := tt.Gas()
 	tx = itx.(*TxOpenLending)
 	assert.Equal(senderGas*bctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
@@ -160,7 +152,7 @@ func TestTxOpenLending(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeOpenLending","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":1000000000,"maxAmount":1000000000},"signatures":["659d9a2c6873ffe4f404702153e2bb96cf42434ec49af4788c7080aaadbc49e71d1d007610304a2a26d42345bbe287a3439abbf0b74185b35c999fc2b30b495800"],"gas":1297,"id":"2kdoe4A18gqBWtYvEE9oJUh5AiWU4vkr9NfKznptTMeGDFpBJV"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeOpenLending","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":1000000000,"maxAmount":1000000000},"signatures":["659d9a2c6873ffe4f404702153e2bb96cf42434ec49af4788c7080aaadbc49e71d1d007610304a2a26d42345bbe287a3439abbf0b74185b35c999fc2b30b495800"],"id":"2kdoe4A18gqBWtYvEE9oJUh5AiWU4vkr9NfKznptTMeGDFpBJV"}`, string(jsondata))
 
 	// openLending again
 	input = &ld.LendingConfig{
@@ -183,7 +175,6 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -204,12 +195,11 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxCloseLending).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -237,20 +227,20 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
+	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for approver")
+	bs.CheckoutAccounts()
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,

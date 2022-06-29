@@ -269,14 +269,10 @@ func TestTxCreateToken(t *testing.T) {
 	tt := txData.ToTransaction()
 	itx, err := NewTx(tt, true)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Apply(bctx, bs), `invalid gas, expected 1586, got 0`)
 
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	itx, err = NewTx(tt, true)
-	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		`insufficient NativeLDC balance, expected 1744700, got 0`)
+		`insufficient NativeLDC balance, expected 2155000, got 0`)
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -299,15 +295,13 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas := tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(bctx, bs))
 
 	tokenAcc := bs.MustAccount(tokenid)
-
+	senderGas := tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -328,7 +322,7 @@ func TestTxCreateToken(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x00000000000000000000000000000000244C4443","amount":10000000000000,"data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":10000000000,"name":"LDC"},"signatures":["f21b4c6de647dc55c9bf1d7ebc217f24d0f0d94e55633dcfc5697f36f77ae78b394ebd6d3389a66c644a6ff370ab67e065f8b23fe279d7bb773f736808c600dd00"],"gas":1611,"id":"25sqrKnJcWpahrL6M6YUygiXXWvJ2iUVsYgzLHyqMCWmDsLGLo"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x00000000000000000000000000000000244C4443","amount":10000000000000,"data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":10000000000,"name":"LDC"},"signatures":["f21b4c6de647dc55c9bf1d7ebc217f24d0f0d94e55633dcfc5697f36f77ae78b394ebd6d3389a66c644a6ff370ab67e065f8b23fe279d7bb773f736808c600dd00"],"id":"25sqrKnJcWpahrL6M6YUygiXXWvJ2iUVsYgzLHyqMCWmDsLGLo"}`, string(jsondata))
 
 	// create again
 	txData = &ld.TxData{
@@ -344,7 +338,6 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
@@ -364,7 +357,6 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
@@ -374,17 +366,16 @@ func TestTxCreateToken(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1353000, got 0")
+		"insufficient NativeLDC balance, expected 2088900, got 0")
 	bs.CheckoutAccounts()
 	tokenAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -410,13 +401,12 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
-	senderGas += tt.Gas
 	itx, err = NewTx(tt, true)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(bctx, bs))
 
+	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
 		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
@@ -462,7 +452,6 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	_, err := NewTx(tt, true)
 	assert.ErrorContains(err,
 		"invalid to as token account, expected not 0x0000000000000000000000000000000000000000")
@@ -506,7 +495,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","to":"0x0000000000000000000000000000000000000000","data":{"amount":1000000000000000000,"name":"Linked Data Chain","data":"Hello, LDVM!"},"gas":0,"id":"2df9TxdMzdFaZWnBxwSeQrcznCsu5Xg7vQqcPPJavU1cUa3CC5"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","to":"0x0000000000000000000000000000000000000000","data":{"amount":1000000000000000000,"name":"Linked Data Chain","data":"Hello, LDVM!"},"id":"2df9TxdMzdFaZWnBxwSeQrcznCsu5Xg7vQqcPPJavU1cUa3CC5"}`, string(jsondata))
 
 	// NativeToken cannot be destroy
 	txData = &ld.TxData{
@@ -520,7 +509,6 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	tt.Gas = tt.RequiredGas(bctx.FeeConfig().ThresholdGas)
 	itx, err = NewTx(tt, true)
 	assert.ErrorContains(err, "TxBase.SyntacticVerify error: invalid from")
 
