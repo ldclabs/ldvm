@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
@@ -54,8 +55,7 @@ func TestProfile(t *testing.T) {
 	data, err := json.Marshal(p)
 	assert.NoError(err)
 
-	jsonStr := `{"type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`
-	assert.Equal(jsonStr, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`, string(data))
 
 	p2 := &Profile{}
 	assert.NoError(p2.Unmarshal(p.Bytes()))
@@ -81,5 +81,23 @@ func TestProfile(t *testing.T) {
 
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
-	assert.NotEqual(jsonStr, string(data))
+
+	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
+
+	ipldops := cborpatch.Patch{
+		{Op: "replace", Path: "/u", Value: util.MustMarshalCBOR("https://ldclabs.org")},
+		{Op: "add", Path: "/fs/-", Value: util.MustMarshalCBOR(util.DataID{1, 2, 3})},
+		{Op: "remove", Path: "/ms/0"},
+	}
+	data, err = pm.ApplyPatch(p.Bytes(), util.MustMarshalCBOR(ipldops))
+	assert.NoError(err)
+
+	p2 = &Profile{}
+	assert.NoError(p2.Unmarshal(data))
+	assert.NoError(p2.SyntacticVerify())
+	assert.NotEqual(p.Bytes(), p2.Bytes())
+
+	data, err = json.Marshal(p2)
+	assert.NoError(err)
+	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
 }

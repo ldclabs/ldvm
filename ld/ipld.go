@@ -14,6 +14,8 @@ import (
 	"github.com/ipld/go-ipld-prime/datamodel"
 	"github.com/ipld/go-ipld-prime/node/bindnode"
 	"github.com/ipld/go-ipld-prime/schema"
+	cborpatch "github.com/ldclabs/cbor-patch"
+
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -67,28 +69,35 @@ func (l *IPLDModel) Type() schema.Type {
 	return l.schemaType
 }
 
-func (l *IPLDModel) decode(data []byte) (node datamodel.Node, err error) {
-	// defer l.builder.Reset() TODO: not supported yet
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).decode error: ", strconv.Quote(l.name)))
-	err = Recover(errp, func() error {
-		builder := l.prototype.Representation().NewBuilder()
-		if er := dagcbor.Decode(builder, bytes.NewReader(data)); er != nil {
-			return er
-		}
-		node = builder.Build()
-		if tn, ok := node.(schema.TypedNode); ok {
-			node = tn.Representation()
-		}
-		return nil
-	})
-	if err == nil && node == nil {
-		err = errp.Errorf("%d bytes return nil", len(data))
+func (l *IPLDModel) Decode(doc []byte) (node datamodel.Node, err error) {
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).Decode error: ", strconv.Quote(l.name)))
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	node, err = l.decode(doc)
+	if err != nil {
+		return nil, errp.ErrorIf(err)
 	}
-	return
+	return node, nil
 }
 
-func (l *IPLDModel) ApplyPatch(original, patch []byte) ([]byte, error) {
-	return nil, fmt.Errorf("IPLDModel.ApplyPatch TODO")
+func (l *IPLDModel) ApplyPatch(doc, operations []byte) ([]byte, error) {
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).ApplyPatch error: ", strconv.Quote(l.name)))
+
+	p, err := cborpatch.NewPatch(operations)
+	if err != nil {
+		return nil, errp.Errorf("invalid CBOR patch, %v", err)
+	}
+
+	if doc, err = p.Apply(doc); err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+
+	if err = l.valid(doc); err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+	return doc, nil
 }
 
 func (l *IPLDModel) Valid(data []byte) error {
@@ -97,8 +106,13 @@ func (l *IPLDModel) Valid(data []byte) error {
 		return errp.ErrorIf(err)
 	}
 
+	return errp.ErrorIf(l.valid(data))
+}
+
+func (l *IPLDModel) valid(data []byte) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
 	node, err := l.decode(data)
 	if err != nil {
 		return err
@@ -106,12 +120,32 @@ func (l *IPLDModel) Valid(data []byte) error {
 
 	defer l.buf.Reset()
 	if err = dagcbor.Encode(node, l.buf); err != nil {
-		return errp.ErrorIf(err)
+		return err
 	}
-	d := l.buf.Bytes()
-	if !bytes.Equal(data, d) {
-		err = errp.Errorf("data not equal, bytes length expected %v, got %v",
+	if d := l.buf.Bytes(); !bytes.Equal(data, d) {
+		err = fmt.Errorf("data not equal, length expected %v, got %v",
 			len(data), len(d))
 	}
 	return err
+}
+
+func (l *IPLDModel) decode(doc []byte) (node datamodel.Node, err error) {
+	// defer l.builder.Reset() TODO: not supported yet
+	errp := util.ErrPrefix("decode error: ")
+	err = Recover(errp, func() error {
+		builder := l.prototype.Representation().NewBuilder()
+		if er := dagcbor.Decode(builder, bytes.NewReader(doc)); er != nil {
+			return er
+		}
+		node = builder.Build()
+		if tn, ok := node.(schema.TypedNode); ok {
+			node = tn.Representation()
+		}
+		return nil
+	})
+
+	if err == nil && node == nil {
+		err = errp.Errorf("%d bytes return nil", len(doc))
+	}
+	return
 }

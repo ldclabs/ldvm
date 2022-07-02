@@ -682,7 +682,8 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 
 	assert.NoError(bs.SaveModel(ps.ID, ps))
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), `IPLDModel("ProfileService").decode error`)
+	assert.ErrorContains(itx.Apply(bctx, bs),
+		`TxCreateData.Apply error: IPLDModel("ProfileService").Valid error: decode error`)
 	bs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{

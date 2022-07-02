@@ -6,6 +6,7 @@ package ld
 import (
 	"testing"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -46,7 +47,7 @@ func TestIPLDModel(t *testing.T) {
 
 	data, err = util.MarshalCBOR([]interface{}{"a", "b", 1})
 	assert.NoError(err)
-	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").decode error`)
+	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid error: decode error`)
 
 	sch = `
 	type NameService struct {
@@ -69,4 +70,71 @@ func TestIPLDModel(t *testing.T) {
 	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test"})
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `missing required fields`)
+}
+
+func TestIPLDModelApplyPatch(t *testing.T) {
+	assert := assert.New(t)
+
+	sch := `
+	type ID20 bytes
+	type ProfileService struct {
+		type       Int             (rename "t")
+		name       String          (rename "n")
+		image      String          (rename "i")
+		url        String          (rename "u")
+		follows    [ID20]          (rename "fs")
+		members    optional [ID20] (rename "ms")
+	}
+`
+
+	type profile struct {
+		Type    uint16       `cbor:"t"`
+		Name    string       `cbor:"n"`
+		Image   string       `cbor:"i"`
+		URL     string       `cbor:"u"`
+		Follows util.DataIDs `cbor:"fs"`
+		Members util.DataIDs `cbor:"ms,omitempty"`
+	}
+
+	mo, err := NewIPLDModel("ProfileService", []byte(sch))
+	assert.NoError(err)
+
+	v1 := &profile{
+		Type:    0,
+		Name:    "Test",
+		Follows: util.DataIDs{},
+	}
+
+	od := util.MustMarshalCBOR(v1)
+	ipldops := cborpatch.Patch{
+		{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("John")},
+		{Op: "replace", Path: "/t", Value: util.MustMarshalCBOR(uint16(1))},
+	}
+
+	data, err := mo.ApplyPatch(od, util.MustMarshalCBOR(ipldops))
+	assert.NoError(err)
+
+	v2 := &profile{}
+	assert.NoError(util.UnmarshalCBOR(data, v2))
+	assert.Equal("John", v2.Name)
+	assert.Equal(uint16(1), v2.Type)
+
+	ipldops = cborpatch.Patch{
+		{Op: "test", Path: "/n", Value: util.MustMarshalCBOR("Test")},
+	}
+
+	_, err = mo.ApplyPatch(od, util.MustMarshalCBOR(ipldops))
+	assert.NoError(err)
+
+	_, err = mo.ApplyPatch(data, util.MustMarshalCBOR(ipldops))
+	assert.ErrorContains(err,
+		`IPLDModel("ProfileService").ApplyPatch error: testing value "/n" failed: test failed`)
+
+	ipldops = cborpatch.Patch{
+		{Op: "add", Path: "/x", Value: util.MustMarshalCBOR("Test")},
+	}
+
+	_, err = mo.ApplyPatch(data, util.MustMarshalCBOR(ipldops))
+	assert.ErrorContains(err,
+		`invalid key: "x" is not a field in type ProfileService`)
 }

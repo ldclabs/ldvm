@@ -6,6 +6,10 @@ package ld
 import (
 	"fmt"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
+	jsonpatch "github.com/ldclabs/json-patch"
+
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -126,6 +130,40 @@ func (t *DataInfo) MarkDeleted(data []byte) error {
 		t.Data = data
 	}
 	return t.SyntacticVerify()
+}
+
+type patcher interface {
+	Apply(doc []byte) ([]byte, error)
+}
+
+// Patch applies a patch to the data, returns the patched data.
+// It will not change the data.
+func (t *DataInfo) Patch(operations []byte) ([]byte, error) {
+	var err error
+	var p patcher
+	errp := util.ErrPrefix("DataInfo.Patch error: ")
+
+	switch t.ModelID {
+	case constants.RawModelID:
+		return operations, nil
+
+	case constants.CBORModelID:
+		p, err = cborpatch.NewPatch(operations)
+		if err != nil {
+			return nil, errp.Errorf("invalid CBOR patch, %v", err)
+		}
+
+	case constants.JSONModelID:
+		p, err = jsonpatch.NewPatch(operations)
+		if err != nil {
+			return nil, errp.Errorf("invalid JSON patch, %v", err)
+		}
+
+	default:
+		return nil, errp.Errorf("unsupport mid %s", t.ModelID)
+	}
+
+	return errp.ErrorMap(p.Apply(t.Data))
 }
 
 func (t *DataInfo) Bytes() []byte {

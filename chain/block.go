@@ -177,19 +177,17 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		tx := txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		if tx.Type != ld.TypeTest {
-			if tx.GasFeeCap < b.ld.GasPrice {
-				tx.Err = fmt.Errorf("Block.TryBuildTxs error: invalid gasFeeCap, expected >= %d, got %d",
-					b.ld.GasPrice, tx.GasFeeCap)
-				return choices.Unknown, tx.Err
-			}
-			if tx.Gas() > feeCfg.MaxTxGas {
-				tx.Err = fmt.Errorf("Block.TryBuildTxs error: gas too large, expected <= %d, got %d",
-					feeCfg.MaxTxGas, tx.Gas())
-				return choices.Rejected, tx.Err
-			}
-			gas += tx.Gas()
+		if tx.GasFeeCap < b.ld.GasPrice {
+			tx.Err = fmt.Errorf("Block.TryBuildTxs error: invalid gasFeeCap, expected >= %d, got %d",
+				b.ld.GasPrice, tx.GasFeeCap)
+			return choices.Unknown, tx.Err
 		}
+		if tx.Gas() > feeCfg.MaxTxGas {
+			tx.Err = fmt.Errorf("Block.TryBuildTxs error: gas too large, expected <= %d, got %d",
+				feeCfg.MaxTxGas, tx.Gas())
+			return choices.Rejected, tx.Err
+		}
+		gas += tx.Gas()
 
 		// syntacticVerify again after gas calculation
 		ntx, err := transaction.NewTx(tx, true)
@@ -200,9 +198,6 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		if err := ntx.Apply(b, vbs); err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
-		}
-		if tx.Type != ld.TypeTest {
-			ntxs = append(ntxs, ntx)
 		}
 	}
 

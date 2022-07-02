@@ -382,9 +382,7 @@ func TestAccount(t *testing.T) {
 	jsondata, err := json.Marshal(acc)
 	assert.NoError(err)
 
-	assert.Contains(string(jsondata), `"type":2`)
-	assert.Contains(string(jsondata), `"tokens":{},"nonceTable":{}`)
-	assert.Contains(string(jsondata), `"height":0,"timestamp":0,"address":"0x0000000000000000000000000000000000000000"`)
+	assert.Equal(`{"type":"Stake","nonce":0,"balance":0,"threshold":0,"keepers":[],"tokens":{},"nonceTable":{},"stake":{"token":"","type":0,"lockTime":0,"withdrawFee":1,"minAmount":100,"maxAmount":100},"stakeLedger":{"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF":{"amount":100,"lockTime":999,"approver":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"}},"lending":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100},"lendingLedger":{"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF":{"amount":100,"updateAt":888}},"height":0,"timestamp":0,"address":"0x0000000000000000000000000000000000000000"}`, string(jsondata))
 
 	acc2 := &Account{}
 	assert.NoError(acc2.Unmarshal(cbordata))

@@ -218,7 +218,7 @@ func TestTxs(t *testing.T) {
 	}).ToTransaction()
 
 	assert.NoError(testTx.SyntacticVerify())
-	assert.Equal(0, testTx.BytesSize())
+	assert.Equal(81, testTx.BytesSize())
 
 	_, err := NewBatchTx(testTx)
 	assert.ErrorContains(err, "NewBatchTx error: not batch transactions")
@@ -261,7 +261,7 @@ func TestTxs(t *testing.T) {
 	assert.True(txs.IsBatched())
 	assert.Equal(tx2.ID, txs.ID)
 	assert.Equal(tx2.Bytes(), txs.Bytes())
-	assert.Equal(len(tx1.Bytes())+len(tx2.Bytes()), txs.BytesSize())
+	assert.Equal(len(testTx.Bytes())+len(tx1.Bytes())+len(tx2.Bytes()), txs.BytesSize())
 
 	data, err := txs.Txs().Marshal()
 	assert.NoError(err)
@@ -291,7 +291,9 @@ func TestTxsSort(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(stx3.ID, btx.ID)
 	assert.Equal(stx3.Gas(), btx.Gas())
-	assert.Equal(len(stx1.Bytes())+len(stx2.Bytes())+len(stx3.Bytes())+len(stx4.Bytes()), btx.BytesSize())
+	assert.Equal(
+		len(stx0.Bytes())+len(stx1.Bytes())+len(stx2.Bytes())+len(stx3.Bytes())+len(stx4.Bytes()),
+		btx.BytesSize())
 	assert.Equal(stx3.priority, btx.priority)
 	assert.Equal(uint64(436), stx0.priority)
 	assert.Equal(uint64(1193), stx1.priority)
@@ -304,8 +306,8 @@ func TestTxsSort(t *testing.T) {
 	assert.Equal(stx3.ID, txs[0].ID, "because of high priority")
 	assert.Equal(stx2.ID, txs[1].ID, "because of low nonce than stx4 from the same sender")
 	assert.Equal(stx4.ID, txs[2].ID)
-	assert.Equal(stx1.ID, txs[3].ID)
-	assert.Equal(stx0.ID, txs[4].ID, "because of TypeTest with 0 priority")
+	assert.Equal(stx0.ID, txs[3].ID)
+	assert.Equal(stx1.ID, txs[4].ID)
 
 	// sort again should not change the order
 	txs = Txs{stx4, stx3, stx2, stx1, stx0}
@@ -313,8 +315,8 @@ func TestTxsSort(t *testing.T) {
 	assert.Equal(stx3.ID, txs[0].ID)
 	assert.Equal(stx2.ID, txs[1].ID)
 	assert.Equal(stx4.ID, txs[2].ID)
-	assert.Equal(stx1.ID, txs[3].ID)
-	assert.Equal(stx0.ID, txs[4].ID)
+	assert.Equal(stx0.ID, txs[3].ID)
+	assert.Equal(stx1.ID, txs[4].ID)
 	assert.Equal(stx3.priority, btx.priority)
 	assert.Equal(uint64(436), stx0.priority)
 	assert.Equal(uint64(1193), stx1.priority)
