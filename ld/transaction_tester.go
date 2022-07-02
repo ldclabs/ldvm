@@ -6,6 +6,7 @@
 package ld
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -104,4 +105,12 @@ func MustNewStake(str string) util.StakeSymbol {
 		panic(err)
 	}
 	return s
+}
+
+func MustMarshalJSON(v interface{}) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }

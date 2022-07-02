@@ -9,6 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
+	jsonpatch "github.com/ldclabs/json-patch"
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -101,4 +104,95 @@ func TestDataInfo(t *testing.T) {
 	assert.Equal(uint64(0), tx.Version)
 	assert.Equal(util.SignatureEmpty, tx.KSig)
 	assert.Equal([]byte(`"test"`), []byte(tx2.Data))
+}
+
+func TestDataInfoPatch(t *testing.T) {
+	assert := assert.New(t)
+
+	// with RawModelID
+
+	od := []byte(`42`)
+	di := &DataInfo{
+		Version:   1,
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Data:      od,
+	}
+
+	nd := []byte(`"test"`)
+	data, err := di.Patch(nd)
+	assert.NoError(err)
+	assert.Equal(od, []byte(di.Data))
+	assert.Equal(nd, data)
+
+	type person struct {
+		Name string `cbor:"n" json:"name"`
+		Age  uint   `cbor:"a" json:"age"`
+	}
+
+	v1 := person{Name: "John", Age: 42}
+
+	// with CBORModelID
+	od = util.MustMarshalCBOR(v1)
+	di = &DataInfo{
+		ModelID:   constants.CBORModelID,
+		Version:   1,
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Data:      od,
+	}
+
+	data, err = di.Patch([]byte(`"test"`))
+	assert.ErrorContains(err, "invalid CBOR patch")
+
+	cborops := cborpatch.Patch{
+		{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("John X")},
+		{Op: "replace", Path: "/a", Value: util.MustMarshalCBOR(uint(18))},
+	}
+	data, err = di.Patch(util.MustMarshalCBOR(cborops))
+	assert.NoError(err)
+	assert.Equal(od, []byte(di.Data))
+
+	v2 := &person{}
+	assert.NoError(util.UnmarshalCBOR(data, v2))
+	assert.Equal("John X", v2.Name)
+	assert.Equal(uint(18), v2.Age)
+
+	// with JSONModelID
+	od = MustMarshalJSON(v1)
+	di = &DataInfo{
+		ModelID:   constants.JSONModelID,
+		Version:   1,
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Data:      od,
+	}
+
+	data, err = di.Patch([]byte(`"test"`))
+	assert.ErrorContains(err, "invalid JSON patch")
+
+	jsonops := jsonpatch.Patch{
+		{Op: "replace", Path: "/name", Value: MustMarshalJSON("John X")},
+		{Op: "replace", Path: "/age", Value: MustMarshalJSON(uint(18))},
+	}
+	data, err = di.Patch(MustMarshalJSON(jsonops))
+	assert.NoError(err)
+	assert.Equal(od, []byte(di.Data))
+
+	v2 = &person{}
+	assert.NoError(json.Unmarshal(data, v2))
+	assert.Equal("John X", v2.Name)
+	assert.Equal(uint(18), v2.Age)
+
+	// with invalid modelID
+	di = &DataInfo{
+		ModelID:   util.ModelID{1, 2, 3},
+		Version:   1,
+		Threshold: 1,
+		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Data:      od,
+	}
+	_, err = di.Patch(MustMarshalJSON(jsonops))
+	assert.ErrorContains(err,
+		"DataInfo.Patch error: unsupport mid LM6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4")
 }

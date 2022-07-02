@@ -5,16 +5,14 @@ package transaction
 
 import (
 	"encoding/json"
-	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type TxTest struct {
-	ld     *ld.Transaction
-	status choices.Status
+	TxBase
+	input *ld.TxTester
 }
 
 func (tx *TxTest) MarshalJSON() ([]byte, error) {
@@ -22,41 +20,92 @@ func (tx *TxTest) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	return json.Marshal(tx.ld)
-}
-
-func (tx *TxTest) LD() *ld.Transaction {
-	return tx.ld
-}
-
-func (tx *TxTest) ID() ids.ID {
-	return tx.ld.ID
-}
-
-func (tx *TxTest) Type() ld.TxType {
-	return tx.ld.Type
-}
-
-func (tx *TxTest) Bytes() []byte {
-	return tx.ld.Bytes()
-}
-
-func (tx *TxTest) Status() string {
-	return tx.status.String()
-}
-
-func (tx *TxTest) SetStatus(s choices.Status) {
-	tx.status = s
+	v := tx.ld.Copy()
+	errp := util.ErrPrefix("TxTest.MarshalJSON error: ")
+	if tx.input == nil {
+		return nil, errp.Errorf("nil tx.input")
+	}
+	d, err := json.Marshal(tx.input)
+	if err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+	v.Data = d
+	return errp.ErrorMap(json.Marshal(v))
 }
 
 func (tx *TxTest) SyntacticVerify() error {
-	if tx == nil || tx.ld == nil {
-		return fmt.Errorf("TxTest.SyntacticVerify error: nil tx")
+	var err error
+	errp := util.ErrPrefix("TxTest.SyntacticVerify error: ")
+
+	if err = tx.TxBase.SyntacticVerify(); err != nil {
+		return errp.ErrorIf(err)
 	}
+
+	switch {
+	case tx.ld.To != nil:
+		return errp.Errorf("invalid to, should be nil")
+
+	case tx.ld.Token != nil:
+		return errp.Errorf("invalid token, should be nil")
+
+	case tx.ld.Amount != nil:
+		return errp.Errorf("invalid amount, should be nil")
+
+	case len(tx.ld.Data) == 0:
+		return errp.Errorf("invalid data")
+	}
+
+	tx.input = &ld.TxTester{}
+	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+		return errp.ErrorIf(err)
+	}
+	if err = tx.input.SyntacticVerify(); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	return nil
 }
 
 // call after SyntacticVerify
 func (tx *TxTest) Apply(bctx BlockContext, bs BlockState) error {
-	return fmt.Errorf("TxTest.Apply error: not implemented, TODO")
+	var err error
+	errp := util.ErrPrefix("TxTest.Apply error: ")
+
+	if err = tx.TxBase.verify(bctx, bs); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	var data []byte
+	switch tx.input.ObjectType {
+	case ld.AddressObject:
+		acc, err := bs.LoadAccount(util.EthID(tx.input.ObjectID))
+		if err == nil {
+			data, err = acc.Marshal()
+		}
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+
+	case ld.ModelObject:
+		mi, err := bs.LoadModel(util.ModelID(tx.input.ObjectID))
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		data = mi.Bytes()
+
+	case ld.DataObject:
+		di, err := bs.LoadData(util.DataID(tx.input.ObjectID))
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		data = di.Bytes()
+
+	default:
+		return errp.Errorf("invalid type %s", tx.input.ObjectType)
+	}
+
+	if err = tx.input.Test(data); err != nil {
+		return errp.ErrorIf(err)
+	}
+	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }

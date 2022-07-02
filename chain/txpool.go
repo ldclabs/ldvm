@@ -55,11 +55,7 @@ func (p *txPool) Len() int {
 	for _, tx := range p.txQueue {
 		switch {
 		case tx.IsBatched():
-			for _, tx2 := range tx.Txs() {
-				if tx2.Type != ld.TypeTest {
-					n += 1
-				}
-			}
+			n += len(tx.Txs())
 		default:
 			n += 1
 		}
@@ -134,7 +130,7 @@ func (p *txPool) Add(txs ...*ld.Transaction) {
 	defer p.mu.Unlock()
 
 	for i, tx := range txs {
-		if tx.Type != ld.TypeTest && !p.has(tx.ID) {
+		if !p.has(tx.ID) {
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}

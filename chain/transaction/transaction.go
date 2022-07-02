@@ -33,8 +33,7 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	var tt Transaction
 	switch tx.Type {
 	case ld.TypeTest:
-		tt = &TxTest{ld: tx}
-
+		tt = &TxTest{TxBase: TxBase{ld: tx}}
 	case ld.TypeEth:
 		tt = &TxEth{TxBase: TxBase{ld: tx}}
 	case ld.TypeTransfer:

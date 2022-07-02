@@ -4,19 +4,37 @@
 package ld
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ldclabs/ldvm/util"
 )
-
-// AccountType is an uint16 representing the type of account
-type AccountType uint16
 
 const (
 	NativeAccount AccountType = iota
 	TokenAccount              // The first byte of account address must be $
 	StakeAccount              // The first byte of account address must be #
 )
+
+// AccountType is an uint16 representing the type of account
+type AccountType uint16
+
+func (t AccountType) String() string {
+	switch t {
+	case NativeAccount:
+		return "Native"
+	case TokenAccount:
+		return "Token"
+	case StakeAccount:
+		return "Stake"
+	default:
+		return fmt.Sprintf("UnknownAccountType(%d)", t)
+	}
+}
+
+func (t AccountType) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + t.String() + "\""), nil
+}
 
 const MaxKeepers = 1024
 

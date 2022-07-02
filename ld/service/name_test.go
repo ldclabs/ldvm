@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -48,10 +49,24 @@ func TestName(t *testing.T) {
 	data, err := json.Marshal(name)
 	assert.NoError(err)
 
-	jsonStr := `{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"]}`
-	assert.Equal(jsonStr, string(data))
+	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"]}`, string(data))
 
 	nm, err := NameModel()
 	assert.NoError(err)
 	assert.NoError(nm.Valid(name.Bytes()))
+
+	ipldops := cborpatch.Patch{
+		{Op: "add", Path: "/rs/-", Value: util.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
+	}
+	data, err = nm.ApplyPatch(name.Bytes(), util.MustMarshalCBOR(ipldops))
+	assert.NoError(err)
+
+	name2 = &Name{}
+	assert.NoError(name2.Unmarshal(data))
+	assert.NoError(name2.SyntacticVerify())
+
+	data, err = json.Marshal(name2)
+	assert.NoError(err)
+
+	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"]}`, string(data))
 }

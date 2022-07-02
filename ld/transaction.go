@@ -249,7 +249,7 @@ func (t *Transaction) BytesSize() int {
 		for _, tx := range t.batch {
 			total += tx.BytesSize()
 		}
-	case t.Type != TypeTest:
+	default:
 		total = len(t.Bytes())
 	}
 	return total
@@ -389,9 +389,6 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 	var err error
 	var tx *Transaction
 	for i, t := range txs {
-		if t.Type == TypeTest {
-			continue
-		}
 		if err = t.SyntacticVerify(); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
@@ -436,8 +433,6 @@ func (set groupSet) Add(txs ...*Transaction) {
 		tx := txs[i]
 		g := set[tx.From]
 		switch {
-		case tx.Type == TypeTest:
-			// nothing
 		case g == nil:
 			g = &group{ts: Txs{tx}, dp: tx.priority}
 			set[tx.From] = g

@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"strconv"
 
-	cborpatch "github.com/ldclabs/cbor-patch"
-	jsonpatch "github.com/ldclabs/json-patch"
-
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -160,35 +157,12 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 
 	tx.prevDI = tx.di.Clone()
 	switch tx.di.ModelID {
-	case constants.RawModelID:
+	case constants.RawModelID, constants.CBORModelID, constants.JSONModelID:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
-		tx.di.Data = tx.input.Data
-
-	case constants.CBORModelID:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-		var patch cborpatch.Patch
-		if patch, err = cborpatch.NewPatch(tx.input.Data); err != nil {
-			return errp.Errorf("invalid CBOR patch, %v", err)
-		}
-
-		if tx.di.Data, err = patch.Apply(tx.di.Data); err != nil {
-			return errp.Errorf("apply patch failed, %v", err)
-		}
-
-	case constants.JSONModelID:
-		if tx.input.To != nil {
-			return errp.Errorf("invalid to, should be nil")
-		}
-		var patch jsonpatch.Patch
-		if patch, err = jsonpatch.NewPatch(tx.input.Data); err != nil {
-			return errp.Errorf("invalid JSON patch, %v", err)
-		}
-		if tx.di.Data, err = patch.Apply(tx.di.Data); err != nil {
-			return errp.Errorf("apply patch failed, %v", err)
+		if tx.di.Data, err = tx.di.Patch(tx.input.Data); err != nil {
+			return errp.ErrorIf(err)
 		}
 
 	default:

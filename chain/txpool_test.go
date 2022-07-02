@@ -47,8 +47,6 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tp.Add(tx)
 	assert.Equal(0, tp.Len(), "should not be added after rejected")
-	tp.Add(ld.MustNewTestTx(util.Signer1, ld.TypeTest, &constants.GenesisAccount, nil))
-	assert.Equal(0, len(tp.txQueue), "TypeTest tx should not be added")
 
 	txs := tp.PopTxsBySize(1000000)
 	assert.Equal(ld.Txs{}, txs, "no valid tx (1 rejected)")
@@ -135,7 +133,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	tx2 := ld.MustNewTestTx(s3, ld.TypeTransfer, &to, ld.GenJSONData(2000))
 	tx3 := ld.MustNewTestTx(s0, ld.TypeTransfer, &to, ld.GenJSONData(3000))
 	tp.Add(tx0, tx1, tx2, tx3, btx)
-	assert.Equal(7, tp.Len())
+	assert.Equal(8, tp.Len())
 	assert.Equal(5, len(tp.txQueue))
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
 	assert.Equal(tx1.ID, tp.txQueue[1].ID)
