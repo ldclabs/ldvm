@@ -39,6 +39,7 @@ var (
 	heightDBPrefix       = []byte{'H'}
 	blockDBPrefix        = []byte{'B'}
 	accountDBPrefix      = []byte{'A'}
+	ledgerDBPrefix       = []byte{'L'}
 	modelDBPrefix        = []byte{'M'}
 	dataDBPrefix         = []byte{'D'}
 	prevDataDBPrefix     = []byte{'P'}

@@ -26,10 +26,17 @@ func TestState(t *testing.T) {
 	s = &State{
 		Accounts: make(map[util.EthID]ids.ID),
 	}
+	assert.ErrorContains(s.SyntacticVerify(), "nil ledgers")
+
+	s = &State{
+		Accounts: make(map[util.EthID]ids.ID),
+		Ledgers:  make(map[util.EthID]ids.ID),
+	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil datas")
 
 	s = &State{
 		Accounts: make(map[util.EthID]ids.ID),
+		Ledgers:  make(map[util.EthID]ids.ID),
 		Datas:    make(map[util.DataID]ids.ID),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil models")
@@ -41,7 +48,8 @@ func TestState(t *testing.T) {
 	jsondata, err := json.Marshal(s)
 	assert.NoError(err)
 
-	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","accounts":{},"datas":{},"models":{},"id":"24LaJiEty1cprbCodNPvHxch3KyirdvxyW1Ksyz1VsFYXEst2E"}`,
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","accounts":{},"ledgers":{},"datas":{},"models":{},"id":"LNNJn3JUTcSQMCY5HsFnZ3A75ZXDY5EtQyqc7XbMLaW8N4xLj"}`,
 		string(jsondata))
 
 	s2 := &State{}
@@ -56,8 +64,16 @@ func TestState(t *testing.T) {
 
 	s.Accounts[constants.GenesisAccount] = ids.ID{1, 2, 3}
 	assert.NoError(s.SyntacticVerify())
-	cbordata, err = s.Marshal()
-	assert.NoError(err)
 	assert.NotEqual(s.ID, s2.ID)
 	assert.NotEqual(s.Bytes(), s2.Bytes())
+
+	s3 := s.Clone()
+	assert.NoError(s3.SyntacticVerify())
+	assert.Equal(s.ID, s3.ID)
+	assert.Equal(s.Bytes(), s3.Bytes())
+
+	s3.Ledgers[constants.GenesisAccount] = ids.ID{1, 2, 3}
+	assert.NoError(s3.SyntacticVerify())
+	assert.NotEqual(s.ID, s3.ID)
+	assert.NotEqual(s.Bytes(), s3.Bytes())
 }

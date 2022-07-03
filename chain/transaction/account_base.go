@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -16,10 +17,13 @@ import (
 type AccountCache map[util.EthID]*Account
 
 type Account struct {
-	ld     *ld.Account
-	mu     sync.RWMutex
-	id     util.EthID // account address
-	pledge *big.Int   // token account and stake account should have pledge
+	ld         *ld.Account
+	ledger     *ld.AccountLedger
+	mu         sync.RWMutex
+	id         util.EthID // account address
+	pledge     *big.Int   // token account and stake account should have pledge
+	ldHash     ids.ID
+	ledgerHash ids.ID
 }
 
 func NewAccount(id util.EthID) *Account {
@@ -30,7 +34,7 @@ func NewAccount(id util.EthID) *Account {
 			ID:         util.EthID(id),
 			Balance:    big.NewInt(0),
 			Keepers:    util.EthIDs{},
-			Tokens:     make(map[util.TokenSymbol]*big.Int),
+			Tokens:     make(map[string]*big.Int),
 			NonceTable: make(map[uint64][]uint64),
 		},
 	}
@@ -47,6 +51,7 @@ func ParseAccount(id util.EthID, data []byte) (*Account, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	a.ld.ID = id
+	a.ldHash = util.IDFromData(a.ld.Bytes())
 	return a, nil
 }
 
@@ -55,6 +60,30 @@ func (a *Account) Init(pledge *big.Int, height, timestamp uint64) *Account {
 	a.ld.Height = height
 	a.ld.Timestamp = timestamp
 	return a
+}
+
+func (a *Account) Ledger() *ld.AccountLedger {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.ledger
+}
+
+func (a *Account) InitLedger(data []byte) error {
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).InitLedger error: ", a.id))
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.ledger = &ld.AccountLedger{}
+	if err := a.ledger.Unmarshal(data); err != nil {
+		errp.ErrorIf(err)
+	}
+	if err := a.ledger.SyntacticVerify(); err != nil {
+		errp.ErrorIf(err)
+	}
+	a.ledgerHash = util.IDFromData(a.ledger.Bytes())
+	return nil
 }
 
 func (a *Account) ID() util.EthID {
@@ -90,7 +119,7 @@ func (a *Account) valid(t ld.AccountType) bool {
 	case t == ld.TokenAccount && (a.ld.MaxTotalSupply == nil || a.ld.MaxTotalSupply.Sign() <= 0):
 		return false
 
-	case t == ld.StakeAccount && (a.ld.Stake == nil || a.ld.StakeLedger == nil):
+	case t == ld.StakeAccount && a.ld.Stake == nil:
 		return false
 
 	default:
@@ -114,7 +143,7 @@ func (a *Account) balanceOf(token util.TokenSymbol) *big.Int {
 		return new(big.Int)
 
 	default:
-		if v := a.ld.Tokens[token]; v != nil {
+		if v := a.ld.Tokens[token.AsKey()]; v != nil {
 			return new(big.Int).Set(v)
 		}
 		return new(big.Int)
@@ -127,7 +156,7 @@ func (a *Account) balanceOfAll(token util.TokenSymbol) *big.Int {
 		return new(big.Int).Set(a.ld.Balance)
 
 	default:
-		if v := a.ld.Tokens[token]; v != nil {
+		if v := a.ld.Tokens[token.AsKey()]; v != nil {
 			return new(big.Int).Set(v)
 		}
 		return new(big.Int)
@@ -284,10 +313,10 @@ func (a *Account) Add(token util.TokenSymbol, amount *big.Int) error {
 			a.ld.Balance.Add(a.ld.Balance, amount)
 
 		default:
-			v := a.ld.Tokens[token]
+			v := a.ld.Tokens[token.AsKey()]
 			if v == nil {
 				v = new(big.Int)
-				a.ld.Tokens[token] = v
+				a.ld.Tokens[token.AsKey()] = v
 			}
 			v.Add(v, amount)
 		}
@@ -314,7 +343,7 @@ func (a *Account) subNoCheck(token util.TokenSymbol, amount *big.Int) {
 		case constants.NativeToken:
 			a.ld.Balance.Sub(a.ld.Balance, amount)
 		default:
-			v := a.ld.Tokens[token]
+			v := a.ld.Tokens[token.AsKey()]
 			v.Sub(v, amount)
 		}
 	}
@@ -436,12 +465,28 @@ func (a *Account) UpdateKeepers(
 	return nil
 }
 
-func (a *Account) Marshal() ([]byte, error) {
+func (a *Account) Marshal() ([]byte, []byte, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if err := a.ld.SyntacticVerify(); err != nil {
-		return nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal error: ", a.id)).ErrorIf(err)
+		return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal error: ", a.id)).ErrorIf(err)
 	}
-	return a.ld.Bytes(), nil
+
+	var ledger []byte
+	if a.ledger != nil {
+		if err := a.ledger.SyntacticVerify(); err != nil {
+			return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal error: ", a.id)).ErrorIf(err)
+		}
+		ledger = a.ledger.Bytes()
+	}
+	return a.ld.Bytes(), ledger, nil
+}
+
+func (a *Account) AccountChanged(data []byte) bool {
+	return a.ldHash != util.IDFromData(data)
+}
+
+func (a *Account) LedgerChanged(data []byte) bool {
+	return a.ldHash != util.IDFromData(data)
 }

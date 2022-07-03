@@ -152,7 +152,7 @@ func TestNativeAccount(t *testing.T) {
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: too many NonceTable groups, expected <= 1024")
 
 	// Marshal
-	data, err := acc.Marshal()
+	data, _, err := acc.Marshal()
 	assert.NoError(err)
 	acc2, err := ParseAccount(acc.id, data)
 	assert.NoError(err)
@@ -165,6 +165,7 @@ func TestNativeAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
+	assert.NoError(acc.InitLedger(nil))
 	assert.NoError(acc.OpenLending(cfg))
 	assert.NoError(acc.CloseLending())
 }

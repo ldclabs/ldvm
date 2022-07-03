@@ -72,7 +72,7 @@ func TestTokenAccount(t *testing.T) {
 	}
 
 	// Marshal
-	data, err := nativeToken.Marshal()
+	data, _, err := nativeToken.Marshal()
 	assert.NoError(err)
 	acc2, err := ParseAccount(nativeToken.id, data)
 	assert.NoError(err)
@@ -111,7 +111,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(uint64(2000), acc.balanceOf(token).Uint64())
 
 	// Marshal
-	data, err = testToken.Marshal()
+	data, _, err = testToken.Marshal()
 	assert.NoError(err)
 	acc2, err = ParseAccount(testToken.id, data)
 	assert.NoError(err)
@@ -125,9 +125,10 @@ func TestTokenAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
+	assert.NoError(testToken.InitLedger(nil))
 	assert.NoError(testToken.OpenLending(lcfg))
 	assert.NotNil(testToken.ld.Lending)
-	assert.NotNil(testToken.ld.LendingLedger)
+	assert.NotNil(testToken.ledger)
 
 	// Destroy
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
@@ -150,14 +151,14 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(0, len(testToken.ld.Tokens))
 	assert.Nil(testToken.ld.MaxTotalSupply)
 	assert.Nil(testToken.ld.Lending)
-	assert.Nil(testToken.ld.LendingLedger)
+	assert.Equal(0, len(testToken.ledger.Lending))
 	assert.Equal(uint64(1100), acc.balanceOf(constants.NativeToken).Uint64())
 
 	// Destroy again
 	assert.ErrorContains(testToken.DestroyToken(acc), "invalid token account")
 
 	// Marshal again
-	data, err = testToken.Marshal()
+	data, _, err = testToken.Marshal()
 	assert.NoError(err)
 	acc2, err = ParseAccount(testToken.id, data)
 	assert.NoError(err)

@@ -68,6 +68,7 @@ func (m *MockBCtx) MockBS() *MockBS {
 		DC:  make(map[util.DataID][]byte),
 		PDC: make(map[util.DataID][]byte),
 		ac:  make(map[util.EthID][]byte),
+		al:  make(map[util.EthID][]byte),
 	}
 }
 
@@ -80,6 +81,7 @@ type MockBS struct {
 	DC  map[util.DataID][]byte
 	PDC map[util.DataID][]byte
 	ac  map[util.EthID][]byte
+	al  map[util.EthID][]byte
 }
 
 func (m *MockBS) Height() uint64 {
@@ -108,6 +110,13 @@ func (m *MockBS) LoadAccount(id util.EthID) (*Account, error) {
 	return m.AC[id], nil
 }
 
+func (m *MockBS) LoadLedger(acc *Account) error {
+	if acc.Ledger() == nil {
+		return acc.InitLedger(m.al[acc.ID()])
+	}
+	return nil
+}
+
 func (m *MockBS) MustAccount(id util.EthID) *Account {
 	acc, err := m.LoadAccount(id)
 	if err != nil {
@@ -118,11 +127,14 @@ func (m *MockBS) MustAccount(id util.EthID) *Account {
 
 func (m *MockBS) CommitAccounts() {
 	for id, acc := range m.AC {
-		data, err := acc.Marshal()
+		data, ledger, err := acc.Marshal()
 		if err != nil {
 			panic(err)
 		}
 		m.ac[id] = data
+		if len(ledger) > 0 {
+			m.al[id] = ledger
+		}
 	}
 }
 
@@ -144,6 +156,12 @@ func (m *MockBS) CheckoutAccounts() {
 				pledge.Set(m.Fee.MinStakePledge)
 			}
 			acc.Init(pledge, m.ctx.height, m.ctx.timestamp)
+
+			if al, ok := m.al[id]; ok {
+				if err = acc.InitLedger(al); err != nil {
+					panic(err)
+				}
+			}
 		}
 	}
 }
@@ -244,7 +262,7 @@ func (m *MockBS) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) err
 
 func (m *MockBS) VerifyState() error {
 	for k, v := range m.AC {
-		data, err := v.Marshal()
+		data, ledger, err := v.Marshal()
 		if err != nil {
 			return err
 		}
@@ -252,11 +270,17 @@ func (m *MockBS) VerifyState() error {
 		if err != nil {
 			return err
 		}
-		data2, err := acc.Marshal()
+		if len(ledger) > 0 {
+			if err = acc.InitLedger(ledger); err != nil {
+				return err
+			}
+		}
+		data2, ledger2, err := acc.Marshal()
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(data, data2) {
+
+		if !bytes.Equal(data, data2) || !bytes.Equal(ledger, ledger2) {
 			return fmt.Errorf("Account %s is invalid", k)
 		}
 	}

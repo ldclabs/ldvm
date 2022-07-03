@@ -132,7 +132,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 	assert.NotNil(senderAcc.ld.Lending)
 	assert.Equal(token, senderAcc.ld.Lending.Token)
-	assert.Equal(make(map[util.EthID]*ld.LendingEntry), senderAcc.ld.LendingLedger)
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -157,7 +157,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Nil(senderAcc.ld.Lending)
-	assert.Nil(senderAcc.ld.LendingLedger)
+	assert.Equal(0, len(senderAcc.ledger.Lending))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

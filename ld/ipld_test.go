@@ -128,7 +128,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 
 	_, err = mo.ApplyPatch(data, util.MustMarshalCBOR(ipldops))
 	assert.ErrorContains(err,
-		`IPLDModel("ProfileService").ApplyPatch error: testing value "/n" failed: test failed`)
+		`IPLDModel("ProfileService").ApplyPatch error: test operation for path "/n" failed, expected "Test", got "John"`)
 
 	ipldops = cborpatch.Patch{
 		{Op: "add", Path: "/x", Value: util.MustMarshalCBOR("Test")},

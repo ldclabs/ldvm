@@ -37,6 +37,10 @@ func (tx *TxRepay) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
+	if err = bs.LoadLedger(tx.to); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	actual, err := tx.to.Repay(tx.token, tx.ld.From, tx.ld.Amount)
 	if err != nil {
 		return errp.ErrorIf(err)

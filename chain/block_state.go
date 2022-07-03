@@ -56,6 +56,7 @@ type blockState struct {
 	heightDB          *db.PrefixDB
 	lastAcceptedDB    *db.PrefixDB
 	accountDB         *db.PrefixDB
+	ledgerDB          *db.PrefixDB
 	modelDB           *db.PrefixDB
 	dataDB            *db.PrefixDB
 	prevDataDB        *db.PrefixDB
@@ -88,6 +89,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 		heightDB:       pdb.With(heightDBPrefix),
 		lastAcceptedDB: pdb.With(lastAcceptedKey),
 		accountDB:      pdb.With(accountDBPrefix),
+		ledgerDB:       pdb.With(ledgerDBPrefix),
 		modelDB:        pdb.With(modelDBPrefix),
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
@@ -127,6 +129,7 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		heightDB:       pdb.With(heightDBPrefix),
 		lastAcceptedDB: pdb.With(lastAcceptedKey),
 		accountDB:      pdb.With(accountDBPrefix),
+		ledgerDB:       pdb.With(ledgerDBPrefix),
 		modelDB:        pdb.With(modelDBPrefix),
 		dataDB:         pdb.With(dataDBPrefix),
 		prevDataDB:     pdb.With(prevDataDBPrefix),
@@ -135,11 +138,18 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		accountCache:   getAccountCache(),
 	}
 	for _, a := range bs.accountCache {
-		data, err := a.Marshal()
+		data, ledger, err := a.Marshal()
 		if err == nil {
 			id := a.ID()
-			nbs.s.UpdateAccount(id, data)
-			err = nbs.accountDB.Put(id[:], data)
+			if a.AccountChanged(data) {
+				nbs.s.UpdateAccount(id, data)
+				err = nbs.accountDB.Put(id[:], data)
+			}
+
+			if err == nil && len(ledger) > 0 && a.LedgerChanged(ledger) {
+				nbs.s.UpdateLedger(id, ledger)
+				err = nbs.ledgerDB.Put(id[:], ledger)
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -182,6 +192,18 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 	}
 
 	return bs.accountCache[id], nil
+}
+
+func (bs *blockState) LoadLedger(acc *transaction.Account) error {
+	if acc.Ledger() == nil {
+		id := acc.ID()
+		data, err := bs.ledgerDB.Get(id[:])
+		if err != nil && err != database.ErrNotFound {
+			return err
+		}
+		return acc.InitLedger(data)
+	}
+	return nil
 }
 
 func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transaction.Account) {
@@ -324,11 +346,18 @@ func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	for _, a := range bs.accountCache {
-		data, err := a.Marshal()
+		data, ledger, err := a.Marshal()
 		if err == nil {
 			id := a.ID()
-			bs.s.UpdateAccount(id, data)
-			err = bs.accountDB.Put(id[:], data)
+			if a.AccountChanged(data) {
+				bs.s.UpdateAccount(id, data)
+				err = bs.accountDB.Put(id[:], data)
+			}
+
+			if err == nil && len(ledger) > 0 && a.LedgerChanged(ledger) {
+				bs.s.UpdateLedger(id, ledger)
+				err = bs.ledgerDB.Put(id[:], ledger)
+			}
 		}
 		if err != nil {
 			return err

@@ -123,6 +123,10 @@ func (tx *TxBorrow) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.Errorf("invalid exSignatures for lending keepers")
 	}
 
+	if err = bs.LoadLedger(tx.to); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if err = tx.to.Borrow(
 		tx.token, tx.ld.From, tx.input.Amount, tx.dueTime); err != nil {
 		return errp.ErrorIf(err)

@@ -127,6 +127,10 @@ func (tx *TxTakeStake) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
+	if err = bs.LoadLedger(tx.to); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	// must TakeStake and then Accept
 	if err = tx.to.TakeStake(tx.token, tx.ld.From, tx.ld.Amount, tx.lockTime); err != nil {
 		return errp.ErrorIf(err)

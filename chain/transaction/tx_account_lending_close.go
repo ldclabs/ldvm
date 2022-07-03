@@ -40,6 +40,10 @@ func (tx *TxCloseLending) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
+	if err = bs.LoadLedger(tx.from); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if err = tx.from.CloseLending(); err != nil {
 		return errp.ErrorIf(err)
 	}

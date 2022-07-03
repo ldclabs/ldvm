@@ -86,6 +86,10 @@ func (tx *TxUpdateStakeApprover) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
+	if err = bs.LoadLedger(tx.to); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if err = tx.to.UpdateStakeApprover(tx.ld.From, *tx.input.Approver, tx.signers); err != nil {
 		return errp.ErrorIf(err)
 	}

@@ -346,8 +346,8 @@ func TestTxBorrow(t *testing.T) {
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
 		lenderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.NotNil(lenderAcc.ld.Lending)
-	assert.NotNil(lenderAcc.ld.LendingLedger)
-	assert.Equal(0, len(lenderAcc.ld.LendingLedger))
+	assert.NotNil(lenderAcc.ledger)
+	assert.Equal(0, len(lenderAcc.ledger.Lending))
 
 	txData = &ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -420,9 +420,9 @@ func TestTxBorrow(t *testing.T) {
 	assert.Equal(constants.LDC*2-borrowerGas*(bctx.Price+100),
 		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), borrowerAcc.Nonce())
-	assert.Equal(1, len(lenderAcc.ld.LendingLedger))
-	assert.NotNil(lenderAcc.ld.LendingLedger[borrowerAcc.id])
-	entry := lenderAcc.ld.LendingLedger[borrowerAcc.id]
+	assert.Equal(1, len(lenderAcc.ledger.Lending))
+	assert.NotNil(lenderAcc.ledger.Lending[borrowerAcc.id.AsKey()])
+	entry := lenderAcc.ledger.Lending[borrowerAcc.id.AsKey()]
 	assert.Equal(constants.LDC, entry.Amount.Uint64())
 	assert.Equal(bs.Timestamp(), entry.UpdateAt)
 	assert.Equal(bs.Timestamp()+3600*24, entry.DueTime)
@@ -472,8 +472,8 @@ func TestTxBorrow(t *testing.T) {
 		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
 		lenderAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.NotNil(lenderAcc.ld.LendingLedger[borrower])
-	entry = lenderAcc.ld.LendingLedger[borrower]
+	assert.NotNil(lenderAcc.ledger.Lending[borrower.AsKey()])
+	entry = lenderAcc.ledger.Lending[borrower.AsKey()]
 	rate := 1 + float64(10_000)/1_000_000
 	assert.Equal(uint64(float64(constants.LDC)*rate)+constants.LDC, entry.Amount.Uint64(),
 		"with 1 day interest")

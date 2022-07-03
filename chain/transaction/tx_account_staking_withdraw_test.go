@@ -265,8 +265,8 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Nil(stakeAcc.ld.StakeLedger[keeper])
+	assert.NotNil(stakeAcc.ledger)
+	assert.Nil(stakeAcc.ledger.Stake[keeper.AsKey()])
 
 	input = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
@@ -372,7 +372,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*0, senderAcc.balanceOf(token).Uint64())
-	senderEntry := stakeAcc.ld.StakeLedger[sender]
+	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(bs.Timestamp(), senderEntry.LockTime)
@@ -406,7 +406,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry = stakeAcc.ld.StakeLedger[sender]
+	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.NotNil(senderEntry.Approver)
 	assert.Equal(keeper, *senderEntry.Approver)
@@ -477,7 +477,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.Equal(constants.LDC*20, stakeAcc.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC*10, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
+	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
 	// keeper: take a stake for testing
 	input = &ld.TxTransfer{
@@ -522,8 +522,8 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC*0, senderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*5, keeperAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*25, stakeAcc.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC*20, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
-	assert.Equal(constants.LDC*5, stakeAcc.ld.StakeLedger[keeper].Amount.Uint64())
+	assert.Equal(constants.LDC*20, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*5, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	stakeAcc.Sub(token, new(big.Int).SetUint64(constants.LDC*10))
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
@@ -588,8 +588,8 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC*0, senderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*0, keeperAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*20, stakeAcc.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC*20, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
-	assert.Equal(constants.LDC*10, stakeAcc.ld.StakeLedger[keeper].Amount.Uint64())
+	assert.Equal(constants.LDC*20, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
 	txData = &ld.TxData{
@@ -624,9 +624,9 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC*20-withdrawFee, senderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*0, keeperAcc.balanceOf(token).Uint64())
 	assert.Equal(withdrawFee, stakeAcc.balanceOf(token).Uint64())
-	assert.NotNil(stakeAcc.ld.StakeLedger[sender])
-	assert.Equal(constants.LDC*0, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
-	assert.Equal(constants.LDC*10, stakeAcc.ld.StakeLedger[keeper].Amount.Uint64())
+	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -634,7 +634,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(`{"type":"TypeWithdrawStake","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"token":"$TEST","amount":20000000000},"signatures":["182a2ebf98042157bb3120f8be02b9cc231fb3d5777f0b919f07d022fb179da609e343e7e0e2491bd10f056bc4c1baf7f73b5790c37600cd8e6767761160e9a201","ce64723d37705370e54e86091fc30b59cf8ba8bacbd8358daa54eee8d57c25114b774c02b77fb292ad9b728f3ced3ce32db7ed35d7da5aa2fc819c6f80a79fe000"],"id":"2NcanD819AXwpLLkdWgr4otjbWWCcAGfFH7K4SferyRGYyNMhY"}`, string(jsondata))
 
 	// clear up sender' stake entry when no stake and approver.
-	stakeAcc.ld.StakeLedger[sender].Approver = nil
+	stakeAcc.ledger.Stake[sender.AsKey()].Approver = nil
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(0)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
@@ -664,8 +664,8 @@ func TestTxWithdrawStake(t *testing.T) {
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 
 	assert.Equal(withdrawFee, stakeAcc.balanceOf(token).Uint64())
-	assert.Nil(stakeAcc.ld.StakeLedger[sender])
-	assert.Equal(constants.LDC*10, stakeAcc.ld.StakeLedger[keeper].Amount.Uint64())
+	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	// keeper: withdraw all stake
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*20-withdrawFee))
@@ -699,8 +699,8 @@ func TestTxWithdrawStake(t *testing.T) {
 	withdrawFee = constants.LDC * 20 * scfg.WithdrawFee / 1_000_000
 	assert.Equal(constants.LDC*20-withdrawFee, keeperAcc.balanceOf(token).Uint64())
 	assert.Equal(withdrawFee, stakeAcc.balanceOf(token).Uint64())
-	assert.Nil(stakeAcc.ld.StakeLedger[keeper])
-	assert.Equal(0, len(stakeAcc.ld.StakeLedger))
+	assert.Nil(stakeAcc.ledger.Stake[keeper.AsKey()])
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 
 	assert.NoError(bs.VerifyState())
 }

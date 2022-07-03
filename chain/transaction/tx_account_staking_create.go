@@ -112,6 +112,10 @@ func (tx *TxCreateStake) Apply(bctx BlockContext, bs BlockState) error {
 			pledge, tx.ld.Amount)
 	}
 
+	if err = bs.LoadLedger(tx.to); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if err = tx.to.CreateStake(tx.ld.From, pledge, tx.input, tx.stake); err != nil {
 		return errp.ErrorIf(err)
 	}

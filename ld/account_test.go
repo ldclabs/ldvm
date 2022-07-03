@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -139,7 +138,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Balance: big.NewInt(0),
 		Keepers: util.EthIDs{},
-		Tokens:  make(map[util.TokenSymbol]*big.Int),
+		Tokens:  make(map[string]*big.Int),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid nonceTable")
 
@@ -147,7 +146,7 @@ func TestAccount(t *testing.T) {
 		Type:       3,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid type")
@@ -156,7 +155,7 @@ func TestAccount(t *testing.T) {
 		Type:           NativeAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        util.EthIDs{},
-		Tokens:         make(map[util.TokenSymbol]*big.Int),
+		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
@@ -166,7 +165,7 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Approver:   &util.EthIDEmpty,
 	}
@@ -176,7 +175,7 @@ func TestAccount(t *testing.T) {
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
 		Keepers:     util.EthIDs{},
-		Tokens:      make(map[util.TokenSymbol]*big.Int),
+		Tokens:      make(map[string]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TxType(255)},
 	}
@@ -186,7 +185,7 @@ func TestAccount(t *testing.T) {
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
 		Keepers:     util.EthIDs{},
-		Tokens:      make(map[util.TokenSymbol]*big.Int),
+		Tokens:      make(map[string]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TypeTransfer, TypeTransfer},
 	}
@@ -196,19 +195,9 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
-	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on NativeAccount")
-
-	acc = &Account{
-		Type:        NativeAccount,
-		Balance:     big.NewInt(0),
-		Keepers:     util.EthIDs{},
-		Tokens:      make(map[util.TokenSymbol]*big.Int),
-		NonceTable:  make(map[uint64][]uint64),
-		StakeLedger: make(map[util.EthID]*StakeEntry),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on NativeAccount")
 
@@ -216,19 +205,9 @@ func TestAccount(t *testing.T) {
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
-	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on TokenAccount")
-
-	acc = &Account{
-		Type:        TokenAccount,
-		Balance:     big.NewInt(0),
-		Keepers:     util.EthIDs{},
-		Tokens:      make(map[util.TokenSymbol]*big.Int),
-		NonceTable:  make(map[uint64][]uint64),
-		StakeLedger: make(map[util.EthID]*StakeEntry),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on TokenAccount")
 
@@ -236,7 +215,7 @@ func TestAccount(t *testing.T) {
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid maxTotalSupply")
@@ -245,7 +224,7 @@ func TestAccount(t *testing.T) {
 		Type:           TokenAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        util.EthIDs{},
-		Tokens:         make(map[util.TokenSymbol]*big.Int),
+		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(-1),
 	}
@@ -255,7 +234,7 @@ func TestAccount(t *testing.T) {
 		Type:           StakeAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        util.EthIDs{},
-		Tokens:         make(map[util.TokenSymbol]*big.Int),
+		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
@@ -265,20 +244,18 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid withdrawFee, should be in [1, 200_000]")
-	assert.NotNil(acc.StakeLedger)
 
 	acc = &Account{
-		Type:        StakeAccount,
-		Balance:     big.NewInt(0),
-		Keepers:     util.EthIDs{},
-		Tokens:      make(map[util.TokenSymbol]*big.Int),
-		NonceTable:  make(map[uint64][]uint64),
-		StakeLedger: make(map[util.EthID]*StakeEntry),
+		Type:       StakeAccount,
+		Balance:    big.NewInt(0),
+		Keepers:    util.EthIDs{},
+		Tokens:     make(map[string]*big.Int),
+		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on StakeAccount")
 
@@ -286,31 +263,13 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{
 			WithdrawFee: 1,
 			MinAmount:   new(big.Int).SetUint64(100),
 			MaxAmount:   new(big.Int).SetUint64(100),
 		},
-		StakeLedger: map[util.EthID]*StakeEntry{
-			constants.GenesisAccount: {Amount: nil},
-		},
-	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on StakeEntry")
-
-	acc = &Account{
-		Type:       StakeAccount,
-		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
-		NonceTable: make(map[uint64][]uint64),
-		Stake: &StakeConfig{
-			WithdrawFee: 1,
-			MinAmount:   new(big.Int).SetUint64(100),
-			MaxAmount:   new(big.Int).SetUint64(100),
-		},
-		StakeLedger: map[util.EthID]*StakeEntry{},
 		Lending: &LendingConfig{
 			DailyInterest:   10,
 			OverdueInterest: 1,
@@ -319,61 +278,23 @@ func TestAccount(t *testing.T) {
 		},
 	}
 	assert.NoError(acc.SyntacticVerify())
-	assert.NotNil(acc.LendingLedger)
 
 	acc = &Account{
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{
 			WithdrawFee: 1,
 			MinAmount:   new(big.Int).SetUint64(100),
 			MaxAmount:   new(big.Int).SetUint64(100),
 		},
-		StakeLedger: map[util.EthID]*StakeEntry{},
 		Lending: &LendingConfig{
 			DailyInterest:   10,
 			OverdueInterest: 1,
 			MinAmount:       new(big.Int).SetUint64(100),
 			MaxAmount:       new(big.Int).SetUint64(100),
-		},
-		LendingLedger: map[util.EthID]*LendingEntry{
-			constants.GenesisAccount: {Amount: nil},
-		},
-	}
-	assert.ErrorContains(acc.SyntacticVerify(), "invalid amount on StakeEntry")
-
-	acc = &Account{
-		Type:       StakeAccount,
-		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
-		NonceTable: make(map[uint64][]uint64),
-		Stake: &StakeConfig{
-			WithdrawFee: 1,
-			MinAmount:   new(big.Int).SetUint64(100),
-			MaxAmount:   new(big.Int).SetUint64(100),
-		},
-		StakeLedger: map[util.EthID]*StakeEntry{
-			constants.GenesisAccount: {
-				LockTime: 999,
-				Amount:   new(big.Int).SetUint64(100),
-				Approver: &constants.GenesisAccount,
-			},
-		},
-		Lending: &LendingConfig{
-			DailyInterest:   10,
-			OverdueInterest: 1,
-			MinAmount:       new(big.Int).SetUint64(100),
-			MaxAmount:       new(big.Int).SetUint64(100),
-		},
-		LendingLedger: map[util.EthID]*LendingEntry{
-			constants.GenesisAccount: {
-				Amount:   new(big.Int).SetUint64(100),
-				UpdateAt: 888,
-			},
 		},
 	}
 	assert.NoError(acc.SyntacticVerify())
@@ -382,7 +303,8 @@ func TestAccount(t *testing.T) {
 	jsondata, err := json.Marshal(acc)
 	assert.NoError(err)
 
-	assert.Equal(`{"type":"Stake","nonce":0,"balance":0,"threshold":0,"keepers":[],"tokens":{},"nonceTable":{},"stake":{"token":"","type":0,"lockTime":0,"withdrawFee":1,"minAmount":100,"maxAmount":100},"stakeLedger":{"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF":{"amount":100,"lockTime":999,"approver":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"}},"lending":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100},"lendingLedger":{"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF":{"amount":100,"updateAt":888}},"height":0,"timestamp":0,"address":"0x0000000000000000000000000000000000000000"}`, string(jsondata))
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"Stake","nonce":0,"balance":0,"threshold":0,"keepers":[],"tokens":{},"nonceTable":{},"stake":{"token":"","type":0,"lockTime":0,"withdrawFee":1,"minAmount":100,"maxAmount":100},"lending":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100},"height":0,"timestamp":0,"address":"0x0000000000000000000000000000000000000000"}`, string(jsondata))
 
 	acc2 := &Account{}
 	assert.NoError(acc2.Unmarshal(cbordata))
