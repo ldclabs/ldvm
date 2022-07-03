@@ -167,8 +167,8 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal(constants.LDC-keeperGas*(bctx.Price+100),
 		keeperAcc.balanceOf(constants.NativeToken).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	keeperEntry := stakeAcc.ld.StakeLedger[keeper]
+	assert.NotNil(stakeAcc.ledger)
+	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
 	assert.NotNil(keeperEntry)
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 	assert.Equal(uint64(0), keeperEntry.LockTime)
@@ -373,7 +373,7 @@ func TestTxResetStake(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry := stakeAcc.ld.StakeLedger[sender]
+	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(uint64(0), senderEntry.LockTime)
@@ -404,7 +404,7 @@ func TestTxResetStake(t *testing.T) {
 		itx.(*TxUpdateStakeApprover).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry = stakeAcc.ld.StakeLedger[sender]
+	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.NotNil(senderEntry.Approver)
 	assert.Equal(keeper, *senderEntry.Approver)
@@ -465,8 +465,8 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal(constants.LDC*11-withdrawFee-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC+withdrawFee, stakeAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.NotNil(stakeAcc.ld.StakeLedger[sender])
-	assert.Equal(constants.LDC*0, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
+	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
 	input = &ld.StakeConfig{
 		LockTime:    bs.Timestamp() + 1,
@@ -501,8 +501,8 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal(input.WithdrawFee, stakeAcc.ld.Stake.WithdrawFee)
 	assert.Equal(constants.LDC*100, stakeAcc.ld.Stake.MinAmount.Uint64())
 	assert.Equal(constants.LDC*100, stakeAcc.ld.Stake.MaxAmount.Uint64())
-	assert.Equal(2, len(stakeAcc.ld.StakeLedger))
-	assert.Equal(constants.LDC*0, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
+	assert.Equal(2, len(stakeAcc.ledger.Stake))
+	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

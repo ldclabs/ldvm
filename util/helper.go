@@ -18,7 +18,7 @@ func MarshalJSONData(data []byte) json.RawMessage {
 	case len(data) == 0 || json.Valid(data):
 		return data
 	default:
-		s, err := formatting.EncodeWithChecksum(formatting.Hex, data)
+		s, err := formatting.Encode(formatting.HexC, data)
 		if err != nil {
 			return data
 		}

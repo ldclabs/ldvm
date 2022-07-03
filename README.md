@@ -1,8 +1,9 @@
 Linked Data Virtual Machine (LDVM)
+
 [![CI](https://github.com/ldclabs/ldvm/actions/workflows/ci.yml/badge.svg)](https://github.com/ldclabs/ldvm/actions?query=workflow%3Aci)
 [![Codecov](https://codecov.io/gh/ldclabs/ldvm/branch/main/graph/badge.svg?token=H7FUKGVQIH)](https://codecov.io/gh/ldclabs/ldvm)
 
-> Linked Data Store On Avalanche Subnets
+Linked Data Store runing on Avalanche Subnets.
 
 ## WIP
 

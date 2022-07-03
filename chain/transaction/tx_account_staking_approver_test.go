@@ -231,8 +231,8 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Nil(stakeAcc.ld.StakeLedger[sender])
+	assert.NotNil(stakeAcc.ledger)
+	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()])
 
 	input = &ld.TxAccounter{Approver: &approver}
 	txData = &ld.TxData{
@@ -255,7 +255,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover error: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has no stake ledger to update")
 	bs.CheckoutAccounts()
 
-	stakeAcc.ld.StakeLedger[sender] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
+	stakeAcc.ledger.Stake[sender.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
 	assert.NoError(itx.Apply(bctx, bs))
 
 	senderGas += tt.Gas()
@@ -268,8 +268,8 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger[sender])
-	assert.Equal(approver, *stakeAcc.ld.StakeLedger[sender].Approver)
+	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(approver, *stakeAcc.ledger.Stake[sender.AsKey()].Approver)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -314,8 +314,8 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger[sender])
-	assert.Nil(stakeAcc.ld.StakeLedger[sender].Approver)
+	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()].Approver)
 
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)

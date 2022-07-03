@@ -25,6 +25,7 @@ var DecOpts = cbor.DecOptions{
 	IndefLength:      cbor.IndefLengthForbidden,
 	MaxArrayElements: 100_000,
 	MaxMapPairs:      1_000_000,
+	// UTF8:             cbor.UTF8DecodeInvalid,
 }
 var DecMode, _ = DecOpts.DecMode()
 

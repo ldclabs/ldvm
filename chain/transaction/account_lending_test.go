@@ -37,6 +37,10 @@ func TestLending(t *testing.T) {
 	_, err := na.Repay(constants.NativeToken, addr0, ldc)
 	assert.ErrorContains(err,
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: invalid lending")
+	assert.ErrorContains(na.OpenLending(lcfg),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).OpenLending error: invalid ledger")
+
+	assert.NoError(na.InitLedger(nil))
 	assert.NoError(na.OpenLending(lcfg))
 	assert.ErrorContains(na.OpenLending(lcfg),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).OpenLending error: lending exists")
@@ -58,12 +62,12 @@ func TestLending(t *testing.T) {
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: insufficient NativeLDC balance, expected 1000000000, got 0")
 
 	na.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*10))
-	assert.Nil(na.ld.LendingLedger[addr0])
+	assert.Nil(na.ledger.Lending[addr0.AsKey()])
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, daysecs+100))
-	assert.NotNil(na.ld.LendingLedger[addr0])
-	assert.Equal(constants.LDC, na.ld.LendingLedger[addr0].Amount.Uint64())
-	assert.Equal(uint64(100), na.ld.LendingLedger[addr0].UpdateAt)
-	assert.Equal(uint64(daysecs+100), na.ld.LendingLedger[addr0].DueTime)
+	assert.NotNil(na.ledger.Lending[addr0.AsKey()])
+	assert.Equal(constants.LDC, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(uint64(100), na.ledger.Lending[addr0.AsKey()].UpdateAt)
+	assert.Equal(uint64(daysecs+100), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0,
 		new(big.Int).SetUint64(constants.LDC*10), 0),
@@ -71,60 +75,80 @@ func TestLending(t *testing.T) {
 	na.ld.Timestamp = uint64(daysecs + 100)
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, daysecs*2+100))
 	total := constants.LDC*2 + uint64(float64(constants.LDC*10_000/1_000_000))
-	assert.Equal(total, na.ld.LendingLedger[addr0].Amount.Uint64(), "should has interest")
-	assert.Equal(uint64(daysecs+100), na.ld.LendingLedger[addr0].UpdateAt)
-	assert.Equal(uint64(daysecs*2+100), na.ld.LendingLedger[addr0].DueTime)
+	assert.Equal(total, na.ledger.Lending[addr0.AsKey()].Amount.Uint64(), "should has interest")
+	assert.Equal(uint64(daysecs+100), na.ledger.Lending[addr0.AsKey()].UpdateAt)
+	assert.Equal(uint64(daysecs*2+100), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	na.ld.Timestamp = uint64(daysecs*3 + 100)
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, 0))
 	total += uint64(float64(total * 10_000 / 1_000_000))            // DailyInterest
 	total += uint64(float64(total * (10_000 + 10_000) / 1_000_000)) // DailyInterest and OverdueInterest
 	total += constants.LDC                                          // new borrow
-	assert.Equal(total, na.ld.LendingLedger[addr0].Amount.Uint64(), "should has interest")
-	assert.Equal(uint64(daysecs*3+100), na.ld.LendingLedger[addr0].UpdateAt)
-	assert.Equal(uint64(0), na.ld.LendingLedger[addr0].DueTime)
+	assert.Equal(total, na.ledger.Lending[addr0.AsKey()].Amount.Uint64(), "should has interest")
+	assert.Equal(uint64(daysecs*3+100), na.ledger.Lending[addr0.AsKey()].UpdateAt)
+	assert.Equal(uint64(0), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	assert.ErrorContains(na.CloseLending(),
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: please repay all before close")
 
 	// Marshal
-	data, err := na.Marshal()
+	data, ledger, err := na.Marshal()
 	assert.NoError(err)
 	na2, err := ParseAccount(na.id, data)
 	assert.NoError(err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
+
+	lg := &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Repay
 	am, err := na.Repay(constants.NativeToken, addr0, ldc)
 	assert.NoError(err)
 	assert.Equal(constants.LDC, am.Uint64())
 	total -= constants.LDC
-	assert.Equal(total, na.ld.LendingLedger[addr0].Amount.Uint64())
+	assert.Equal(total, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
 	na.ld.Timestamp = uint64(daysecs*4 + 100)
 	total += uint64(float64(total * 10_000 / 1_000_000)) // DailyInterest
 	am, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
 	assert.NoError(err)
 	assert.Equal(total, am.Uint64())
-	assert.Equal(0, len(na.ld.LendingLedger))
-	assert.NotNil(na.ld.LendingLedger)
+	assert.NotNil(na.ledger.Lending)
+	assert.Equal(0, len(na.ledger.Lending))
 
 	_, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
 	assert.ErrorContains(err,
 		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: don't need to repay")
 
 	// Close and Marshal again
-	data, err = na.Marshal()
+	data, ledger, err = na.Marshal()
 	assert.NoError(err)
 	na2, err = ParseAccount(na.id, data)
 	assert.NoError(err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
+
+	na.ledger = nil
+	assert.ErrorContains(na.CloseLending(),
+		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid ledger")
+
+	na.ledger = lg
 	assert.NoError(na.CloseLending())
-	data, err = na.Marshal()
+	data, ledger, err = na.Marshal()
 	assert.NoError(err)
 	na2, err = ParseAccount(na.id, data)
 	assert.NoError(err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// OpenLending again
 	assert.NoError(na.OpenLending(&ld.LendingConfig{
@@ -144,19 +168,24 @@ func TestLending(t *testing.T) {
 
 	na.ld.Timestamp = uint64(daysecs * 5)
 	na.Add(token, new(big.Int).SetUint64(constants.LDC*10))
-	assert.Nil(na.ld.LendingLedger[addr0])
+	assert.Nil(na.ledger.Lending[addr0.AsKey()])
 	assert.NoError(na.Borrow(token, addr0, ldc, 0))
-	assert.NotNil(na.ld.LendingLedger[addr0])
-	assert.Equal(constants.LDC, na.ld.LendingLedger[addr0].Amount.Uint64())
-	assert.Equal(uint64(daysecs*5), na.ld.LendingLedger[addr0].UpdateAt)
-	assert.Equal(uint64(0), na.ld.LendingLedger[addr0].DueTime)
+	assert.NotNil(na.ledger.Lending[addr0.AsKey()])
+	assert.Equal(constants.LDC, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(uint64(daysecs*5), na.ledger.Lending[addr0.AsKey()].UpdateAt)
+	assert.Equal(uint64(0), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	// Save again
-	data, err = na.Marshal()
+	data, ledger, err = na.Marshal()
 	assert.NoError(err)
 	na2, err = ParseAccount(na.id, data)
 	assert.NoError(err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Repay
 	na.ld.Timestamp = uint64(daysecs * 6)
@@ -167,25 +196,30 @@ func TestLending(t *testing.T) {
 	assert.Equal(constants.LDC, am.Uint64())
 	total = constants.LDC
 	total = uint64(float64(total * 10_000 / 1_000_000)) // DailyInterest
-	assert.Equal(total, na.ld.LendingLedger[addr0].Amount.Uint64())
-	assert.Equal(1, len(na.ld.LendingLedger))
+	assert.Equal(total, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(1, len(na.ledger.Lending))
 
 	am, err = na.Repay(token, addr0, ldc)
 	assert.NoError(err)
 	assert.Equal(total, am.Uint64())
-	assert.Equal(0, len(na.ld.LendingLedger))
-	assert.NotNil(na.ld.LendingLedger)
+	assert.Equal(0, len(na.ledger.Lending))
+	assert.NotNil(na.ledger.Lending)
 
-	data, err = na.Marshal()
+	data, ledger, err = na.Marshal()
 	assert.NoError(err)
 	na2, err = ParseAccount(na.id, data)
 	assert.NoError(err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
+
 	// calcBorrowTotal
 	na.ld.Timestamp = uint64(0)
 	assert.NoError(na.Borrow(token, addr0, ldc, uint64(daysecs*10)))
-	entry := na.ld.LendingLedger[addr0]
+	entry := na.ledger.Lending[addr0.AsKey()]
 	total = constants.LDC
 	assert.Equal(uint64(0), na.calcBorrowTotal(util.Signer2.Address()).Uint64())
 	assert.Equal(total, na.calcBorrowTotal(addr0).Uint64())

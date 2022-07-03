@@ -162,8 +162,8 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Equal(constants.LDC-keeperGas*(bctx.Price+100),
 		keeperAcc.balanceOf(constants.NativeToken).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	keeperEntry := stakeAcc.ld.StakeLedger[keeper]
+	assert.NotNil(stakeAcc.ledger)
+	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
 	assert.NotNil(keeperEntry)
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 
@@ -263,7 +263,7 @@ func TestTxDestroyStake(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry := stakeAcc.ld.StakeLedger[sender]
+	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(uint64(0), senderEntry.LockTime)
@@ -294,7 +294,7 @@ func TestTxDestroyStake(t *testing.T) {
 		itx.(*TxUpdateStakeApprover).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry = stakeAcc.ld.StakeLedger[sender]
+	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.NotNil(senderEntry.Approver)
 	assert.Equal(keeper, *senderEntry.Approver)
@@ -349,8 +349,8 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Equal(constants.LDC*11-withdrawFee-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC+withdrawFee, stakeAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.NotNil(stakeAcc.ld.StakeLedger[sender])
-	assert.Equal(constants.LDC*0, stakeAcc.ld.StakeLedger[sender].Amount.Uint64())
+	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
@@ -385,7 +385,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)
 	assert.Nil(stakeAcc.ld.Stake)
-	assert.Nil(stakeAcc.ld.StakeLedger)
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -434,8 +434,8 @@ func TestTxDestroyStake(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), keeperAcc.balanceOf(token).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Equal(0, len(stakeAcc.ld.StakeLedger))
+	assert.NotNil(stakeAcc.ledger.Stake)
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*9))
 	txData = &ld.TxData{
@@ -472,7 +472,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)
 	assert.Nil(stakeAcc.ld.Stake)
-	assert.Nil(stakeAcc.ld.StakeLedger)
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -536,8 +536,8 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), stakeAcc.balanceOf(token).Uint64())
 
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Equal(0, len(stakeAcc.ld.StakeLedger))
+	assert.NotNil(stakeAcc.ledger.Stake)
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 	assert.NotNil(stakeAcc.ld.Approver)
 	assert.Equal(approver, *stakeAcc.ld.Approver)
 	assert.Equal(ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyStake}, stakeAcc.ld.ApproveList)
@@ -585,7 +585,6 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.Equal((keeperGas+stakeGas)*100,
 		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.NotNil(stakeAcc.ld.Lending)
-	assert.NotNil(stakeAcc.ld.LendingLedger)
 	assert.Equal(uint64(1), stakeAcc.Nonce())
 
 	// AddNonceTable
@@ -740,9 +739,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)
 	assert.Nil(stakeAcc.ld.Stake)
-	assert.Nil(stakeAcc.ld.StakeLedger)
 	assert.Nil(stakeAcc.ld.Lending)
-	assert.Nil(stakeAcc.ld.LendingLedger)
 
 	assert.NoError(bs.VerifyState())
 }

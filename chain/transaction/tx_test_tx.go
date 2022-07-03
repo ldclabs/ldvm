@@ -80,7 +80,16 @@ func (tx *TxTest) Apply(bctx BlockContext, bs BlockState) error {
 	case ld.AddressObject:
 		acc, err := bs.LoadAccount(util.EthID(tx.input.ObjectID))
 		if err == nil {
-			data, err = acc.Marshal()
+			data, _, err = acc.Marshal()
+		}
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+
+	case ld.LedgerObject:
+		acc, err := bs.LoadAccount(util.EthID(tx.input.ObjectID))
+		if err == nil {
+			_, data, err = acc.Marshal()
 		}
 		if err != nil {
 			return errp.ErrorIf(err)

@@ -34,9 +34,9 @@ func TestTxTester(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"TxTester.SyntacticVerify error: nil pointer")
 
-	tx = &TxTester{ObjectType: ObjectType(3)}
+	tx = &TxTester{ObjectType: ObjectType(4)}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"TxTester.SyntacticVerify error: invalid objectType UnknownObjectType(3)")
+		"TxTester.SyntacticVerify error: invalid objectType UnknownObjectType(4)")
 
 	tx = &TxTester{ObjectType: AddressObject, Tests: TestOps{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
@@ -70,19 +70,19 @@ func TestTxTester(t *testing.T) {
 		Balance:    big.NewInt(0),
 		Threshold:  0,
 		Keepers:    util.EthIDs{},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.NoError(acc.SyntacticVerify())
 	assert.ErrorContains(tx.Test(acc.Bytes()),
-		`TxTester.Test error: testing value "/n" failed: test failed`)
+		`TxTester.Test error: test operation for path "/n" failed, expected "1", got "0"`)
 
 	acc = &Account{
 		Nonce:      1,
 		Balance:    new(big.Int).SetUint64(constants.LDC),
 		Threshold:  1,
 		Keepers:    util.EthIDs{util.Signer1.Address()},
-		Tokens:     make(map[util.TokenSymbol]*big.Int),
+		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.NoError(acc.SyntacticVerify())
@@ -91,7 +91,9 @@ func TestTxTester(t *testing.T) {
 	acc.Balance.Add(acc.Balance, big.NewInt(1))
 	assert.NoError(acc.SyntacticVerify())
 	assert.ErrorContains(tx.Test(acc.Bytes()),
-		`TxTester.Test error: testing value "/b" failed: test failed`)
+		`TxTester.Test error: test operation for path "/b" failed, expected "{false [1000000000]}", got "{false [1000000001]}"`)
+
+	// TODO test LedgerObject
 
 	// ModelObject
 	tx = &TxTester{
@@ -129,7 +131,7 @@ func TestTxTester(t *testing.T) {
 	}
 	assert.NoError(mi.SyntacticVerify())
 	assert.ErrorContains(tx.Test(mi.Bytes()),
-		`TxTester.Test error: testing value "/th" failed: test failed`)
+		`TxTester.Test error: test operation for path "/th" failed, expected "1", got "0"`)
 
 	mi = &ModelInfo{
 		Name:      "NameService",
@@ -204,5 +206,22 @@ func TestTxTester(t *testing.T) {
 		Data:      MustMarshalJSON(v),
 	}
 	assert.NoError(di.SyntacticVerify())
-	// assert.NoError(tx.Test(di.Bytes())) TODO fix this
+	assert.ErrorContains(tx.Test(di.Bytes()),
+		`TxTester.Test error: test operation for path "/d/age" failed`)
+
+	// json DataObject
+	tx = &TxTester{
+		ObjectType: DataObject,
+		ObjectID:   ids.ShortID{1, 2, 3},
+		Tests: TestOps{
+			{Path: "/v", Value: util.MustMarshalCBOR(uint64(1))},
+			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
+			{Path: "/kp/0", Value: util.MustMarshalCBOR(util.Signer1.Address())},
+			{Path: "/ap", Value: util.MustMarshalCBOR(util.Signer2.Address())},
+			{Path: "/d/name", Value: util.MustMarshalCBOR("John")},
+			{Path: "/d/age", Value: util.MustMarshalCBOR(float64(42))},
+		},
+	}
+	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(tx.Test(di.Bytes()))
 }

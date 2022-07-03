@@ -358,7 +358,6 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.Equal((tokenGas+senderGas)*100,
 		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.NotNil(tokenAcc.ld.Lending)
-	assert.NotNil(tokenAcc.ld.LendingLedger)
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 
 	// AddNonceTable
@@ -512,9 +511,8 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.Nil(tokenAcc.ld.Approver)
 	assert.Nil(tokenAcc.ld.ApproveList)
 	assert.Nil(tokenAcc.ld.Lending)
-	assert.Nil(tokenAcc.ld.LendingLedger)
 	assert.Nil(tokenAcc.ld.MaxTotalSupply)
-	assert.Nil(tokenAcc.ld.Tokens[token])
+	assert.Nil(tokenAcc.ld.Tokens[token.AsKey()])
 	assert.Equal(uint64(0), tokenAcc.balanceOfAll(token).Uint64())
 	assert.Equal(uint64(0), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 

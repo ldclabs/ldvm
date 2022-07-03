@@ -47,6 +47,10 @@ func (tx *TxDestroyStake) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.Errorf("invalid signatures for stake keepers")
 	}
 
+	if err = bs.LoadLedger(tx.from); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if err := tx.TxBase.accept(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}

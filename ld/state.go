@@ -11,6 +11,7 @@ import (
 type State struct {
 	Parent   ids.ID                  `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
 	Accounts map[util.EthID]ids.ID   `cbor:"a" json:"accounts"`
+	Ledgers  map[util.EthID]ids.ID   `cbor:"l" json:"ledgers"`
 	Datas    map[util.DataID]ids.ID  `cbor:"d" json:"datas"`
 	Models   map[util.ModelID]ids.ID `cbor:"m" json:"models"`
 
@@ -23,6 +24,7 @@ func NewState(parent ids.ID) *State {
 	return &State{
 		Parent:   parent,
 		Accounts: make(map[util.EthID]ids.ID),
+		Ledgers:  make(map[util.EthID]ids.ID),
 		Datas:    make(map[util.DataID]ids.ID),
 		Models:   make(map[util.ModelID]ids.ID),
 	}
@@ -38,6 +40,9 @@ func (s *State) SyntacticVerify() error {
 
 	case s.Accounts == nil:
 		return errp.Errorf("nil accounts")
+
+	case s.Ledgers == nil:
+		return errp.Errorf("nil ledgers")
 
 	case s.Datas == nil:
 		return errp.Errorf("nil datas")
@@ -59,6 +64,10 @@ func (s *State) UpdateAccount(id util.EthID, data []byte) {
 	s.Accounts[id] = util.IDFromData(data)
 }
 
+func (s *State) UpdateLedger(id util.EthID, data []byte) {
+	s.Ledgers[id] = util.IDFromData(data)
+}
+
 func (s *State) UpdateData(id util.DataID, data []byte) {
 	s.Datas[id] = util.IDFromData(data)
 }
@@ -71,15 +80,23 @@ func (s *State) Clone() *State {
 	ns := &State{
 		Parent:   s.Parent,
 		Accounts: make(map[util.EthID]ids.ID, len(s.Accounts)),
+		Ledgers:  make(map[util.EthID]ids.ID, len(s.Ledgers)),
 		Datas:    make(map[util.DataID]ids.ID, len(s.Datas)),
 		Models:   make(map[util.ModelID]ids.ID, len(s.Models)),
 	}
+
 	for k := range s.Accounts {
 		ns.Accounts[k] = s.Accounts[k]
 	}
+
+	for k := range s.Ledgers {
+		ns.Ledgers[k] = s.Ledgers[k]
+	}
+
 	for k := range s.Datas {
 		ns.Datas[k] = s.Datas[k]
 	}
+
 	for k := range s.Models {
 		ns.Models[k] = s.Models[k]
 	}

@@ -147,7 +147,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.ld.Lending.OverdueInterest)
 	assert.Equal(constants.LDC, senderAcc.ld.Lending.MinAmount.Uint64())
 	assert.Equal(constants.LDC, senderAcc.ld.Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[util.EthID]*ld.LendingEntry), senderAcc.ld.LendingLedger)
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -205,7 +205,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCloseLending).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Nil(senderAcc.ld.Lending)
-	assert.Nil(senderAcc.ld.LendingLedger)
+	assert.Equal(0, len(senderAcc.ledger.Lending))
 
 	input = &ld.LendingConfig{
 		Token:           token,
@@ -252,7 +252,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(uint64(10), senderAcc.ld.Lending.OverdueInterest)
 	assert.Equal(constants.LDC, senderAcc.ld.Lending.MinAmount.Uint64())
 	assert.Equal(constants.LDC*10, senderAcc.ld.Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[util.EthID]*ld.LendingEntry), senderAcc.ld.LendingLedger)
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
 
 	assert.NoError(bs.VerifyState())
 }

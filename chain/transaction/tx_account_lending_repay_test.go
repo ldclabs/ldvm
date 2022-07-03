@@ -121,8 +121,8 @@ func TestTxRepay(t *testing.T) {
 	assert.Equal(constants.LDC-lenderGas*(bctx.Price+100),
 		lenderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.NotNil(lenderAcc.ld.Lending)
-	assert.NotNil(lenderAcc.ld.LendingLedger)
-	assert.Equal(0, len(lenderAcc.ld.LendingLedger))
+	assert.NotNil(lenderAcc.ledger)
+	assert.Equal(0, len(lenderAcc.ledger.Lending))
 
 	// repay again
 	txData = &ld.TxData{
@@ -221,10 +221,10 @@ func TestTxRepay(t *testing.T) {
 	assert.Equal(uint64(0), lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*2, borrowerAcc.balanceOf(token).Uint64())
 
-	assert.Equal(1, len(lenderAcc.ld.LendingLedger))
+	assert.Equal(1, len(lenderAcc.ledger.Lending))
 	assert.Equal(0, len(lenderAcc.ld.NonceTable))
-	assert.NotNil(lenderAcc.ld.LendingLedger[borrower])
-	entry := lenderAcc.ld.LendingLedger[borrower]
+	assert.NotNil(lenderAcc.ledger.Lending[borrower.AsKey()])
+	entry := lenderAcc.ledger.Lending[borrower.AsKey()]
 	assert.Equal(constants.LDC, entry.Amount.Uint64())
 	assert.Equal(bs.Timestamp(), entry.UpdateAt)
 	assert.Equal(uint64(0), entry.DueTime)
@@ -265,8 +265,8 @@ func TestTxRepay(t *testing.T) {
 	assert.Equal(constants.LDC, lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, borrowerAcc.balanceOf(token).Uint64())
 
-	assert.NotNil(lenderAcc.ld.LendingLedger[borrower])
-	entry = lenderAcc.ld.LendingLedger[borrower]
+	assert.NotNil(lenderAcc.ledger.Lending[borrower.AsKey()])
+	entry = lenderAcc.ledger.Lending[borrower.AsKey()]
 
 	interest := uint64(float64(constants.LDC) * 10_000 / 1_000_000)
 	assert.Equal(interest, entry.Amount.Uint64(), "with 1 day interest")
@@ -308,7 +308,7 @@ func TestTxRepay(t *testing.T) {
 		lenderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC+interest, lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-interest, borrowerAcc.balanceOf(token).Uint64())
-	assert.Nil(lenderAcc.ld.LendingLedger[borrower], "clear entry when repay all")
+	assert.Nil(lenderAcc.ledger.Lending[borrower.AsKey()], "clear entry when repay all")
 
 	assert.NoError(bs.VerifyState())
 }

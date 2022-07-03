@@ -33,6 +33,10 @@ func (id EthID) GoString() string {
 	return id.String()
 }
 
+func (id EthID) AsKey() string {
+	return id.String() // TODO: string(id[:])
+}
+
 func (id EthID) MarshalText() ([]byte, error) {
 	return []byte(common.Address(id).Hex()), nil
 }
@@ -373,7 +377,17 @@ func (id TokenSymbol) GoString() string {
 	if str := id.String(); str != "" {
 		return str
 	}
-	return EthID(id).String()
+	return EthID(id).GoString()
+}
+
+func (id TokenSymbol) AsKey() string {
+	if id == NativeToken {
+		return ""
+	}
+	if str := id.String(); str != "" {
+		return str
+	}
+	return EthID(id).AsKey()
 }
 
 func (id TokenSymbol) EthID() EthID {

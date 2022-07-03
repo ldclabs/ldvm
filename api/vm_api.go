@@ -39,8 +39,9 @@ func (r *EncodeReply) SetTxData(tx TxData) error {
 	if err := tx.SyntacticVerify(); err != nil {
 		return fmt.Errorf("invalid args: %v", err)
 	}
+
 	data := tx.Bytes()
-	s, err := formatting.EncodeWithChecksum(formatting.Hex, data)
+	s, err := formatting.Encode(formatting.HexC, data)
 	if err != nil {
 		return fmt.Errorf("invalid args: %v", err)
 	}

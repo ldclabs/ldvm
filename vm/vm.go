@@ -33,7 +33,11 @@ const (
 )
 
 var (
-	Version = version.NewDefaultVersion(1, 0, 0)
+	Version = &version.Semantic{
+		Major: 1,
+		Minor: 0,
+		Patch: 0,
+	}
 
 	_ block.ChainVM              = &VM{}
 	_ block.HeightIndexedChainVM = &VM{}
@@ -235,7 +239,7 @@ func (v *VM) HealthCheck() (interface{}, error) {
 
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
-func (v *VM) Connected(id ids.NodeID, nodeVersion version.Application) error {
+func (v *VM) Connected(id ids.NodeID, nodeVersion *version.Application) error {
 	v.Log.Info("Connected %s, %v", id, nodeVersion)
 	return nil // noop
 }

@@ -49,39 +49,21 @@ type Account struct {
 	Threshold uint16 `cbor:"th" json:"threshold"`
 	// keepers who can use this account, no more than 1024
 	// the account id must be one of them.
-	Keepers     util.EthIDs                   `cbor:"kp" json:"keepers"`
-	Tokens      map[util.TokenSymbol]*big.Int `cbor:"tk" json:"tokens"`
-	NonceTable  map[uint64][]uint64           `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
-	Approver    *util.EthID                   `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes                       `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Keepers     util.EthIDs         `cbor:"kp" json:"keepers"`
+	Tokens      map[string]*big.Int `cbor:"tk" json:"tokens"`
+	NonceTable  map[uint64][]uint64 `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
+	Approver    *util.EthID         `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList TxTypes             `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	// MaxTotalSupply only used with TokenAccount
-	MaxTotalSupply *big.Int                     `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
-	Stake          *StakeConfig                 `cbor:"st,omitempty" json:"stake,omitempty"`
-	StakeLedger    map[util.EthID]*StakeEntry   `cbor:"stl,omitempty" json:"stakeLedger,omitempty"`
-	Lending        *LendingConfig               `cbor:"le,omitempty" json:"lending,omitempty"`
-	LendingLedger  map[util.EthID]*LendingEntry `cbor:"lel,omitempty" json:"lendingLedger,omitempty"`
+	MaxTotalSupply *big.Int       `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
+	Stake          *StakeConfig   `cbor:"st,omitempty" json:"stake,omitempty"`
+	Lending        *LendingConfig `cbor:"le,omitempty" json:"lending,omitempty"`
 
 	// external assignment fields
 	Height    uint64     `cbor:"-" json:"height"`    // block's timestamp
 	Timestamp uint64     `cbor:"-" json:"timestamp"` // block's timestamp
 	ID        util.EthID `cbor:"-" json:"address"`
 	raw       []byte     `cbor:"-" json:"-"`
-}
-
-type LendingEntry struct {
-	_ struct{} `cbor:",toarray"`
-
-	Amount   *big.Int `json:"amount"`
-	UpdateAt uint64   `json:"updateAt,omitempty"`
-	DueTime  uint64   `json:"dueTime,omitempty"`
-}
-
-type StakeEntry struct {
-	_ struct{} `cbor:",toarray"`
-
-	Amount   *big.Int    `json:"amount"`
-	LockTime uint64      `json:"lockTime,omitempty"`
-	Approver *util.EthID `json:"approver,omitempty"`
 }
 
 // SyntacticVerify verifies that a *Account is well-formed.
@@ -140,12 +122,12 @@ func (a *Account) SyntacticVerify() error {
 		if a.MaxTotalSupply != nil {
 			return errp.Errorf("invalid maxTotalSupply, should be nil")
 		}
-		if a.Stake != nil || a.StakeLedger != nil {
+		if a.Stake != nil {
 			return errp.Errorf("invalid stake on NativeAccount")
 		}
 
 	case TokenAccount:
-		if a.Stake != nil || a.StakeLedger != nil {
+		if a.Stake != nil {
 			return errp.Errorf("invalid stake on TokenAccount")
 		}
 		if a.MaxTotalSupply == nil || a.MaxTotalSupply.Sign() < 0 {
@@ -159,20 +141,9 @@ func (a *Account) SyntacticVerify() error {
 		if a.Stake == nil {
 			return errp.Errorf("invalid stake on StakeAccount")
 		}
-		if a.StakeLedger == nil {
-			a.StakeLedger = make(map[util.EthID]*StakeEntry)
-		}
+
 		if err := a.Stake.SyntacticVerify(); err != nil {
 			return err
-		}
-		for _, entry := range a.StakeLedger {
-			if entry.Amount == nil || entry.Amount.Sign() < 0 ||
-				(entry.Amount.Sign() == 0 && entry.Approver == nil) {
-				return errp.Errorf("invalid amount on StakeEntry")
-			}
-			if entry.Approver != nil && *entry.Approver == util.EthIDEmpty {
-				return errp.Errorf("invalid approver on StakeEntry")
-			}
 		}
 
 	default:
@@ -180,16 +151,8 @@ func (a *Account) SyntacticVerify() error {
 	}
 
 	if a.Lending != nil {
-		if a.LendingLedger == nil {
-			a.LendingLedger = make(map[util.EthID]*LendingEntry)
-		}
 		if err := a.Lending.SyntacticVerify(); err != nil {
 			return err
-		}
-		for _, entry := range a.LendingLedger {
-			if entry.Amount == nil || entry.Amount.Sign() <= 0 {
-				return errp.Errorf("invalid amount on StakeEntry")
-			}
 		}
 	}
 

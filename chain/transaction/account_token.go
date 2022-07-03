@@ -36,7 +36,7 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 		a.ld.Keepers = *data.Keepers
 		a.ld.Approver = data.Approver
 		a.ld.ApproveList = data.ApproveList
-		a.ld.Tokens[token] = new(big.Int).Set(data.Amount)
+		a.ld.Tokens[token.AsKey()] = new(big.Int).Set(data.Amount)
 	}
 	return nil
 }
@@ -51,7 +51,7 @@ func (a *Account) DestroyToken(recipient *Account) error {
 		return errp.Errorf("invalid token account %s", token.GoString())
 	}
 
-	tk := a.ld.Tokens[token]
+	tk := a.ld.Tokens[token.AsKey()]
 	if tk == nil {
 		return errp.Errorf("invalid token %s", token.GoString())
 	} else if tk.Cmp(a.ld.MaxTotalSupply) != 0 {
@@ -72,6 +72,6 @@ func (a *Account) DestroyToken(recipient *Account) error {
 	a.ld.Approver = nil
 	a.ld.ApproveList = nil
 	a.ld.MaxTotalSupply = nil
-	delete(a.ld.Tokens, token)
+	delete(a.ld.Tokens, token.AsKey())
 	return nil
 }

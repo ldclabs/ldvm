@@ -317,7 +317,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token].Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -386,7 +386,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(ld.NativeAccount, tokenAcc.ld.Type)
 	assert.Nil(tokenAcc.ld.Approver)
 	assert.Nil(tokenAcc.ld.MaxTotalSupply)
-	assert.Nil(tokenAcc.ld.Tokens[token])
+	assert.Nil(tokenAcc.ld.Tokens[token.AsKey()])
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -416,7 +416,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token].Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 	assert.Equal(uint64(0), tokenAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(10000000000000), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())

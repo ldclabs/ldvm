@@ -17,8 +17,12 @@ func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 	defer a.mu.Unlock()
 
 	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).OpenLending error: ", a.id))
-	if a.ld.Lending != nil || a.ld.LendingLedger != nil {
+	if a.ld.Lending != nil {
 		return errp.Errorf("lending exists")
+	}
+
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
 	}
 
 	if err := cfg.SyntacticVerify(); err != nil {
@@ -26,7 +30,6 @@ func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 	}
 
 	a.ld.Lending = cfg
-	a.ld.LendingLedger = make(map[util.EthID]*ld.LendingEntry)
 	return nil
 }
 
@@ -43,15 +46,17 @@ func (a *Account) closeLending(ignoreNone bool) error {
 	case ignoreNone && a.ld.Lending == nil:
 		return nil
 
-	case a.ld.Lending == nil || a.ld.LendingLedger == nil:
+	case a.ld.Lending == nil:
 		return fmt.Errorf("invalid lending")
 
-	case len(a.ld.LendingLedger) != 0:
+	case a.ledger == nil:
+		return fmt.Errorf("invalid ledger")
+
+	case len(a.ledger.Lending) != 0:
 		return fmt.Errorf("please repay all before close")
 	}
 
 	a.ld.Lending = nil
-	a.ld.LendingLedger = nil
 	return nil
 }
 
@@ -66,8 +71,11 @@ func (a *Account) Borrow(
 
 	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Borrow error: ", a.id))
 	switch {
-	case a.ld.Lending == nil || a.ld.LendingLedger == nil:
+	case a.ld.Lending == nil:
 		return errp.Errorf("invalid lending")
+
+	case a.ledger == nil:
+		return errp.Errorf("invalid ledger")
 
 	case a.ld.Lending.Token != token:
 		return errp.Errorf("invalid token, expected %s, got %s",
@@ -80,7 +88,7 @@ func (a *Account) Borrow(
 		return errp.Errorf("invalid amount, expected >= %v, got %v", a.ld.Lending.MinAmount, amount)
 	}
 
-	e := a.ld.LendingLedger[from]
+	e := a.ledger.Lending[from.AsKey()]
 	total := new(big.Int).Set(amount)
 	switch {
 	case e == nil:
@@ -102,7 +110,7 @@ func (a *Account) Borrow(
 	e.Amount.Set(total)
 	e.UpdateAt = a.ld.Timestamp
 	e.DueTime = dueTime
-	a.ld.LendingLedger[from] = e
+	a.ledger.Lending[from.AsKey()] = e
 	return nil
 }
 
@@ -117,15 +125,18 @@ func (a *Account) Repay(
 	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Repay error: ", a.id))
 
 	switch {
-	case a.ld.Lending == nil || a.ld.LendingLedger == nil:
+	case a.ld.Lending == nil:
 		return nil, errp.Errorf("invalid lending")
+
+	case a.ledger == nil:
+		return nil, errp.Errorf("invalid ledger")
 
 	case a.ld.Lending.Token != token:
 		return nil, errp.Errorf("invalid token, expected %s, got %s",
 			a.ld.Lending.Token.GoString(), token.GoString())
 	}
 
-	e := a.ld.LendingLedger[from]
+	e := a.ledger.Lending[from.AsKey()]
 	if e == nil {
 		return nil, errp.Errorf("don't need to repay")
 	}
@@ -134,11 +145,11 @@ func (a *Account) Repay(
 	actual := new(big.Int).Set(amount)
 	if actual.Cmp(total) >= 0 {
 		actual.Set(total)
-		delete(a.ld.LendingLedger, from)
+		delete(a.ledger.Lending, from.AsKey())
 	} else {
 		e.Amount.Sub(total, actual)
 		e.UpdateAt = a.ld.Timestamp
-		a.ld.LendingLedger[from] = e
+		a.ledger.Lending[from.AsKey()] = e
 	}
 	return actual, nil
 }
@@ -149,7 +160,7 @@ func (a *Account) calcBorrowTotal(from util.EthID) *big.Int {
 	cfg := a.ld.Lending
 	amount := new(big.Int)
 
-	if e := a.ld.LendingLedger[from]; e != nil {
+	if e := a.ledger.Lending[from.AsKey()]; e != nil {
 		amount.Set(e.Amount)
 
 		if amount.Sign() > 0 && a.ld.Timestamp > e.UpdateAt {

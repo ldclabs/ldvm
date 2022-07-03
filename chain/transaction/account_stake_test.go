@@ -41,6 +41,10 @@ func TestStakeAccount(t *testing.T) {
 	stake := ld.MustNewStake("#TEST")
 	testStake := NewAccount(util.EthID(stake))
 	testStake.Init(big.NewInt(100), 1, 1)
+	assert.ErrorContains(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg),
+		"Account(0x0000000000000000000000000000002354455354).CreateStake error: invalid ledger")
+
+	testStake.InitLedger(nil)
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg))
 	assert.Equal(false, testStake.valid(ld.StakeAccount))
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
@@ -49,7 +53,7 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(uint64(900), testStake.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1000), testStake.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Nil(testStake.ld.MaxTotalSupply)
-	assert.NotNil(testStake.ld.StakeLedger)
+	assert.NotNil(testStake.ledger)
 	assert.Equal(uint16(1), testStake.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, testStake.Keepers())
 	assert.False(testStake.SatisfySigning(util.EthIDs{}))
@@ -59,21 +63,26 @@ func TestStakeAccount(t *testing.T) {
 	assert.False(testStake.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}))
 	assert.True(testStake.SatisfySigningPlus(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
 
-	assert.Equal(1, len(testStake.ld.StakeLedger))
-	assert.Equal(pledge.Uint64(), testStake.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
+	assert.Equal(1, len(testStake.ledger.Stake))
+	assert.Equal(pledge.Uint64(), testStake.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
 	assert.NoError(testStake.TakeStake(constants.NativeToken, util.Signer2.Address(), big.NewInt(1000), 0))
 	testStake.Add(constants.NativeToken, big.NewInt(1000))
-	assert.Equal(2, len(testStake.ld.StakeLedger))
-	assert.Equal(uint64(1000), testStake.ld.StakeLedger[util.Signer2.Address()].Amount.Uint64())
+	assert.Equal(2, len(testStake.ledger.Stake))
+	assert.Equal(uint64(1000), testStake.ledger.Stake[util.Signer2.Address().AsKey()].Amount.Uint64())
 	assert.Equal(uint64(1900), testStake.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(2000), testStake.balanceOfAll(constants.NativeToken).Uint64())
 
 	// Marshal
-	data, err := testStake.Marshal()
+	data, ledger, err := testStake.Marshal()
 	assert.NoError(err)
 	testStake2, err := ParseAccount(testStake.id, data)
 	assert.NoError(err)
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
+
+	lg := &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Reset
 	token := ld.MustNewToken("$TEST")
@@ -104,7 +113,7 @@ func TestStakeAccount(t *testing.T) {
 	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: stake holders should not more than 1")
 	assert.ErrorContains(testStake.DestroyStake(acc),
 		"Account(0x0000000000000000000000000000002354455354).DestroyStake error: stake ledger not empty, please withdraw all except recipient")
-	delete(testStake.ld.StakeLedger, util.Signer2.Address())
+	delete(testStake.ledger.Stake, util.Signer2.Address().AsKey())
 
 	assert.Equal(uint64(100_000), testStake.ld.Stake.WithdrawFee)
 	assert.NoError(testStake.ResetStake(&ld.StakeConfig{
@@ -125,7 +134,6 @@ func TestStakeAccount(t *testing.T) {
 	}
 	assert.NoError(testStake.OpenLending(lcfg))
 	assert.NotNil(testStake.ld.Lending)
-	assert.NotNil(testStake.ld.LendingLedger)
 
 	// Destroy
 	assert.NoError(testStake.Borrow(constants.NativeToken, acc.id, big.NewInt(1000), 0))
@@ -143,9 +151,8 @@ func TestStakeAccount(t *testing.T) {
 	assert.Equal(uint16(0), testStake.Threshold())
 	assert.Equal(util.EthIDs{}, testStake.Keepers())
 	assert.Nil(testStake.ld.Stake)
-	assert.Nil(testStake.ld.StakeLedger)
 	assert.Nil(testStake.ld.Lending)
-	assert.Nil(testStake.ld.LendingLedger)
+	assert.Equal(0, len(testStake.ledger.Stake))
 	assert.Equal(0, len(testStake.ld.Tokens))
 	assert.Equal(uint64(2000), acc.balanceOf(constants.NativeToken).Uint64())
 
@@ -159,11 +166,16 @@ func TestStakeAccount(t *testing.T) {
 	}), "Account(0x0000000000000000000000000000002354455354).ResetStake error: invalid stake account")
 
 	// Marshal again
-	data, err = testStake.Marshal()
+	data, ledger, err = testStake.Marshal()
 	assert.NoError(err)
 	testStake2, err = ParseAccount(testStake.id, data)
 	assert.NoError(err)
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Create again
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, scfg))
@@ -183,6 +195,7 @@ func TestStakeFromAndTo(t *testing.T) {
 	stake := ld.MustNewStake("#TEST")
 	testStake := NewAccount(util.EthID(stake))
 	testStake.Init(big.NewInt(100), 1, 1)
+	testStake.InitLedger(nil)
 	assert.NoError(testStake.CreateStake(util.Signer1.Address(), pledge, cfg, &ld.StakeConfig{
 		Type:        0,
 		LockTime:    0,
@@ -296,6 +309,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	token := ld.MustNewToken("$LDC")
 	withdrawFee := uint64(100_000)
 	sa := NewAccount(util.EthID(ld.MustNewStake("#LDC"))).Init(pledge, 1, 1)
+	sa.InitLedger(nil)
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
@@ -309,7 +323,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.True(sa.valid(ld.StakeAccount))
 	assert.Equal(uint64(0), sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
 
 	// Invalid TakeStake args
 	assert.ErrorContains(sk.TakeStake(constants.NativeToken, addr1, big.NewInt(1000), 0),
@@ -322,28 +336,28 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*11, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
 
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr0, ldc, 0))
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC*2, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*12, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*11, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
-	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr0].Amount.Uint64())
+	assert.Equal(constants.LDC*11, sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC, sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
 
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC*3, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*13, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*11, sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
-	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr0].Amount.Uint64())
+	assert.Equal(constants.LDC*11, sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC, sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
 
 	assert.NoError(sa.TakeStake(constants.NativeToken, addr1, pledge, 0))
 	sa.Add(constants.NativeToken, pledge)
 	assert.Equal(constants.LDC*13, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*23, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(uint64(ldcf*(11+float64(11)/12)), sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
-	assert.Equal(uint64(ldcf*(1+float64(1)/12)), sa.ld.StakeLedger[addr0].Amount.Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
+	assert.Equal(uint64(ldcf*(11+float64(11)/12)), sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
+	assert.Equal(uint64(ldcf*(1+float64(1)/12)), sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[addr1.AsKey()].Amount.Uint64())
 
 	assert.ErrorContains(sa.TakeStake(constants.NativeToken, addr1, ldc, 0),
 		"expected <= 10000000000, got 11000000000")
@@ -352,17 +366,22 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Add(constants.NativeToken, ldc)
 	assert.Equal(constants.LDC*14, sa.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*24, sa.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(uint64(ldcf*(11+float64(11)/12)), sa.ld.StakeLedger[util.Signer1.Address()].Amount.Uint64())
-	assert.Equal(uint64(ldcf*(1+float64(1)/12)), sa.ld.StakeLedger[addr0].Amount.Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
-	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr2].Amount.Uint64())
+	assert.Equal(uint64(ldcf*(11+float64(11)/12)), sa.ledger.Stake[util.Signer1.Address().AsKey()].Amount.Uint64())
+	assert.Equal(uint64(ldcf*(1+float64(1)/12)), sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[addr1.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC, sa.ledger.Stake[addr2.AsKey()].Amount.Uint64())
 
 	// Marshal
-	data, err := sa.Marshal()
+	data, ledger, err := sa.Marshal()
 	assert.NoError(err)
 	sa2, err := ParseAccount(sa.id, data)
 	assert.NoError(err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
+
+	lg := &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// check WithdrawStake
 	_, err = sk.WithdrawStake(constants.NativeToken, addr1, util.EthIDs{}, big.NewInt(0))
@@ -400,10 +419,10 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.ErrorContains(
 		sa.UpdateStakeApprover(addr3, approver, util.EthIDs{}),
 		"has no stake ledger to update")
-	assert.Nil(sa.ld.StakeLedger[addr0].Approver)
+	assert.Nil(sa.ledger.Stake[addr0.AsKey()].Approver)
 	assert.NoError(sa.UpdateStakeApprover(addr0, approver, util.EthIDs{}))
-	assert.NotNil(sa.ld.StakeLedger[addr0].Approver)
-	assert.Equal(approver, *sa.ld.StakeLedger[addr0].Approver)
+	assert.NotNil(sa.ledger.Stake[addr0.AsKey()].Approver)
+	assert.Equal(approver, *sa.ledger.Stake[addr0.AsKey()].Approver)
 	assert.ErrorContains(
 		sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{}),
 		"need approver signing")
@@ -411,7 +430,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{addr0}),
 		"need approver signing")
 	assert.NoError(sa.UpdateStakeApprover(addr0, util.EthIDEmpty, util.EthIDs{approver}))
-	assert.Nil(sa.ld.StakeLedger[addr0].Approver)
+	assert.Nil(sa.ledger.Stake[addr0.AsKey()].Approver)
 
 	// continue to check WithdrawStake
 	assert.NoError(sa.UpdateStakeApprover(addr2, approver, util.EthIDs{}))
@@ -431,23 +450,23 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.NoError(err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(constants.LDC-uint64(ldcf*float64(withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
-	assert.NotNil(sa.ld.StakeLedger[addr2])
-	assert.Equal(uint64(0), sa.ld.StakeLedger[addr2].Amount.Uint64())
+	assert.NotNil(sa.ledger.Stake[addr2.AsKey()])
+	assert.Equal(uint64(0), sa.ledger.Stake[addr2.AsKey()].Amount.Uint64())
 
 	total := uint64(1088043477)
 	am, err = sa.WithdrawStake(constants.NativeToken, addr0, util.EthIDs{}, new(big.Int).SetUint64(total))
 	assert.NoError(err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
-	assert.Nil(sa.ld.StakeLedger[addr0])
+	assert.Nil(sa.ledger.Stake[addr0.AsKey()])
 
 	total = sa.GetStakeAmount(constants.NativeToken, addr1).Uint64()
 	am, err = sa.WithdrawStake(constants.NativeToken, addr1, util.EthIDs{}, new(big.Int).SetUint64(total))
 	assert.NoError(err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
-	assert.Nil(sa.ld.StakeLedger[addr1])
-	assert.Equal(2, len(sa.ld.StakeLedger))
+	assert.Nil(sa.ledger.Stake[addr1.AsKey()])
+	assert.Equal(2, len(sa.ledger.Stake))
 
 	total = sa.GetStakeAmount(constants.NativeToken, util.Signer1.Address()).Uint64()
 	am, err = sa.WithdrawStake(constants.NativeToken, util.Signer1.Address(),
@@ -456,11 +475,16 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		"insufficient NativeLDC balance for withdraw, expected 13036950323, got 3036950323")
 
 	// Marshal again
-	data, err = sa.Marshal()
+	data, ledger, err = sa.Marshal()
 	assert.NoError(err)
 	sa2, err = ParseAccount(sa.id, data)
 	assert.NoError(err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Reset & Destroy
 	assert.NoError(sa.ResetStake(&ld.StakeConfig{
@@ -476,16 +500,21 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(uint16(0), sa.Threshold())
 	assert.Equal(util.EthIDs{}, sa.Keepers())
 	assert.Nil(sa.ld.Stake)
-	assert.Nil(sa.ld.StakeLedger)
+	assert.Equal(0, len(sa.ledger.Stake))
 	assert.Equal(0, len(sa.ld.Tokens))
 	assert.Equal(total, sk.balanceOf(constants.NativeToken).Uint64()-ba)
 
 	// Marshal again
-	data, err = sa.Marshal()
+	data, ledger, err = sa.Marshal()
 	assert.NoError(err)
 	sa2, err = ParseAccount(sa.id, data)
 	assert.NoError(err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Create again
 	assert.NoError(sa.CreateStake(util.Signer1.Address(), pledge, &ld.TxAccounter{
@@ -504,7 +533,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*10, sa.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), sa.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), sa.balanceOfAll(token).Uint64())
-	assert.Equal(0, len(sa.ld.StakeLedger))
+	assert.Equal(0, len(sa.ledger.Stake))
 
 	sa.Add(token, ldc)
 	assert.Equal(constants.LDC, sa.balanceOf(token).Uint64())
@@ -514,22 +543,23 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Add(token, ldc)
 	assert.Equal(constants.LDC*2, sa.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*2, sa.balanceOfAll(token).Uint64())
-	assert.Equal(1, len(sa.ld.StakeLedger))
-	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr0].Amount.Uint64())
+	assert.Equal(1, len(sa.ledger.Stake))
+	assert.Equal(constants.LDC, sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
 	assert.Equal(constants.LDC*2, sa.GetStakeAmount(token, addr0).Uint64())
 
 	assert.NoError(sa.TakeStake(token, addr1, pledge, 0))
 	sa.Add(token, pledge)
 	assert.Equal(constants.LDC*12, sa.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*12, sa.balanceOfAll(token).Uint64())
-	assert.Equal(constants.LDC*2, sa.ld.StakeLedger[addr0].Amount.Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
+	assert.Equal(constants.LDC*2, sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[addr1.AsKey()].Amount.Uint64())
 
 	assert.ErrorContains(sa.TakeStake(token, addr1, ldc, 0),
 		"expected <= 10000000000, got 11000000000")
 
 	// sa take a stake in sc
 	sc := NewAccount(util.EthID(ld.MustNewStake("#HODLING"))).Init(pledge, 1, 1)
+	sc.InitLedger(nil)
 	assert.NoError(sc.CreateStake(util.Signer2.Address(), pledge, &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &util.EthIDs{util.Signer2.Address()},
@@ -547,7 +577,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Sub(token, all)
 	assert.Equal(constants.LDC*12, sc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*12, sc.balanceOfAll(token).Uint64())
-	assert.Equal(constants.LDC*12, sc.ld.StakeLedger[sa.id].Amount.Uint64())
+	assert.Equal(constants.LDC*12, sc.ledger.Stake[sa.id.AsKey()].Amount.Uint64())
 	assert.Equal(constants.LDC*0, sa.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*0, sa.balanceOfAll(token).Uint64())
 
@@ -555,34 +585,44 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Add(token, ldc)
 	assert.Equal(constants.LDC, sa.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, sa.balanceOfAll(token).Uint64())
-	assert.Equal(constants.LDC*2, sa.ld.StakeLedger[addr0].Amount.Uint64())
-	assert.Equal(constants.LDC*10, sa.ld.StakeLedger[addr1].Amount.Uint64())
-	assert.Equal(constants.LDC, sa.ld.StakeLedger[addr2].Amount.Uint64())
+	assert.Equal(constants.LDC*2, sa.ledger.Stake[addr0.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC*10, sa.ledger.Stake[addr1.AsKey()].Amount.Uint64())
+	assert.Equal(constants.LDC, sa.ledger.Stake[addr2.AsKey()].Amount.Uint64())
 
 	_, err = sa.WithdrawStake(token, addr1, util.EthIDs{}, pledge)
 	assert.ErrorContains(err,
 		"Account(0x00000000000000000000000000000000234c4443).WithdrawStake error: insufficient $LDC balance for withdraw, expected 10000000000, got 1000000000")
 
 	// Marshal again
-	data, err = sa.Marshal()
+	data, ledger, err = sa.Marshal()
 	assert.NoError(err)
 	sa2, err = ParseAccount(sa.id, data)
 	assert.NoError(err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
-	data, err = sc.Marshal()
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
+
+	data, ledger, err = sc.Marshal()
 	assert.NoError(err)
 	sc2, err := ParseAccount(sc.id, data)
 	assert.NoError(err)
 	assert.Equal(sc.ld.Bytes(), sc2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	am, err = sa.WithdrawStake(token, addr2, util.EthIDs{}, ldc)
 	assert.NoError(err)
 	sa.Sub(token, am)
 	fee := uint64(float64(constants.LDC*withdrawFee) / 1_000_000)
 	assert.Equal(constants.LDC-fee, am.Uint64(), "withdraw fee")
-	assert.Nil(sa.ld.StakeLedger[addr2])
-	assert.Equal(2, len(sa.ld.StakeLedger))
+	assert.Nil(sa.ledger.Stake[addr2.AsKey()])
+	assert.Equal(2, len(sa.ledger.Stake))
 	assert.Equal(fee, sa.balanceOfAll(token).Uint64())
 
 	// Destroy sc
@@ -593,15 +633,20 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(uint16(0), sc.Threshold())
 	assert.Equal(util.EthIDs{}, sc.Keepers())
 	assert.Nil(sc.ld.Stake)
-	assert.Nil(sc.ld.StakeLedger)
+	assert.Equal(0, len(sc.ledger.Stake))
 	assert.Equal(1, len(sc.ld.Tokens))
 	assert.Equal(constants.LDC*22+fee, sa.balanceOf(token).Uint64())
 	// Marshal again
-	data, err = sc.Marshal()
+	data, ledger, err = sc.Marshal()
 	assert.NoError(err)
 	sc2, err = ParseAccount(sc.id, data)
 	assert.NoError(err)
 	assert.Equal(sc.ld.Bytes(), sc2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 
 	// Destroy sa
 	total = sa.GetStakeAmount(token, addr1).Uint64()
@@ -610,8 +655,8 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	sa.Sub(token, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
 	assert.Equal(1, am.Cmp(pledge))
-	assert.Equal(1, len(sa.ld.StakeLedger))
-	assert.Nil(sa.ld.StakeLedger[addr1])
+	assert.Equal(1, len(sa.ledger.Stake))
+	assert.Nil(sa.ledger.Stake[addr1.AsKey()])
 
 	assert.Equal(uint64(0), acc0.balanceOf(token).Uint64())
 	assert.NoError(sa.DestroyStake(acc0))
@@ -620,12 +665,18 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(uint16(0), sa.Threshold())
 	assert.Equal(util.EthIDs{}, sa.Keepers())
 	assert.Nil(sa.ld.Stake)
-	assert.Nil(sa.ld.StakeLedger)
+	assert.Equal(0, len(sa.ledger.Stake))
 	assert.Equal(1, len(sa.ld.Tokens))
 	assert.Equal(1, acc0.balanceOf(token).Cmp(ldc))
-	data, err = sa.Marshal()
+
+	data, ledger, err = sa.Marshal()
 	assert.NoError(err)
 	sa2, err = ParseAccount(sa.id, data)
 	assert.NoError(err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
+
+	lg = &ld.AccountLedger{}
+	assert.NoError(lg.Unmarshal(ledger))
+	assert.NoError(lg.SyntacticVerify())
+	assert.Equal(ledger, lg.Bytes())
 }

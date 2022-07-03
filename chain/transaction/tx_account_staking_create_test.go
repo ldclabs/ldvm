@@ -340,9 +340,9 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.NotNil(stakeAcc.ld.StakeLedger[from.id])
-	assert.Equal(constants.LDC*1000, stakeAcc.ld.StakeLedger[from.id].Amount.Uint64())
+	assert.NotNil(stakeAcc.ledger)
+	assert.NotNil(stakeAcc.ledger.Stake[from.id.AsKey()])
+	assert.Equal(constants.LDC*1000, stakeAcc.ledger.Stake[from.id.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -410,7 +410,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(ld.NativeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.Nil(stakeAcc.ld.Stake)
-	assert.Nil(stakeAcc.ld.StakeLedger)
+	assert.Equal(0, len(stakeAcc.ledger.Stake))
 	assert.Equal(uint64(0), stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 
 	// creat again.
@@ -454,10 +454,10 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Nil(stakeAcc.ld.StakeLedger[from.id])
-	assert.NotNil(stakeAcc.ld.Tokens[token])
-	assert.Equal(uint64(0), stakeAcc.ld.Tokens[token].Uint64())
+	assert.NotNil(stakeAcc.ledger.Stake)
+	assert.Nil(stakeAcc.ledger.Stake[from.id.AsKey()])
+	assert.NotNil(stakeAcc.ld.Tokens[token.AsKey()])
+	assert.Equal(uint64(0), stakeAcc.ld.Tokens[token.AsKey()].Uint64())
 
 	assert.NoError(bs.VerifyState())
 }

@@ -16,6 +16,7 @@ import (
 
 const (
 	AddressObject ObjectType = iota
+	LedgerObject
 	ModelObject
 	DataObject
 )
@@ -25,6 +26,8 @@ type ObjectType uint16
 func (t ObjectType) String() string {
 	switch t {
 	case AddressObject:
+		return "Address"
+	case LedgerObject:
 		return "Address"
 	case ModelObject:
 		return "Model"
@@ -105,7 +108,7 @@ func (t *TxTester) SyntacticVerify() error {
 	}
 
 	switch t.ObjectType {
-	case AddressObject:
+	case AddressObject, LedgerObject:
 		t.OID = util.EthID(t.ObjectID)
 	case ModelObject:
 		t.OID = util.ModelID(t.ObjectID)

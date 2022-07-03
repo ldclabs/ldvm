@@ -33,20 +33,23 @@ func (a *Account) CreateStake(
 		return errp.ErrorIf(err)
 	}
 
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
+	}
+
 	a.ld.Type = ld.StakeAccount
 	a.ld.Threshold = *acc.Threshold
 	a.ld.Keepers = *acc.Keepers
 	a.ld.Approver = acc.Approver
 	a.ld.ApproveList = acc.ApproveList
 	a.ld.Stake = cfg
-	a.ld.StakeLedger = make(map[util.EthID]*ld.StakeEntry)
 	a.ld.MaxTotalSupply = nil
 	switch cfg.Token {
 	case constants.NativeToken:
-		a.ld.StakeLedger[from] = &ld.StakeEntry{Amount: new(big.Int).Set(pledge)}
+		a.ledger.Stake[from.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).Set(pledge)}
 	default:
-		if b := a.ld.Tokens[cfg.Token]; b == nil {
-			a.ld.Tokens[cfg.Token] = new(big.Int)
+		if b := a.ld.Tokens[cfg.Token.AsKey()]; b == nil {
+			a.ld.Tokens[cfg.Token.AsKey()] = new(big.Int)
 		}
 	}
 
@@ -61,6 +64,10 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
+	}
+
 	if err := cfg.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -78,7 +85,7 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 	}
 
 	holders := 0
-	for _, v := range a.ld.StakeLedger {
+	for _, v := range a.ledger.Stake {
 		if v.Amount.Sign() > 0 {
 			holders++
 		}
@@ -106,13 +113,17 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
+	}
+
 	if a.ld.Stake.LockTime >= a.ld.Timestamp {
 		return errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)",
 			a.ld.Stake.LockTime)
 	}
 
 	holders := 0
-	for _, v := range a.ld.StakeLedger {
+	for _, v := range a.ledger.Stake {
 		if v.Amount.Sign() > 0 {
 			holders++
 		}
@@ -122,7 +133,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	case 0:
 		// just go ahead
 	case 1:
-		if v, ok := a.ld.StakeLedger[recipient.id]; !ok || v.Amount.Sign() <= 0 {
+		if v, ok := a.ledger.Stake[recipient.id.AsKey()]; !ok || v.Amount.Sign() <= 0 {
 			return errp.Errorf("recipient not exists")
 		}
 
@@ -137,7 +148,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	recipient.Add(constants.NativeToken, a.ld.Balance)
 	a.ld.Balance.SetUint64(0)
 	if a.ld.Stake.Token != constants.NativeToken {
-		if b, ok := a.ld.Tokens[a.ld.Stake.Token]; ok && b.Sign() > 0 {
+		if b, ok := a.ld.Tokens[a.ld.Stake.Token.AsKey()]; ok && b.Sign() > 0 {
 			recipient.Add(a.ld.Stake.Token, b)
 			b.SetUint64(0)
 		}
@@ -149,7 +160,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	a.ld.Approver = nil
 	a.ld.ApproveList = nil
 	a.ld.Stake = nil
-	a.ld.StakeLedger = nil
+	a.ledger.Stake = make(map[string]*ld.StakeEntry)
 	return nil
 }
 
@@ -165,18 +176,23 @@ func (a *Account) TakeStake(
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
+	}
 
 	stake := a.ld.Stake
-	if token != stake.Token {
-		return errp.Errorf("invalid token, expected %s, got %s", stake.Token.GoString(), token.GoString())
+	if token != a.ld.Stake.Token {
+		return errp.Errorf("invalid token, expected %s, got %s",
+			stake.Token.GoString(), token.GoString())
 	}
 
 	if amount.Cmp(stake.MinAmount) < 0 {
-		return errp.Errorf("invalid amount, expected >= %v, got %v", stake.MinAmount, amount)
+		return errp.Errorf("invalid amount, expected >= %v, got %v",
+			stake.MinAmount, amount)
 	}
 
 	total := new(big.Int).Set(amount)
-	v := a.ld.StakeLedger[from]
+	v := a.ledger.Stake[from.AsKey()]
 	rate := a.calcStakeBonusRate()
 	if v != nil {
 		bonus, _ := new(big.Float).Mul(new(big.Float).SetInt(v.Amount), rate).Int(nil)
@@ -184,16 +200,18 @@ func (a *Account) TakeStake(
 		total.Add(total, bonus)
 	}
 	if total.Cmp(stake.MaxAmount) > 0 {
-		return errp.Errorf("invalid total amount for %s, expected <= %v, got %v", from, stake.MaxAmount, total)
+		return errp.Errorf("invalid total amount for %s, expected <= %v, got %v",
+			from, stake.MaxAmount, total)
 	}
 	if lockTime > 0 && lockTime <= stake.LockTime {
-		return errp.Errorf("invalid lockTime, expected > %v, got %v", stake.LockTime, lockTime)
+		return errp.Errorf("invalid lockTime, expected > %v, got %v",
+			stake.LockTime, lockTime)
 	}
 
 	a.allocStakeBonus(rate)
 	if v == nil {
 		v = &ld.StakeEntry{Amount: new(big.Int)}
-		a.ld.StakeLedger[from] = v
+		a.ledger.Stake[from.AsKey()] = v
 	}
 	v.Amount.Add(v.Amount, amount)
 	if lockTime > 0 {
@@ -213,8 +231,11 @@ func (a *Account) UpdateStakeApprover(
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
+	if a.ledger == nil {
+		return errp.Errorf("invalid ledger")
+	}
 
-	v := a.ld.StakeLedger[from]
+	v := a.ledger.Stake[from.AsKey()]
 	if v == nil {
 		return errp.Errorf("%s has no stake ledger to update", util.EthID(from))
 	}
@@ -243,16 +264,20 @@ func (a *Account) WithdrawStake(
 	if !a.valid(ld.StakeAccount) {
 		return nil, errp.Errorf("invalid stake account")
 	}
+	if a.ledger == nil {
+		return nil, errp.Errorf("invalid ledger")
+	}
 
 	stake := a.ld.Stake
 	if token != stake.Token {
-		return nil, errp.Errorf("invalid token, expected %s, got %s", stake.Token.GoString(), token.GoString())
+		return nil, errp.Errorf("invalid token, expected %s, got %s",
+			stake.Token.GoString(), token.GoString())
 	}
 	if stake.LockTime >= a.ld.Timestamp {
 		return nil, errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)", stake.LockTime)
 	}
 
-	v := a.ld.StakeLedger[from]
+	v := a.ledger.Stake[from.AsKey()]
 	if v == nil {
 		return nil, errp.Errorf("%s has no stake to withdraw", from)
 	}
@@ -280,7 +305,7 @@ func (a *Account) WithdrawStake(
 	a.allocStakeBonus(rate)
 	v.Amount.Sub(v.Amount, amount)
 	if v.Amount.Sign() <= 0 && v.Approver == nil {
-		delete(a.ld.StakeLedger, from)
+		delete(a.ledger.Stake, from.AsKey())
 	}
 	withdraw := new(big.Int).Mul(amount, new(big.Int).SetUint64(stake.WithdrawFee))
 	return withdraw.Sub(amount, withdraw.Quo(withdraw, big.NewInt(1_000_000))), nil
@@ -289,8 +314,8 @@ func (a *Account) WithdrawStake(
 func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.EthID) *big.Int {
 	total := new(big.Int)
 	stake := a.ld.Stake
-	if a.valid(ld.StakeAccount) && token == stake.Token {
-		if v := a.ld.StakeLedger[from]; v != nil && v.Amount.Sign() > 0 {
+	if a.valid(ld.StakeAccount) && a.ledger != nil && token == stake.Token {
+		if v := a.ledger.Stake[from.AsKey()]; v != nil && v.Amount.Sign() > 0 {
 			total.Set(v.Amount)
 			rate := a.calcStakeBonusRate()
 			bonus, _ := new(big.Float).Mul(new(big.Float).SetInt(total), rate).Int(nil)
@@ -302,10 +327,10 @@ func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.EthID) *big.I
 
 func (a *Account) calcStakeBonusRate() *big.Float {
 	total := new(big.Int)
-	for _, v := range a.ld.StakeLedger {
+	rate := new(big.Float)
+	for _, v := range a.ledger.Stake {
 		total = total.Add(total, v.Amount)
 	}
-	rate := new(big.Float)
 	if total.Sign() > 0 {
 		ba := a.balanceOfAll(a.ld.Stake.Token)
 		if alloc := new(big.Int).Sub(ba, total); alloc.Sign() > 0 {
@@ -317,7 +342,7 @@ func (a *Account) calcStakeBonusRate() *big.Float {
 
 func (a *Account) allocStakeBonus(rate *big.Float) {
 	if rate.Sign() > 0 {
-		for _, v := range a.ld.StakeLedger {
+		for _, v := range a.ledger.Stake {
 			award, _ := new(big.Float).Mul(new(big.Float).SetInt(v.Amount), rate).Int(nil)
 			v.Amount.Add(v.Amount, award)
 		}

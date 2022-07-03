@@ -433,9 +433,9 @@ func TestTxTakeStake(t *testing.T) {
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
 	assert.Nil(stakeAcc.ld.MaxTotalSupply)
 	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ld.StakeLedger)
-	assert.Nil(stakeAcc.ld.StakeLedger[sender])
-	keeperEntry := stakeAcc.ld.StakeLedger[keeper]
+	assert.NotNil(stakeAcc.ledger)
+	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()])
+	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
 	assert.NotNil(keeperEntry)
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 	assert.Equal(uint64(0), keeperEntry.LockTime)
@@ -478,12 +478,12 @@ func TestTxTakeStake(t *testing.T) {
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	senderEntry := stakeAcc.ld.StakeLedger[sender]
+	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(bs.Timestamp()+1, senderEntry.LockTime)
 	assert.Nil(senderEntry.Approver)
-	keeperEntry = stakeAcc.ld.StakeLedger[keeper]
+	keeperEntry = stakeAcc.ledger.Stake[keeper.AsKey()]
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
@@ -564,10 +564,10 @@ func TestTxTakeStake(t *testing.T) {
 		stakeAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64()*2+constants.LDC*100,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
-	senderEntry = stakeAcc.ld.StakeLedger[sender]
+	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.Equal(constants.LDC*100, senderEntry.Amount.Uint64())
 	assert.Equal(bs.Timestamp()+1, senderEntry.LockTime)
-	keeperEntry = stakeAcc.ld.StakeLedger[keeper]
+	keeperEntry = stakeAcc.ledger.Stake[keeper.AsKey()]
 	assert.Equal(bctx.FeeConfig().MinStakePledge.Uint64()*2, keeperEntry.Amount.Uint64())
 
 	assert.NoError(bs.VerifyState())
