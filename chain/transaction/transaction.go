@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
 )
 
@@ -16,8 +15,6 @@ type Transaction interface {
 	ID() ids.ID
 	Type() ld.TxType
 	Bytes() []byte
-	Status() string
-	SetStatus(choices.Status)
 	SyntacticVerify() error
 	Apply(bctx BlockContext, bs BlockState) error
 	MarshalJSON() ([]byte, error)

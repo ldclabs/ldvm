@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"strconv"
 	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
@@ -255,8 +254,7 @@ func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 func (bs *blockState) ResolveName(name string) (*ld.DataInfo, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name %s, error: %v",
-			strconv.Quote(name), err)
+		return nil, fmt.Errorf("invalid name %q, error: %v", name, err)
 	}
 	id, err := bs.ResolveNameID(dn.String())
 	if err != nil {

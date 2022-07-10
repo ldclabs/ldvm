@@ -10,13 +10,12 @@ import (
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/mailgun/holster/v4/collections"
 
-	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/ld"
 )
 
 const (
-	rejectedTxsCapacity = 100000
-	rejectedTxsTTL      = 600
+	knownTxsCapacity = 1000000
+	knownTxsTTL      = 600 // seconds
 )
 
 // TxPool contains all currently known transactions. Transactions
@@ -24,29 +23,36 @@ const (
 // locally. They exit the pool when they are included in the blockchain.
 type TxPool interface {
 	Len() int
-	Has(txID ids.ID) bool
-	Remove(txID ids.ID)
-	Add(txs ...*ld.Transaction)
-	Get(txID ids.ID) transaction.Transaction
+	SetTxsStatus(status choices.Status, txIDs ...ids.ID)
+	ClearTxs(txIDs ...ids.ID)
+	AddRemote(txs ...*ld.Transaction)
+	AddLocal(txs ...*ld.Transaction)
+	GetStatus(txID ids.ID) choices.Status
 	PopTxsBySize(askSize int) ld.Txs
-	Reject(*ld.Transaction)
+	Reject(tx *ld.Transaction)
 }
 
+// NewTxPool creates a new transaction pool.
 func NewTxPool() *txPool {
 	return &txPool{
-		txQueueSet: ids.NewSet(1000),
-		txQueue:    make([]*ld.Transaction, 0, 1000),
-		rejected:   collections.NewTTLMap(rejectedTxsCapacity),
+		txQueueSet:     ids.NewSet(10000),
+		txQueue:        make([]*ld.Transaction, 0, 10000),
+		knownTxs:       collections.NewTTLMap(knownTxsCapacity),
+		signalTxsReady: func() {},                   // initially noop
+		gossipTx:       func(tx *ld.Transaction) {}, // initially noop
 	}
 }
 
 type txPool struct {
-	mu         sync.RWMutex
-	txQueueSet ids.Set
-	txQueue    ld.Txs
-	rejected   *collections.TTLMap
+	mu             sync.RWMutex
+	txQueueSet     ids.Set
+	txQueue        ld.Txs
+	knownTxs       *collections.TTLMap
+	signalTxsReady func()
+	gossipTx       func(tx *ld.Transaction)
 }
 
+// Len returns the number of transactions in the pool.
 func (p *txPool) Len() int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -63,22 +69,46 @@ func (p *txPool) Len() int {
 	return n
 }
 
-func (p *txPool) Has(txID ids.ID) bool {
+// GetStatus returns the status of a transaction by ID.
+func (p *txPool) GetStatus(txID ids.ID) choices.Status {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	return p.has(txID)
+	if s, ok := p.knownTxs.Get(string(txID[:])); ok {
+		return s.(choices.Status)
+	}
+	return choices.Unknown
 }
 
-func (p *txPool) Remove(txID ids.ID) {
-	p.mu.RLock()
-	if !p.txQueueSet.Contains(txID) {
-		p.mu.RUnlock()
-		return
-	}
-	p.mu.RUnlock()
+// SetTxsStatus sets the status of a batchs transactions.
+func (p *txPool) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	p.setTxsStatus(status, txIDs...)
+}
+
+func (p *txPool) setTxsStatus(status choices.Status, txIDs ...ids.ID) {
+	for _, txID := range txIDs {
+		p.knownTxs.Set(string(txID[:]), status, knownTxsTTL)
+	}
+}
+
+// ClearTxs removes transaction entities from the pool.
+// but their ids and status can be retrieved.
+func (p *txPool) ClearTxs(txIDs ...ids.ID) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, txID := range txIDs {
+		p.clear(txID)
+	}
+}
+
+func (p *txPool) clear(txID ids.ID) {
+	if !p.txQueueSet.Contains(txID) {
+		return
+	}
 
 	for i, tx := range p.txQueue {
 		if tx.ID == txID {
@@ -91,58 +121,70 @@ func (p *txPool) Remove(txID ids.ID) {
 }
 
 func (p *txPool) has(txID ids.ID) bool {
+	return p.txQueueSet.Contains(txID)
+}
+
+func (p *txPool) knownTx(txID ids.ID) bool {
 	if p.txQueueSet.Contains(txID) {
 		return true
 	}
-	_, ok := p.rejected.Get(string(txID[:]))
+
+	_, ok := p.knownTxs.Get(string(txID[:]))
 	return ok
 }
 
-func (p *txPool) Get(txID ids.ID) transaction.Transaction {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+// AddRemote adds transaction entities from the network (API or AppGossip).
+// The transaction already in the pool will not be added.
+// The added transaction will be gossiped to the network.
+// Transaction should be syntactic verified before adding.
+func (p *txPool) AddRemote(txs ...*ld.Transaction) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	if v, ok := p.rejected.Get(string(txID[:])); ok {
-		if tx, _ := transaction.NewTx(v.(*ld.Transaction), false); tx != nil {
-			tx.SetStatus(choices.Rejected)
-			return tx
-		}
-		return nil
-	}
+	added := 0
+	for i, tx := range txs {
+		if !p.knownTx(tx.ID) {
+			added++
+			p.knownTxs.Set(string(tx.ID[:]), choices.Unknown, knownTxsTTL)
+			p.txQueueSet.Add(tx.ID)
+			p.txQueue = append(p.txQueue, txs[i])
 
-	if p.txQueueSet.Contains(txID) {
-		for _, tx := range p.txQueue {
-			if tx.ID == txID {
-				if ntx, _ := transaction.NewTx(tx, false); ntx != nil {
-					ntx.SetStatus(choices.Unknown)
-					return ntx
-				}
-				return nil
-			}
+			go p.gossipTx(txs[i])
 		}
 	}
-	return nil
+
+	if added > 0 {
+		p.signalTxsReady()
+	}
 }
 
-// txs should be syntactic verified before adding
-func (p *txPool) Add(txs ...*ld.Transaction) {
+// AddLocal adds transaction entities from block build failing.
+// So that the transaction can be process again.
+func (p *txPool) AddLocal(txs ...*ld.Transaction) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for i, tx := range txs {
-		if !p.has(tx.ID) {
+		if !p.txQueueSet.Contains(tx.ID) {
+			p.knownTxs.Set(string(tx.ID[:]), choices.Unknown, knownTxsTTL)
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}
 	}
 }
 
-// Rejecte a tx that should not in pool.
+// Reject removes a transaction from the pool, and sets the status to rejected.
 func (p *txPool) Reject(tx *ld.Transaction) {
-	p.Remove(tx.ID)
-	p.rejected.Set(string(tx.ID[:]), tx, rejectedTxsTTL)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.clear(tx.ID)
+	p.knownTxs.Set(string(tx.ID[:]), choices.Rejected, knownTxsTTL)
 }
 
+// PopTxsBySize sorts transactions by priority and returns
+// a batch of high priority transactions with the given size.
+// The returned transactions are removed from the pool.
 func (p *txPool) PopTxsBySize(askSize int) ld.Txs {
 	if uint64(askSize) < 100 {
 		return ld.Txs{}

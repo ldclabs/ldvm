@@ -11,70 +11,119 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 )
 
-const maxBuildInterval = 10 * time.Second
+const (
+	minTxsWhenBuild = 2
+	waitForMoreTxs  = 1 * time.Second
+)
+
+// builderStatus denotes the current status of the VM in block production.
+type builderStatus uint8
+
+const (
+	dontBuild builderStatus = iota // no need to build a block.
+	waitBuild                      // has sent a request to the engine to build a block.
+	building                       // building a block.
+)
 
 type BlockBuilder struct {
 	mu              sync.RWMutex
 	nodeID          util.EthID
-	txPool          TxPool
+	txPool          txPoolForBuilder
 	lastBuildHeight uint64
-	lastBuildTime   time.Time
-	timer           *time.Timer
-	notifyBuild     func()
+	status          builderStatus
+	toEngine        chan<- common.Message
 }
 
-func NewBlockBuilder(nodeID ids.NodeID, txPool TxPool, notifyBuild func()) *BlockBuilder {
+type txPoolForBuilder interface {
+	Len() int
+	AddLocal(...*ld.Transaction)
+	SetTxsStatus(choices.Status, ...ids.ID)
+	PopTxsBySize(int) ld.Txs
+	Reject(*ld.Transaction)
+}
+
+func NewBlockBuilder(nodeID ids.NodeID, txPool txPoolForBuilder, toEngine chan<- common.Message) *BlockBuilder {
 	return &BlockBuilder{
-		nodeID:        util.EthID(nodeID),
-		txPool:        txPool,
-		notifyBuild:   notifyBuild,
-		lastBuildTime: time.Now().UTC(),
-		timer:         time.AfterFunc(maxBuildInterval, notifyBuild),
+		nodeID:   util.EthID(nodeID),
+		txPool:   txPool,
+		toEngine: toEngine,
 	}
 }
 
-func (b *BlockBuilder) NeedBuild() bool {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-
-	ln := b.txPool.Len()
-	du := time.Now().Sub(b.lastBuildTime)
-
-	switch {
-	case ln <= 2:
-		return du >= maxBuildInterval
-	case ln <= 5:
-		return du >= maxBuildInterval/2
-	case ln <= 10:
-		return du >= maxBuildInterval/5
-	default:
-		return true
-	}
-}
-
-func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
+// HandlePreferenceBlock should be called immediately after [VM.SetPreference].
+func (b *BlockBuilder) HandlePreferenceBlock() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.lastBuildTime = time.Now().UTC()
-	if !b.timer.Reset(maxBuildInterval) {
-		b.timer = time.AfterFunc(maxBuildInterval, b.notifyBuild)
+	if b.txPool.Len() > 0 {
+		b.markBuilding()
+	} else {
+		b.status = dontBuild
+	}
+}
+
+// SignalTxsReady should be called immediately when a new tx incoming
+func (b *BlockBuilder) SignalTxsReady() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.status == dontBuild {
+		b.markBuilding()
+	}
+}
+
+// signal the avalanchego engine to build a block from pending transactions
+func (b *BlockBuilder) markBuilding() {
+	select {
+	case b.toEngine <- common.PendingTxs:
+		b.status = waitBuild
+	default:
+		logging.Log.Debug("dropping message to consensus engine")
+	}
+}
+
+func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	defer func() {
+		// when build error, reset the status to dontBuild
+		if b.status != building {
+			b.status = dontBuild
+		}
+	}()
+
+	if b.txPool.Len() < minTxsWhenBuild {
+		time.Sleep(waitForMoreTxs)
+	}
+
+	ts := uint64(time.Now().UTC().Unix())
+	preferred := ctx.StateDB().PreferredBlock()
+	if pt := uint64(preferred.Timestamp().Unix()); ts <= pt {
+		ts = pt
+
+		// should wait one second for more txs again
+		if b.txPool.Len() < minTxsWhenBuild {
+			time.Sleep(waitForMoreTxs)
+
+			ts = uint64(time.Now().UTC().Unix())
+			preferred = ctx.StateDB().PreferredBlock()
+			if pt = uint64(preferred.Timestamp().Unix()); ts < pt {
+				ts = pt
+			}
+		}
 	}
 
 	parentHeight := preferred.Height()
 	if b.lastBuildHeight > parentHeight {
 		return nil, fmt.Errorf("wait lastBuildHeight %d becoming preferred, current at %d",
 			b.lastBuildHeight, parentHeight)
-	}
-
-	ts := uint64(b.lastBuildTime.Unix())
-	if pt := uint64(preferred.Timestamp().Unix()); ts < pt {
-		ts = pt
 	}
 
 	feeCfg := ctx.Chain().Fee(parentHeight + 1)
@@ -109,6 +158,7 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 
 	// 1. BuildMiner
 	nblk.BuildMiner(vbs)
+
 	// 2. TryBuildTxs
 	var status choices.Status
 	for len(txs) > 0 {
@@ -130,12 +180,13 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 
 			switch status {
 			case choices.Unknown:
-				b.txPool.Add(tx)
+				b.txPool.AddLocal(tx)
 			case choices.Rejected:
 				b.txPool.Reject(tx)
 			default:
 				vbs = nvbs
 				nblk.originTxs = append(nblk.originTxs, tx)
+				b.txPool.SetTxsStatus(status, tx.ID)
 			}
 		}
 		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize) - nblk.TxsSize())
@@ -148,11 +199,18 @@ func (b *BlockBuilder) Build(ctx *Context, preferred *Block) (*Block, error) {
 	if err := nblk.BuildMinerFee(vbs); err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
+
 	// 4. BuildState
 	if err := nblk.BuildState(vbs); err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
+
+	if err := nblk.SyntacticVerify(); err != nil {
+		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
+	}
+
 	b.lastBuildHeight = blk.Height
+	b.status = building
 	logging.Log.Info("Build block %s at %d", blk.ID, blk.Height)
 	return nblk, nil
 }

@@ -6,7 +6,6 @@ package ld
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"sync"
 
 	ipld "github.com/ipld/go-ipld-prime"
@@ -32,7 +31,7 @@ type IPLDModel struct {
 func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
 	b := &IPLDModel{name: name, sch: sch, buf: new(bytes.Buffer)}
 
-	errp := util.ErrPrefix(fmt.Sprintf("NewIPLDModel(%s) error: ", strconv.Quote(name)))
+	errp := util.ErrPrefix(fmt.Sprintf("NewIPLDModel(%q) error: ", name))
 	err := Recover(errp, func() error {
 		ts, err := ipld.LoadSchemaBytes(sch)
 		if err != nil {
@@ -70,7 +69,7 @@ func (l *IPLDModel) Type() schema.Type {
 }
 
 func (l *IPLDModel) Decode(doc []byte) (node datamodel.Node, err error) {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).Decode error: ", strconv.Quote(l.name)))
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).Decode error: ", l.name))
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -83,7 +82,7 @@ func (l *IPLDModel) Decode(doc []byte) (node datamodel.Node, err error) {
 }
 
 func (l *IPLDModel) ApplyPatch(doc, operations []byte) ([]byte, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).ApplyPatch error: ", strconv.Quote(l.name)))
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).ApplyPatch error: ", l.name))
 
 	p, err := cborpatch.NewPatch(operations)
 	if err != nil {
@@ -101,7 +100,7 @@ func (l *IPLDModel) ApplyPatch(doc, operations []byte) ([]byte, error) {
 }
 
 func (l *IPLDModel) Valid(data []byte) error {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%s).Valid error: ", strconv.Quote(l.name)))
+	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).Valid error: ", l.name))
 	if err := util.ValidCBOR(data); err != nil {
 		return errp.ErrorIf(err)
 	}

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
@@ -177,7 +176,7 @@ func (m *MockBS) LoadMiner(id util.StakeSymbol) (*Account, error) {
 func (m *MockBS) ResolveNameID(name string) (util.DataID, error) {
 	id, ok := m.NC[name]
 	if !ok {
-		return util.DataIDEmpty, fmt.Errorf("MBS.ResolveNameID: %s not found", strconv.Quote(name))
+		return util.DataIDEmpty, fmt.Errorf("MBS.ResolveNameID: %q not found", name)
 	}
 	return id, nil
 }

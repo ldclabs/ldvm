@@ -5,7 +5,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -213,8 +212,7 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 			return errp.Errorf("invalid NameService data, %v", err)
 		}
 		if n1 != n2 {
-			return errp.Errorf("can't update name, expected %s, got %s",
-				strconv.Quote(n1), strconv.Quote(n2))
+			return errp.Errorf("can't update name, expected %q, got %q", n1, n2)
 		}
 	}
 

@@ -6,7 +6,6 @@ package util
 import (
 	"encoding/base32"
 	"encoding/hex"
-	"strconv"
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -89,7 +88,7 @@ func (id *EthID) UnmarshalJSON(b []byte) error {
 
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	str = str[1:lastIndex]
@@ -196,7 +195,7 @@ func (id *ModelID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	str = str[1:lastIndex]
@@ -289,7 +288,7 @@ func (id *DataID) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	str = str[1:lastIndex]
@@ -338,7 +337,7 @@ func NewToken(s string) (TokenSymbol, error) {
 		}
 	}
 
-	return symbol, ErrPrefix("NewToken error: ").Errorf("invalid token symbol %s", strconv.Quote(s))
+	return symbol, ErrPrefix("NewToken error: ").Errorf("invalid token symbol %q", s)
 }
 
 func (id TokenSymbol) String() string {
@@ -432,7 +431,7 @@ func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	str = str[1:lastIndex]
@@ -565,7 +564,7 @@ func (id *StakeSymbol) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	str = str[1:lastIndex]

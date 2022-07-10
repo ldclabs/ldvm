@@ -4,104 +4,42 @@
 package vm
 
 import (
-	"sync"
-	"time"
-
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/mailgun/holster/v4/collections"
 
 	"github.com/ldclabs/ldvm/ld"
 )
 
-const (
-	gossipedTxsCapacity = 100000
-	gossipedTxsTTL      = 120 // seconds
-	txsMsgMaxSize       = 4 * 1024 * 1024
-)
-
 type PushNetwork struct {
-	mu          sync.Mutex
-	vm          *VM
-	ticker      *time.Ticker
-	queue       []*ld.Transaction
-	gossipedTxs *collections.TTLMap
+	vm *VM
 }
 
 func (v *VM) NewPushNetwork() {
-	v.network = &PushNetwork{
-		vm:          v,
-		queue:       make([]*ld.Transaction, 0, 1000),
-		gossipedTxs: collections.NewTTLMap(gossipedTxsCapacity),
-	}
-}
-
-func (n *PushNetwork) seeTx(id ids.ID) {
-	n.gossipedTxs.Set(string(id[:]), struct{}{}, gossipedTxsTTL)
-}
-
-func (n *PushNetwork) hasTx(id ids.ID) bool {
-	_, ok := n.gossipedTxs.Get(string(id[:]))
-	return ok
-}
-
-func (n *PushNetwork) sendTxs(txs ...*ld.Transaction) error {
-	if len(txs) == 0 || n.vm.appSender == nil {
-		return nil
-	}
-
-	data, err := ld.Txs(txs).Marshal()
-	if err != nil {
-		n.vm.Log.Warn("PushNetwork marshal txs failed: %v", err)
-		return err
-	}
-
-	n.vm.Log.Info("PushNetwork sendTxs %d bytes, %d txs", len(data), len(txs))
-	if err = n.vm.appSender.SendAppGossip(data); err != nil {
-		n.vm.Log.Warn("PushNetwork sendTxs failed: %v", err)
-	}
-	return err
-}
-
-func (n *PushNetwork) Start(du time.Duration) {
-	n.ticker = time.NewTicker(du)
-	for range n.ticker.C {
-		n.mu.Lock()
-		if len(n.queue) == 0 {
-			n.mu.Unlock()
-			continue
-		}
-
-		txs := make([]*ld.Transaction, 0, len(n.queue))
-		size := 0
-		for i, tx := range n.queue {
-			size += len(tx.Bytes())
-			if size > txsMsgMaxSize {
-				break
-			}
-			txs = append(txs, n.queue[i])
-		}
-		l := copy(n.queue[:0], n.queue[len(txs):])
-		n.queue = n.queue[:l]
-		n.mu.Unlock()
-		n.sendTxs(txs...)
-	}
-}
-
-func (n *PushNetwork) Close() error {
-	n.ticker.Stop()
-	n.sendTxs(n.queue...)
-	return nil
+	v.network = &PushNetwork{v}
 }
 
 func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
-	if n.vm.appSender == nil {
+	if n.vm.appSender == nil || tx == nil {
 		return
 	}
-	if !n.hasTx(tx.ID) {
-		n.seeTx(tx.ID)
-		n.mu.Lock()
-		n.queue = append(n.queue, tx)
-		n.mu.Unlock()
+
+	var err error
+	var data []byte
+
+	// it should be a batch tx when txs length is greater than 1
+	if tx.IsBatched() {
+		data, err = tx.Txs().Marshal()
+	} else {
+		data, err = ld.Txs{tx}.Marshal()
+	}
+
+	if err != nil {
+		n.vm.Log.Warn("PushNetwork marshal txs failed: %v", err)
+		return
+	}
+
+	n.vm.Log.Debug("PushNetwork GossipTx %d bytes", len(data))
+	if err = n.vm.appSender.SendAppGossip(data); err != nil {
+		n.vm.Log.Warn("PushNetwork sendTxs failed: %v", err)
 	}
 }
 
@@ -123,17 +61,19 @@ func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 	err := txs.Unmarshal(msg)
 	if len(txs) > 0 {
 		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))
-		rt := make([]*ld.Transaction, 0, len(txs))
-		for i := range txs {
-			if !v.network.hasTx(txs[i].ID) {
-				v.network.seeTx(txs[i].ID)
-				rt = append(rt, txs[i])
+		for _, tx := range txs {
+			if err := tx.SyntacticVerify(); err != nil {
+				v.Log.Warn("AppGossip from %s, %d bytes, error: %v", nodeID, len(msg), err)
+				return err
 			}
 		}
-		v.state.AddTxs(rt...)
-		return nil
+		// it should be a batch tx when txs length is greater than 1
+		return v.state.AddRemoteTxs(txs...)
 	}
 
-	v.Log.Warn("AppGossip %s, %d bytes, error: %v", nodeID, len(msg), err)
-	return err
+	if err != nil {
+		v.Log.Warn("AppGossip from %s, %d bytes, error: %v", nodeID, len(msg), err)
+		return err
+	}
+	return nil
 }

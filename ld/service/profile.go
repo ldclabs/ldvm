@@ -5,7 +5,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -76,13 +75,13 @@ func (p *Profile) SyntacticVerify() error {
 		return errp.Errorf("nil pointer")
 
 	case !util.ValidName(p.Name):
-		return errp.Errorf("invalid name %s", strconv.Quote(p.Name))
+		return errp.Errorf("invalid name %q", p.Name)
 
 	case !util.ValidLink(p.Image):
-		return errp.Errorf("invalid image %s", strconv.Quote(p.Image))
+		return errp.Errorf("invalid image %q", p.Image)
 
 	case !util.ValidLink(p.URL):
-		return errp.Errorf("invalid url %s", strconv.Quote(p.URL))
+		return errp.Errorf("invalid url %q", p.URL)
 
 	case p.Follows == nil:
 		return errp.Errorf("nil follows")
@@ -113,11 +112,11 @@ func (p *Profile) SyntacticVerify() error {
 			return errp.Errorf("nil extension at %d", i)
 		}
 		if !util.ValidName(ex.Title) {
-			return errp.Errorf("invalid extension title %s at %d", strconv.Quote(ex.Title), i)
+			return errp.Errorf("invalid extension title %q at %d", ex.Title, i)
 		}
 		id := string(ex.ModelID[:]) + ex.Title
 		if _, ok := set[id]; ok {
-			return errp.Errorf("%s exists in extensions at %d", strconv.Quote(ex.Title), i)
+			return errp.Errorf("%q exists in extensions at %d", ex.Title, i)
 		}
 		set[id] = struct{}{}
 	}

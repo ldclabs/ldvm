@@ -121,9 +121,7 @@ func (v *VM) Initialize(
 	v.Log.Info("LDVM Initialize with upgradeData: <%s>", string(upgradeData))
 	v.Log.Info("LDVM Initialize with configData: <%s>", string(configData))
 
-	err = ld.Recover("LDVM Initialize", func() error {
-		return v.initialize(cfg, genesisData, toEngine)
-	})
+	err = v.initialize(cfg, genesisData, toEngine)
 	if err != nil {
 		v.Log.Error(err.Error())
 	}
@@ -149,12 +147,11 @@ func (v *VM) initialize(
 	ld.SetChainID(gs.Chain.ChainID)
 
 	chaindb := v.dbManager.Current().Database
-	v.state = chain.NewState(v.ctx, cfg, gs, chaindb, v.notifyBuild, v.network.GossipTx)
+	v.state = chain.NewState(v.ctx, cfg, gs, chaindb, toEngine, v.network.GossipTx)
 	if err = v.state.Bootstrap(); err != nil {
 		return err
 	}
 
-	go v.network.Start(time.Millisecond * 1000)
 	return nil
 }
 
@@ -173,7 +170,6 @@ func (v *VM) SetState(state snow.State) error {
 func (v *VM) Shutdown() error {
 	v.Log.Info("Shutdown")
 	// TODO graceful shutdown
-	v.network.Close()
 	v.dbManager.Close()
 	return nil
 }
@@ -365,15 +361,6 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 		v.Log.Info("VM BuildBlock %s at %d", blk.ID(), blk.Height())
 	}
 	return
-}
-
-// signal the avalanchego engine to build a block from pending transactions
-func (v *VM) notifyBuild() {
-	select {
-	case v.toEngine <- common.PendingTxs:
-	default:
-		v.Log.Debug("dropping message to consensus engine")
-	}
 }
 
 // SetPreference implements the block.ChainVM SetPreference interface

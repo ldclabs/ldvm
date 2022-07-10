@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"sort"
-	"strconv"
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
@@ -65,7 +64,7 @@ func (t *TxData) SyntacticVerify() error {
 		return errp.Errorf("invalid ChainID, expected %d, got %d", gChainID, t.ChainID)
 
 	case t.Token != nil && !t.Token.Valid():
-		return errp.Errorf("invalid token symbol %s", strconv.Quote(t.Token.GoString()))
+		return errp.Errorf("invalid token symbol %q", t.Token.GoString())
 
 	case t.Data != nil && len(t.Data) == 0:
 		return errp.Errorf("empty data")

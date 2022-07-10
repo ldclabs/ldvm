@@ -4,7 +4,6 @@
 package service
 
 import (
-	"strconv"
 	"unicode/utf8"
 
 	"github.com/fxamacker/cbor/v2"
@@ -60,7 +59,7 @@ func (n *Name) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 	if dn.String() != n.Name {
-		return errp.Errorf("%s is not unicode form", strconv.Quote(n.Name))
+		return errp.Errorf("%q is not unicode form", n.Name)
 	}
 
 	if n.Records == nil {
@@ -68,7 +67,7 @@ func (n *Name) SyntacticVerify() error {
 	}
 	for _, s := range n.Records {
 		if !utf8.ValidString(s) {
-			return errp.Errorf("invalid utf8 record %s", strconv.Quote(s))
+			return errp.Errorf("invalid utf8 record %q", s)
 		}
 	}
 	if n.raw, err = n.Marshal(); err != nil {
