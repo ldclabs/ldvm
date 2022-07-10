@@ -105,19 +105,15 @@ func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *G
 }
 
 // GetTx
-func (api *BlockChainAPI) GetTx(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
+func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
 	if args.ID == ids.Empty {
 		return fmt.Errorf("invalid transaction id: %v", args.ID)
 	}
 
-	tx := api.state.GetTx(args.ID)
-	if tx == nil {
-		return fmt.Errorf("transaction %v not found in cache", args.ID)
-	}
+	status := api.state.GetTxStatus(args.ID)
 
-	reply.ID = tx.ID().String()
-	reply.Status = tx.Status()
-	reply.Data = tx
+	reply.ID = args.ID.String()
+	reply.Status = status.String()
 	return nil
 }
 

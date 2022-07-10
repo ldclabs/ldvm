@@ -6,7 +6,6 @@ package chain
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -14,8 +13,8 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
 
-	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
@@ -75,10 +74,10 @@ type StateDB interface {
 
 	// txs state
 	SubmitTx(...*ld.Transaction) error
-	AddTxs(txs ...*ld.Transaction)
-	AddRecentTx(transaction.Transaction, choices.Status)
-	GetTx(ids.ID) transaction.Transaction
-	RemoveTx(ids.ID)
+	AddRemoteTxs(tx ...*ld.Transaction) error
+	AddLocalTxs(txs ...*ld.Transaction)
+	SetTxsStatus(choices.Status, ...ids.ID)
+	GetTxStatus(ids.ID) choices.Status
 
 	LoadAccount(util.EthID) (*ld.Account, error)
 	ResolveName(name string) (*ld.DataInfo, error)
@@ -145,12 +144,9 @@ type stateDB struct {
 	recentAccounts *db.Cacher
 	recentNames    *db.Cacher
 	recentHeights  *db.Cacher
-	recentTxs      *db.Cacher
 
-	bb          *BlockBuilder
-	txPool      TxPool // Proposed transactions that haven't been put into a block yet
-	gossipTx    func(tx *ld.Transaction)
-	notifyBuild func()
+	bb     *BlockBuilder
+	txPool TxPool // Proposed transactions that haven't been put into a block yet
 }
 
 func NewState(
@@ -158,16 +154,14 @@ func NewState(
 	cfg *config.Config,
 	gs *genesis.Genesis,
 	baseDB database.Database,
-	notifyBuild func(),
-	gossipTx func(tx *ld.Transaction),
+	toEngine chan<- common.Message,
+	gossipTx func(*ld.Transaction),
 ) *stateDB {
 	pdb := db.NewPrefixDB(baseDB, dbPrefix, 512)
 	s := &stateDB{
 		config:            cfg,
 		genesis:           gs,
 		db:                baseDB,
-		notifyBuild:       notifyBuild,
-		gossipTx:          gossipTx,
 		txPool:            NewTxPool(),
 		preferred:         new(atomicBlock),
 		lastAcceptedBlock: new(atomicLDBlock),
@@ -182,9 +176,16 @@ func NewState(
 		prevDataDB:        pdb.With(prevDataDBPrefix),
 		nameDB:            pdb.With(nameDBPrefix),
 	}
-	s.ctx = NewContext(ctx, s, cfg, gs)
-	s.bb = NewBlockBuilder(ctx.NodeID, s.txPool, s.notifyBuild)
 
+	txPool := NewTxPool()
+	builder := NewBlockBuilder(ctx.NodeID, txPool, toEngine)
+
+	txPool.gossipTx = gossipTx
+	txPool.signalTxsReady = builder.SignalTxsReady
+
+	s.ctx = NewContext(ctx, s, cfg, gs)
+	s.bb = builder
+	s.txPool = txPool
 	s.preferred.StoreV(emptyBlock)
 	s.lastAcceptedBlock.StoreV(emptyBlock.ld)
 	s.state.StoreV(0)
@@ -207,7 +208,6 @@ func NewState(
 	s.recentNames = db.NewCacher(100_000, 60*20, func() db.Objecter {
 		return new(db.RawObject)
 	})
-	s.recentTxs = db.NewCacher(100_000, 60*20, nil)
 	return s
 }
 
@@ -440,11 +440,7 @@ func (s *stateDB) SetPreference(id ids.ID) error {
 }
 
 func (s *stateDB) BuildBlock() (*Block, error) {
-	if !s.bb.NeedBuild() {
-		return nil, fmt.Errorf("wait to build block")
-	}
-
-	blk, err := s.bb.Build(s.ctx, s.preferred.LoadV())
+	blk, err := s.bb.Build(s.ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -458,6 +454,7 @@ func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
 	if err := blk.Unmarshal(data); err != nil {
 		return nil, err
 	}
+
 	id := blk.ID()
 	if blk2, err := s.GetBlock(id); err == nil {
 		return blk2, nil
@@ -467,6 +464,10 @@ func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
 		blk.SetContext(s.ctx)
 	}
 	s.recentBlocks.SetObject(id[:], blk)
+
+	txIDs := blk.TxIDs()
+	s.txPool.SetTxsStatus(choices.Processing, txIDs...)
+	s.txPool.ClearTxs(txIDs...)
 	return blk, nil
 }
 
@@ -509,7 +510,21 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 	if len(txs) == 0 {
 		return nil
 	}
+	for _, tx := range txs {
+		if err := tx.SyntacticVerify(); err != nil {
+			return err
+		}
+	}
 
+	blk := s.preferred.LoadV()
+	if err := blk.TryBuildTxs(txs...); err != nil {
+		return err
+	}
+
+	return s.AddRemoteTxs(txs...)
+}
+
+func (s *stateDB) AddRemoteTxs(txs ...*ld.Transaction) error {
 	var err error
 	tx := txs[0]
 	if len(txs) > 1 {
@@ -522,38 +537,20 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 	if tx.Type == ld.TypeTest {
 		return fmt.Errorf("TestTx should be in a batch transactions.")
 	}
-	blk := s.preferred.LoadV()
-	if err := blk.TryBuildTxs(txs...); err != nil {
-		return err
-	}
-
-	s.AddTxs(tx)
-	go s.notifyBuild()
+	s.txPool.AddRemote(tx)
 	return nil
 }
 
-func (s *stateDB) AddTxs(txs ...*ld.Transaction) {
-	s.txPool.Add(txs...)
+func (s *stateDB) AddLocalTxs(txs ...*ld.Transaction) {
+	s.txPool.AddLocal(txs...)
 }
 
-func (s *stateDB) AddRecentTx(tx transaction.Transaction, status choices.Status) {
-	id := tx.ID()
-	tx.SetStatus(status)
-	s.recentTxs.SetObject(id[:], tx)
+func (s *stateDB) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
+	s.txPool.SetTxsStatus(status, txIDs...)
 }
 
-func (s *stateDB) GetTx(id ids.ID) transaction.Transaction {
-	if tx := s.txPool.Get(id); tx != nil {
-		return tx
-	}
-	if tx, ok := s.recentTxs.GetObject(id[:]); ok {
-		return tx.(transaction.Transaction)
-	}
-	return nil
-}
-
-func (s *stateDB) RemoveTx(id ids.ID) {
-	s.txPool.Remove(id)
+func (s *stateDB) GetTxStatus(id ids.ID) choices.Status {
+	return s.txPool.GetStatus(id)
 }
 
 func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
@@ -572,8 +569,7 @@ func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
 func (s *stateDB) ResolveName(name string) (*ld.DataInfo, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
-		return nil, fmt.Errorf("invalid name %s, error: %v",
-			strconv.Quote(name), err)
+		return nil, fmt.Errorf("invalid name %q, error: %v", name, err)
 	}
 	obj, err := s.nameDB.LoadObject([]byte(dn.String()), s.recentNames)
 	if err != nil {

@@ -5,7 +5,6 @@ package ld
 
 import (
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -34,7 +33,7 @@ func (t *TxAccounter) SyntacticVerify() error {
 		return errp.Errorf("nil pointer")
 
 	case t.Name != "" && !util.ValidName(t.Name):
-		return errp.Errorf("invalid name %s", strconv.Quote(t.Name))
+		return errp.Errorf("invalid name %q", t.Name)
 
 	case t.Amount != nil && t.Amount.Sign() < 0:
 		return errp.Errorf("invalid amount")

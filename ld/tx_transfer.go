@@ -5,7 +5,6 @@ package ld
 
 import (
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -37,7 +36,7 @@ func (t *TxTransfer) SyntacticVerify() error {
 		return errp.Errorf("nil pointer")
 
 	case t.Token != nil && !t.Token.Valid():
-		return errp.Errorf("invalid token symbol %s", strconv.Quote(t.Token.GoString()))
+		return errp.Errorf("invalid token symbol %q", t.Token.GoString())
 
 	case t.Amount != nil && t.Amount.Sign() < 0:
 		return errp.Errorf("invalid amount")

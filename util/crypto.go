@@ -12,7 +12,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fxamacker/cbor/v2"
@@ -75,7 +74,7 @@ func (id *Signature) UnmarshalJSON(b []byte) error {
 	}
 	lastIndex := len(str) - 1
 	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %s", strconv.Quote(str))
+		return errp.Errorf("invalid string %q", str)
 	}
 
 	return id.UnmarshalText([]byte(str[1:lastIndex]))

@@ -5,7 +5,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -20,7 +19,7 @@ type DN struct {
 }
 
 func NewDN(name string) (*DN, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("NewDN(%s) error: ", strconv.Quote(name)))
+	errp := util.ErrPrefix(fmt.Sprintf("NewDN(%q) error: ", name))
 	if !utf8.ValidString(name) || name == "" {
 		return nil, errp.Errorf("invalid utf8 name")
 	}

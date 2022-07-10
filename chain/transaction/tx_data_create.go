@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -279,7 +278,7 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 				return errp.ErrorIf(err)
 			}
 			if _, err = bs.ResolveNameID(tx.name.Name); err == nil {
-				return errp.Errorf("name %s conflict", strconv.Quote(tx.name.Name))
+				return errp.Errorf("name %q conflict", tx.name.Name)
 			}
 
 			if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {

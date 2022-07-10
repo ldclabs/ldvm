@@ -5,7 +5,6 @@ package ld
 
 import (
 	"runtime/debug"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -14,7 +13,7 @@ func Recover(errp util.ErrPrefix, fn func() error) (err error) {
 	defer func() {
 		if re := recover(); re != nil {
 			buf := debug.Stack()
-			err = errp.Errorf("panic: %v, stack: %s", re, strconv.Quote(string(buf)))
+			err = errp.Errorf("panic: %v, stack: %q", re, string(buf))
 		}
 	}()
 

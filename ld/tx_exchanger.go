@@ -5,7 +5,6 @@ package ld
 
 import (
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -38,10 +37,10 @@ func (t *TxExchanger) SyntacticVerify() error {
 		return errp.Errorf("invalid nonce")
 
 	case !t.Sell.Valid():
-		return errp.Errorf("invalid sell token symbol %s", strconv.Quote(t.Sell.GoString()))
+		return errp.Errorf("invalid sell token symbol %q", t.Sell.GoString())
 
 	case !t.Receive.Valid():
-		return errp.Errorf("invalid receive token symbol %s", strconv.Quote(t.Receive.GoString()))
+		return errp.Errorf("invalid receive token symbol %q", t.Receive.GoString())
 
 	case t.Sell == t.Receive:
 		return errp.Errorf("sell and receive token should not equal")

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -21,31 +22,26 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tx := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 	assert.Equal(0, tp.Len())
-	assert.False(tp.Has(tx.ID))
-	assert.Nil(tp.Get(tx.ID))
+	assert.False(tp.has(tx.ID))
+	assert.False(tp.knownTx(tx.ID))
 
-	tp.Add(tx)
+	tp.AddRemote(tx)
 	assert.Equal(1, tp.Len())
-	assert.True(tp.Has(tx.ID))
-	ntx := tp.Get(tx.ID)
-	assert.NotNil(ntx)
-	assert.Equal(tx.ID, ntx.ID())
-	assert.Equal("Unknown", ntx.Status())
-	assert.Equal(fmt.Sprintf("%p", tx), fmt.Sprintf("%p", ntx.LD()))
+	assert.True(tp.has(tx.ID))
+	assert.True(tp.knownTx(tx.ID))
+	assert.Equal(choices.Unknown, tp.GetStatus(tx.ID))
 
-	tp.Add(tx)
+	tp.AddRemote(tx)
 	assert.Equal(1, tp.Len(), "should not be added repeatedly")
 
 	tp.Reject(tx)
 	assert.Equal(0, tp.Len())
-	assert.True(tp.Has(tx.ID))
-	ntx = tp.Get(tx.ID)
-	assert.NotNil(ntx)
-	assert.Equal(tx.ID, ntx.ID())
-	assert.Equal("Rejected", ntx.Status())
-	assert.Equal(fmt.Sprintf("%p", tx), fmt.Sprintf("%p", ntx.LD()))
+	assert.False(tp.has(tx.ID))
+	assert.True(tp.knownTx(tx.ID))
+	assert.Equal(choices.Rejected, tp.GetStatus(tx.ID))
 
-	tp.Add(tx)
+	tp.AddRemote(tx)
+	assert.False(tp.has(tx.ID))
 	assert.Equal(0, tp.Len(), "should not be added after rejected")
 
 	txs := tp.PopTxsBySize(1000000)
@@ -61,7 +57,7 @@ func TestTxPoolRemove(t *testing.T) {
 	tx2 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 	tx3 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 
-	tp.Add(tx0, tx1, tx2, tx3)
+	tp.AddRemote(tx0, tx1, tx2, tx3)
 	assert.Equal(4, tp.Len())
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
 	assert.Equal(tx1.ID, tp.txQueue[1].ID)
@@ -69,22 +65,24 @@ func TestTxPoolRemove(t *testing.T) {
 	assert.Equal(tx3.ID, tp.txQueue[3].ID)
 	quePtr := fmt.Sprintf("%p", tp.txQueue)
 
-	tp.Remove(tx1.ID)
-	assert.False(tp.Has(tx1.ID))
+	tp.ClearTxs(tx1.ID)
+	assert.False(tp.has(tx1.ID))
+	assert.True(tp.knownTx(tx1.ID))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
 	assert.Equal(tx2.ID, tp.txQueue[1].ID)
 	assert.Equal(tx3.ID, tp.txQueue[2].ID)
 	assert.Equal(quePtr, fmt.Sprintf("%p", tp.txQueue), "should not change the underlying array")
 
-	tp.Remove(tx0.ID)
-	assert.False(tp.Has(tx0.ID))
+	tp.ClearTxs(tx0.ID)
+	assert.False(tp.has(tx0.ID))
+	assert.True(tp.knownTx(tx0.ID))
 	assert.Equal(2, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
 	assert.Equal(tx3.ID, tp.txQueue[1].ID)
 	assert.Equal(quePtr, fmt.Sprintf("%p", tp.txQueue), "should not change the underlying array")
 
-	tp.Add(tx0, tx1, tx2, tx3)
+	tp.AddLocal(tx0, tx1, tx2, tx3)
 	assert.Equal(4, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
 	assert.Equal(tx3.ID, tp.txQueue[1].ID)
@@ -96,12 +94,12 @@ func TestTxPoolRemove(t *testing.T) {
 	wg.Add(10)
 	for i := 0; i < 10; i++ {
 		go func() {
-			tp.Remove(tx1.ID)
+			tp.ClearTxs(tx1.ID)
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	assert.False(tp.Has(tx1.ID))
+	assert.False(tp.has(tx1.ID))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
 	assert.Equal(tx3.ID, tp.txQueue[1].ID)
@@ -132,7 +130,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	tx1 := ld.MustNewTestTx(s2, ld.TypeTransfer, &to, ld.GenJSONData(1000))
 	tx2 := ld.MustNewTestTx(s3, ld.TypeTransfer, &to, ld.GenJSONData(2000))
 	tx3 := ld.MustNewTestTx(s0, ld.TypeTransfer, &to, ld.GenJSONData(3000))
-	tp.Add(tx0, tx1, tx2, tx3, btx)
+	tp.AddRemote(tx0, tx1, tx2, tx3, btx)
 	assert.Equal(8, tp.Len())
 	assert.Equal(5, len(tp.txQueue))
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
@@ -156,7 +154,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	assert.Equal(btx.ID, txs[1].ID)
 
 	tx4 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &to, ld.GenJSONData(4000))
-	tp.Add(tx4)
+	tp.AddRemote(tx4)
 	assert.Equal(4, tp.Len())
 	assert.Equal(4, len(tp.txQueue))
 	txs = tp.PopTxsBySize(5500)

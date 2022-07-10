@@ -206,22 +206,5 @@ func TestTxTester(t *testing.T) {
 		Data:      MustMarshalJSON(v),
 	}
 	assert.NoError(di.SyntacticVerify())
-	assert.ErrorContains(tx.Test(di.Bytes()),
-		`TxTester.Test error: test operation for path "/d/age" failed`)
-
-	// json DataObject
-	tx = &TxTester{
-		ObjectType: DataObject,
-		ObjectID:   ids.ShortID{1, 2, 3},
-		Tests: TestOps{
-			{Path: "/v", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/kp/0", Value: util.MustMarshalCBOR(util.Signer1.Address())},
-			{Path: "/ap", Value: util.MustMarshalCBOR(util.Signer2.Address())},
-			{Path: "/d/name", Value: util.MustMarshalCBOR("John")},
-			{Path: "/d/age", Value: util.MustMarshalCBOR(float64(42))},
-		},
-	}
-	assert.NoError(tx.SyntacticVerify())
 	assert.NoError(tx.Test(di.Bytes()))
 }

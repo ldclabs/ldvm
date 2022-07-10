@@ -9,7 +9,6 @@ import (
 	"math/big"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -27,7 +26,6 @@ type TxBase struct {
 	cost    *big.Int // fee + tip
 	token   util.TokenSymbol
 	signers util.EthIDs
-	status  choices.Status
 }
 
 func (tx *TxBase) MarshalJSON() ([]byte, error) {
@@ -53,14 +51,6 @@ func (tx *TxBase) Type() ld.TxType {
 
 func (tx *TxBase) Bytes() []byte {
 	return tx.ld.Bytes()
-}
-
-func (tx *TxBase) Status() string {
-	return tx.status.String()
-}
-
-func (tx *TxBase) SetStatus(s choices.Status) {
-	tx.status = s
 }
 
 func (tx *TxBase) SyntacticVerify() error {

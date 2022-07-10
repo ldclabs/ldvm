@@ -48,6 +48,7 @@ type Block struct {
 	status    choices.Status
 	txs       []transaction.Transaction // txs field will unfold batch tx
 	originTxs []*ld.Transaction         // originTxs keep the original txs
+	txIDs     []ids.ID
 	verified  bool
 }
 
@@ -84,6 +85,12 @@ func (b *Block) SyntacticVerify() error {
 	if err := b.ld.SyntacticVerify(); err != nil {
 		return err
 	}
+
+	b.txIDs = make([]ids.ID, len(b.ld.Txs))
+	for i, tx := range b.ld.Txs {
+		b.txIDs[i] = tx.ID
+	}
+
 	b.status = choices.Processing
 	return nil
 }
@@ -137,9 +144,6 @@ func (b *Block) InitState(db database.Database, accepted bool) {
 		b.ctx, b.ld.Height, b.ld.Timestamp, b.ld.ParentState, db)
 	if accepted { // history block
 		b.status = choices.Accepted
-		for _, tx := range b.txs {
-			tx.SetStatus(choices.Accepted)
-		}
 	}
 }
 
@@ -148,6 +152,8 @@ func (b *Block) State() BlockState { return b.bs }
 // ID implements the snowman.Block choices.Decidable ID interface
 // ID returns a unique ID for this element.
 func (b *Block) ID() ids.ID { return b.ld.ID }
+
+func (b *Block) TxIDs() []ids.ID { return b.txIDs }
 
 func (b *Block) Miner() util.StakeSymbol { return b.ld.Miner }
 
@@ -311,7 +317,6 @@ func (b *Block) VerifyGenesis() error {
 		if err := tx.ApplyGenesis(b, b.bs); err != nil {
 			return err
 		}
-		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Processing)
 	}
 
 	if err := b.bs.SaveBlock(b.ld); err != nil {
@@ -320,6 +325,7 @@ func (b *Block) VerifyGenesis() error {
 	b.status = choices.Processing
 	b.ctx.StateDB().AddVerifiedBlock(b)
 	b.verified = true
+	b.ctx.StateDB().SetTxsStatus(choices.Processing, b.txIDs...)
 	return nil
 }
 
@@ -336,9 +342,10 @@ func (b *Block) Verify() error {
 		return err
 	}
 
-	logging.Log.Info("Block.Verify %s at %d", b.ID(), b.Height())
 	b.ctx.StateDB().AddVerifiedBlock(b)
 	b.verified = true
+	b.ctx.StateDB().SetTxsStatus(choices.Processing, b.txIDs...)
+	logging.Log.Info("Block.Verify %s at %d", b.ID(), b.Height())
 	return nil
 }
 
@@ -385,11 +392,8 @@ func (b *Block) verify() error {
 		if err := tx.Apply(b, b.bs); err != nil {
 			return err
 		}
-		b.ctx.StateDB().RemoveTx(tx.ID())
 		gas += b.ld.Txs[i].Gas()
 		txsSize += len(b.ld.Txs[i].Bytes())
-
-		b.ctx.StateDB().AddRecentTx(tx, choices.Processing)
 	}
 
 	if gas != b.ld.Gas {
@@ -427,10 +431,8 @@ func (b *Block) Accept() error {
 		return fmt.Errorf("Block.Accept set last accepted error: %v", err)
 	}
 
-	for i := range b.txs {
-		b.ctx.StateDB().AddRecentTx(b.txs[i], choices.Accepted)
-	}
 	b.status = choices.Accepted
+	b.ctx.StateDB().SetTxsStatus(choices.Accepted, b.txIDs...)
 	return nil
 }
 
@@ -457,7 +459,7 @@ func (b *Block) Reject() error {
 func (b *Block) reject() {
 	if b.status != choices.Rejected {
 		b.status = choices.Rejected
-		b.ctx.StateDB().AddTxs(b.originTxs...)
+		b.ctx.StateDB().AddLocalTxs(b.originTxs...)
 	}
 }
 

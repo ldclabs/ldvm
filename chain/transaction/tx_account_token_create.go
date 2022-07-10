@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 	"math/big"
-	"strconv"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -84,7 +83,7 @@ func (tx *TxCreateToken) SyntacticVerify() error {
 		return errp.Errorf("invalid approver, expected not %s", tx.input.Approver)
 
 	case len(tx.input.Name) < 3:
-		return errp.Errorf("invalid name %s, expected length >= 3", strconv.Quote(tx.input.Name))
+		return errp.Errorf("invalid name %q, expected length >= 3", tx.input.Name)
 	}
 	return nil
 }
