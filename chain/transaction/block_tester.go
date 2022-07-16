@@ -17,7 +17,7 @@ import (
 )
 
 type MockBCtx struct {
-	ChainConfig       *genesis.ChainConfig
+	cfg               *genesis.ChainConfig
 	height, timestamp uint64
 	Price             uint64
 	MinerID           util.StakeSymbol
@@ -33,20 +33,20 @@ func NewMockBCtx() *MockBCtx {
 		panic(err)
 	}
 	return &MockBCtx{
-		ChainConfig: &ge.Chain,
-		height:      1,
-		timestamp:   1000,
-		Price:       1000,
-		MinerID:     ld.MustNewStake("#LDC"),
+		cfg:       &ge.Chain,
+		height:    1,
+		timestamp: 1000,
+		Price:     1000,
+		MinerID:   ld.MustNewStake("#LDC"),
 	}
 }
 
-func (m *MockBCtx) Chain() *genesis.ChainConfig {
-	return m.ChainConfig
+func (m *MockBCtx) ChainConfig() *genesis.ChainConfig {
+	return m.cfg
 }
 
 func (m *MockBCtx) FeeConfig() *genesis.FeeConfig {
-	return m.ChainConfig.FeeConfig
+	return m.cfg.FeeConfig
 }
 
 func (m *MockBCtx) GasPrice() *big.Int {
@@ -60,7 +60,7 @@ func (m *MockBCtx) Miner() util.StakeSymbol {
 func (m *MockBCtx) MockBS() *MockBS {
 	return &MockBS{
 		ctx: m,
-		Fee: m.ChainConfig.FeeConfig,
+		Fee: m.cfg.FeeConfig,
 		AC:  make(AccountCache),
 		NC:  make(map[string]util.DataID),
 		MC:  make(map[util.ModelID][]byte),

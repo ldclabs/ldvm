@@ -18,11 +18,11 @@ import (
 )
 
 type BlockChainAPI struct {
-	state chain.StateDB
+	bc chain.BlockChain
 }
 
-func NewBlockChainAPI(state chain.StateDB) *BlockChainAPI {
-	return &BlockChainAPI{state}
+func NewBlockChainAPI(bc chain.BlockChain) *BlockChainAPI {
+	return &BlockChainAPI{bc}
 }
 
 type GetReply struct {
@@ -33,13 +33,13 @@ type GetReply struct {
 
 // GetChainConfig
 func (api *BlockChainAPI) GetChainConfig(_ *http.Request, _ *NoArgs, reply *genesis.ChainConfig) error {
-	*reply = *api.state.Context().Chain()
+	*reply = *api.bc.Context().ChainConfig()
 	return nil
 }
 
 // GetTotalSupply
 func (api *BlockChainAPI) GetTotalSupply(_ *http.Request, _ *NoArgs, reply *GetBalanceReply) error {
-	reply.Balance = api.state.TotalSupply()
+	reply.Balance = api.bc.TotalSupply()
 	return nil
 }
 
@@ -56,7 +56,7 @@ func (api *BlockChainAPI) GetBalance(_ *http.Request, args *GetAccountArgs, repl
 	if args.ID == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
-	acc, err := api.state.LoadAccount(args.ID)
+	acc, err := api.bc.LoadAccount(args.ID)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func (api *BlockChainAPI) GetAccount(_ *http.Request, args *GetAccountArgs, repl
 	if args.ID == constants.LDCAccount {
 		return fmt.Errorf("invalid address: %v", args.ID)
 	}
-	acc, err := api.state.LoadAccount(args.ID)
+	acc, err := api.bc.LoadAccount(args.ID)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ type GetBlockArgs struct {
 // GetBlock
 func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
 	if args.Height != nil {
-		id, err := api.state.GetBlockIDAtHeight(*args.Height)
+		id, err := api.bc.GetBlockIDAtHeight(*args.Height)
 		if err != nil {
 			return fmt.Errorf("invalid block height: %v", *args.Height)
 		}
@@ -95,7 +95,7 @@ func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *G
 	if args.ID == ids.Empty {
 		return fmt.Errorf("invalid block id: %v", args.ID)
 	}
-	blk, err := api.state.GetBlock(args.ID)
+	blk, err := api.bc.GetBlock(args.ID)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply
 		return fmt.Errorf("invalid transaction id: %v", args.ID)
 	}
 
-	status := api.state.GetTxStatus(args.ID)
+	status := api.bc.GetTxStatus(args.ID)
 
 	reply.ID = args.ID.String()
 	reply.Status = status.String()
@@ -126,7 +126,7 @@ func (api *BlockChainAPI) GetModel(_ *http.Request, args *GetModelArgs, reply *G
 	if args.ID == util.ModelIDEmpty {
 		return fmt.Errorf("invalid data id: %s", args.ID)
 	}
-	data, err := api.state.LoadModel(args.ID)
+	data, err := api.bc.LoadModel(args.ID)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (api *BlockChainAPI) GetData(_ *http.Request, args *GetDataArgs, reply *Get
 	if args.ID == util.DataIDEmpty {
 		return fmt.Errorf("invalid data id: %s", args.ID)
 	}
-	data, err := api.state.LoadData(args.ID)
+	data, err := api.bc.LoadData(args.ID)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (api *BlockChainAPI) GetPrevDatas(_ *http.Request, args *GetDataArgs, reply
 	rt := make([]*ld.DataInfo, 0, num)
 	ver := args.Version
 	for ver > 0 && len(rt) < num {
-		data, err := api.state.LoadPrevData(args.ID, ver)
+		data, err := api.bc.LoadPrevData(args.ID, ver)
 		if err != nil {
 			return err
 		}
@@ -183,7 +183,7 @@ type ResolveArgs struct {
 
 // GetData
 func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *GetReply) error {
-	data, err := api.state.ResolveName(args.Name)
+	data, err := api.bc.ResolveName(args.Name)
 	if err != nil {
 		return err
 	}

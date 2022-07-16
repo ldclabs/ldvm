@@ -28,7 +28,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -40,7 +40,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -53,7 +53,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -66,7 +66,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -79,7 +79,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -91,7 +91,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -107,7 +107,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -126,7 +126,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -142,7 +142,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -160,7 +160,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -178,7 +178,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -220,7 +220,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -242,7 +242,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -270,7 +270,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -306,7 +306,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(input2.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -337,7 +337,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(input2.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferCash,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

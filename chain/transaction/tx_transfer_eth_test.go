@@ -34,7 +34,7 @@ func TestTxEth(t *testing.T) {
 	testTo := common.Address(to.id)
 
 	txe, err := ld.NewEthTx(&types.AccessListTx{
-		ChainID:  new(big.Int).SetUint64(bctx.Chain().ChainID),
+		ChainID:  new(big.Int).SetUint64(bctx.ChainConfig().ChainID),
 		Nonce:    0,
 		To:       &testTo,
 		Value:    big.NewInt(1_000_000),
@@ -59,7 +59,7 @@ func TestTxEth(t *testing.T) {
 	tx.ld.Data = data
 	tx.ld.ChainID = 1
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid chainID")
-	tx.ld.ChainID = bctx.Chain().ChainID
+	tx.ld.ChainID = bctx.ChainConfig().ChainID
 	tx.ld.Nonce = 1
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid nonce")
 	tx.ld.Nonce = 0

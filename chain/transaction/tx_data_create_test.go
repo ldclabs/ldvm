@@ -32,7 +32,7 @@ func TestTxCreateData(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -44,7 +44,7 @@ func TestTxCreateData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -57,7 +57,7 @@ func TestTxCreateData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -69,7 +69,7 @@ func TestTxCreateData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -83,7 +83,7 @@ func TestTxCreateData(t *testing.T) {
 	input := &ld.TxUpdater{}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -99,7 +99,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -116,7 +116,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -134,7 +134,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -153,7 +153,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -172,7 +172,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -192,7 +192,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -207,7 +207,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -224,7 +224,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -249,7 +249,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -274,7 +274,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -299,7 +299,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -325,7 +325,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -349,7 +349,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -430,7 +430,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -466,7 +466,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -539,7 +539,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -575,7 +575,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -657,7 +657,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -671,7 +671,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1535600, got 0")
+		"insufficient NativeLDC balance, expected 1555400, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -699,7 +699,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -747,7 +747,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"kSig":"96f2dceeb001b0f604ad5fe1e2fd5bdca907152486afd88e89c88aa93677f6761dbc9798a939467b88df1b0528ba9471f87305aad7eec1a9bf839e79fbcc0d7901","data":"0xa6616960616e66746573746572617401617560626578806266738041034f47"},"signatures":["3b05de218cf3ad4d50721650314fa2734a9050e0edb205f780dca81bcaa962fb2459c4ae8be30839a62b1bfea121419442b2da8ccc103ff4e023a457e7d1314301"],"id":"2VaM9qTsEVnzNaeCTtNWzXEWeuyDL1D83UxfTdhJmNKG4d2qv4"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"kSig":"acde4f3f6f9b36eabfe945cd5b0a533a0324269947a3e975b298ac176937e6c6300c1815f4a67d59d504eb5de91b620686e3cd80332eb084e819b4910203fe0500","data":"0xa7616460616960616e6674657374657261740161756062657880626673807e921573"},"signatures":["bd3ca096158b5c5f19c20aa32479d08c78f2457ea772bfdba07e61b25b55aa0512a627dc7b59e59ffc4cbca3da05c4e197414575d5e2d6273a07e93b08e86d3f01"],"id":"DqAcfjNyMSr4dxcEEdpAvq3u6dm4YYfvKDTDexjc8NucZ3kAr"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -768,7 +768,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Data:      pm.Schema(),
-		ID:        bctx.Chain().ProfileServiceID,
+		ID:        bctx.ChainConfig().ProfileServiceID,
 	}
 
 	pf := &service.Profile{
@@ -792,7 +792,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -807,7 +807,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	senderAcc := bs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs), "LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK not found")
+	assert.ErrorContains(itx.Apply(bctx, bs), "LMPUcCwsr3hudnVDQq1GpSVhLXuTbRbtsPU not found")
 	bs.CheckoutAccounts()
 	assert.NoError(bs.SaveModel(mi.ID, mi))
 	bs.CommitAccounts()
@@ -828,7 +828,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -843,7 +843,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -859,7 +859,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -888,7 +888,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -908,7 +908,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -941,7 +941,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -960,7 +960,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -978,7 +978,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1017,7 +1017,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1039,7 +1039,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1089,7 +1089,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"LMAVc4cCU8wucDkL6SvwDb65mTutdJFR9oK","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"kSig":"075b5688d926286f26c6d04e4be059fbf6e4d9f493f028579881652b2b03cb5a3a459aead16b779bcc6636d3469f8cee83a54b855bd94d165d88d93638c1415a00","mSig":"f8ad98293d17b364b613d51b9e9abc5aa7e28eddae7c9dd04cad52c81eb9b5471ae870b2f9267293cf9015a362096e2087417eea9ae1305673187a71fbba6d6101","expire":100,"data":"0xa6616960616e634c444361740161756062657880626673807f1775c3"},"signatures":["f16ef6921e2c81d69c7368f84b2806182e901354b30dfa14b5b1d0b52a12546261be6225edc8ab73043424b8817ea692a4ae4c8b0167f38b7f0b075755e8e75701"],"exSignatures":["20204b5cb08f7e33ebc591ec7e4d741b5b83af0f283933bd43e1aea5c6f4021b76a39775c0cf1cb6bf8cfca6f1e8233ab3bd043cc209534870c8e51148899a4e00"],"id":"2cTLEq6QGqdzo5eR9FhkcD3DUoyky834b43mUHiRSP27CnqEgF"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"LMPUcCwsr3hudnVDQq1GpSVhLXuTbRbtsPU","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"kSig":"cd24d3b4327a7b6f36756b9ef14102524ff72f196a8e2d3f43e422cfe5168b286c1b8303ca0af88dfac2a339eeb66058ac4a3087358d16f4604a2d9ca47393f001","mSig":"adb583699d7590cabbfd0a2fc801c1b0a34f42687076bb24b65b88efd774fb4e302f437cbde3b67190285a94fd431e3ed7425363eed50715d63926e7f542173d01","expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["1f0d5ab49f1fca0b53a2204980f2a2eaf759ad92edef0008a59447042473422a66d07fec346e31b1ef9c710e9b20747c229bdaa43a73eff7a7f7fb6b0b4a348500"],"exSignatures":["496551efdca492e9d4312a2d8cd523063cbd76c388ac6ef619db31e26c78e07d2689d70be65ba584c94838676fe9ed08b27afc8ca17503c9ef772fbceca7c24f01"],"id":"qY62fEaDWCCtCApT4wXLfebTPVC1qbqYAecxmchgs2d5hQ9Es"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -1110,7 +1110,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Data:      nm.Schema(),
-		ID:        bctx.Chain().NameServiceID,
+		ID:        bctx.ChainConfig().NameServiceID,
 	}
 
 	name := &service.Name{
@@ -1139,7 +1139,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1230,7 +1230,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1277,7 +1277,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -1304,7 +1304,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 
 	sender := util.Signer1.Address()
 
-	cfg, err := json.Marshal(bctx.Chain().FeeConfig)
+	cfg, err := json.Marshal(bctx.ChainConfig().FeeConfig)
 	assert.NoError(err)
 
 	cfgData := &ld.TxUpdater{
@@ -1317,7 +1317,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.NoError(cfgData.SyntacticVerify())
 	tt := &ld.Transaction{
 		Type:    ld.TypeCreateData,
-		ChainID: bctx.Chain().ChainID,
+		ChainID: bctx.ChainConfig().ChainID,
 		From:    sender,
 		Data:    ld.MustMarshal(cfgData),
 	}

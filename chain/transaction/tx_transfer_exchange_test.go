@@ -32,7 +32,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -48,7 +48,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -62,7 +62,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -77,7 +77,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -104,7 +104,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -120,7 +120,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -148,7 +148,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -176,7 +176,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -204,7 +204,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -233,7 +233,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -254,7 +254,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -283,7 +283,7 @@ func TestTxExchange(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeExchange,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

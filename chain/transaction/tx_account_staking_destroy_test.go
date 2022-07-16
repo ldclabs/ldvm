@@ -32,7 +32,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -44,7 +44,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -56,7 +56,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -70,7 +70,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -84,7 +84,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -98,7 +98,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -130,7 +130,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -169,7 +169,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -207,7 +207,7 @@ func TestTxDestroyStake(t *testing.T) {
 	bs.CheckoutAccounts()
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -234,7 +234,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTakeStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -273,7 +273,7 @@ func TestTxDestroyStake(t *testing.T) {
 	input3 := &ld.TxAccounter{Approver: &keeper}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -302,7 +302,7 @@ func TestTxDestroyStake(t *testing.T) {
 	// destroy again
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -323,7 +323,7 @@ func TestTxDestroyStake(t *testing.T) {
 	input2 = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC * 10)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -354,7 +354,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -407,7 +407,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -440,7 +440,7 @@ func TestTxDestroyStake(t *testing.T) {
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*9))
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -504,7 +504,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	}
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -554,7 +554,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(lcfg.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -593,7 +593,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -627,7 +627,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(tf.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeBorrow,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -659,7 +659,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	// DestroyStake
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -680,7 +680,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	// TypeRepay
 	txData = &ld.TxData{
 		Type:      ld.TypeRepay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -706,7 +706,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

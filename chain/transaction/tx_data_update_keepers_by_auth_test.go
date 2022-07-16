@@ -31,7 +31,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -43,7 +43,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -55,7 +55,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -68,7 +68,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -83,7 +83,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input := &ld.TxUpdater{}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -98,7 +98,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &util.DataIDEmpty}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -114,7 +114,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -131,7 +131,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1)}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -146,7 +146,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1, KSig: &util.SignatureEmpty}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -161,7 +161,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1, Approver: &constants.GenesisAccount}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -177,7 +177,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 		ApproveList: []ld.TxType{ld.TypeUpdateDataKeepersByAuth}}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -192,7 +192,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -207,7 +207,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -222,7 +222,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1, To: &owner}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -238,7 +238,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1, To: &owner}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -254,7 +254,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 		Amount: new(big.Int).SetUint64(constants.MilliLDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -269,7 +269,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -288,7 +288,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -303,7 +303,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -362,7 +362,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 		Amount: new(big.Int).SetUint64(constants.MilliLDC), Token: &token}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -383,7 +383,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -404,7 +404,7 @@ func TestTxUpdateDataKeepersByAuth(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataKeepersByAuth,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

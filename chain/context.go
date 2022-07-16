@@ -11,28 +11,28 @@ import (
 
 type Context struct {
 	*snow.Context
-	state   StateDB
+	bc      BlockChain
 	config  *config.Config
 	genesis *genesis.Genesis
 }
 
 func NewContext(
 	ctx *snow.Context,
-	state StateDB,
+	bc BlockChain,
 	config *config.Config,
 	genesis *genesis.Genesis,
 ) *Context {
-	return &Context{ctx, state, config, genesis}
+	return &Context{ctx, bc, config, genesis}
 }
 
-func (c *Context) StateDB() StateDB {
-	return c.state
-}
-
-func (c *Context) Chain() *genesis.ChainConfig {
-	return &c.genesis.Chain
+func (c *Context) Chain() BlockChain {
+	return c.bc
 }
 
 func (c *Context) Config() *config.Config {
 	return c.config
+}
+
+func (c *Context) ChainConfig() *genesis.ChainConfig {
+	return &c.genesis.Chain
 }

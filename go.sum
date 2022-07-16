@@ -97,8 +97,6 @@ github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/fsnotify/fsnotify v1.5.4 h1:jRbGcIw6P2Meqdwuo0H1p6JVLbL5DHKAKlYndzMwVZI=
 github.com/fsnotify/fsnotify v1.5.4/go.mod h1:OVB6XrOHzAwXMpEM7uPOzcehqUV2UqJxmVXmkdnm1bU=
-github.com/fxamacker/cbor/v2 v2.4.0 h1:ri0ArlOR+5XunOP8CRUowT0pSJOwhW098ZCUyskZD88=
-github.com/fxamacker/cbor/v2 v2.4.0/go.mod h1:TA1xS00nchWmaBnEIxPSE5oHLuJBAVvqrtAnWBwBCVo=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
@@ -237,6 +235,8 @@ github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
 github.com/ldclabs/cbor-patch v1.1.3 h1:Ao3No0+nBRIxcY8OAhLm3vvoOEEWsVAlGCjcK5ko11A=
 github.com/ldclabs/cbor-patch v1.1.3/go.mod h1:43cjZTGZnD01pLr4EOxrn28VLp1y1jMz/qz8LNCahT0=
+github.com/ldclabs/cbor/v2 v2.5.0-stg h1:T47s27ooGwmP0SnsShummHITVxH9QMuzHqNTAI+4xYE=
+github.com/ldclabs/cbor/v2 v2.5.0-stg/go.mod h1:TA1xS00nchWmaBnEIxPSE5oHLuJBAVvqrtAnWBwBCVo=
 github.com/ldclabs/json-patch v1.1.2 h1:qBtgyH+sL1PA9mCo5eV+a3mAVZpuXOvsKP60uzvHsVk=
 github.com/ldclabs/json-patch v1.1.2/go.mod h1:8KiVPy4XZgbcN7IEYiAZ7QLslDXFF2DXjNkmFwF6rNs=
 github.com/linxGnu/grocksdb v1.7.3 h1:S9XiU4FviunvjNdNG+kWe2BoOy/2EKZSdDyeGmL0vDs=

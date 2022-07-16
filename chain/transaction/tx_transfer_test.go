@@ -30,7 +30,7 @@ func TestTxTransfer(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -46,7 +46,7 @@ func TestTxTransfer(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -60,7 +60,7 @@ func TestTxTransfer(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -100,7 +100,7 @@ func TestTxTransfer(t *testing.T) {
 	token := ld.MustNewToken("$LDC")
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -139,7 +139,7 @@ func TestTxTransfer(t *testing.T) {
 	// support 0 amount
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    0,
 		GasFeeCap: bctx.Price,
@@ -164,14 +164,14 @@ func TestTxTransferGenesis(t *testing.T) {
 	bs := bctx.MockBS()
 
 	from := bs.MustAccount(constants.LDCAccount)
-	from.Add(constants.NativeToken, bctx.Chain().MaxTotalSupply)
+	from.Add(constants.NativeToken, bctx.ChainConfig().MaxTotalSupply)
 
 	txData := &ld.TxData{
 		Type:    ld.TypeTransfer,
-		ChainID: bctx.Chain().ChainID,
+		ChainID: bctx.ChainConfig().ChainID,
 		From:    from.id,
 		To:      &constants.GenesisAccount,
-		Amount:  bctx.Chain().MaxTotalSupply,
+		Amount:  bctx.ChainConfig().MaxTotalSupply,
 	}
 
 	itx, err := NewGenesisTx(txData.ToTransaction())
@@ -183,7 +183,7 @@ func TestTxTransferGenesis(t *testing.T) {
 		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0),
 		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(),
+	assert.Equal(bctx.ChainConfig().MaxTotalSupply.Uint64(),
 		itx.(*TxTransfer).to.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0),
 		itx.(*TxTransfer).from.balanceOf(constants.NativeToken).Uint64())

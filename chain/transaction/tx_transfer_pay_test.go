@@ -34,7 +34,7 @@ func TestTxTransferPay(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -50,7 +50,7 @@ func TestTxTransferPay(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -64,7 +64,7 @@ func TestTxTransferPay(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -79,7 +79,7 @@ func TestTxTransferPay(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -99,7 +99,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -120,7 +120,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -140,7 +140,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -161,7 +161,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -183,7 +183,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -204,7 +204,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -227,7 +227,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -251,7 +251,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -276,7 +276,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -301,7 +301,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -335,7 +335,7 @@ func TestTxTransferPay(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -378,7 +378,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTransferPay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasFeeCap: bctx.Price,
 		From:      from.id,

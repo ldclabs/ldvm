@@ -34,7 +34,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -46,7 +46,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -58,7 +58,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -71,7 +71,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -86,7 +86,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -100,7 +100,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -116,7 +116,7 @@ func TestTxCreateStake(t *testing.T) {
 	input := &ld.TxAccounter{}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -132,7 +132,7 @@ func TestTxCreateStake(t *testing.T) {
 	input = &ld.TxAccounter{}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -151,7 +151,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -171,7 +171,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -191,7 +191,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -212,7 +212,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -239,7 +239,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -268,7 +268,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -294,7 +294,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -352,7 +352,7 @@ func TestTxCreateStake(t *testing.T) {
 	// create again
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -378,7 +378,7 @@ func TestTxCreateStake(t *testing.T) {
 	stakeAcc.ld.Timestamp = bs.Timestamp()
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -428,7 +428,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

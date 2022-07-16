@@ -33,7 +33,7 @@ func (id EthID) GoString() string {
 }
 
 func (id EthID) AsKey() string {
-	return id.String() // TODO: string(id[:])
+	return string(id[:])
 }
 
 func (id EthID) MarshalText() ([]byte, error) {

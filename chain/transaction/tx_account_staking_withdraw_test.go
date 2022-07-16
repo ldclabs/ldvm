@@ -33,7 +33,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -45,7 +45,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -57,7 +57,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -71,7 +71,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -85,7 +85,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -98,7 +98,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -112,7 +112,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -127,7 +127,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input := &ld.TxTransfer{Nonce: 1}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -142,7 +142,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{From: &sender}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -158,7 +158,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{To: &keeper}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -174,7 +174,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Amount: nil}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -189,7 +189,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -229,7 +229,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -271,7 +271,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -292,7 +292,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -313,7 +313,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -341,7 +341,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTakeStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -382,7 +382,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input2 := &ld.TxAccounter{Approver: &keeper}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -414,7 +414,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -436,7 +436,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -457,7 +457,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -490,7 +490,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTakeStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -529,7 +529,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -558,7 +558,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTakeStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -594,7 +594,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -638,7 +638,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(0)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -673,7 +673,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

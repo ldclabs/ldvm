@@ -5,7 +5,6 @@ package chain
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -92,41 +91,34 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	defer func() {
-		// when build error, reset the status to dontBuild
-		if b.status != building {
-			b.status = dontBuild
-		}
-	}()
-
-	if b.txPool.Len() < minTxsWhenBuild {
-		time.Sleep(waitForMoreTxs)
+	blk, err := b.build(ctx)
+	if err != nil {
+		b.status = dontBuild
+		return nil, err
 	}
+	b.status = building
+	return blk, nil
+}
 
+func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	ts := uint64(time.Now().UTC().Unix())
-	preferred := ctx.StateDB().PreferredBlock()
-	if pt := uint64(preferred.Timestamp().Unix()); ts <= pt {
-		ts = pt
-
-		// should wait one second for more txs again
-		if b.txPool.Len() < minTxsWhenBuild {
-			time.Sleep(waitForMoreTxs)
-
-			ts = uint64(time.Now().UTC().Unix())
-			preferred = ctx.StateDB().PreferredBlock()
-			if pt = uint64(preferred.Timestamp().Unix()); ts < pt {
-				ts = pt
-			}
-		}
-	}
-
+	preferred := ctx.Chain().PreferredBlock()
 	parentHeight := preferred.Height()
 	if b.lastBuildHeight > parentHeight {
 		return nil, fmt.Errorf("wait lastBuildHeight %d becoming preferred, current at %d",
 			b.lastBuildHeight, parentHeight)
 	}
 
-	feeCfg := ctx.Chain().Fee(parentHeight + 1)
+	pts := uint64(preferred.Timestamp().Unix())
+	if ts < pts {
+		ts = pts
+	}
+	if ts == pts && b.txPool.Len() < minTxsWhenBuild {
+		time.AfterFunc(waitForMoreTxs, b.SignalTxsReady)
+		return nil, fmt.Errorf("BlockBuilder.Build error: wait txs to build")
+	}
+
+	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
 	blk := &ld.Block{
 		Parent:        preferred.ID(),
 		Height:        parentHeight + 1,
@@ -135,22 +127,8 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
-	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize))
-	blk.GasPrice = preferred.GasPrice().Uint64()
-	if b.txPool.Len() > len(txs) {
-		blk.GasPrice = uint64(float64(blk.GasPrice) * math.SqrtPhi)
-		if blk.GasPrice > feeCfg.MaxGasPrice {
-			blk.GasPrice = feeCfg.MaxGasPrice
-		}
-	} else if b.txPool.Len() == 0 {
-		blk.GasPrice = uint64(float64(blk.GasPrice) / math.SqrtPhi)
-		if blk.GasPrice < feeCfg.MinGasPrice {
-			blk.GasPrice = feeCfg.MinGasPrice
-		}
-	}
-
 	nblk := NewBlock(blk, preferred.Context())
-	nblk.InitState(preferred.State().VersionDB(), false)
+	nblk.InitState(preferred, preferred.State().VersionDB(), false)
 	vbs, err := nblk.State().DeriveState()
 	if err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
@@ -161,6 +139,7 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 
 	// 2. TryBuildTxs
 	var status choices.Status
+	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize))
 	for len(txs) > 0 {
 		for i := range txs {
 			nvbs, err := vbs.DeriveState()
@@ -200,17 +179,13 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
 
-	// 4. BuildState
+	// 4. BuildState and Verify block
+	nblk.ld.NextGasPrice = nblk.NextGasPrice()
 	if err := nblk.BuildState(vbs); err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}
 
-	if err := nblk.SyntacticVerify(); err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
-	}
-
 	b.lastBuildHeight = blk.Height
-	b.status = building
 	logging.Log.Info("Build block %s at %d", blk.ID, blk.Height)
 	return nblk, nil
 }

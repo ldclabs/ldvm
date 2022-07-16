@@ -33,7 +33,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -45,7 +45,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -57,7 +57,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -70,7 +70,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -85,7 +85,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -99,7 +99,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -115,7 +115,7 @@ func TestTxCreateToken(t *testing.T) {
 	input := &ld.TxAccounter{}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -131,7 +131,7 @@ func TestTxCreateToken(t *testing.T) {
 	input = &ld.TxAccounter{}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -150,7 +150,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -169,7 +169,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -190,7 +190,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -212,7 +212,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -234,7 +234,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -256,7 +256,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -284,7 +284,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -327,7 +327,7 @@ func TestTxCreateToken(t *testing.T) {
 	// create again
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -348,7 +348,7 @@ func TestTxCreateToken(t *testing.T) {
 	// destroy and create again
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -390,7 +390,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -441,7 +441,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	}
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -458,14 +458,14 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 
 	// create the NativeToken in GenesisTx
 	input = &ld.TxAccounter{
-		Amount: bctx.Chain().MaxTotalSupply,
+		Amount: bctx.ChainConfig().MaxTotalSupply,
 		Name:   "Linked Data Chain",
-		Data:   []byte(strconv.Quote(bctx.Chain().Message)),
+		Data:   []byte(strconv.Quote(bctx.ChainConfig().Message)),
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:    ld.TypeCreateToken,
-		ChainID: bctx.Chain().ChainID,
+		ChainID: bctx.ChainConfig().ChainID,
 		From:    constants.GenesisAccount,
 		To:      &constants.LDCAccount,
 		Data:    input.Bytes(),
@@ -476,9 +476,9 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	assert.NoError(itx.(*TxCreateToken).ApplyGenesis(bctx, bs))
 
 	ldcAcc := bs.MustAccount(constants.LDCAccount)
-	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(),
+	assert.Equal(bctx.ChainConfig().MaxTotalSupply.Uint64(),
 		ldcAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(),
+	assert.Equal(bctx.ChainConfig().MaxTotalSupply.Uint64(),
 		ldcAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), itx.(*TxCreateToken).from.balanceOf(constants.NativeToken).Uint64())
@@ -489,7 +489,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	assert.Equal(util.EthIDs{}, ldcAcc.Keepers())
 	assert.Nil(ldcAcc.ld.Approver)
 	assert.Nil(ldcAcc.ld.ApproveList)
-	assert.Equal(bctx.Chain().MaxTotalSupply.Uint64(), ldcAcc.ld.MaxTotalSupply.Uint64())
+	assert.Equal(bctx.ChainConfig().MaxTotalSupply.Uint64(), ldcAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(0, len(ldcAcc.ld.Tokens))
 
 	jsondata, err := itx.MarshalJSON()
@@ -500,7 +500,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	// NativeToken cannot be destroy
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

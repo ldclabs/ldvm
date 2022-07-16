@@ -31,7 +31,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -43,7 +43,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -55,7 +55,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -69,7 +69,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -83,7 +83,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -109,7 +109,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -149,7 +149,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -177,7 +177,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -207,7 +207,7 @@ func TestTxDestroyToken(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -271,7 +271,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:      ld.TypeCreateToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -321,7 +321,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(lcfg.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -366,7 +366,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(err)
 	txData = &ld.TxData{
 		Type:      ld.TypeAddNonceTable,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -400,7 +400,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(tf.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeBorrow,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -429,7 +429,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	// DestroyToken
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -458,7 +458,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	// TypeRepay
 	txData = &ld.TxData{
 		Type:      ld.TypeRepay,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -484,7 +484,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	// DestroyToken
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -524,7 +524,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	// DestroyToken again
 	txData = &ld.TxData{
 		Type:      ld.TypeDestroyToken,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

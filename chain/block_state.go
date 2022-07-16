@@ -49,7 +49,7 @@ type blockState struct {
 	ctx               *Context
 	height, timestamp uint64
 	s                 *ld.State
-	sdb               StateDB
+	bc                BlockChain
 	vdb               *versiondb.Database
 	blockDB           *db.PrefixDB
 	heightDB          *db.PrefixDB
@@ -68,6 +68,7 @@ type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
 	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transaction.Account)
+	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
 
@@ -81,7 +82,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 		ctx:            ctx,
 		height:         height,
 		timestamp:      timestamp,
-		sdb:            ctx.StateDB(),
+		bc:             ctx.Chain(),
 		s:              ld.NewState(parentState),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
@@ -122,7 +123,7 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		height:         bs.height,
 		timestamp:      bs.timestamp,
 		s:              bs.s.Clone(),
-		sdb:            bs.ctx.StateDB(),
+		bc:             bs.ctx.Chain(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
@@ -178,7 +179,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 		}
 
 		pledge := new(big.Int)
-		feeCfg := bs.ctx.Chain().Fee(bs.height)
+		feeCfg := bs.ctx.ChainConfig().Fee(bs.height)
 		switch {
 		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
 			pledge.Set(feeCfg.MinTokenPledge)
@@ -342,6 +343,14 @@ func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte
 	return nil
 }
 
+func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
+	data, err := bs.heightDB.Get(database.PackUInt64(height))
+	if err != nil {
+		return ids.Empty, err
+	}
+	return ids.ToID(data)
+}
+
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	for _, a := range bs.accountCache {
 		data, ledger, err := a.Marshal()
@@ -364,6 +373,8 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	if err := bs.s.SyntacticVerify(); err != nil {
 		return err
 	}
+
+	// will update block's state and id
 	blk.State = bs.s.ID
 	if err := blk.SyntacticVerify(); err != nil {
 		return err
@@ -381,7 +392,7 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 // Commit when accept
 func (bs *blockState) Commit() error {
 	defer bs.free()
-	if err := bs.vdb.SetDatabase(bs.sdb.DB()); err != nil {
+	if err := bs.vdb.SetDatabase(bs.bc.DB()); err != nil {
 		return err
 	}
 	return bs.vdb.Commit()

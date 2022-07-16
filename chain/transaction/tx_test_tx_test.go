@@ -30,7 +30,7 @@ func TestTxTest(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -42,7 +42,7 @@ func TestTxTest(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -55,7 +55,7 @@ func TestTxTest(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -68,7 +68,7 @@ func TestTxTest(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -81,7 +81,7 @@ func TestTxTest(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -93,7 +93,7 @@ func TestTxTest(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -110,7 +110,7 @@ func TestTxTest(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -132,7 +132,7 @@ func TestTxTest(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

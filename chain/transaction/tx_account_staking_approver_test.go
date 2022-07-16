@@ -33,7 +33,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -45,7 +45,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -57,7 +57,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -71,7 +71,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -85,7 +85,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -99,7 +99,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -113,7 +113,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -128,7 +128,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	input := &ld.TxAccounter{}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -143,7 +143,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	input = &ld.TxAccounter{Approver: &approver, ApproveList: ld.AccountTxTypes}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -158,7 +158,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	input = &ld.TxAccounter{Approver: &approver}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -198,7 +198,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -237,7 +237,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	input = &ld.TxAccounter{Approver: &approver}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -280,7 +280,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	input = &ld.TxAccounter{Approver: &util.EthIDEmpty}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

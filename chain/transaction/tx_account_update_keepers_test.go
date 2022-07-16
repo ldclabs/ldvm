@@ -31,7 +31,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -43,7 +43,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -56,7 +56,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -69,7 +69,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -82,7 +82,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -94,7 +94,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -109,7 +109,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -133,7 +133,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -185,7 +185,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -226,7 +226,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -259,7 +259,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -289,7 +289,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     4,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -314,7 +314,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     4,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -348,7 +348,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateAccountKeepers,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     5,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -378,7 +378,7 @@ func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
 		Type:    ld.TypeUpdateAccountKeepers,
-		ChainID: bctx.Chain().ChainID,
+		ChainID: bctx.ChainConfig().ChainID,
 		From:    sender,
 		Data:    input.Bytes(),
 	}
