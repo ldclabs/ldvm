@@ -33,6 +33,7 @@ func (pt ProfileType) MarshalJSON() ([]byte, error) {
 type Profile struct {
 	Type       ProfileType  `cbor:"t" json:"type"`                         // Thing, Person, Organization...
 	Name       string       `cbor:"n" json:"name"`                         // Thing property
+	Desc       string       `cbor:"d" json:"description"`                  // Thing property
 	Image      string       `cbor:"i" json:"image"`                        // Thing property
 	URL        string       `cbor:"u" json:"url"`                          // Thing property
 	Follows    util.DataIDs `cbor:"fs" json:"follows"`                     // optional, other ProfileService data id
@@ -53,13 +54,14 @@ func ProfileModel() (*ld.IPLDModel, error) {
 	sch := `
 	type ID20 bytes
 	type ProfileService struct {
-		type       Int             (rename "t")
-		name       String          (rename "n")
-		image      String          (rename "i")
-		url        String          (rename "u")
-		follows    [ID20]          (rename "fs")
-		members    optional [ID20] (rename "ms")
-		extensions [Any]           (rename "ex")
+		type        Int             (rename "t")
+		name        String          (rename "n")
+		description String          (rename "d")
+		image       String          (rename "i")
+		url         String          (rename "u")
+		follows     [ID20]          (rename "fs")
+		members     optional [ID20] (rename "ms")
+		extensions  [Any]           (rename "ex")
 	}
 `
 	return ld.NewIPLDModel("ProfileService", []byte(sch))
@@ -76,6 +78,9 @@ func (p *Profile) SyntacticVerify() error {
 
 	case !util.ValidName(p.Name):
 		return errp.Errorf("invalid name %q", p.Name)
+
+	case !util.ValidMessage(p.Desc):
+		return errp.Errorf("invalid description %q", p.Desc)
 
 	case !util.ValidLink(p.Image):
 		return errp.Errorf("invalid image %q", p.Image)

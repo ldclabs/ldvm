@@ -269,7 +269,7 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 			return errp.ErrorIf(err)
 		}
 
-		if bctx.Chain().IsNameService(tx.di.ModelID) {
+		if bctx.ChainConfig().IsNameService(tx.di.ModelID) {
 			tx.name = &service.Name{}
 			if err = tx.name.Unmarshal(tx.di.Data); err != nil {
 				return errp.ErrorIf(err)

@@ -203,7 +203,7 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if bctx.Chain().IsNameService(tx.di.ModelID) {
+	if bctx.ChainConfig().IsNameService(tx.di.ModelID) {
 		var n1, n2 string
 		if n1, err = service.GetName(tx.prevDI.Data); err != nil {
 			return errp.Errorf("invalid NameService data, %v", err)

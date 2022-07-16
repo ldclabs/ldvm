@@ -12,7 +12,7 @@ import (
 )
 
 type BlockContext interface {
-	Chain() *genesis.ChainConfig
+	ChainConfig() *genesis.ChainConfig
 	FeeConfig() *genesis.FeeConfig
 	GasPrice() *big.Int
 	Miner() util.StakeSymbol

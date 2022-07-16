@@ -53,7 +53,7 @@ type VM struct {
 	appSender common.AppSender
 
 	// State of this VM
-	state   chain.StateDB
+	bc      chain.BlockChain
 	network *PushNetwork
 }
 
@@ -147,8 +147,8 @@ func (v *VM) initialize(
 	ld.SetChainID(gs.Chain.ChainID)
 
 	chaindb := v.dbManager.Current().Database
-	v.state = chain.NewState(v.ctx, cfg, gs, chaindb, toEngine, v.network.GossipTx)
-	if err = v.state.Bootstrap(); err != nil {
+	v.bc = chain.NewChain(v.ctx, cfg, gs, chaindb, toEngine, v.network.GossipTx)
+	if err = v.bc.Bootstrap(); err != nil {
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (v *VM) SetState(state snow.State) error {
 	defer v.mu.Unlock()
 
 	v.Log.Info("SetState %v", state)
-	return v.state.SetState(state)
+	return v.bc.SetState(state)
 }
 
 // Shutdown implements the common.VM Shutdown interface
@@ -212,7 +212,7 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 	server := rpc.NewServer()
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
-	if err := server.RegisterService(api.NewBlockChainAPI(v.state), Name); err != nil {
+	if err := server.RegisterService(api.NewBlockChainAPI(v.bc), Name); err != nil {
 		v.Log.Error("CreateHandlers error: %v", err)
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 // Returns nil if the VM is healthy.
 // Periodically called and reported via the node's Health API.
 func (v *VM) HealthCheck() (interface{}, error) {
-	return v.state.HealthCheck()
+	return v.bc.HealthCheck()
 }
 
 // Connected implements the common.VM validators.Connector Connected interface
@@ -317,7 +317,7 @@ func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
-	blk, err = v.state.GetBlock(id)
+	blk, err = v.bc.GetBlock(id)
 	if err != nil {
 		v.Log.Error("VM GetBlock %s error: %v", id, err)
 	} else {
@@ -334,7 +334,7 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 	defer v.mu.Unlock()
 
 	err = ld.Recover("", func() error {
-		blk, err = v.state.ParseBlock(data)
+		blk, err = v.bc.ParseBlock(data)
 		return err
 	})
 
@@ -354,7 +354,7 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	blk, err = v.state.BuildBlock()
+	blk, err = v.bc.BuildBlock()
 	if err != nil {
 		v.Log.Warn("VM BuildBlock %v", err)
 	} else {
@@ -372,7 +372,7 @@ func (v *VM) SetPreference(id ids.ID) error {
 	defer v.mu.Unlock()
 
 	v.Log.Info("VM SetPreference %s", id)
-	err := v.state.SetPreference(id)
+	err := v.bc.SetPreference(id)
 	if err != nil {
 		v.Log.Error("VM SetPreference %s error %v", id, err)
 	}
@@ -386,7 +386,7 @@ func (v *VM) SetPreference(id ids.ID) error {
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
 func (v *VM) LastAccepted() (ids.ID, error) {
-	blk := v.state.LastAcceptedBlock()
+	blk := v.bc.LastAcceptedBlock()
 	v.Log.Info("VM LastAccepted %s at %d", blk.ID, blk.Height)
 	return blk.ID, nil
 }
@@ -404,7 +404,7 @@ func (v *VM) VerifyHeightIndex() error {
 // GetBlockIDAtHeight implements the block.HeightIndexedChainVM GetBlockIDAtHeight interface
 // GetBlockIDAtHeight returns the ID of the block that was accepted with [height].
 func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	id, err := v.state.GetBlockIDAtHeight(height)
+	id, err := v.bc.GetBlockIDAtHeight(height)
 	if err != nil {
 		v.Log.Error("VM GetBlockIDAtHeight %d error %v", height, err)
 	} else {

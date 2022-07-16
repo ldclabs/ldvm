@@ -134,6 +134,13 @@ func (a *Account) Nonce() uint64 {
 	return a.ld.Nonce
 }
 
+func (a *Account) Balance() *big.Int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.balanceOf(constants.NativeToken)
+}
+
 func (a *Account) balanceOf(token util.TokenSymbol) *big.Int {
 	switch token {
 	case constants.NativeToken:

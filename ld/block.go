@@ -5,7 +5,6 @@ package ld
 
 import (
 	"encoding/json"
-	"math/big"
 	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
@@ -17,13 +16,13 @@ const (
 )
 
 type Block struct {
-	Parent      ids.ID `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
-	Height      uint64 `cbor:"h" json:"height"`     // The genesis block is at 0.
-	Timestamp   uint64 `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
-	ParentState ids.ID `cbor:"ps" json:"parentState"`
-	State       ids.ID `cbor:"s" json:"state"`
-	Gas         uint64 `cbor:"g" json:"gas"`       // This block's total gas units.
-	GasPrice    uint64 `cbor:"gp" json:"gasPrice"` // This block's gas price
+	Parent       ids.ID `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
+	Height       uint64 `cbor:"h" json:"height"`     // The genesis block is at 0.
+	Timestamp    uint64 `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
+	ParentState  ids.ID `cbor:"ps" json:"parentState"`
+	State        ids.ID `cbor:"s" json:"state"`
+	Gas          uint64 `cbor:"g" json:"gas"`           // This block's total gas units.
+	NextGasPrice uint64 `cbor:"gp" json:"nextGasPrice"` // Next block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
 	GasRebateRate uint64 `cbor:"gr" json:"gasRebateRate"`
 	// The address of validator (convert to valid StakeAccount) who build this block.
@@ -110,10 +109,6 @@ func (b *Block) SyntacticVerify() error {
 
 	b.ID = util.IDFromData(b.raw)
 	return nil
-}
-
-func (b *Block) FeeCost() *big.Int {
-	return new(big.Int).Mul(new(big.Int).SetUint64(b.Gas), new(big.Int).SetUint64(b.GasPrice))
 }
 
 func (b *Block) Bytes() []byte {

@@ -33,7 +33,7 @@ func TestTxBase(t *testing.T) {
 
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: 0,
 		From:      util.EthIDEmpty,
@@ -42,7 +42,7 @@ func TestTxBase(t *testing.T) {
 
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: 0,
 		From:      constants.GenesisAccount,
@@ -52,7 +52,7 @@ func TestTxBase(t *testing.T) {
 
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: 0,
 		From:      sender,
@@ -65,7 +65,7 @@ func TestTxBase(t *testing.T) {
 	// Verify
 	tx = &TxBase{ld: (&ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: bctx.Price - 1,
 		From:      sender,
@@ -78,7 +78,7 @@ func TestTxBase(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: bctx.Price,
 		From:      sender,
@@ -97,7 +97,7 @@ func TestTxBase(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasFeeCap: bctx.Price,
 		From:      sender,
@@ -116,7 +116,7 @@ func TestTxBase(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -166,7 +166,7 @@ func TestTxBase(t *testing.T) {
 	token := ld.MustNewToken("$LDC")
 	txData = &ld.TxData{
 		Type:      ld.TypeTransfer,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

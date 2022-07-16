@@ -25,11 +25,11 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-var _ StateDB = &stateDB{}
+var _ BlockChain = &blockChain{}
 
 var (
 	// Should never happen
-	errPreferredBlock = fmt.Errorf("stateDB is not bootstrapped, no preferred block")
+	errPreferredBlock = fmt.Errorf("BlockChain is not bootstrapped, no preferred block")
 )
 
 var (
@@ -48,8 +48,8 @@ var (
 	lastAcceptedKey = []byte("last_accepted_key")
 )
 
-// StateDB defines methods to manage state with Blocks and LastAcceptedIDs.
-type StateDB interface {
+// BlockChain defines methods to manage state with Blocks and LastAcceptedIDs.
+type BlockChain interface {
 	// global context
 	Context() *Context
 	DB() database.Database
@@ -71,6 +71,7 @@ type StateDB interface {
 	PreferredBlock() *Block
 	SetPreference(ids.ID) error
 	AddVerifiedBlock(*Block)
+	GetVerifiedBlock(id ids.ID) *Block
 
 	// txs state
 	SubmitTx(...*ld.Transaction) error
@@ -86,38 +87,7 @@ type StateDB interface {
 	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
 }
 
-type atomicBlock atomic.Value
-
-func (a *atomicBlock) LoadV() *Block {
-	return (*atomic.Value)(a).Load().(*Block)
-}
-
-func (a *atomicBlock) StoreV(v *Block) {
-	(*atomic.Value)(a).Store(v)
-}
-
-type atomicLDBlock atomic.Value
-
-func (a *atomicLDBlock) LoadV() *ld.Block {
-	return (*atomic.Value)(a).Load().(*ld.Block)
-}
-
-func (a *atomicLDBlock) StoreV(v *ld.Block) {
-	(*atomic.Value)(a).Store(v)
-}
-
-type atomicState atomic.Value
-
-func (a *atomicState) LoadV() snow.State {
-	v := (*atomic.Value)(a).Load().(*snow.State)
-	return *v
-}
-
-func (a *atomicState) StoreV(v snow.State) {
-	(*atomic.Value)(a).Store(&v)
-}
-
-type stateDB struct {
+type blockChain struct {
 	ctx          *Context
 	config       *config.Config
 	genesis      *genesis.Genesis
@@ -149,16 +119,16 @@ type stateDB struct {
 	txPool TxPool // Proposed transactions that haven't been put into a block yet
 }
 
-func NewState(
+func NewChain(
 	ctx *snow.Context,
 	cfg *config.Config,
 	gs *genesis.Genesis,
 	baseDB database.Database,
 	toEngine chan<- common.Message,
 	gossipTx func(*ld.Transaction),
-) *stateDB {
+) *blockChain {
 	pdb := db.NewPrefixDB(baseDB, dbPrefix, 512)
-	s := &stateDB{
+	s := &blockChain{
 		config:            cfg,
 		genesis:           gs,
 		db:                baseDB,
@@ -211,22 +181,22 @@ func NewState(
 	return s
 }
 
-func (s *stateDB) DB() database.Database {
-	return s.db
+func (bc *blockChain) DB() database.Database {
+	return bc.db
 }
 
-func (s *stateDB) Context() *Context {
-	return s.ctx
+func (bc *blockChain) Context() *Context {
+	return bc.ctx
 }
 
-func (s *stateDB) Bootstrap() error {
-	txs, err := s.genesis.ToTxs()
+func (bc *blockChain) Bootstrap() error {
+	txs, err := bc.genesis.ToTxs()
 	if err != nil {
 		logging.Log.Error("stateDB.Bootstrap error: %v", err)
 		return err
 	}
 
-	genesisBlock, err := NewGenesisBlock(s.ctx, txs)
+	genesisBlock, err := NewGenesisBlock(bc.ctx, txs)
 	if err != nil {
 		logging.Log.Error("Bootstrap newGenesisBlock error: %v", err)
 		return err
@@ -238,8 +208,8 @@ func (s *stateDB) Bootstrap() error {
 		return fmt.Errorf("Bootstrap invalid genesis block")
 	}
 
-	s.genesisBlock = genesisBlock
-	lastAcceptedID, err := database.GetID(s.lastAcceptedDB, lastAcceptedKey)
+	bc.genesisBlock = genesisBlock
+	lastAcceptedID, err := database.GetID(bc.lastAcceptedDB, lastAcceptedKey)
 	// create genesis block
 	if err == database.ErrNotFound {
 		logging.Log.Info("Bootstrap Create Genesis Block: %s", genesisBlock.ID())
@@ -258,7 +228,7 @@ func (s *stateDB) Bootstrap() error {
 	}
 
 	// verify genesis data
-	genesisID, err := s.GetBlockIDAtHeight(0)
+	genesisID, err := bc.GetBlockIDAtHeight(0)
 	if err != nil {
 		return fmt.Errorf("load genesis id error: %v", err)
 	}
@@ -270,52 +240,57 @@ func (s *stateDB) Bootstrap() error {
 	// genesis block is the last accepted block.
 	if lastAcceptedID == genesisBlock.ID() {
 		logging.Log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
-		genesisBlock.InitState(s.db, true)
-		s.preferred.StoreV(genesisBlock)
-		s.lastAcceptedBlock.StoreV(genesisBlock.ld)
+		genesisBlock.InitState(genesisBlock, bc.db, true)
+		bc.preferred.StoreV(genesisBlock)
+		bc.lastAcceptedBlock.StoreV(genesisBlock.ld)
 		return nil
 	}
 
 	// load the last accepted block
-	lastAcceptedBlock, err := s.GetBlock(lastAcceptedID)
+	lastAcceptedBlock, err := bc.GetBlock(lastAcceptedID)
 	if err != nil {
 		return fmt.Errorf("load last accepted block error: %v", err)
 	}
 
-	lastAcceptedBlock.InitState(s.db, true)
-	s.preferred.StoreV(lastAcceptedBlock)
-	s.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
+	parent, err := bc.GetBlock(lastAcceptedBlock.Parent())
+	if err != nil {
+		return fmt.Errorf("load last accepted block' parent error: %v", err)
+	}
+
+	lastAcceptedBlock.InitState(parent, bc.db, true)
+	bc.preferred.StoreV(lastAcceptedBlock)
+	bc.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
 
 	// load latest fee config from chain.
 	var di *ld.DataInfo
-	feeConfigID := s.genesis.Chain.FeeConfigID
-	di, err = s.LoadData(feeConfigID)
+	feeConfigID := bc.genesis.Chain.FeeConfigID
+	di, err = bc.LoadData(feeConfigID)
 	if err != nil {
 		return fmt.Errorf("load last fee config error: %v", err)
 	}
-	cfg, err := s.genesis.Chain.AppendFeeConfig(di.Data)
+	cfg, err := bc.genesis.Chain.AppendFeeConfig(di.Data)
 	if err != nil {
 		return fmt.Errorf("unmarshal fee config error: %v", err)
 	}
 
 	for di.Version > 1 && cfg.StartHeight >= lastAcceptedBlock.ld.Height {
-		di, err = s.LoadPrevData(feeConfigID, di.Version-1)
+		di, err = bc.LoadPrevData(feeConfigID, di.Version-1)
 		if err != nil {
 			return fmt.Errorf("load previous fee config error: %v", err)
 		}
-		cfg, err = s.genesis.Chain.AppendFeeConfig(di.Data)
+		cfg, err = bc.genesis.Chain.AppendFeeConfig(di.Data)
 		if err != nil {
 			return fmt.Errorf("unmarshal fee config error: %v", err)
 		}
 	}
 
-	logging.Log.Info("Bootstrap load %d versions fee configs", len(s.genesis.Chain.FeeConfigs))
+	logging.Log.Info("Bootstrap load %d versions fee configs", len(bc.genesis.Chain.FeeConfigs))
 	logging.Log.Info("Bootstrap finished at the block %s, %d", lastAcceptedBlock.ID(), lastAcceptedBlock.ld.Height)
 	return nil
 }
 
-func (s *stateDB) HealthCheck() (interface{}, error) {
-	id, err := database.GetID(s.lastAcceptedDB, lastAcceptedKey)
+func (bc *blockChain) HealthCheck() (interface{}, error) {
+	id, err := database.GetID(bc.lastAcceptedDB, lastAcceptedKey)
 	if err != nil {
 		return nil, err
 	}
@@ -324,83 +299,97 @@ func (s *stateDB) HealthCheck() (interface{}, error) {
 	}, nil
 }
 
-func (s *stateDB) TotalSupply() *big.Int {
+func (bc *blockChain) TotalSupply() *big.Int {
 	t := new(big.Int)
-	if acc, err := s.LoadAccount(constants.LDCAccount); err == nil {
+	if acc, err := bc.LoadAccount(constants.LDCAccount); err == nil {
 		t.Sub(acc.MaxTotalSupply, acc.Balance)
 	}
 	return t
 }
 
-func (s *stateDB) SetState(state snow.State) error {
+func (bc *blockChain) SetState(state snow.State) error {
 	switch state {
 	case snow.Bootstrapping:
-		s.state.StoreV(state)
+		bc.state.StoreV(state)
 		return nil
 	case snow.NormalOp:
-		if s.preferred.LoadV() == emptyBlock {
+		if bc.preferred.LoadV() == emptyBlock {
 			return fmt.Errorf("Verify bootstrap failed")
 		}
-		s.state.StoreV(state)
+		bc.state.StoreV(state)
 		return nil
 	default:
 		return snow.ErrUnknownState
 	}
 }
 
-func (s *stateDB) IsBootstrapped() bool {
-	return s.state.LoadV() == snow.NormalOp
+func (bc *blockChain) IsBootstrapped() bool {
+	return bc.state.LoadV() == snow.NormalOp
 }
 
 // LastAccepted returns the ID of the last accepted block.
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (s *stateDB) LastAcceptedBlock() *ld.Block {
-	return s.lastAcceptedBlock.LoadV()
+func (bc *blockChain) LastAcceptedBlock() *ld.Block {
+	return bc.lastAcceptedBlock.LoadV()
 }
 
-func (s *stateDB) AddVerifiedBlock(blk *Block) {
-	s.verifiedBlocks.Store(blk.ID(), blk)
+func (bc *blockChain) AddVerifiedBlock(blk *Block) {
+	bc.verifiedBlocks.Store(blk.ID(), blk)
 }
 
-func (s *stateDB) SetLastAccepted(blk *Block) error {
-	id := blk.ID()
-	if err := database.PutID(s.lastAcceptedDB, lastAcceptedKey, id); err != nil {
-		return err
+func (bc *blockChain) GetVerifiedBlock(id ids.ID) *Block {
+	if v, ok := bc.verifiedBlocks.Load(id); ok {
+		return v.(*Block)
+	}
+	return nil
+}
+
+func (bc *blockChain) SetLastAccepted(blk *Block) error {
+	if parent := bc.lastAcceptedBlock.LoadV(); parent.ID != blk.Parent() {
+		return fmt.Errorf("stateDB.SetLastAccepted invalid parent, expected %s:%d, got %s:%d",
+			parent.ID, parent.Height, blk.Parent(), blk.Height())
 	}
 
-	s.lastAcceptedBlock.StoreV(blk.ld)
+	id := blk.ID()
 	height := blk.Height()
-	if p := s.preferred.LoadV(); height > 0 && p.ID() != blk.ID() {
+	preferred := bc.preferred.LoadV()
+	if preferred.ID() != id {
+		logging.Log.Debug("Accepting block in non-canonical chain, expected %s:%d, got %s:%d",
+			preferred.ID(), preferred.Height(), id, height)
+
 		switch {
-		case p.Height() < height:
-			s.preferred.StoreV(blk)
-		case p.Height() == height:
-			p.Reject()
-			s.preferred.StoreV(blk)
+		case preferred.Height() <= height:
+			if err := bc.setPreference(preferred, blk); err != nil {
+				return err
+			}
+
 		default:
-			ancestors, err := p.AncestorBlocks(height)
-			switch {
-			case err != nil || len(ancestors) == 0:
-				p.Reject()
-				s.preferred.StoreV(blk)
-			case ancestors[len(ancestors)-1].ID() != id:
-				p.Reject()
-				for _, v := range ancestors {
-					v.Reject()
+			canonical, err := preferred.State().GetBlockIDAtHeight(height)
+			if err != nil {
+				return err
+			}
+			if canonical != id {
+				if err := bc.setPreference(preferred, blk); err != nil {
+					return err
 				}
-				s.preferred.StoreV(blk)
 			}
 		}
 	}
 
-	s.recentBlocks.SetObject(id[:], blk)
+	if err := database.PutID(bc.lastAcceptedDB, lastAcceptedKey, id); err != nil {
+		return err
+	}
+
+	bc.lastAcceptedBlock.StoreV(blk.ld)
+	bc.recentBlocks.SetObject(id[:], blk)
+
 	go func() {
-		s.verifiedBlocks.Range(func(key, value any) bool {
+		bc.verifiedBlocks.Range(func(key, value any) bool {
 			if b, ok := value.(*Block); ok {
 				if b.Height() < height {
-					s.verifiedBlocks.Delete(key)
+					bc.verifiedBlocks.Delete(key)
 				}
 			}
 			return true
@@ -409,94 +398,138 @@ func (s *stateDB) SetLastAccepted(blk *Block) error {
 	return nil
 }
 
-func (s *stateDB) PreferredBlock() *Block {
-	return s.preferred.LoadV()
+func (bc *blockChain) PreferredBlock() *Block {
+	return bc.preferred.LoadV()
 }
 
 // SetPreference persists the VM of the currently preferred block into database.
 // This should always be a block that has no children known to consensus.
-func (s *stateDB) SetPreference(id ids.ID) error {
-	pid := s.preferred.LoadV().ID()
-	if pid == id {
+func (bc *blockChain) SetPreference(id ids.ID) error {
+	preferred := bc.preferred.LoadV()
+	if preferred.ID() == id {
 		return nil
 	}
 
-	v, ok := s.verifiedBlocks.Load(id)
-	if !ok {
+	blk := bc.GetVerifiedBlock(id)
+	if blk == nil {
 		return fmt.Errorf("SetPreference block %s not verified", id)
 	}
-	blk := v.(*Block)
 
-	if blk.Parent() != pid {
-		if lid := s.lastAcceptedBlock.LoadV().ID; blk.Parent() != lid {
-			return fmt.Errorf("SetPreference block %s parent error: expected %s, got %s",
-				id, lid, blk.Parent())
+	return bc.setPreference(preferred, blk)
+}
+func (bc *blockChain) setPreference(preferred, blk *Block) error {
+	if blk.Parent() != preferred.ID() {
+		if err := bc.reorg(preferred, blk); err != nil {
+			return err
 		}
 	}
 
-	s.preferred.StoreV(blk)
-	logging.Log.Info("SetPreference OK %s", id)
+	bc.preferred.StoreV(blk)
+	bc.bb.HandlePreferenceBlock()
+	logging.Log.Info("SetPreference OK %s", blk.ID())
 	return nil
 }
 
-func (s *stateDB) BuildBlock() (*Block, error) {
-	blk, err := s.bb.Build(s.ctx)
+// reorg takes two blocks, an old chain and a new chain and will reconstruct the blocks.
+func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
+	accepted := bc.lastAcceptedBlock.LoadV()
+	newChain, err := newBlock.AncestorBlocks(accepted.Height)
+	if err != nil {
+		return err
+	}
+	if newChain[0].ID() != accepted.ID {
+		return fmt.Errorf("reorg: new chain does not start with the last accepted block")
+	}
+
+	set := make(map[uint64]ids.ID, len(newChain))
+	for _, blk := range newChain {
+		set[blk.Height()] = blk.ID()
+	}
+
+	// new chain is longer
+	if set[oldBlock.Height()] == oldBlock.ID() {
+		return nil
+	}
+
+	oldChain, err := oldBlock.AncestorBlocks(accepted.Height)
+	if err != nil {
+		return err
+	}
+
+	for len(oldChain) > 0 {
+		blk := oldChain[0]
+		oldChain = oldChain[1:]
+		if set[blk.Height()] == blk.ID() {
+			continue
+		}
+		blk.Reject()
+	}
+	oldBlock.Reject()
+	return nil
+}
+
+func (bc *blockChain) BuildBlock() (*Block, error) {
+	if !bc.IsBootstrapped() {
+		return nil, fmt.Errorf("stateDB.BuildBlock: state not bootstrapped")
+	}
+
+	blk, err := bc.bb.Build(bc.ctx)
 	if err != nil {
 		return nil, err
 	}
 	id := blk.ID()
-	s.recentBlocks.SetObject(id[:], blk)
+	bc.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
 }
 
-func (s *stateDB) ParseBlock(data []byte) (*Block, error) {
+func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	blk := new(Block)
 	if err := blk.Unmarshal(data); err != nil {
 		return nil, err
 	}
 
-	id := blk.ID()
-	if blk2, err := s.GetBlock(id); err == nil {
-		return blk2, nil
+	parent, err := bc.GetBlock(blk.Parent())
+	if err != nil {
+		return nil, err
 	}
 
-	if blk.Context() == nil {
-		blk.SetContext(s.ctx)
-	}
-	s.recentBlocks.SetObject(id[:], blk)
+	blk.SetContext(bc.ctx)
+	blk.InitState(parent, parent.State().VersionDB(), false)
+	id := blk.ID()
+	bc.recentBlocks.SetObject(id[:], blk)
 
 	txIDs := blk.TxIDs()
-	s.txPool.SetTxsStatus(choices.Processing, txIDs...)
-	s.txPool.ClearTxs(txIDs...)
+	bc.txPool.SetTxsStatus(choices.Processing, txIDs...)
+	bc.txPool.ClearTxs(txIDs...)
 	return blk, nil
 }
 
-func (s *stateDB) GetBlock(id ids.ID) (*Block, error) {
-	if s.genesisBlock.ID() == id {
-		return s.genesisBlock, nil
+func (bc *blockChain) GetBlock(id ids.ID) (*Block, error) {
+	if bc.genesisBlock.ID() == id {
+		return bc.genesisBlock, nil
 	}
 
-	if blk, ok := s.verifiedBlocks.Load(id); ok {
-		return blk.(*Block), nil
+	if blk := bc.GetVerifiedBlock(id); blk != nil {
+		return blk, nil
 	}
 
-	obj, err := s.blockDB.LoadObject(id[:], s.recentBlocks)
+	obj, err := bc.blockDB.LoadObject(id[:], bc.recentBlocks)
 	if err != nil {
 		return nil, err
 	}
 	blk := obj.(*Block)
 
 	if blk.Context() == nil {
-		blk.SetContext(s.ctx)
+		blk.SetContext(bc.ctx)
 	}
-	if blk.Status() != choices.Accepted && blk.Height() <= s.lastAcceptedBlock.LoadV().Height {
+	if blk.Status() != choices.Accepted && blk.Height() <= bc.lastAcceptedBlock.LoadV().Height {
 		blk.SetStatus(choices.Accepted)
 	}
 	return blk, nil
 }
 
-func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	obj, err := s.heightDB.LoadObject(database.PackUInt64(height), s.recentHeights)
+func (bc *blockChain) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
+	obj, err := bc.heightDB.LoadObject(database.PackUInt64(height), bc.recentHeights)
 	if err != nil {
 		return ids.Empty, err
 	}
@@ -506,7 +539,7 @@ func (s *stateDB) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 }
 
 // SubmitTx processes a transaction from API server
-func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
+func (bc *blockChain) SubmitTx(txs ...*ld.Transaction) error {
 	if len(txs) == 0 {
 		return nil
 	}
@@ -516,15 +549,15 @@ func (s *stateDB) SubmitTx(txs ...*ld.Transaction) error {
 		}
 	}
 
-	blk := s.preferred.LoadV()
+	blk := bc.preferred.LoadV()
 	if err := blk.TryBuildTxs(txs...); err != nil {
 		return err
 	}
 
-	return s.AddRemoteTxs(txs...)
+	return bc.AddRemoteTxs(txs...)
 }
 
-func (s *stateDB) AddRemoteTxs(txs ...*ld.Transaction) error {
+func (bc *blockChain) AddRemoteTxs(txs ...*ld.Transaction) error {
 	var err error
 	tx := txs[0]
 	if len(txs) > 1 {
@@ -537,28 +570,28 @@ func (s *stateDB) AddRemoteTxs(txs ...*ld.Transaction) error {
 	if tx.Type == ld.TypeTest {
 		return fmt.Errorf("TestTx should be in a batch transactions.")
 	}
-	s.txPool.AddRemote(tx)
+	bc.txPool.AddRemote(tx)
 	return nil
 }
 
-func (s *stateDB) AddLocalTxs(txs ...*ld.Transaction) {
-	s.txPool.AddLocal(txs...)
+func (bc *blockChain) AddLocalTxs(txs ...*ld.Transaction) {
+	bc.txPool.AddLocal(txs...)
 }
 
-func (s *stateDB) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
-	s.txPool.SetTxsStatus(status, txIDs...)
+func (bc *blockChain) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
+	bc.txPool.SetTxsStatus(status, txIDs...)
 }
 
-func (s *stateDB) GetTxStatus(id ids.ID) choices.Status {
-	return s.txPool.GetStatus(id)
+func (bc *blockChain) GetTxStatus(id ids.ID) choices.Status {
+	return bc.txPool.GetStatus(id)
 }
 
-func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
-	obj, err := s.accountDB.LoadObject(id[:], s.recentAccounts)
+func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {
+	obj, err := bc.accountDB.LoadObject(id[:], bc.recentAccounts)
 	if err != nil {
 		return nil, err
 	}
-	blk := s.LastAcceptedBlock()
+	blk := bc.LastAcceptedBlock()
 	rt := obj.(*ld.Account)
 	rt.Height = blk.Height
 	rt.Timestamp = blk.Timestamp
@@ -566,12 +599,12 @@ func (s *stateDB) LoadAccount(id util.EthID) (*ld.Account, error) {
 	return rt, nil
 }
 
-func (s *stateDB) ResolveName(name string) (*ld.DataInfo, error) {
+func (bc *blockChain) ResolveName(name string) (*ld.DataInfo, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %q, error: %v", name, err)
 	}
-	obj, err := s.nameDB.LoadObject([]byte(dn.String()), s.recentNames)
+	obj, err := bc.nameDB.LoadObject([]byte(dn.String()), bc.recentNames)
 	if err != nil {
 		return nil, err
 	}
@@ -581,11 +614,11 @@ func (s *stateDB) ResolveName(name string) (*ld.DataInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.LoadData(util.DataID(id))
+	return bc.LoadData(util.DataID(id))
 }
 
-func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
-	obj, err := s.modelDB.LoadObject(id[:], s.recentModels)
+func (bc *blockChain) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
+	obj, err := bc.modelDB.LoadObject(id[:], bc.recentModels)
 	if err != nil {
 		return nil, err
 	}
@@ -594,8 +627,8 @@ func (s *stateDB) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	return rt, nil
 }
 
-func (s *stateDB) LoadData(id util.DataID) (*ld.DataInfo, error) {
-	obj, err := s.dataDB.LoadObject(id[:], s.recentData)
+func (bc *blockChain) LoadData(id util.DataID) (*ld.DataInfo, error) {
+	obj, err := bc.dataDB.LoadObject(id[:], bc.recentData)
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +637,7 @@ func (s *stateDB) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	return rt, nil
 }
 
-func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo, error) {
+func (bc *blockChain) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo, error) {
 	if version == 0 {
 		return nil, fmt.Errorf("data not found")
 	}
@@ -614,11 +647,42 @@ func (s *stateDB) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo, er
 	copy(key, id[:])
 	copy(key[20:], v)
 
-	obj, err := s.prevDataDB.LoadObject(key, s.recentData)
+	obj, err := bc.prevDataDB.LoadObject(key, bc.recentData)
 	if err != nil {
 		return nil, err
 	}
 	rt := obj.(*ld.DataInfo)
 	rt.ID = id
 	return rt, nil
+}
+
+type atomicBlock atomic.Value
+
+func (a *atomicBlock) LoadV() *Block {
+	return (*atomic.Value)(a).Load().(*Block)
+}
+
+func (a *atomicBlock) StoreV(v *Block) {
+	(*atomic.Value)(a).Store(v)
+}
+
+type atomicLDBlock atomic.Value
+
+func (a *atomicLDBlock) LoadV() *ld.Block {
+	return (*atomic.Value)(a).Load().(*ld.Block)
+}
+
+func (a *atomicLDBlock) StoreV(v *ld.Block) {
+	(*atomic.Value)(a).Store(v)
+}
+
+type atomicState atomic.Value
+
+func (a *atomicState) LoadV() snow.State {
+	v := (*atomic.Value)(a).Load().(*snow.State)
+	return *v
+}
+
+func (a *atomicState) StoreV(v snow.State) {
+	(*atomic.Value)(a).Store(&v)
 }

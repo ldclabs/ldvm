@@ -32,7 +32,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -44,7 +44,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -57,7 +57,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -70,7 +70,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -84,7 +84,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -96,7 +96,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -109,7 +109,7 @@ func TestTxResetStake(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -135,7 +135,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -182,7 +182,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -204,7 +204,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -237,7 +237,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -264,7 +264,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -290,7 +290,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -317,7 +317,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -344,7 +344,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTakeStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -383,7 +383,7 @@ func TestTxResetStake(t *testing.T) {
 	input3 := &ld.TxAccounter{Approver: &keeper}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -418,7 +418,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -439,7 +439,7 @@ func TestTxResetStake(t *testing.T) {
 	input2 = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC * 10)}
 	txData = &ld.TxData{
 		Type:      ld.TypeWithdrawStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -476,7 +476,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeResetStake,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

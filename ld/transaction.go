@@ -420,6 +420,14 @@ func (txs Txs) Marshal() ([]byte, error) {
 		ErrorMap(util.MarshalCBOR(txs))
 }
 
+func (txs Txs) BytesSize() int {
+	s := 0
+	for _, tx := range txs {
+		s += tx.BytesSize()
+	}
+	return s
+}
+
 type group struct {
 	ts Txs
 	dp uint64 // dynamic priority for sorting

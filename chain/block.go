@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"time"
@@ -44,6 +45,7 @@ var (
 type Block struct {
 	ld        *ld.Block
 	ctx       *Context
+	parent    *Block // the genesis block is the parent of itself
 	bs        BlockState
 	status    choices.Status
 	txs       []transaction.Transaction // txs field will unfold batch tx
@@ -54,12 +56,12 @@ type Block struct {
 
 func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 	blk := NewBlock(&ld.Block{
-		GasPrice:      ctx.Chain().FeeConfig.MinGasPrice,
-		GasRebateRate: ctx.Chain().FeeConfig.GasRebateRate,
+		NextGasPrice:  ctx.ChainConfig().FeeConfig.MinGasPrice,
+		GasRebateRate: ctx.ChainConfig().FeeConfig.GasRebateRate,
 		Validators:    make([]util.StakeSymbol, 0),
 		Txs:           make([]*ld.Transaction, 0, len(txs)),
 	}, ctx)
-	blk.InitState(ctx.StateDB().DB(), false)
+	blk.InitState(blk, ctx.Chain().DB(), false)
 	blk.status = choices.Processing
 	blk.txs = make([]transaction.Transaction, len(blk.ld.Txs))
 	for i := range blk.ld.Txs {
@@ -139,7 +141,8 @@ func (b *Block) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.ld)
 }
 
-func (b *Block) InitState(db database.Database, accepted bool) {
+func (b *Block) InitState(parent *Block, db database.Database, accepted bool) {
+	b.parent = parent
 	b.bs = newBlockState(
 		b.ctx, b.ld.Height, b.ld.Timestamp, b.ld.ParentState, db)
 	if accepted { // history block
@@ -183,9 +186,9 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		tx := txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		if tx.GasFeeCap < b.ld.GasPrice {
+		if tx.GasFeeCap < b.parent.ld.NextGasPrice {
 			tx.Err = fmt.Errorf("Block.TryBuildTxs error: invalid gasFeeCap, expected >= %d, got %d",
-				b.ld.GasPrice, tx.GasFeeCap)
+				b.parent.ld.NextGasPrice, tx.GasFeeCap)
 			return choices.Unknown, tx.Err
 		}
 		if tx.Gas() > feeCfg.MaxTxGas {
@@ -250,6 +253,7 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 		if err != nil {
 			return fmt.Errorf("Block.BuildFee ValidatorState.GetValidatorSet error: %v", err)
 		}
+
 		vv := make([]ids.NodeID, 0, len(vs))
 		for nid := range vs {
 			vv = append(vv, nid)
@@ -261,21 +265,27 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 			return vs[vv[i]] > vs[vv[j]]
 		})
 
-		b.ld.Validators = make([]util.StakeSymbol, 0, len(vs))
 		shares = make([]*transaction.Account, 0, len(vs))
 		for _, nid := range vv {
-			if id, acc := vbs.LoadStakeAccountByNodeID(nid); acc != nil {
-				b.ld.Validators = append(b.ld.Validators, id)
+			if _, acc := vbs.LoadStakeAccountByNodeID(nid); acc != nil {
 				shares = append(shares, acc)
 			}
-			if len(b.ld.Validators) >= 256 {
-				break
-			}
+		}
+		sort.SliceStable(shares, func(i, j int) bool {
+			return shares[i].Balance().Cmp(shares[j].Balance()) > 0
+		})
+		if len(shares) > 256 {
+			shares = shares[:256]
+		}
+		b.ld.Validators = make([]util.StakeSymbol, 0, len(shares))
+		for _, acc := range shares {
+			b.ld.Validators = append(b.ld.Validators, util.EthID(acc.ID()).ToStakeSymbol())
 		}
 	}
 
 	if len(shares) == 0 {
 		shares = append(shares, genesisAccount)
+		b.ld.Validators = []util.StakeSymbol{}
 	}
 
 	num := big.NewInt(int64(len(shares)))
@@ -305,6 +315,8 @@ func (b *Block) VerifyMinerFee() error {
 }
 
 func (b *Block) BuildState(vbs BlockState) error {
+	// set the state's hash to ld.Block.State
+	// set the block's hash to ld.Block.ID
 	return vbs.SaveBlock(b.ld)
 }
 
@@ -323,9 +335,9 @@ func (b *Block) VerifyGenesis() error {
 		return fmt.Errorf("save block error: %v", err)
 	}
 	b.status = choices.Processing
-	b.ctx.StateDB().AddVerifiedBlock(b)
+	b.ctx.Chain().AddVerifiedBlock(b)
 	b.verified = true
-	b.ctx.StateDB().SetTxsStatus(choices.Processing, b.txIDs...)
+	b.ctx.Chain().SetTxsStatus(choices.Processing, b.txIDs...)
 	return nil
 }
 
@@ -333,18 +345,15 @@ func (b *Block) VerifyGenesis() error {
 // Verify that the state transition this block would make if accepted is valid.
 // It is guaranteed that the Parent has been successfully verified.
 func (b *Block) Verify() error {
-	if b.bs == nil {
-		b.InitState(b.ctx.StateDB().PreferredBlock().State().VersionDB(), false)
-	}
 	if err := b.verify(); err != nil {
 		logging.Log.Warn("Block.Verify %s at %d error: %v", b.ID(), b.Height(), err)
 		b.reject()
 		return err
 	}
 
-	b.ctx.StateDB().AddVerifiedBlock(b)
+	b.ctx.Chain().AddVerifiedBlock(b)
 	b.verified = true
-	b.ctx.StateDB().SetTxsStatus(choices.Processing, b.txIDs...)
+	b.ctx.Chain().SetTxsStatus(choices.Processing, b.txIDs...)
 	logging.Log.Info("Block.Verify %s at %d", b.ID(), b.Height())
 	return nil
 }
@@ -359,30 +368,23 @@ func (b *Block) TxsSize() int {
 
 func (b *Block) verify() error {
 	b.status = choices.Processing
-	if b.ID() == ids.Empty {
+	id := b.ID()
+	if id == ids.Empty {
 		return fmt.Errorf("invalid block id")
 	}
 
-	var parent *ld.Block
-	lastAccepted := b.ctx.StateDB().LastAcceptedBlock()
-	preferred := b.ctx.StateDB().PreferredBlock()
-	switch b.Parent() {
-	case lastAccepted.ID:
-		parent = lastAccepted
-	case preferred.ID():
-		parent = preferred.ld
-	default:
-		return fmt.Errorf("invalid block parent, expected %s, got %s",
-			preferred.ID(), b.Parent())
-	}
-
-	if b.Height() != parent.Height+1 {
+	if h := b.parent.Height() + 1; b.Height() != h {
 		return fmt.Errorf("invalid block height, expected %d, got %d",
-			parent.Height+1, b.Height())
+			h, b.Height())
 	}
 
-	if b.ld.Timestamp < parent.Timestamp {
+	if b.ld.Timestamp < b.parent.ld.Timestamp {
 		return fmt.Errorf("invalid block timestamp, too early")
+	}
+
+	if nextGasPrice := b.NextGasPrice(); b.ld.NextGasPrice != nextGasPrice {
+		return fmt.Errorf("invalid block nextGasPrice, expected %d, got %d",
+			nextGasPrice, b.ld.NextGasPrice)
 	}
 
 	gas := uint64(0)
@@ -411,6 +413,9 @@ func (b *Block) verify() error {
 	if err := b.bs.SaveBlock(b.ld); err != nil {
 		return fmt.Errorf("save block error: %v", err)
 	}
+	if id != b.ld.ID {
+		return fmt.Errorf("invalid block id, expected %s, got %s", id, b.ld.ID)
+	}
 	return nil
 }
 
@@ -420,32 +425,25 @@ func (b *Block) verify() error {
 // block's ID and saves this info to stateDB.
 func (b *Block) Accept() error {
 	logging.Log.Info("Block.Accept  %s at %d, parent: %s", b.ID(), b.Height(), b.Parent())
-	if err := b.accept(); err != nil {
+	if !b.verified {
+		b.reject()
+		return fmt.Errorf("Block.Accept %s not verified", b.ID())
+	}
+
+	if err := b.bs.Commit(); err != nil {
 		logging.Log.Warn("Block.Accept %s at %d error: %v", b.ID(), b.Height(), err)
 		b.reject()
 		return err
 	}
 
-	if err := b.ctx.StateDB().SetLastAccepted(b); err != nil {
+	if err := b.ctx.Chain().SetLastAccepted(b); err != nil {
 		b.reject()
 		return fmt.Errorf("Block.Accept set last accepted error: %v", err)
 	}
 
 	b.status = choices.Accepted
-	b.ctx.StateDB().SetTxsStatus(choices.Accepted, b.txIDs...)
+	b.ctx.Chain().SetTxsStatus(choices.Accepted, b.txIDs...)
 	return nil
-}
-
-func (b *Block) accept() error {
-	if !b.verified {
-		return fmt.Errorf("Block.Accept %s not verified", b.ID())
-	}
-	parent := b.ctx.StateDB().LastAcceptedBlock()
-	if b.Parent() != parent.ID {
-		return fmt.Errorf("Block.Accept invalid parent, expected %s, got %s", parent.ID, b.Parent())
-	}
-
-	return b.bs.Commit()
 }
 
 // Reject implements the snowman.Block choices.Decidable Reject interface
@@ -459,16 +457,16 @@ func (b *Block) Reject() error {
 func (b *Block) reject() {
 	if b.status != choices.Rejected {
 		b.status = choices.Rejected
-		b.ctx.StateDB().AddLocalTxs(b.originTxs...)
+		b.ctx.Chain().AddLocalTxs(b.originTxs...)
 	}
 }
 
-func (b *Block) Chain() *genesis.ChainConfig {
-	return b.ctx.Chain()
+func (b *Block) ChainConfig() *genesis.ChainConfig {
+	return b.ctx.ChainConfig()
 }
 
 func (b *Block) FeeConfig() *genesis.FeeConfig {
-	return b.ctx.Chain().Fee(b.ld.Height)
+	return b.ctx.ChainConfig().Fee(b.ld.Height)
 }
 
 // Status implements the snowman.Block choices.Decidable Status interface
@@ -490,15 +488,16 @@ func (b *Block) AncestorBlocks(ancestorHeight uint64) ([]*Block, error) {
 	if ancestorHeight >= b.ld.Height {
 		return nil, fmt.Errorf("Block.AncestorBlocks invalid height, should < %d", b.ld.Height)
 	}
-	blks := make([]*Block, 0, b.ld.Height-ancestorHeight)
-	var err error
+
+	blks := make([]*Block, b.ld.Height-ancestorHeight)
 	blk := b
 	for blk.ld.Height > ancestorHeight {
-		blk, err = b.ctx.StateDB().GetBlock(blk.ld.Parent)
-		if err != nil {
-			return nil, fmt.Errorf("Block.AncestorBlocks GetBlock error: %v", err)
+		pid := blk.ld.Parent
+		blk = b.ctx.Chain().GetVerifiedBlock(pid)
+		if blk == nil {
+			return nil, fmt.Errorf("Block.AncestorBlocks: %s not found", pid)
 		}
-		blks = append(blks, blk)
+		blks[blk.ld.Height-ancestorHeight] = blk
 	}
 	return blks, nil
 }
@@ -522,7 +521,25 @@ func (b *Block) Gas() *big.Int {
 }
 
 func (b *Block) GasPrice() *big.Int {
-	return new(big.Int).SetUint64(b.ld.GasPrice)
+	return new(big.Int).SetUint64(b.parent.ld.NextGasPrice)
+}
+
+func (b *Block) NextGasPrice() uint64 {
+	feeCfg := b.FeeConfig()
+	nextGasPrice := b.parent.ld.NextGasPrice
+	txsSize := b.ld.Txs.BytesSize()
+	if uint64(txsSize)*2 <= feeCfg.MaxBlockTxsSize {
+		nextGasPrice = uint64(float64(nextGasPrice) / math.SqrtPhi)
+		if nextGasPrice < feeCfg.MinGasPrice {
+			nextGasPrice = feeCfg.MinGasPrice
+		}
+	} else if float64(txsSize)*math.SqrtPhi >= float64(feeCfg.MaxBlockTxsSize) {
+		nextGasPrice = uint64(float64(nextGasPrice) * math.SqrtPhi)
+		if nextGasPrice > feeCfg.MaxGasPrice {
+			nextGasPrice = feeCfg.MaxGasPrice
+		}
+	}
+	return nextGasPrice
 }
 
 // Regard to pareto 80/20 Rule
@@ -530,6 +547,7 @@ func (b *Block) GasPrice() *big.Int {
 // GasRebate20 = Gas * GasPrice * (GasRebateRate / 100) * 20%
 func (b *Block) GasRebate20() *big.Int {
 	gasRebate := new(big.Int).SetUint64(b.ld.GasRebateRate)
-	gasRebate = gasRebate.Mul(gasRebate, b.ld.FeeCost())
+	gasRebate = gasRebate.Mul(gasRebate, new(big.Int).SetUint64(b.ld.Gas))
+	gasRebate = gasRebate.Mul(gasRebate, b.GasPrice())
 	return gasRebate.Quo(gasRebate, big.NewInt(500))
 }

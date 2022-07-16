@@ -35,7 +35,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -47,7 +47,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -60,7 +60,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -73,7 +73,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -86,7 +86,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -99,7 +99,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -111,7 +111,7 @@ func TestTxPunish(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -126,7 +126,7 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -141,7 +141,7 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -157,7 +157,7 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypePunish,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

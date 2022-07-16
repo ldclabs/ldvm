@@ -65,13 +65,12 @@ func TestBlock(t *testing.T) {
 	blk = &Block{
 		State:         ids.ID{1, 2, 3},
 		Gas:           tx.Gas(),
-		GasPrice:      1000,
+		NextGasPrice:  1000,
 		GasRebateRate: 200,
 		Txs:           Txs{tx},
 	}
 
 	assert.NoError(blk.SyntacticVerify())
-	assert.Equal(uint64(618000), blk.FeeCost().Uint64())
 	cbordata, err := blk.Marshal()
 	assert.NoError(err)
 
@@ -79,7 +78,7 @@ func TestBlock(t *testing.T) {
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"parentState":"11111111111111111111111111111111LpoYY","state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":618,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"xWsvbg7GqCJMiusDTqZTsCPxgQemES7sZfJJcRAfE9XkVcc8v","txs":[{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}]}`, string(jsondata))
+	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"parentState":"11111111111111111111111111111111LpoYY","state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":618,"nextGasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"xWsvbg7GqCJMiusDTqZTsCPxgQemES7sZfJJcRAfE9XkVcc8v","txs":[{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}]}`, string(jsondata))
 
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))

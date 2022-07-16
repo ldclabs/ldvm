@@ -68,7 +68,7 @@ func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 			}
 		}
 		// it should be a batch tx when txs length is greater than 1
-		return v.state.AddRemoteTxs(txs...)
+		return v.bc.AddRemoteTxs(txs...)
 	}
 
 	if err != nil {

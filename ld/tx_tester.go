@@ -19,6 +19,7 @@ const (
 	LedgerObject
 	ModelObject
 	DataObject
+	// we will support testing trust data from outside
 )
 
 type ObjectType uint16

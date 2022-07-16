@@ -30,7 +30,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -42,7 +42,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -55,7 +55,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -68,7 +68,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -81,7 +81,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -93,7 +93,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -107,7 +107,7 @@ func TestTxDeleteData(t *testing.T) {
 	input := &ld.TxUpdater{}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -121,7 +121,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &util.DataIDEmpty}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -136,7 +136,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -150,7 +150,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -189,7 +189,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -260,7 +260,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -292,7 +292,7 @@ func TestTxDeleteData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 2, Data: []byte(`421`)}
 	txData = &ld.TxData{
 		Type:      ld.TypeDeleteData,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,

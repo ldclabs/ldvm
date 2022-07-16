@@ -25,6 +25,9 @@ func TestProfile(t *testing.T) {
 	p = &Profile{Type: 0, Name: "a\na"}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid name "a\na"`)
 
+	p = &Profile{Type: 0, Name: "LDC", Desc: "\nLinked Data chain"}
+	assert.ErrorContains(p.SyntacticVerify(), `invalid description "\nLinked Data chain"`)
+
 	p = &Profile{Type: 0, Name: "LDC", Image: "a\na"}
 	assert.ErrorContains(p.SyntacticVerify(), `invalid image "a\na"`)
 
@@ -55,7 +58,8 @@ func TestProfile(t *testing.T) {
 	data, err := json.Marshal(p)
 	assert.NoError(err)
 
-	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`, string(data))
+	// fmt.Println(string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`, string(data))
 
 	p2 := &Profile{}
 	assert.NoError(p2.Unmarshal(p.Bytes()))
@@ -82,7 +86,8 @@ func TestProfile(t *testing.T) {
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
 
-	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
+	// fmt.Println(string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
 
 	ipldops := cborpatch.Patch{
 		{Op: "replace", Path: "/u", Value: util.MustMarshalCBOR("https://ldclabs.org")},
@@ -99,5 +104,6 @@ func TestProfile(t *testing.T) {
 
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
-	assert.Equal(`{"type":"Person","name":"LDC","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
+	// fmt.Println(string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
 }

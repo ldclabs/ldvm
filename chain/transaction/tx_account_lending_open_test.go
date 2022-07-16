@@ -30,7 +30,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData := &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -42,7 +42,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -55,7 +55,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -68,7 +68,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -81,7 +81,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -93,7 +93,7 @@ func TestTxOpenLending(t *testing.T) {
 
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -113,7 +113,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -165,7 +165,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -186,7 +186,7 @@ func TestTxOpenLending(t *testing.T) {
 	// close lending
 	txData = &ld.TxData{
 		Type:      ld.TypeCloseLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
@@ -217,7 +217,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
 		Type:      ld.TypeOpenLending,
-		ChainID:   bctx.Chain().ChainID,
+		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: bctx.Price,
