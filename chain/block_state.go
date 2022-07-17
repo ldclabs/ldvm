@@ -46,9 +46,9 @@ func putAccountCache(cc transaction.AccountCache) {
 }
 
 type blockState struct {
-	ctx               *Context
 	height, timestamp uint64
-	s                 *ld.State
+	ctx               *Context
+	ls                *ld.State
 	bc                BlockChain
 	vdb               *versiondb.Database
 	blockDB           *db.PrefixDB
@@ -75,15 +75,15 @@ type BlockState interface {
 	transaction.BlockState
 }
 
-func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseVDB database.Database) *blockState {
-	vdb := versiondb.New(baseVDB)
+func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseDB database.Database) *blockState {
+	vdb := versiondb.New(baseDB)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	return &blockState{
 		ctx:            ctx,
 		height:         height,
 		timestamp:      timestamp,
 		bc:             ctx.Chain(),
-		s:              ld.NewState(parentState),
+		ls:             ld.NewState(parentState),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
@@ -109,7 +109,7 @@ func (bs *blockState) Timestamp() uint64 {
 
 // DeriveState for the given block
 func (bs *blockState) DeriveState() (BlockState, error) {
-	vdb := versiondb.New(bs.vdb.GetDatabase())
+	vdb := versiondb.New(bs.vdb)
 	batch, err := bs.vdb.CommitBatch()
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		ctx:            bs.ctx,
 		height:         bs.height,
 		timestamp:      bs.timestamp,
-		s:              bs.s.Clone(),
+		ls:             bs.ls.Clone(),
 		bc:             bs.ctx.Chain(),
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
@@ -137,17 +137,18 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		nameDB:         pdb.With(nameDBPrefix),
 		accountCache:   getAccountCache(),
 	}
+
 	for _, a := range bs.accountCache {
 		data, ledger, err := a.Marshal()
 		if err == nil {
 			id := a.ID()
 			if a.AccountChanged(data) {
-				nbs.s.UpdateAccount(id, data)
+				nbs.ls.UpdateAccount(id, data)
 				err = nbs.accountDB.Put(id[:], data)
 			}
 
 			if err == nil && len(ledger) > 0 && a.LedgerChanged(ledger) {
-				nbs.s.UpdateLedger(id, ledger)
+				nbs.ls.UpdateLedger(id, ledger)
 				err = nbs.ledgerDB.Put(id[:], ledger)
 			}
 		}
@@ -284,7 +285,7 @@ func (bs *blockState) SaveModel(id util.ModelID, mi *ld.ModelInfo) error {
 	if err := mi.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.s.UpdateModel(id, mi.Bytes())
+	bs.ls.UpdateModel(id, mi.Bytes())
 	return bs.modelDB.Put(id[:], mi.Bytes())
 }
 
@@ -308,7 +309,7 @@ func (bs *blockState) SaveData(id util.DataID, di *ld.DataInfo) error {
 	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.s.UpdateData(id, di.Bytes())
+	bs.ls.UpdateData(id, di.Bytes())
 	return bs.dataDB.Put(id[:], di.Bytes())
 }
 
@@ -357,12 +358,12 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 		if err == nil {
 			id := a.ID()
 			if a.AccountChanged(data) {
-				bs.s.UpdateAccount(id, data)
+				bs.ls.UpdateAccount(id, data)
 				err = bs.accountDB.Put(id[:], data)
 			}
 
 			if err == nil && len(ledger) > 0 && a.LedgerChanged(ledger) {
-				bs.s.UpdateLedger(id, ledger)
+				bs.ls.UpdateLedger(id, ledger)
 				err = bs.ledgerDB.Put(id[:], ledger)
 			}
 		}
@@ -370,21 +371,22 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 			return err
 		}
 	}
-	if err := bs.s.SyntacticVerify(); err != nil {
+	if err := bs.ls.SyntacticVerify(); err != nil {
 		return err
 	}
 
 	// will update block's state and id
-	blk.State = bs.s.ID
+	blk.State = bs.ls.ID
 	if err := blk.SyntacticVerify(); err != nil {
 		return err
 	}
-	if err := bs.blockDB.Put(blk.ID[:], blk.Bytes()); err != nil {
-		return err
-	}
+
 	hKey := database.PackUInt64(blk.Height)
 	if ok, _ := bs.heightDB.Has(hKey); ok {
 		return fmt.Errorf("SaveBlock height error: block %s at height %d exists", blk.ID, blk.Height)
+	}
+	if err := bs.blockDB.Put(blk.ID[:], blk.Bytes()); err != nil {
+		return err
 	}
 	return bs.heightDB.Put(hKey, blk.ID[:])
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
 )
 
 func TestState(t *testing.T) {
@@ -24,20 +23,20 @@ func TestState(t *testing.T) {
 	assert.ErrorContains(s.SyntacticVerify(), "nil accounts")
 
 	s = &State{
-		Accounts: make(map[util.EthID]ids.ID),
+		Accounts: make(map[string]ids.ID),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil ledgers")
 
 	s = &State{
-		Accounts: make(map[util.EthID]ids.ID),
-		Ledgers:  make(map[util.EthID]ids.ID),
+		Accounts: make(map[string]ids.ID),
+		Ledgers:  make(map[string]ids.ID),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil datas")
 
 	s = &State{
-		Accounts: make(map[util.EthID]ids.ID),
-		Ledgers:  make(map[util.EthID]ids.ID),
-		Datas:    make(map[util.DataID]ids.ID),
+		Accounts: make(map[string]ids.ID),
+		Ledgers:  make(map[string]ids.ID),
+		Datas:    make(map[string]ids.ID),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil models")
 
@@ -62,7 +61,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s2.ID)
 	assert.Equal(cbordata, cbordata2)
 
-	s.Accounts[constants.GenesisAccount] = ids.ID{1, 2, 3}
+	s.Accounts[string(constants.GenesisAccount[:])] = ids.ID{1, 2, 3}
 	assert.NoError(s.SyntacticVerify())
 	assert.NotEqual(s.ID, s2.ID)
 	assert.NotEqual(s.Bytes(), s2.Bytes())
@@ -72,7 +71,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s3.ID)
 	assert.Equal(s.Bytes(), s3.Bytes())
 
-	s3.Ledgers[constants.GenesisAccount] = ids.ID{1, 2, 3}
+	s3.Ledgers[string(constants.GenesisAccount[:])] = ids.ID{1, 2, 3}
 	assert.NoError(s3.SyntacticVerify())
 	assert.NotEqual(s.ID, s3.ID)
 	assert.NotEqual(s.Bytes(), s3.Bytes())

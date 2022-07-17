@@ -133,6 +133,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 
 	var err error
+	genesisNonce := uint64(0)
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
@@ -144,6 +145,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	tx := &ld.Transaction{
 		Type:    ld.TypeCreateToken,
 		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		To:      &constants.LDCAccount,
 		Data:    ld.MustMarshal(token),
@@ -151,10 +153,11 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+	genesisNonce++
 	txs = append(txs, tx)
 
 	// Alloc Txs
-	nonce := uint64(0)
+	ldcNonce := uint64(0)
 	list := make([]ids.ShortID, 0, len(g.Alloc))
 	for id := range g.Alloc {
 		list = append(list, ids.ShortID(id))
@@ -166,7 +169,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		tx := &ld.Transaction{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
-			Nonce:   nonce,
+			Nonce:   ldcNonce,
 			From:    constants.LDCAccount,
 			To:      &to,
 			Amount:  v.Balance,
@@ -174,7 +177,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		if err = tx.SyntacticVerify(); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
-		nonce++
+		ldcNonce++
 		txs = append(txs, tx)
 
 		if le := len(v.Keepers); le > 0 {
@@ -183,11 +186,18 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 				Keepers:   &v.Keepers,
 			}
 
+			nonce := uint64(0)
 			tx := &ld.Transaction{
 				Type:    ld.TypeUpdateAccountKeepers,
 				ChainID: g.Chain.ChainID,
+				Nonce:   nonce,
 				From:    util.EthID(id),
 				Data:    ld.MustMarshal(update),
+			}
+
+			if tx.From == constants.GenesisAccount {
+				tx.Nonce = genesisNonce
+				genesisNonce++
 			}
 			if err = tx.SyntacticVerify(); err != nil {
 				return nil, errp.ErrorIf(err)
@@ -214,12 +224,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(cfgData),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+	genesisNonce++
 	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
 	txs = append(txs, tx)
 
@@ -240,12 +252,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ns),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+	genesisNonce++
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
@@ -266,12 +280,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
+		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ps),
 	}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+	genesisNonce++
 	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 	return txs, nil

@@ -123,12 +123,13 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		Parent:        preferred.ID(),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
+		GasPrice:      preferred.NextGasPrice(),
 		GasRebateRate: feeCfg.GasRebateRate,
 		Txs:           make([]*ld.Transaction, 0, 16),
 	}
 
 	nblk := NewBlock(blk, preferred.Context())
-	nblk.InitState(preferred, preferred.State().VersionDB(), false)
+	nblk.InitState(preferred, preferred.State().VersionDB())
 	vbs, err := nblk.State().DeriveState()
 	if err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
@@ -180,7 +181,6 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	}
 
 	// 4. BuildState and Verify block
-	nblk.ld.NextGasPrice = nblk.NextGasPrice()
 	if err := nblk.BuildState(vbs); err != nil {
 		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
 	}

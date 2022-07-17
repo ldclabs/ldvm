@@ -495,5 +495,5 @@ func (a *Account) AccountChanged(data []byte) bool {
 }
 
 func (a *Account) LedgerChanged(data []byte) bool {
-	return a.ldHash != util.IDFromData(data)
+	return a.ledgerHash != util.IDFromData(data)
 }

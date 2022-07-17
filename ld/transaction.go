@@ -49,7 +49,7 @@ type TxData struct {
 	eth      *TxEth `cbor:"-" json:"-"`
 }
 
-// SyntacticVerify verifies that a *Tx is well-formed.
+// SyntacticVerify verifies that a *TxData is well-formed.
 func (t *TxData) SyntacticVerify() error {
 	errp := util.ErrPrefix("TxData.SyntacticVerify error: ")
 
@@ -125,20 +125,19 @@ func (t *TxData) Bytes() []byte {
 
 func (t *TxData) UnsignedBytes() []byte {
 	if len(t.unsigned) == 0 {
-		t.unsigned = t.calcUnsignedBytes()
+		t.calcUnsignedBytes()
 	}
 	return t.unsigned
 }
 
-func (t *TxData) calcUnsignedBytes() []byte {
+func (t *TxData) calcUnsignedBytes() {
 	sigs := t.Signatures
 	exSigs := t.ExSignatures
 	t.Signatures = nil
 	t.ExSignatures = nil
-	unsigned := MustMarshal(t)
+	t.unsigned = MustMarshal(t)
 	t.Signatures = sigs
 	t.ExSignatures = exSigs
-	return unsigned
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
