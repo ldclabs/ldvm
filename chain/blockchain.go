@@ -216,6 +216,7 @@ func (bc *blockChain) Bootstrap() error {
 		data, _ := genesisBlock.MarshalJSON()
 		logging.Log.Info("genesisBlock:\n%s", string(data))
 		logging.Log.Info("Bootstrap commit Genesis Block")
+		bc.preferred.StoreV(genesisBlock)
 		if err := genesisBlock.Accept(); err != nil {
 			logging.Log.Error("Accept genesis block: %v", err)
 			return fmt.Errorf("Accept genesis block error: %v", err)
@@ -240,7 +241,7 @@ func (bc *blockChain) Bootstrap() error {
 	// genesis block is the last accepted block.
 	if lastAcceptedID == genesisBlock.ID() {
 		logging.Log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
-		genesisBlock.InitState(genesisBlock, bc.db, true)
+		genesisBlock.InitState(genesisBlock, bc.db)
 		bc.preferred.StoreV(genesisBlock)
 		bc.lastAcceptedBlock.StoreV(genesisBlock.ld)
 		return nil
@@ -257,7 +258,8 @@ func (bc *blockChain) Bootstrap() error {
 		return fmt.Errorf("load last accepted block' parent error: %v", err)
 	}
 
-	lastAcceptedBlock.InitState(parent, bc.db, true)
+	lastAcceptedBlock.InitState(parent, bc.db)
+	lastAcceptedBlock.SetStatus(choices.Accepted)
 	bc.preferred.StoreV(lastAcceptedBlock)
 	bc.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
 
@@ -483,9 +485,20 @@ func (bc *blockChain) BuildBlock() (*Block, error) {
 }
 
 func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
-	blk := new(Block)
+	id := util.IDFromData(data)
+	blk, err := bc.GetBlock(id)
+	if err == nil {
+		return blk, nil
+	}
+
+	blk = new(Block)
 	if err := blk.Unmarshal(data); err != nil {
 		return nil, err
+	}
+
+	if id != blk.ID() {
+		return nil, fmt.Errorf("blockChain.ParseBlock: invalid block id at %d, expected %s, got %s",
+			blk.Height(), id, blk.ID())
 	}
 
 	parent, err := bc.GetBlock(blk.Parent())
@@ -494,13 +507,12 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	}
 
 	blk.SetContext(bc.ctx)
-	blk.InitState(parent, parent.State().VersionDB(), false)
-	id := blk.ID()
-	bc.recentBlocks.SetObject(id[:], blk)
+	blk.InitState(parent, parent.State().VersionDB())
 
 	txIDs := blk.TxIDs()
 	bc.txPool.SetTxsStatus(choices.Processing, txIDs...)
 	bc.txPool.ClearTxs(txIDs...)
+	bc.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
 }
 
@@ -518,13 +530,8 @@ func (bc *blockChain) GetBlock(id ids.ID) (*Block, error) {
 		return nil, err
 	}
 	blk := obj.(*Block)
-
-	if blk.Context() == nil {
-		blk.SetContext(bc.ctx)
-	}
-	if blk.Status() != choices.Accepted && blk.Height() <= bc.lastAcceptedBlock.LoadV().Height {
-		blk.SetStatus(choices.Accepted)
-	}
+	blk.SetContext(bc.ctx)
+	blk.SetStatus(choices.Accepted)
 	return blk, nil
 }
 

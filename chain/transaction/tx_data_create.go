@@ -18,7 +18,7 @@ type TxCreateData struct {
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
 	di        *ld.DataInfo
-	name      *service.Name
+	ns        *service.Name
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
@@ -199,8 +199,8 @@ func (tx *TxCreateData) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.name != nil {
-		if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
+	if tx.ns != nil {
+		if err = bs.SetName(tx.ns.Name, tx.di.ID); err != nil {
 			return errp.ErrorIf(err)
 		}
 	}
@@ -270,18 +270,18 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 		}
 
 		if bctx.ChainConfig().IsNameService(tx.di.ModelID) {
-			tx.name = &service.Name{}
-			if err = tx.name.Unmarshal(tx.di.Data); err != nil {
+			tx.ns = &service.Name{}
+			if err = tx.ns.Unmarshal(tx.di.Data); err != nil {
 				return errp.ErrorIf(err)
 			}
-			if err = tx.name.SyntacticVerify(); err != nil {
+			if err = tx.ns.SyntacticVerify(); err != nil {
 				return errp.ErrorIf(err)
 			}
-			if _, err = bs.ResolveNameID(tx.name.Name); err == nil {
-				return errp.Errorf("name %q conflict", tx.name.Name)
+			if _, err = bs.ResolveNameID(tx.ns.Name); err == nil {
+				return errp.Errorf("name %q conflict", tx.ns.Name)
 			}
 
-			if err = bs.SetName(tx.name.Name, tx.di.ID); err != nil {
+			if err = bs.SetName(tx.ns.Name, tx.di.ID); err != nil {
 				return errp.ErrorIf(err)
 			}
 		}
