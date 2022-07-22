@@ -155,14 +155,11 @@ func (t *TxTester) Test(doc []byte) error {
 					case rawRawModelID:
 						// nothing to do
 					case rawJSONModelID:
-						fmt.Println(string(data))
 						data, err = cborpatch.FromJSON(data, nil)
 						if err == nil {
-							fmt.Println(cborpatch.MustToJSON(data))
 							err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/d", Value: data}}, opts)
 						}
 					default:
-						fmt.Println(cborpatch.MustToJSON(data))
 						err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/d", Value: data}}, opts)
 					}
 				}
