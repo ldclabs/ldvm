@@ -12,6 +12,7 @@ require (
 	github.com/ldclabs/cbor-patch v1.1.3
 	github.com/ldclabs/json-patch v1.1.2
 	github.com/mailgun/holster/v4 v4.3.1
+	github.com/rivo/uniseg v0.2.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
