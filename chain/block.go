@@ -151,6 +151,8 @@ func (b *Block) State() BlockState { return b.bs }
 // ID returns a unique ID for this element.
 func (b *Block) ID() ids.ID { return b.ld.ID }
 
+func (b *Block) LD() *ld.Block { return b.ld }
+
 func (b *Block) TxIDs() []ids.ID {
 	if len(b.txIDs) != len(b.ld.Txs) {
 		b.txIDs = make([]ids.ID, len(b.ld.Txs))
@@ -519,6 +521,7 @@ func (b *Block) Height() uint64 { return b.ld.Height }
 // Timestamp implements the snowman.Block Timestamp interface
 // Timestamp returns this block's time. The genesis block has timestamp 0.
 func (b *Block) Timestamp() time.Time { return time.Unix(int64(b.ld.Timestamp), 0).UTC() }
+func (b *Block) Timestamp2() uint64   { return b.ld.Timestamp }
 
 func (b *Block) Gas() *big.Int {
 	return new(big.Int).SetUint64(b.ld.Gas)
@@ -554,4 +557,8 @@ func (b *Block) GasRebate20() *big.Int {
 	gasRebate = gasRebate.Mul(gasRebate, new(big.Int).SetUint64(b.ld.Gas))
 	gasRebate = gasRebate.Mul(gasRebate, b.GasPrice())
 	return gasRebate.Quo(gasRebate, big.NewInt(500))
+}
+
+func (b *Block) Free() {
+	b.bs.Free()
 }

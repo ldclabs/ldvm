@@ -141,6 +141,13 @@ func (a *Account) Balance() *big.Int {
 	return a.balanceOf(constants.NativeToken)
 }
 
+func (a *Account) BalanceOf(token util.TokenSymbol) *big.Int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.balanceOf(token)
+}
+
 func (a *Account) balanceOf(token util.TokenSymbol) *big.Int {
 	switch token {
 	case constants.NativeToken:

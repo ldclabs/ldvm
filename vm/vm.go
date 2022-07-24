@@ -216,12 +216,17 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 		v.Log.Error("CreateHandlers error: %v", err)
 		return nil, err
 	}
+	ethAPI := api.NewEthAPI(v.bc)
 
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
 			LockOptions: common.WriteLock,
 			Handler:     server,
+		},
+		"/eth": {
+			LockOptions: common.WriteLock,
+			Handler:     ethAPI,
 		},
 	}, nil
 }
@@ -387,8 +392,8 @@ func (v *VM) SetPreference(id ids.ID) error {
 // returned.
 func (v *VM) LastAccepted() (ids.ID, error) {
 	blk := v.bc.LastAcceptedBlock()
-	v.Log.Info("VM LastAccepted %s at %d", blk.ID, blk.Height)
-	return blk.ID, nil
+	v.Log.Info("VM LastAccepted %s at %d", blk.ID(), blk.Height())
+	return blk.ID(), nil
 }
 
 // VerifyHeightIndex implements the block.HeightIndexedChainVM VerifyHeightIndex interface

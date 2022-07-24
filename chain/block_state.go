@@ -71,6 +71,7 @@ type BlockState interface {
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
+	Free()
 
 	transaction.BlockState
 }
@@ -393,14 +394,13 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 
 // Commit when accept
 func (bs *blockState) Commit() error {
-	defer bs.free()
 	if err := bs.vdb.SetDatabase(bs.bc.DB()); err != nil {
 		return err
 	}
 	return bs.vdb.Commit()
 }
 
-func (bs *blockState) free() {
+func (bs *blockState) Free() {
 	logging.Log.Info("free blockState at height %d", bs.height)
 	putAccountCache(bs.accountCache)
 	bs.accountCache = nil
