@@ -24,7 +24,7 @@ func TestTxEth(t *testing.T) {
 		ChainID:  new(big.Int).SetUint64(gChainID),
 		Nonce:    0,
 		To:       &testTo,
-		Value:    big.NewInt(10),
+		Value:    ToEthBalance(big.NewInt(10)),
 		Gas:      25000,
 		GasPrice: big.NewInt(1000),
 		Data:     common.FromHex("5544"),
@@ -54,7 +54,7 @@ func TestTxEth(t *testing.T) {
 	assert.Equal(uint64(0), tx.Nonce)
 	assert.Equal(uint64(0), tx.GasTip)
 	assert.Equal(uint64(1000), tx.GasFeeCap)
-	assert.Equal(uint64(1198), tx.Gas())
+	assert.Equal(uint64(1227), tx.Gas())
 	assert.Equal(util.Signer1.Address(), tx.From)
 	assert.Equal(testTo[:], tx.To[:])
 	assert.Equal(big.NewInt(10), tx.Amount)
@@ -86,7 +86,7 @@ func TestTxEthLegacy(t *testing.T) {
 	legacyTx := types.NewTx(&types.LegacyTx{
 		Nonce:    3,
 		To:       &testTo,
-		Value:    big.NewInt(10),
+		Value:    ToEthBalance(big.NewInt(10)),
 		Gas:      25000,
 		GasPrice: big.NewInt(1000),
 		Data:     common.FromHex("abcd"),
@@ -116,7 +116,7 @@ func TestTxEthLegacy(t *testing.T) {
 	assert.Equal(uint64(3), tx.Nonce)
 	assert.Equal(uint64(0), tx.GasTip)
 	assert.Equal(uint64(1000), tx.GasFeeCap)
-	assert.Equal(uint64(1170), tx.Gas())
+	assert.Equal(uint64(1198), tx.Gas())
 	assert.Equal(util.Signer1.Address(), tx.From)
 	assert.Equal(testTo[:], tx.To[:])
 	assert.Equal(big.NewInt(10), tx.Amount)
@@ -143,7 +143,7 @@ func TestTxEthErr(t *testing.T) {
 		ChainID:  new(big.Int).SetUint64(gChainID),
 		Nonce:    3,
 		To:       &common.Address{},
-		Value:    big.NewInt(10),
+		Value:    ToEthBalance(big.NewInt(10)),
 		Gas:      25000,
 		GasPrice: big.NewInt(1000),
 		Data:     common.FromHex("5544"),

@@ -109,7 +109,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 			b.lastBuildHeight, parentHeight)
 	}
 
-	pts := uint64(preferred.Timestamp().Unix())
+	pts := preferred.Timestamp2()
 	if ts < pts {
 		ts = pts
 	}

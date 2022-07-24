@@ -66,7 +66,7 @@ type BlockChain interface {
 	ParseBlock([]byte) (*Block, error)
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	GetBlock(ids.ID) (*Block, error)
-	LastAcceptedBlock() *ld.Block
+	LastAcceptedBlock() *Block
 	SetLastAccepted(*Block) error
 	PreferredBlock() *Block
 	SetPreference(ids.ID) error
@@ -104,7 +104,7 @@ type blockChain struct {
 	nameDB         *db.PrefixDB
 
 	preferred         *atomicBlock
-	lastAcceptedBlock *atomicLDBlock
+	lastAcceptedBlock *atomicBlock
 	state             *atomicState
 
 	verifiedBlocks *sync.Map
@@ -134,7 +134,7 @@ func NewChain(
 		db:                baseDB,
 		txPool:            NewTxPool(),
 		preferred:         new(atomicBlock),
-		lastAcceptedBlock: new(atomicLDBlock),
+		lastAcceptedBlock: new(atomicBlock),
 		state:             new(atomicState),
 		verifiedBlocks:    new(sync.Map),
 		blockDB:           pdb.With(blockDBPrefix),
@@ -157,7 +157,7 @@ func NewChain(
 	s.bb = builder
 	s.txPool = txPool
 	s.preferred.StoreV(emptyBlock)
-	s.lastAcceptedBlock.StoreV(emptyBlock.ld)
+	s.lastAcceptedBlock.StoreV(emptyBlock)
 	s.state.StoreV(0)
 
 	s.recentBlocks = db.NewCacher(10_000, 60*10, func() db.Objecter {
@@ -204,7 +204,7 @@ func (bc *blockChain) Bootstrap() error {
 	if genesisBlock.Parent() != ids.Empty ||
 		genesisBlock.ID() == ids.Empty ||
 		genesisBlock.Height() != 0 ||
-		genesisBlock.Timestamp().Unix() != 0 {
+		genesisBlock.Timestamp2() != 0 {
 		return fmt.Errorf("Bootstrap invalid genesis block")
 	}
 
@@ -243,7 +243,7 @@ func (bc *blockChain) Bootstrap() error {
 		logging.Log.Info("Bootstrap finished at the genesis block %s", lastAcceptedID)
 		genesisBlock.InitState(genesisBlock, bc.db)
 		bc.preferred.StoreV(genesisBlock)
-		bc.lastAcceptedBlock.StoreV(genesisBlock.ld)
+		bc.lastAcceptedBlock.StoreV(genesisBlock)
 		return nil
 	}
 
@@ -261,7 +261,7 @@ func (bc *blockChain) Bootstrap() error {
 	lastAcceptedBlock.InitState(parent, bc.db)
 	lastAcceptedBlock.SetStatus(choices.Accepted)
 	bc.preferred.StoreV(lastAcceptedBlock)
-	bc.lastAcceptedBlock.StoreV(lastAcceptedBlock.ld)
+	bc.lastAcceptedBlock.StoreV(lastAcceptedBlock)
 
 	// load latest fee config from chain.
 	var di *ld.DataInfo
@@ -333,7 +333,7 @@ func (bc *blockChain) IsBootstrapped() bool {
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (bc *blockChain) LastAcceptedBlock() *ld.Block {
+func (bc *blockChain) LastAcceptedBlock() *Block {
 	return bc.lastAcceptedBlock.LoadV()
 }
 
@@ -349,9 +349,9 @@ func (bc *blockChain) GetVerifiedBlock(id ids.ID) *Block {
 }
 
 func (bc *blockChain) SetLastAccepted(blk *Block) error {
-	if parent := bc.lastAcceptedBlock.LoadV(); parent.ID != blk.Parent() {
+	if parent := bc.lastAcceptedBlock.LoadV(); parent.ID() != blk.Parent() {
 		return fmt.Errorf("stateDB.SetLastAccepted invalid parent, expected %s:%d, got %s:%d",
-			parent.ID, parent.Height, blk.Parent(), blk.Height())
+			parent.ID(), parent.Height(), blk.Parent(), blk.Height())
 	}
 
 	id := blk.ID()
@@ -384,13 +384,14 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 		return err
 	}
 
-	bc.lastAcceptedBlock.StoreV(blk.ld)
+	bc.lastAcceptedBlock.StoreV(blk)
 	bc.recentBlocks.SetObject(id[:], blk)
 
 	go func() {
 		bc.verifiedBlocks.Range(func(key, value any) bool {
 			if b, ok := value.(*Block); ok {
 				if b.Height() < height {
+					b.Free()
 					bc.verifiedBlocks.Delete(key)
 				}
 			}
@@ -435,11 +436,11 @@ func (bc *blockChain) setPreference(preferred, blk *Block) error {
 // reorg takes two blocks, an old chain and a new chain and will reconstruct the blocks.
 func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 	accepted := bc.lastAcceptedBlock.LoadV()
-	newChain, err := newBlock.AncestorBlocks(accepted.Height)
+	newChain, err := newBlock.AncestorBlocks(accepted.Height())
 	if err != nil {
 		return err
 	}
-	if newChain[0].ID() != accepted.ID {
+	if newChain[0].ID() != accepted.ID() {
 		return fmt.Errorf("reorg: new chain does not start with the last accepted block")
 	}
 
@@ -453,7 +454,7 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 		return nil
 	}
 
-	oldChain, err := oldBlock.AncestorBlocks(accepted.Height)
+	oldChain, err := oldBlock.AncestorBlocks(accepted.Height())
 	if err != nil {
 		return err
 	}
@@ -600,8 +601,8 @@ func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {
 	}
 	blk := bc.LastAcceptedBlock()
 	rt := obj.(*ld.Account)
-	rt.Height = blk.Height
-	rt.Timestamp = blk.Timestamp
+	rt.Height = blk.Height()
+	rt.Timestamp = blk.Timestamp2()
 	rt.ID = id
 	return rt, nil
 }
@@ -673,15 +674,15 @@ func (a *atomicBlock) StoreV(v *Block) {
 	(*atomic.Value)(a).Store(v)
 }
 
-type atomicLDBlock atomic.Value
+// type atomicLDBlock atomic.Value
 
-func (a *atomicLDBlock) LoadV() *ld.Block {
-	return (*atomic.Value)(a).Load().(*ld.Block)
-}
+// func (a *atomicLDBlock) LoadV() *ld.Block {
+// 	return (*atomic.Value)(a).Load().(*ld.Block)
+// }
 
-func (a *atomicLDBlock) StoreV(v *ld.Block) {
-	(*atomic.Value)(a).Store(v)
-}
+// func (a *atomicLDBlock) StoreV(v *ld.Block) {
+// 	(*atomic.Value)(a).Store(v)
+// }
 
 type atomicState atomic.Value
 

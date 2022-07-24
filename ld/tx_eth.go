@@ -104,7 +104,7 @@ func (t *TxEth) TxData(tx *TxData) *TxData {
 	tx.From = t.from
 	tx.To = &t.to
 	tx.Token = nil
-	tx.Amount = t.tx.Value()
+	tx.Amount = FromEthBalance(t.tx.Value())
 	tx.Data = t.Bytes()
 	tx.Signatures = t.sigs
 	tx.ExSignatures = nil
@@ -139,4 +139,21 @@ func encodeSignature(v, r, s *big.Int) util.Signature {
 		sig[64] = vv
 	}
 	return sig
+}
+
+func FromEthBalance(amount *big.Int) *big.Int {
+	wei := new(big.Int).SetUint64(1e9)
+	res := new(big.Int)
+	if amount == nil || amount.Cmp(wei) < 0 {
+		return res
+	}
+	return res.Quo(amount, wei)
+}
+
+func ToEthBalance(amount *big.Int) *big.Int {
+	res := new(big.Int)
+	if amount == nil {
+		return res
+	}
+	return res.Mul(amount, new(big.Int).SetUint64(1e9))
 }
