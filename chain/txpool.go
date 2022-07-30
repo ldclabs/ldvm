@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/mailgun/holster/v4/collections"
 
 	"github.com/ldclabs/ldvm/ld"
@@ -23,11 +22,11 @@ const (
 // locally. They exit the pool when they are included in the blockchain.
 type TxPool interface {
 	Len() int
-	SetTxsStatus(status choices.Status, txIDs ...ids.ID)
+	SetTxsHeight(height int64, txIDs ...ids.ID)
 	ClearTxs(txIDs ...ids.ID)
 	AddRemote(txs ...*ld.Transaction)
 	AddLocal(txs ...*ld.Transaction)
-	GetStatus(txID ids.ID) choices.Status
+	GetHeight(txID ids.ID) int64
 	PopTxsBySize(askSize int) ld.Txs
 	Reject(tx *ld.Transaction)
 }
@@ -70,27 +69,23 @@ func (p *txPool) Len() int {
 }
 
 // GetStatus returns the status of a transaction by ID.
-func (p *txPool) GetStatus(txID ids.ID) choices.Status {
+func (p *txPool) GetHeight(txID ids.ID) int64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
 	if s, ok := p.knownTxs.Get(string(txID[:])); ok {
-		return s.(choices.Status)
+		return s.(int64)
 	}
-	return choices.Unknown
+	return -1
 }
 
-// SetTxsStatus sets the status of a batchs transactions.
-func (p *txPool) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
+// SetTxsHeight sets the height of block thaht transactions belong in.
+func (p *txPool) SetTxsHeight(height int64, txIDs ...ids.ID) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.setTxsStatus(status, txIDs...)
-}
-
-func (p *txPool) setTxsStatus(status choices.Status, txIDs ...ids.ID) {
 	for _, txID := range txIDs {
-		p.knownTxs.Set(string(txID[:]), status, knownTxsTTL)
+		p.knownTxs.Set(string(txID[:]), height, knownTxsTTL)
 	}
 }
 
@@ -145,7 +140,7 @@ func (p *txPool) AddRemote(txs ...*ld.Transaction) {
 	for i, tx := range txs {
 		if !p.knownTx(tx.ID) {
 			added++
-			p.knownTxs.Set(string(tx.ID[:]), choices.Unknown, knownTxsTTL)
+			p.knownTxs.Set(string(tx.ID[:]), int64(-1), knownTxsTTL)
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 
@@ -166,7 +161,7 @@ func (p *txPool) AddLocal(txs ...*ld.Transaction) {
 
 	for i, tx := range txs {
 		if !p.txQueueSet.Contains(tx.ID) {
-			p.knownTxs.Set(string(tx.ID[:]), choices.Unknown, knownTxsTTL)
+			p.knownTxs.Set(string(tx.ID[:]), int64(-1), knownTxsTTL)
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}
@@ -179,7 +174,7 @@ func (p *txPool) Reject(tx *ld.Transaction) {
 	defer p.mu.Unlock()
 
 	p.clear(tx.ID)
-	p.knownTxs.Set(string(tx.ID[:]), choices.Rejected, knownTxsTTL)
+	p.knownTxs.Set(string(tx.ID[:]), int64(-2), knownTxsTTL)
 }
 
 // PopTxsBySize sorts transactions by priority and returns

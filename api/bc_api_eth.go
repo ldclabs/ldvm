@@ -6,6 +6,7 @@ package api
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
@@ -20,20 +23,27 @@ import (
 )
 
 type EthAPI struct {
-	bc chain.BlockChain
+	bc      chain.BlockChain
+	version string
 }
 
-func NewEthAPI(bc chain.BlockChain) *EthAPI {
-	return &EthAPI{bc}
+func NewEthAPI(bc chain.BlockChain, version string) *EthAPI {
+	return &EthAPI{bc, fmt.Sprintf("ldvm/%s", version)}
 }
 
 // RPC is the main entrypoint for the ETH wallet client.
 // https://ethereum.org/en/developers/docs/apis/json-rpc
 func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
 	switch req.Method {
+	case "web3_clientVersion":
+		return req.Result(api.version)
+
+	case "web3_sha3":
+		return api.web3Sha3(req)
+
 	case "eth_chainId":
 		chainId := api.bc.Context().ChainConfig().ChainID
-		return req.Result("0x" + strconv.FormatUint(chainId, 16))
+		return req.Result(formatUint64(chainId))
 
 	case "net_version":
 		chainId := api.bc.Context().ChainConfig().ChainID
@@ -41,7 +51,10 @@ func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
 
 	case "eth_blockNumber":
 		blk := api.bc.LastAcceptedBlock()
-		return req.Result("0x" + strconv.FormatUint(blk.Height(), 16))
+		return req.Result(formatUint64(blk.Height()))
+
+	case "eth_getTransactionCount":
+		return api.getTransactionCount(req)
 
 	case "eth_getBalance":
 		return api.getBalance(req)
@@ -55,24 +68,47 @@ func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
 	case "eth_estimateGas":
 		return api.estimateGas(req)
 
-	case "eth_call":
-		return api.call(req)
-
-	case "eth_sendRawTransaction":
-		return api.sendRawTransaction(req)
-
 	case "eth_getBlockByHash":
 		return api.getBlockByHash(req)
 
 	case "eth_getBlockByNumber":
 		return api.getBlockByNumber(req)
 
+	case "eth_getTransactionByHash":
+		return api.getTransactionByHash(req)
+
+	case "eth_getTransactionReceipt":
+		return api.getTransactionReceipt(req)
+
+	case "eth_call":
+		return api.call(req)
+
+	case "eth_sendRawTransaction":
+		return api.sendRawTransaction(req)
+
 	default:
 		return req.InvalidMethod()
 	}
 }
 
-func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) web3Sha3(req *JsonrpcReq) *JsonrpcRes {
+	var params []string
+	if err := req.ParseParams(&params); err != nil {
+		return req.Error(err)
+	}
+	if len(params) != 1 {
+		return req.InvalidParams("expected 1 params")
+	}
+
+	data, err := decodeBytes(params[0])
+	if err != nil {
+		return req.Error(err)
+	}
+
+	return req.Result(formatBytes(crypto.Keccak256(data)))
+}
+
+func (api *EthAPI) getTransactionCount(req *JsonrpcReq) *JsonrpcRes {
 	var params []string
 	if err := req.ParseParams(&params); err != nil {
 		return req.Error(err)
@@ -80,7 +116,7 @@ func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
 	if len(params) != 2 {
 		return req.InvalidParams("expected 2 params")
 	}
-	id, err := util.EthIDFromString(params[0])
+	id, err := decodeAddress(params[0])
 	if err != nil {
 		return req.InvalidParams("parse address error, " + err.Error())
 	}
@@ -92,12 +128,35 @@ func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
 			Message: err.Error(),
 		})
 	}
-	return req.Result(toEthBalance(acc.Balance()))
+	return req.Result(formatUint64(acc.Nonce()))
+}
+
+func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
+	var params []string
+	if err := req.ParseParams(&params); err != nil {
+		return req.Error(err)
+	}
+	if len(params) != 2 {
+		return req.InvalidParams("expected 2 params")
+	}
+	id, err := decodeAddress(params[0])
+	if err != nil {
+		return req.InvalidParams("parse address error, " + err.Error())
+	}
+
+	acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
+	if err != nil {
+		return req.Error(&JsonrpcErr{
+			Code:    AccountErrorCode,
+			Message: err.Error(),
+		})
+	}
+	return req.Result(formatEthBalance(acc.Balance()))
 }
 
 func (api *EthAPI) gasPrice(req *JsonrpcReq) *JsonrpcRes {
 	nextGasPrice := api.bc.PreferredBlock().NextGasPrice()
-	return req.Result(toEthBalance(new(big.Int).SetUint64(nextGasPrice)))
+	return req.Result(formatEthBalance(new(big.Int).SetUint64(nextGasPrice)))
 }
 
 func (api *EthAPI) estimateGas(req *JsonrpcReq) *JsonrpcRes {
@@ -126,7 +185,13 @@ func (api *EthAPI) estimateGas(req *JsonrpcReq) *JsonrpcRes {
 	if err := tx.SyntacticVerify(); err != nil {
 		return req.InvalidParams("parse eth_estimateGas params error, " + err.Error())
 	}
-	return req.Result("0x" + strconv.FormatUint(tx.Gas()+100, 16))
+	gas := tx.Gas() + 100
+	// make it work with metamask
+	//https://github.com/MetaMask/metamask-extension/pull/6625
+	if gas < 21000 {
+		gas = 21000
+	}
+	return req.Result(formatUint64(gas))
 }
 
 func (api *EthAPI) getBlockByHash(req *JsonrpcReq) *JsonrpcRes {
@@ -134,16 +199,12 @@ func (api *EthAPI) getBlockByHash(req *JsonrpcReq) *JsonrpcRes {
 	if err := req.ParseParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
 	}
-	if len(params) != 2 || len(params[0]) < 4 {
+	if len(params) != 2 {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, invalid params")
 	}
 
 	fullTxs := string(params[1]) == "true"
-	data, err := hex.DecodeString(string(params[0][1 : len(params[0])-1]))
-	if err != nil {
-		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
-	}
-	id, err := ids.ToID(data)
+	id, err := decodeHashByRaw(params[0])
 	if err != nil {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
 	}
@@ -161,7 +222,7 @@ func (api *EthAPI) getBlockByNumber(req *JsonrpcReq) *JsonrpcRes {
 	if err := req.ParseParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
 	}
-	if len(params) != 2 || len(params[0]) < 4 {
+	if len(params) != 2 {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, invalid params")
 	}
 	fullTxs := string(params[1]) == "true"
@@ -181,6 +242,70 @@ func (api *EthAPI) getBlockByNumber(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(toEthBlock(blk.LD(), fullTxs))
 }
 
+func (api *EthAPI) getTransactionByHash(req *JsonrpcReq) *JsonrpcRes {
+	var params []string
+	if err := req.ParseParams(&params); err != nil {
+		return req.InvalidParams("parse eth_getTransactionByHash params error, " + err.Error())
+	}
+	if len(params) != 1 {
+		return req.InvalidParams("parse eth_getTransactionByHash params error, invalid params")
+	}
+
+	id, err := decodeHash(params[0])
+	if err != nil {
+		return req.InvalidParams("parse eth_getTransactionByHash params error, " + err.Error())
+	}
+	height := api.bc.GetTxHeight(id)
+	if height < 0 {
+		return req.Result(map[string]interface{}{
+			"blockHash":   nil,
+			"blockNumber": nil,
+		})
+	}
+
+	blk, err := api.bc.GetBlockAtHeight(uint64(height))
+	if err != nil {
+		return req.InvalidParams("eth_getTransactionByHash error, " + err.Error())
+	}
+	txs := toEthTxs(blk.LD(), id)
+	if len(txs) == 0 {
+		return req.Result(map[string]interface{}{
+			"blockHash":   nil,
+			"blockNumber": nil,
+		})
+	}
+	return req.Result(txs[0])
+}
+
+func (api *EthAPI) getTransactionReceipt(req *JsonrpcReq) *JsonrpcRes {
+	var params []string
+	if err := req.ParseParams(&params); err != nil {
+		return req.InvalidParams("parse eth_getTransactionReceipt params error, " + err.Error())
+	}
+	if len(params) != 1 {
+		return req.InvalidParams("parse eth_getTransactionReceipt params error, invalid params")
+	}
+
+	id, err := decodeHash(params[0])
+	if err != nil {
+		return req.InvalidParams("parse eth_getTransactionReceipt params error, " + err.Error())
+	}
+	height := api.bc.GetTxHeight(id)
+	if height < 0 {
+		return req.Result(map[string]interface{}{
+			"blockHash":   nil,
+			"blockNumber": nil,
+		})
+	}
+
+	blk, err := api.bc.GetBlockAtHeight(uint64(height))
+	if err != nil {
+		return req.InvalidParams("eth_getTransactionByHash error, " + err.Error())
+	}
+
+	return req.Result(toEthReceipt(blk.LD(), id))
+}
+
 func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 	var params []json.RawMessage
 	if err := req.ParseParams(&params); err != nil {
@@ -193,23 +318,83 @@ func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 	if err := json.Unmarshal(params[0], etx); err != nil {
 		return req.InvalidParams("parse eth_call params error, " + err.Error())
 	}
-	if len(etx.Data) != 76 || string(etx.Data[1:11]) != "0x70a08231" {
-		return req.InvalidParams("invalid eth_call params, only balanceOf(address) is supported")
-	}
 
-	id, err := util.EthIDFromString(string(etx.Data[35:75]))
-	if err != nil {
-		return req.InvalidParams("parse address error, " + err.Error())
-	}
-
-	acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
-	if err != nil {
+	token := util.TokenSymbol(etx.To)
+	symbol := token.String()
+	if symbol == "" {
 		return req.Error(&JsonrpcErr{
 			Code:    AccountErrorCode,
-			Message: err.Error(),
+			Message: fmt.Sprintf("invalid token address %s", etx.To.String()),
 		})
 	}
-	return req.Result(toEthBalance(acc.BalanceOf(util.TokenSymbol(etx.To))))
+
+	data := etx.GetData()
+	funcSig := ""
+	if len(data) >= 4 {
+		funcSig = hex.EncodeToString(data[:4])
+	}
+
+	// ERC20 token
+	// "name()": "06fdde03"
+	// "symbol()": "95d89b41"
+	// "decimals()": "313ce567"
+	// "totalSupply()": "18160ddd"
+	// "allowance(address,address)": "dd62ed3e"
+	// "balanceOf(address)": "70a08231"
+	// "supportsInterface(bytes4)": "01ffc9a7"
+
+	// allowance(address,address)
+	if funcSig == "dd62ed3e" {
+		return req.Result(formatUint64(0))
+	}
+
+	switch len(data) {
+	case 4:
+		switch funcSig {
+		case "06fdde03", "95d89b41": // name(), symbol()
+			return req.Result(formatBytes([]byte(symbol)))
+
+		case "313ce567": // decimals()
+			return req.Result(formatUint64(18))
+
+		case "18160ddd": // totalSupply()
+			tokenAcc, err := api.bc.LastAcceptedBlock().State().LoadAccount(etx.To)
+			if err != nil {
+				return req.Error(&JsonrpcErr{
+					Code:    AccountErrorCode,
+					Message: err.Error(),
+				})
+			}
+
+			if !tokenAcc.Valid(ld.TokenAccount) {
+				return req.Error(&JsonrpcErr{
+					Code:    AccountErrorCode,
+					Message: fmt.Sprintf("invalid token address %s", etx.To.String()),
+				})
+			}
+			return req.Result(formatEthBalance(tokenAcc.TotalSupply()))
+		}
+
+	case 36:
+		switch funcSig {
+		case "01ffc9a7": // supportsInterface(bytes4)
+			return req.Result("0x")
+
+		case "70a08231": // balanceOf(address)
+			id := util.EthID{}
+			copy(id[:], data[4:])
+			acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
+			if err != nil {
+				return req.Error(&JsonrpcErr{
+					Code:    AccountErrorCode,
+					Message: err.Error(),
+				})
+			}
+			return req.Result(formatEthBalance(acc.BalanceOf(token)))
+		}
+	}
+
+	return req.InvalidParams("invalid eth_call params, only balanceOf(address) is supported")
 }
 
 func (api *EthAPI) sendRawTransaction(req *JsonrpcReq) *JsonrpcRes {
@@ -234,12 +419,19 @@ func (api *EthAPI) sendRawTransaction(req *JsonrpcReq) *JsonrpcRes {
 		return req.InvalidParams("submit eth_sendRawTransaction error, " + err.Error())
 	}
 
+	// TODO, support ERC20 token interaface
+	// "transfer(address,uint256)": "a9059cbb"
+
+	// not support yet
+	// "transferFrom(address,address,uint256)": "23b872dd"
+	// "approve(address,uint256)": "095ea7b3"
+
 	tx := etx.ToTransaction()
 	if err := api.bc.SubmitTx(tx); err != nil {
 		return req.InvalidParams("submit eth_sendRawTransaction error, " + err.Error())
 	}
 
-	return req.Result("0x" + hex.EncodeToString(tx.ID[:]))
+	return req.Result(formatBytes(tx.ID[:]))
 }
 
 func (api *EthAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -296,10 +488,6 @@ func writeRes(w http.ResponseWriter, code int, val interface{}) {
 	w.Write(data)
 }
 
-func toEthBalance(amount *big.Int) string {
-	return "0x" + ld.ToEthBalance(amount).Text(16)
-}
-
 type ethTx struct {
 	From     util.EthID      `json:"from,omitempty"`
 	To       util.EthID      `json:"to,omitempty"`
@@ -316,62 +504,188 @@ func (etx *ethTx) GetValue() *big.Int {
 	return v
 }
 
-func toEthTxIDs(txs ld.Txs) []string {
-	ids := make([]string, len(txs))
-	for i, tx := range txs {
-		ids[i] = "0x" + hex.EncodeToString(tx.ID[:])
+func (etx *ethTx) GetData() []byte {
+	if len(etx.Data) < 4 || string(etx.Data[:3]) != `"0x` || etx.Data[len(etx.Data)-1] != '"' {
+		return nil
+	}
+	data, err := hex.DecodeString(string(etx.Data[3 : len(etx.Data)-1]))
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+func toEthTxIDs(blk *ld.Block) []string {
+	ids := make([]string, len(blk.Txs))
+	for i, tx := range blk.Txs {
+		ids[i] = formatBytes(tx.ID[:])
 	}
 	return ids
 }
 
-func toEthTxs(txs ld.Txs, blk *ld.Block) []map[string]interface{} {
-	etxs := make([]map[string]interface{}, len(txs))
-	blkID := "0x" + hex.EncodeToString(blk.ID[:])
-	blkNumber := "0x" + strconv.FormatUint(blk.Height, 16)
-	gasPrice := new(big.Int).SetUint64(blk.GasPrice)
-	for i, tx := range txs {
-		etxs[i] = map[string]interface{}{
-			"blockHash":            blkID,
-			"blockNumber":          blkNumber,
-			"from":                 tx.From.String(),
-			"gas":                  "0x" + strconv.FormatUint(tx.Gas(), 16),
-			"gasPrice":             "0x" + ld.ToEthBalance(gasPrice).Text(16),
-			"maxFeePerGas":         "0x" + strconv.FormatUint(tx.GasFeeCap, 16),
-			"maxPriorityFeePerGas": "0x" + strconv.FormatUint(tx.GasTip, 16),
-			"hash":                 "0x" + hex.EncodeToString(tx.ID[:]),
-			"input":                "0x",
-			"nonce":                "0x" + strconv.FormatUint(tx.Nonce, 16),
-			"to":                   tx.From.String(),
-			"value":                "0x" + ld.ToEthBalance(tx.Amount).Text(16),
-			"type":                 "0x2",
-			"accessList":           []string{},
-			"chainId":              "0x" + strconv.FormatUint(tx.ChainID, 16),
+func toEthTxs(blk *ld.Block, id ids.ID) []map[string]interface{} {
+	txs := make([]map[string]interface{}, 0, len(blk.Txs))
+	blkID := formatBytes(blk.ID[:])
+	blkNumber := formatUint64(blk.Height)
+	gasPrice := formatEthBalance(new(big.Int).SetUint64(blk.GasPrice))
+	for i, tx := range blk.Txs {
+		if id != ids.Empty && tx.ID != id {
+			continue
+		}
+
+		etx := map[string]interface{}{
+			"blockHash":        blkID,
+			"blockNumber":      blkNumber,
+			"from":             tx.From.String(),
+			"gas":              formatUint64(tx.Gas()),
+			"gasPrice":         gasPrice,
+			"hash":             formatBytes(tx.ID[:]),
+			"input":            "0x",
+			"nonce":            formatUint64(tx.Nonce),
+			"to":               tx.To.String(),
+			"transactionIndex": formatUint64(uint64(i)),
+			"value":            formatEthBalance(tx.Amount),
+			"v":                "0x0",
+			"r":                "0x",
+			"s":                "0x",
+		}
+
+		if eth := tx.Eth(); eth != nil {
+			etx["input"] = formatBytes(eth.Data())
+			v, r, s := eth.RawSignatureValues()
+			etx["v"] = formatUint64(v.Uint64())
+
+			data := make([]byte, 32)
+			copy(data[:], r.Bytes())
+			etx["r"] = formatBytes(data)
+			copy(data[:], s.Bytes())
+			etx["s"] = formatBytes(data)
+		}
+		txs = append(txs, etx)
+	}
+	return txs
+}
+
+const logsBloom = "0x00000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000080000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000"
+
+const emptyHash = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+func toEthReceipt(blk *ld.Block, id ids.ID) map[string]interface{} {
+	for i, tx := range blk.Txs {
+		if tx.ID != id {
+			continue
+		}
+
+		return map[string]interface{}{
+			"transactionHash":   formatBytes(tx.ID[:]),
+			"transactionIndex":  formatUint64(uint64(i)),
+			"blockHash":         formatBytes(blk.ID[:]),
+			"blockNumber":       formatUint64(blk.Height),
+			"from":              tx.From.String(),
+			"to":                tx.To.String(),
+			"cumulativeGasUsed": formatUint64(blk.Gas),
+			"gasUsed":           formatUint64(tx.Gas()),
+			"contractAddress":   nil,
+			"logs":              []string{},
+			"logsBloom":         logsBloom,
+			"root":              formatBytes(blk.State[:]),
+			"status":            "0x1",
 		}
 	}
-	return etxs
+
+	return map[string]interface{}{
+		"blockHash":   nil,
+		"blockNumber": nil,
+	}
 }
 
 func toEthBlock(blk *ld.Block, fullTxs bool) map[string]interface{} {
-	cost := new(big.Int).SetUint64(blk.GasPrice)
-	cost = cost.Mul(cost, new(big.Int).SetUint64(blk.Gas))
+	height := formatUint64(blk.Height)
 	res := map[string]interface{}{
-		"baseFeePerGas": "0x" + strconv.FormatUint(blk.GasPrice, 16),
-		"blockGasCost":  "0x" + ld.ToEthBalance(cost).Text(16),
-		"difficulty":    "0x1",
-		"gasUsed":       "0x" + strconv.FormatUint(blk.Gas, 16),
-		"hash":          "0x" + hex.EncodeToString(blk.ID[:]),
-		"miner":         util.EthID(blk.Miner).String(),
-		"number":        "0x" + strconv.FormatUint(blk.Height, 16),
-		"parentHash":    "0x" + hex.EncodeToString(blk.Parent[:]),
-		"size":          "0x" + strconv.FormatUint(uint64(len(blk.Bytes())), 16),
-		"timestamp":     "0x" + strconv.FormatUint(blk.Timestamp, 16),
-		"uncles":        []string{},
+		"number":           height,
+		"hash":             formatBytes(blk.ID[:]),
+		"parentHash":       formatBytes(blk.Parent[:]),
+		"nonce":            height,
+		"sha3Uncles":       emptyHash,
+		"logsBloom":        logsBloom,
+		"transactionsRoot": emptyHash,
+		"stateRoot":        formatBytes(blk.State[:]),
+		"receiptsRoot":     emptyHash,
+		"miner":            util.EthID(blk.Miner).String(),
+		"difficulty":       "0x1",
+		"totalDifficulty":  height,
+		"extraData":        "0x",
+		"size":             formatUint64(uint64(len(blk.Bytes()))),
+		"gasLimit":         formatUint64(blk.Gas * 10),
+		"gasUsed":          formatUint64(blk.Gas),
+		"timestamp":        formatUint64(blk.Timestamp),
+		"uncles":           []string{},
+		"gasPrice":         formatEthBalance(new(big.Int).SetUint64(blk.GasPrice)),
 	}
 
 	if fullTxs {
-		res["transactions"] = toEthTxs(blk.Txs, blk)
+		res["transactions"] = toEthTxs(blk, ids.Empty)
 	} else {
-		res["transactions"] = toEthTxIDs(blk.Txs)
+		res["transactions"] = toEthTxIDs(blk)
 	}
 	return res
+}
+
+func formatEthBalance(amount *big.Int) string {
+	return "0x" + ld.ToEthBalance(amount).Text(16)
+}
+
+func formatUint64(u uint64) string {
+	return "0x" + strconv.FormatUint(u, 16)
+}
+
+func formatBytes(data []byte) string {
+	return "0x" + hex.EncodeToString(data)
+}
+
+func decodeBytes(s string) (data []byte, err error) {
+	if !strings.HasPrefix(s, "0x") {
+		err = fmt.Errorf("invalid hex data, %s", s)
+		return
+	}
+	data, err = hex.DecodeString(s[2:])
+	return
+}
+
+func decodeAddress(s string) (id util.EthID, err error) {
+	data, e := decodeBytes(s)
+	if e != nil {
+		err = e
+		return
+	}
+
+	if len(data) != 20 {
+		err = fmt.Errorf("invalid address, %s", s)
+		return
+	}
+	copy(id[:], data)
+	return
+}
+
+func decodeHash(s string) (id ids.ID, err error) {
+	data, e := decodeBytes(s)
+	if e != nil {
+		err = e
+		return
+	}
+
+	if len(data) != 32 {
+		err = fmt.Errorf("invalid hash, %s", s)
+		return
+	}
+	copy(id[:], data)
+	return
+}
+
+func decodeHashByRaw(data json.RawMessage) (id ids.ID, err error) {
+	var s string
+	if err = json.Unmarshal(data, &s); err != nil {
+		return
+	}
+	return decodeHash(s)
 }

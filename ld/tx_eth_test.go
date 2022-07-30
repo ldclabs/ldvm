@@ -26,7 +26,7 @@ func TestTxEth(t *testing.T) {
 		To:       &testTo,
 		Value:    ToEthBalance(big.NewInt(10)),
 		Gas:      25000,
-		GasPrice: big.NewInt(1000),
+		GasPrice: ToEthBalance(big.NewInt(1000)),
 		Data:     common.FromHex("5544"),
 	})
 	eip2718TxHash := EthSigner.Hash(eip2718Tx)
@@ -54,7 +54,7 @@ func TestTxEth(t *testing.T) {
 	assert.Equal(uint64(0), tx.Nonce)
 	assert.Equal(uint64(0), tx.GasTip)
 	assert.Equal(uint64(1000), tx.GasFeeCap)
-	assert.Equal(uint64(1227), tx.Gas())
+	assert.Equal(uint64(1245), tx.Gas())
 	assert.Equal(util.Signer1.Address(), tx.From)
 	assert.Equal(testTo[:], tx.To[:])
 	assert.Equal(big.NewInt(10), tx.Amount)
@@ -77,6 +77,17 @@ func TestTxEth(t *testing.T) {
 	assert.Equal(cbordata, cbordata2)
 }
 
+// func TestTxEth2(t *testing.T) {
+// 	assert := assert.New(t)
+// 	str := `f86f0285e8d4a5100082520894eb156046dbe40592908ed6514900015e3b93cee48906aaf7c8516d0c00008082128ea089d7d87d391f5c87ffd402f5a25e82d9d4c2f16cfe03f14348c622178efbc0d9a00b8c62285fef3e5cb0c75e5a7295b73bc299b1193efb67eaf8890860555267f9`
+// 	data, _ := hex.DecodeString(str)
+// 	txe := &TxEth{}
+// 	assert.NoError(txe.Unmarshal(data))
+// 	assert.NoError(txe.SyntacticVerify())
+// 	fmt.Printf("%v, %+v\n", txe.tx.Value(), txe.TxData(nil))
+// 	assert.True(false)
+// }
+
 func TestTxEthLegacy(t *testing.T) {
 	assert := assert.New(t)
 
@@ -88,7 +99,7 @@ func TestTxEthLegacy(t *testing.T) {
 		To:       &testTo,
 		Value:    ToEthBalance(big.NewInt(10)),
 		Gas:      25000,
-		GasPrice: big.NewInt(1000),
+		GasPrice: ToEthBalance(big.NewInt(1000)),
 		Data:     common.FromHex("abcd"),
 	})
 	legacyTxHash := signer.Hash(legacyTx)
@@ -116,7 +127,7 @@ func TestTxEthLegacy(t *testing.T) {
 	assert.Equal(uint64(3), tx.Nonce)
 	assert.Equal(uint64(0), tx.GasTip)
 	assert.Equal(uint64(1000), tx.GasFeeCap)
-	assert.Equal(uint64(1198), tx.Gas())
+	assert.Equal(uint64(1216), tx.Gas())
 	assert.Equal(util.Signer1.Address(), tx.From)
 	assert.Equal(testTo[:], tx.To[:])
 	assert.Equal(big.NewInt(10), tx.Amount)

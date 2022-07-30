@@ -90,7 +90,7 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 	blk.status = choices.Accepted
 	blk.verified = true
 	blk.ctx.Chain().AddVerifiedBlock(blk)
-	blk.ctx.Chain().SetTxsStatus(choices.Accepted, blk.TxIDs()...)
+	blk.ctx.Chain().SetTxsHeight(0, blk.TxIDs()...)
 	return blk, nil
 }
 
@@ -221,6 +221,8 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 			tx.Err = err
 			return choices.Rejected, tx.Err
 		}
+
+		ntxs = append(ntxs, ntx)
 	}
 
 	if len(ntxs) == 0 {
@@ -367,7 +369,7 @@ func (b *Block) Verify() error {
 
 	b.verified = true
 	b.ctx.Chain().AddVerifiedBlock(b)
-	b.ctx.Chain().SetTxsStatus(choices.Processing, b.TxIDs()...)
+	b.ctx.Chain().SetTxsHeight(int64(b.ld.Height), b.TxIDs()...)
 	logging.Log.Info("Block.Verify %s at %d", b.ID(), b.Height())
 	return nil
 }
@@ -378,6 +380,9 @@ func (b *Block) verify() error {
 	if id == ids.Empty {
 		return fmt.Errorf("invalid block id")
 	}
+
+	// data, _ := json.Marshal(b)
+	// logging.Log.Debug("Block.verify: %s", string(data))
 
 	if h := b.parent.Height() + 1; b.Height() != h {
 		return fmt.Errorf("invalid block height, expected %d, got %d",
@@ -443,7 +448,6 @@ func (b *Block) Accept() error {
 	}
 
 	b.status = choices.Accepted
-	b.ctx.Chain().SetTxsStatus(choices.Accepted, b.TxIDs()...)
 	return nil
 }
 

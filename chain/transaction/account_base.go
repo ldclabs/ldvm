@@ -27,23 +27,29 @@ type Account struct {
 }
 
 func NewAccount(id util.EthID) *Account {
+	ld := &ld.Account{
+		ID:         id,
+		Balance:    big.NewInt(0),
+		Keepers:    util.EthIDs{},
+		Tokens:     make(map[string]*big.Int),
+		NonceTable: make(map[uint64][]uint64),
+	}
+
+	if err := ld.SyntacticVerify(); err != nil {
+		panic(err)
+	}
 	return &Account{
 		id:     id,
 		pledge: new(big.Int),
-		ld: &ld.Account{
-			ID:         util.EthID(id),
-			Balance:    big.NewInt(0),
-			Keepers:    util.EthIDs{},
-			Tokens:     make(map[string]*big.Int),
-			NonceTable: make(map[uint64][]uint64),
-		},
+		ld:     ld,
+		ldHash: util.IDFromData(ld.Bytes()),
 	}
 }
 
 func ParseAccount(id util.EthID, data []byte) (*Account, error) {
 	errp := util.ErrPrefix(fmt.Sprintf("ParseAccount(%s) error: ", id))
 
-	a := &Account{id: id, pledge: new(big.Int), ld: &ld.Account{Balance: new(big.Int)}}
+	a := NewAccount(id)
 	if err := a.ld.Unmarshal(data); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -146,6 +152,18 @@ func (a *Account) BalanceOf(token util.TokenSymbol) *big.Int {
 	defer a.mu.RUnlock()
 
 	return a.balanceOf(token)
+}
+
+func (a *Account) TotalSupply() *big.Int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	total := new(big.Int)
+	if a.ld.Type != ld.TokenAccount {
+		return total
+	}
+	total.Set(a.ld.MaxTotalSupply)
+	return total.Sub(total, a.balanceOf(util.TokenSymbol(a.id)))
 }
 
 func (a *Account) balanceOf(token util.TokenSymbol) *big.Int {

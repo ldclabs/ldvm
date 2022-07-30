@@ -8,7 +8,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -29,7 +28,7 @@ func TestTxPoolBasic(t *testing.T) {
 	assert.Equal(1, tp.Len())
 	assert.True(tp.has(tx.ID))
 	assert.True(tp.knownTx(tx.ID))
-	assert.Equal(choices.Unknown, tp.GetStatus(tx.ID))
+	assert.Equal(int64(-1), tp.GetHeight(tx.ID))
 
 	tp.AddRemote(tx)
 	assert.Equal(1, tp.Len(), "should not be added repeatedly")
@@ -38,7 +37,7 @@ func TestTxPoolBasic(t *testing.T) {
 	assert.Equal(0, tp.Len())
 	assert.False(tp.has(tx.ID))
 	assert.True(tp.knownTx(tx.ID))
-	assert.Equal(choices.Rejected, tp.GetStatus(tx.ID))
+	assert.Equal(int64(-2), tp.GetHeight(tx.ID))
 
 	tp.AddRemote(tx)
 	assert.False(tp.has(tx.ID))
