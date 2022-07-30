@@ -185,6 +185,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 		switch {
 		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
 			pledge.Set(feeCfg.MinTokenPledge)
+
 		case acc.Type() == ld.StakeAccount:
 			pledge.Set(feeCfg.MinStakePledge)
 		}

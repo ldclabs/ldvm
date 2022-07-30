@@ -42,7 +42,7 @@ type BlockBuilder struct {
 type txPoolForBuilder interface {
 	Len() int
 	AddLocal(...*ld.Transaction)
-	SetTxsStatus(choices.Status, ...ids.ID)
+	SetTxsHeight(int64, ...ids.ID)
 	PopTxsBySize(int) ld.Txs
 	Reject(*ld.Transaction)
 }
@@ -166,7 +166,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 			default:
 				vbs = nvbs
 				nblk.originTxs = append(nblk.originTxs, tx)
-				b.txPool.SetTxsStatus(status, tx.ID)
+				b.txPool.SetTxsHeight(int64(blk.Height), tx.ID)
 			}
 		}
 		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize) - nblk.TxsSize())

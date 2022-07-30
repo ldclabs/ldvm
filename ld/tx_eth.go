@@ -81,6 +81,10 @@ func (t *TxEth) Bytes() []byte {
 	return t.raw
 }
 
+func (t *TxEth) RawSignatureValues() (v, r, s *big.Int) {
+	return t.tx.RawSignatureValues()
+}
+
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
 	return util.ErrPrefix("TxEth.Unmarshal error: ").
@@ -100,7 +104,7 @@ func (t *TxEth) TxData(tx *TxData) *TxData {
 	tx.ChainID = gChainID
 	tx.Nonce = t.tx.Nonce()
 	tx.GasTip = 0 // legacy transaction and EIP2718 typed transaction don't have GasTipCap
-	tx.GasFeeCap = t.tx.GasFeeCap().Uint64()
+	tx.GasFeeCap = FromEthBalance(t.tx.GasFeeCap()).Uint64()
 	tx.From = t.from
 	tx.To = &t.to
 	tx.Token = nil

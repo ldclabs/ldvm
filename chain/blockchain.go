@@ -65,6 +65,7 @@ type BlockChain interface {
 	BuildBlock() (*Block, error)
 	ParseBlock([]byte) (*Block, error)
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
+	GetBlockAtHeight(uint64) (*Block, error)
 	GetBlock(ids.ID) (*Block, error)
 	LastAcceptedBlock() *Block
 	SetLastAccepted(*Block) error
@@ -77,8 +78,8 @@ type BlockChain interface {
 	SubmitTx(...*ld.Transaction) error
 	AddRemoteTxs(tx ...*ld.Transaction) error
 	AddLocalTxs(txs ...*ld.Transaction)
-	SetTxsStatus(choices.Status, ...ids.ID)
-	GetTxStatus(ids.ID) choices.Status
+	SetTxsHeight(int64, ...ids.ID)
+	GetTxHeight(ids.ID) int64
 
 	LoadAccount(util.EthID) (*ld.Account, error)
 	ResolveName(name string) (*ld.DataInfo, error)
@@ -511,7 +512,7 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	blk.InitState(parent, parent.State().VersionDB())
 
 	txIDs := blk.TxIDs()
-	bc.txPool.SetTxsStatus(choices.Processing, txIDs...)
+	bc.txPool.SetTxsHeight(int64(blk.Height()), txIDs...)
 	bc.txPool.ClearTxs(txIDs...)
 	bc.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
@@ -522,6 +523,11 @@ func (bc *blockChain) GetBlock(id ids.ID) (*Block, error) {
 		return bc.genesisBlock, nil
 	}
 
+	last := bc.lastAcceptedBlock.LoadV()
+	if last.ID() == id {
+		return last, nil
+	}
+
 	if blk := bc.GetVerifiedBlock(id); blk != nil {
 		return blk, nil
 	}
@@ -530,9 +536,29 @@ func (bc *blockChain) GetBlock(id ids.ID) (*Block, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	blk := obj.(*Block)
 	blk.SetContext(bc.ctx)
-	blk.SetStatus(choices.Accepted)
+
+	if blk.Status() == choices.Unknown {
+		if blk.Height() > last.Height() {
+			blk.SetStatus(choices.Processing)
+		} else {
+			id, err := bc.GetBlockIDAtHeight(blk.Height())
+			switch err {
+			case nil:
+				if id == blk.ID() {
+					blk.SetStatus(choices.Accepted)
+				} else {
+					blk.SetStatus(choices.Rejected)
+				}
+			case database.ErrNotFound:
+				blk.SetStatus(choices.Processing)
+			default:
+				return nil, err
+			}
+		}
+	}
 	return blk, nil
 }
 
@@ -544,6 +570,14 @@ func (bc *blockChain) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 
 	data := obj.(*db.RawObject)
 	return ids.ToID(*data)
+}
+
+func (bc *blockChain) GetBlockAtHeight(height uint64) (*Block, error) {
+	id, err := bc.GetBlockIDAtHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return bc.GetBlock(id)
 }
 
 // SubmitTx processes a transaction from API server
@@ -586,12 +620,12 @@ func (bc *blockChain) AddLocalTxs(txs ...*ld.Transaction) {
 	bc.txPool.AddLocal(txs...)
 }
 
-func (bc *blockChain) SetTxsStatus(status choices.Status, txIDs ...ids.ID) {
-	bc.txPool.SetTxsStatus(status, txIDs...)
+func (bc *blockChain) SetTxsHeight(height int64, txIDs ...ids.ID) {
+	bc.txPool.SetTxsHeight(height, txIDs...)
 }
 
-func (bc *blockChain) GetTxStatus(id ids.ID) choices.Status {
-	return bc.txPool.GetStatus(id)
+func (bc *blockChain) GetTxHeight(id ids.ID) int64 {
+	return bc.txPool.GetHeight(id)
 }
 
 func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {

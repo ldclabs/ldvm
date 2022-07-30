@@ -4,6 +4,7 @@
 package transaction
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestTxEth(t *testing.T) {
 		To:       &testTo,
 		Value:    ld.ToEthBalance(big.NewInt(1_000_000)),
 		Gas:      0,
-		GasPrice: new(big.Int).SetUint64(bctx.Price),
+		GasPrice: ld.ToEthBalance(new(big.Int).SetUint64(bctx.Price)),
 	})
 	assert.NoError(err)
 	tt := txe.ToTransaction()
@@ -97,7 +98,7 @@ func TestTxEth(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 2227000, got 0")
+		"insufficient NativeLDC balance, expected 2245000, got 0")
 	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -114,8 +115,8 @@ func TestTxEth(t *testing.T) {
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
-	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x01f86a820935808203e8809444171c37ff5d7b7bb8dcad5c81f16284a229e64187038d7ea4c6800080c001a003d82ae138ff367d5b9f418346d2d3f8c78ec9e2565e658ce27b2ac23c0f56a7a017bad18a5c99a53e94246046663cc6f25b3e22fb85d1b51b841aa3936335a4168d8f53e5","signatures":["03d82ae138ff367d5b9f418346d2d3f8c78ec9e2565e658ce27b2ac23c0f56a717bad18a5c99a53e94246046663cc6f25b3e22fb85d1b51b841aa3936335a41601"],"id":"DCk4qxDaBS4AqrPJ8dQGyGHUr6eb7W3jjpq8Nnjuja3YZdJPw"}`, string(jsondata))
+	fmt.Println(string(jsondata))
+	assert.Equal(`{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x01f86d8209358085e8d4a51000809444171c37ff5d7b7bb8dcad5c81f16284a229e64187038d7ea4c6800080c080a01da0480ceece3e7dc8cc88fe962b29decbabf7c64b1e4acb4e3317fe8953a0d3a01ba1253e2bccbb7ec2f4359111f2c29b3c8c69e6ed56fe66a3c10b658ba7efc4c3037b00","signatures":["1da0480ceece3e7dc8cc88fe962b29decbabf7c64b1e4acb4e3317fe8953a0d31ba1253e2bccbb7ec2f4359111f2c29b3c8c69e6ed56fe66a3c10b658ba7efc400"],"id":"2LkK2JNjNXavmRcPLnq8YD11CH5yYhsDCuLiG5r9CPx6r6qs28"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

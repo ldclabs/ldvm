@@ -26,6 +26,7 @@ import (
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/util"
 )
 
 const (
@@ -216,7 +217,7 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 		v.Log.Error("CreateHandlers error: %v", err)
 		return nil, err
 	}
-	ethAPI := api.NewEthAPI(v.bc)
+	ethAPI := api.NewEthAPI(v.bc, Version.String())
 
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
@@ -338,13 +339,14 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	id := util.IDFromData(data)
 	err = ld.Recover("", func() error {
 		blk, err = v.bc.ParseBlock(data)
 		return err
 	})
 
 	if err != nil {
-		v.Log.Error("VM ParseBlock %v", err)
+		v.Log.Error("VM ParseBlock %s error, %v", id, err)
 	} else {
 		v.Log.Info("VM ParseBlock %s at %d", blk.ID(), blk.Height())
 	}

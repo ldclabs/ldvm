@@ -215,8 +215,20 @@ func (t *Transaction) SyntacticVerify() error {
 		return errp.Errorf("nil pointer")
 	}
 
-	t.tx = t.TxData(t.tx)
 	var err error
+	t.tx = t.TxData(t.tx)
+	if t.Type == TypeEth && t.tx.eth == nil {
+		eth := new(TxEth)
+
+		if err = eth.Unmarshal(t.Data); err != nil {
+			return errp.ErrorIf(err)
+		}
+		if err = eth.SyntacticVerify(); err != nil {
+			return errp.ErrorIf(err)
+		}
+		t.tx.eth = eth
+	}
+
 	if err = t.tx.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -374,6 +386,10 @@ func (t *Transaction) Copy() *Transaction {
 	x.tx = new(TxData)
 	*(x.tx) = *(t.tx)
 	return x
+}
+
+func (t *Transaction) Eth() *TxEth {
+	return t.tx.eth
 }
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
