@@ -4,6 +4,7 @@
 package ld
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -406,6 +407,9 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 		if err = t.SyntacticVerify(); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
+		if t.IsBatched() {
+			return nil, errp.Errorf("tx %s is already batched", t.ID)
+		}
 		if t.priority > maxPriority {
 			tx = txs[i] // find the max priority tx as batch transactions' container
 			maxPriority = t.priority
@@ -433,6 +437,23 @@ func (txs *Txs) Unmarshal(data []byte) error {
 func (txs Txs) Marshal() ([]byte, error) {
 	return util.ErrPrefix("Txs.Marshal error: ").
 		ErrorMap(util.MarshalCBOR(txs))
+}
+
+func (txs Txs) To() (*Transaction, error) {
+	switch len(txs) {
+	case 0:
+		return nil, fmt.Errorf("empty txs")
+
+	case 1:
+		tx := txs[0]
+		if err := tx.SyntacticVerify(); err != nil {
+			return nil, err
+		}
+		return tx, nil
+
+	default:
+		return NewBatchTx(txs...)
+	}
 }
 
 func (txs Txs) BytesSize() int {

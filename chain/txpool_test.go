@@ -21,12 +21,12 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tx := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 	assert.Equal(0, tp.Len())
-	assert.False(tp.has(tx.ID))
+	assert.False(tp.txQueueSet.Contains(tx.ID))
 	assert.False(tp.knownTx(tx.ID))
 
 	tp.AddRemote(tx)
 	assert.Equal(1, tp.Len())
-	assert.True(tp.has(tx.ID))
+	assert.True(tp.txQueueSet.Contains(tx.ID))
 	assert.True(tp.knownTx(tx.ID))
 	assert.Equal(int64(-1), tp.GetHeight(tx.ID))
 
@@ -35,12 +35,12 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tp.Reject(tx)
 	assert.Equal(0, tp.Len())
-	assert.False(tp.has(tx.ID))
+	assert.False(tp.txQueueSet.Contains(tx.ID))
 	assert.True(tp.knownTx(tx.ID))
 	assert.Equal(int64(-2), tp.GetHeight(tx.ID))
 
 	tp.AddRemote(tx)
-	assert.False(tp.has(tx.ID))
+	assert.False(tp.txQueueSet.Contains(tx.ID))
 	assert.Equal(0, tp.Len(), "should not be added after rejected")
 
 	txs := tp.PopTxsBySize(1000000)
@@ -65,7 +65,7 @@ func TestTxPoolRemove(t *testing.T) {
 	quePtr := fmt.Sprintf("%p", tp.txQueue)
 
 	tp.ClearTxs(tx1.ID)
-	assert.False(tp.has(tx1.ID))
+	assert.False(tp.txQueueSet.Contains(tx1.ID))
 	assert.True(tp.knownTx(tx1.ID))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
@@ -74,7 +74,7 @@ func TestTxPoolRemove(t *testing.T) {
 	assert.Equal(quePtr, fmt.Sprintf("%p", tp.txQueue), "should not change the underlying array")
 
 	tp.ClearTxs(tx0.ID)
-	assert.False(tp.has(tx0.ID))
+	assert.False(tp.txQueueSet.Contains(tx0.ID))
 	assert.True(tp.knownTx(tx0.ID))
 	assert.Equal(2, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
@@ -98,7 +98,7 @@ func TestTxPoolRemove(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.False(tp.has(tx1.ID))
+	assert.False(tp.txQueueSet.Contains(tx1.ID))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
 	assert.Equal(tx3.ID, tp.txQueue[1].ID)

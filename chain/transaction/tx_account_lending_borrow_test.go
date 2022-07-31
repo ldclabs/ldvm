@@ -37,11 +37,11 @@ func TestTxBorrow(t *testing.T) {
 		From:      borrower,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to as lender")
 
 	txData = &ld.TxData{
@@ -55,7 +55,7 @@ func TestTxBorrow(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, should be nil")
 
 	txData = &ld.TxData{
@@ -68,7 +68,7 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -82,7 +82,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.TxTransfer{}
@@ -97,7 +97,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil from as lender")
 
 	input = &ld.TxTransfer{
@@ -114,7 +114,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid to as borrower, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
 
@@ -132,7 +132,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to as borrower")
 
 	input = &ld.TxTransfer{
@@ -150,7 +150,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid from as lender, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
@@ -170,7 +170,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid token, expected NativeLDC, got $LDC")
 
@@ -191,7 +191,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid token, expected $LDC, got NativeLDC")
 
@@ -212,7 +212,7 @@ func TestTxBorrow(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = &ld.TxTransfer{
@@ -235,7 +235,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "data expired")
 
 	dueTime := bs.Timestamp()
@@ -263,7 +263,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "invalid dueTime, expected > 1000, got 1000")
 
 	dueTime = bs.Timestamp() + 3600*24
@@ -291,14 +291,14 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err,
 		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
 
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -331,7 +331,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	lenderAcc := bs.MustAccount(lender)
@@ -364,7 +364,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -393,7 +393,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -459,7 +459,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

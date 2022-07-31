@@ -12,10 +12,18 @@ import (
 )
 
 var Log avalogging.Logger = &avalogging.NoLog{}
+var cfg avalogging.Config
 
 func init() {
-	logFactory := avalogging.NewFactory(config.DefaultLoggingConfig)
+	cfg = config.DefaultLoggingConfig
+	logFactory := avalogging.NewFactory(cfg)
 	Log, _ = logFactory.Make("ldvm")
+}
+
+func Debug(fn func() string) {
+	if cfg.LogLevel <= avalogging.Debug {
+		Log.Debug(fn())
+	}
 }
 
 func SetLogger(l avalogging.Logger) {

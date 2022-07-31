@@ -38,7 +38,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		From:      owner,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -51,7 +51,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		To:        &approver,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	txData = &ld.TxData{
@@ -64,7 +64,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Token:     &constants.NativeToken,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -76,7 +76,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		From:      owner,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -89,7 +89,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.TxUpdater{}
@@ -103,7 +103,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data id")
 
 	input = &ld.TxUpdater{ID: &util.DataIDEmpty}
@@ -117,7 +117,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data id")
 
 	did := util.DataID{1, 2, 3, 4}
@@ -132,7 +132,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data version")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1}
@@ -146,7 +146,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "no thing to update")
 
 	di := &ld.DataInfo{
@@ -180,7 +180,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -219,7 +219,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")
@@ -227,7 +227,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid kSig")
@@ -257,7 +257,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -307,7 +307,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for data approver")
@@ -315,7 +315,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -346,7 +346,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -374,7 +374,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -402,7 +402,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")
@@ -425,12 +425,12 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")
@@ -449,7 +449,7 @@ func TestTxUpdateDataKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signatures for data keepers")
 

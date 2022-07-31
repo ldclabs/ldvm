@@ -58,22 +58,19 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 // AppGossip([nodeID], [msg]) may be called multiple times.
 func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 	txs := ld.Txs{}
-	err := txs.Unmarshal(msg)
-	if len(txs) > 0 {
+	var err error
+	var tx *ld.Transaction
+
+	if err = txs.Unmarshal(msg); err == nil {
 		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))
-		for _, tx := range txs {
-			if err := tx.SyntacticVerify(); err != nil {
-				v.Log.Warn("AppGossip from %s, %d bytes, error: %v", nodeID, len(msg), err)
-				return err
-			}
+
+		if tx, err = txs.To(); err == nil {
+			err = v.bc.AddRemoteTxs(tx)
 		}
-		// it should be a batch tx when txs length is greater than 1
-		return v.bc.AddRemoteTxs(txs...)
 	}
 
 	if err != nil {
 		v.Log.Warn("AppGossip from %s, %d bytes, error: %v", nodeID, len(msg), err)
-		return err
 	}
-	return nil
+	return err
 }

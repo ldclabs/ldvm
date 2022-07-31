@@ -40,7 +40,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -53,7 +53,7 @@ func TestTxUpdateData(t *testing.T) {
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -65,7 +65,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -78,7 +78,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.TxUpdater{}
@@ -92,7 +92,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data id")
 
 	input = &ld.TxUpdater{ID: &util.DataIDEmpty}
@@ -106,7 +106,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data id")
 
 	did := util.DataID{1, 2, 3, 4}
@@ -121,7 +121,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data version")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1)}
@@ -135,7 +135,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil keepers together with threshold")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1),
@@ -150,7 +150,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid threshold, should be nil")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, Approver: &util.EthIDEmpty}
@@ -164,7 +164,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid approver, should be nil")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, ApproveList: []ld.TxType{ld.TypeDeleteData}}
@@ -178,7 +178,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid approveList, should be nil")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1}
@@ -192,7 +192,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -207,7 +207,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil kSig")
 
 	kSig, err := util.Signer1.Sign(input.Data)
@@ -227,7 +227,7 @@ func TestTxUpdateData(t *testing.T) {
 		To:        &modelKeeper,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	txData = &ld.TxData{
@@ -241,7 +241,7 @@ func TestTxUpdateData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to together with amount")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -259,7 +259,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got <nil>")
 
@@ -279,7 +279,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
 
@@ -299,7 +299,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil amount")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -319,7 +319,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil amount")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -340,7 +340,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil mSig")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -364,7 +364,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = 10
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "data expired")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -389,14 +389,14 @@ func TestTxUpdateData(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err,
 		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
 
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -464,7 +464,7 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -488,7 +488,7 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -573,7 +573,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid CBOR patch")
@@ -598,7 +598,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -624,7 +624,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -707,7 +707,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid JSON patch")
@@ -730,7 +730,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -754,7 +754,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

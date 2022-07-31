@@ -40,7 +40,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -52,7 +52,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to as stake account")
 
 	txData = &ld.TxData{
@@ -66,7 +66,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, should be nil")
 
 	txData = &ld.TxData{
@@ -80,7 +80,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -94,7 +94,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Data:      []byte{},
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "TxData.SyntacticVerify error: empty data")
 
 	txData = &ld.TxData{
@@ -108,7 +108,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid stake account 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
 
 	txData = &ld.TxData{
@@ -122,7 +122,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.TxAccounter{}
@@ -137,7 +137,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil approver")
 
 	input = &ld.TxAccounter{Approver: &approver, ApproveList: ld.AccountTxTypes}
@@ -152,7 +152,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid approveList, should be nil")
 
 	input = &ld.TxAccounter{Approver: &approver}
@@ -168,7 +168,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -210,7 +210,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -247,7 +247,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -290,7 +290,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -300,7 +300,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

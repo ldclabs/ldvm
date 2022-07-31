@@ -44,7 +44,7 @@ func TestTxEth(t *testing.T) {
 	})
 	assert.NoError(err)
 	tt := txe.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 	tx = itx.(*TxEth)
 
@@ -93,7 +93,7 @@ func TestTxEth(t *testing.T) {
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
 
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()

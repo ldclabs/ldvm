@@ -20,11 +20,10 @@ type Transaction interface {
 	MarshalJSON() ([]byte, error)
 }
 
-func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
-	if syntacticVerifyLD {
-		if err := tx.SyntacticVerify(); err != nil {
-			return nil, err
-		}
+// NewTx returns a stateful transaction from a ld.Transaction.
+func NewTx(tx *ld.Transaction) (Transaction, error) {
+	if tx.ID == ids.Empty {
+		return nil, fmt.Errorf("NewTx: transaction should be syntactic verified")
 	}
 
 	var tt Transaction
@@ -89,13 +88,22 @@ func NewTx(tx *ld.Transaction, syntacticVerifyLD bool) (Transaction, error) {
 	case ld.TypePunish:
 		tt = &TxPunish{TxBase: TxBase{ld: tx}}
 	default:
-		return nil, fmt.Errorf("unknown tx type: %d", tx.Type)
+		return nil, fmt.Errorf("NewTx: unknown tx type %d", tx.Type)
 	}
 
 	if err := tt.SyntacticVerify(); err != nil {
 		return nil, err
 	}
 	return tt, nil
+}
+
+// NewTx2 is used for testing
+func NewTx2(tx *ld.Transaction) (Transaction, error) {
+	if err := tx.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+
+	return NewTx(tx)
 }
 
 type GenesisTx interface {

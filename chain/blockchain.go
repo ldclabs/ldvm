@@ -78,7 +78,7 @@ type BlockChain interface {
 	SubmitTx(...*ld.Transaction) error
 	AddRemoteTxs(tx ...*ld.Transaction) error
 	AddLocalTxs(txs ...*ld.Transaction)
-	SetTxsHeight(int64, ...ids.ID)
+	SetTxsHeight(uint64, ...ids.ID)
 	GetTxHeight(ids.ID) int64
 
 	LoadAccount(util.EthID) (*ld.Account, error)
@@ -110,11 +110,9 @@ type blockChain struct {
 
 	verifiedBlocks *sync.Map
 	recentBlocks   *db.Cacher
-	recentModels   *db.Cacher
-	recentData     *db.Cacher
-	recentAccounts *db.Cacher
 	recentNames    *db.Cacher
 	recentHeights  *db.Cacher
+	recentData     *db.Cacher
 
 	bb     *BlockBuilder
 	txPool TxPool // Proposed transactions that haven't been put into a block yet
@@ -161,23 +159,18 @@ func NewChain(
 	s.lastAcceptedBlock.StoreV(emptyBlock)
 	s.state.StoreV(0)
 
-	s.recentBlocks = db.NewCacher(10_000, 60*10, func() db.Objecter {
+	// this data will not change, so we can cache it
+	s.recentBlocks = db.NewCacher(1_000, 60*10, func() db.Objecter {
 		return new(Block)
 	})
-	s.recentHeights = db.NewCacher(10_000, 60*10, func() db.Objecter {
+	s.recentHeights = db.NewCacher(1_000, 60*10, func() db.Objecter {
 		return new(db.RawObject)
 	})
-	s.recentModels = db.NewCacher(10_000, 60*20, func() db.Objecter {
-		return new(ld.ModelInfo)
+	s.recentNames = db.NewCacher(1_000, 60*10, func() db.Objecter {
+		return new(db.RawObject)
 	})
-	s.recentData = db.NewCacher(100_000, 60*20, func() db.Objecter {
+	s.recentData = db.NewCacher(1_000, 60*10, func() db.Objecter {
 		return new(ld.DataInfo)
-	})
-	s.recentAccounts = db.NewCacher(100_000, 60*20, func() db.Objecter {
-		return new(ld.Account)
-	})
-	s.recentNames = db.NewCacher(100_000, 60*20, func() db.Objecter {
-		return new(db.RawObject)
 	})
 	return s
 }
@@ -512,7 +505,6 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	blk.InitState(parent, parent.State().VersionDB())
 
 	txIDs := blk.TxIDs()
-	bc.txPool.SetTxsHeight(int64(blk.Height()), txIDs...)
 	bc.txPool.ClearTxs(txIDs...)
 	bc.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
@@ -620,25 +612,12 @@ func (bc *blockChain) AddLocalTxs(txs ...*ld.Transaction) {
 	bc.txPool.AddLocal(txs...)
 }
 
-func (bc *blockChain) SetTxsHeight(height int64, txIDs ...ids.ID) {
+func (bc *blockChain) SetTxsHeight(height uint64, txIDs ...ids.ID) {
 	bc.txPool.SetTxsHeight(height, txIDs...)
 }
 
 func (bc *blockChain) GetTxHeight(id ids.ID) int64 {
 	return bc.txPool.GetHeight(id)
-}
-
-func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {
-	obj, err := bc.accountDB.LoadObject(id[:], bc.recentAccounts)
-	if err != nil {
-		return nil, err
-	}
-	blk := bc.LastAcceptedBlock()
-	rt := obj.(*ld.Account)
-	rt.Height = blk.Height()
-	rt.Timestamp = blk.Timestamp2()
-	rt.ID = id
-	return rt, nil
 }
 
 func (bc *blockChain) ResolveName(name string) (*ld.DataInfo, error) {
@@ -659,22 +638,49 @@ func (bc *blockChain) ResolveName(name string) (*ld.DataInfo, error) {
 	return bc.LoadData(util.DataID(id))
 }
 
-func (bc *blockChain) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
-	obj, err := bc.modelDB.LoadObject(id[:], bc.recentModels)
+func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {
+	blk := bc.LastAcceptedBlock()
+	acc, err := blk.State().LoadAccount(id)
 	if err != nil {
 		return nil, err
 	}
-	rt := obj.(*ld.ModelInfo)
+
+	rt := &ld.Account{}
+	if err = ld.Copy(rt, acc.LD()); err != nil {
+		return nil, err
+	}
+	rt.Height = blk.Height()
+	rt.Timestamp = blk.Timestamp2()
+	rt.ID = id
+	return rt, nil
+}
+
+func (bc *blockChain) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
+	blk := bc.LastAcceptedBlock()
+	mi, err := blk.State().LoadModel(id)
+	if err != nil {
+		return nil, err
+	}
+
+	rt := &ld.ModelInfo{}
+	if err = ld.Copy(rt, mi); err != nil {
+		return nil, err
+	}
 	rt.ID = id
 	return rt, nil
 }
 
 func (bc *blockChain) LoadData(id util.DataID) (*ld.DataInfo, error) {
-	obj, err := bc.dataDB.LoadObject(id[:], bc.recentData)
+	blk := bc.LastAcceptedBlock()
+	di, err := blk.State().LoadData(id)
 	if err != nil {
 		return nil, err
 	}
-	rt := obj.(*ld.DataInfo)
+
+	rt := &ld.DataInfo{}
+	if err = ld.Copy(rt, di); err != nil {
+		return nil, err
+	}
 	rt.ID = id
 	return rt, nil
 }
@@ -707,16 +713,6 @@ func (a *atomicBlock) LoadV() *Block {
 func (a *atomicBlock) StoreV(v *Block) {
 	(*atomic.Value)(a).Store(v)
 }
-
-// type atomicLDBlock atomic.Value
-
-// func (a *atomicLDBlock) LoadV() *ld.Block {
-// 	return (*atomic.Value)(a).Load().(*ld.Block)
-// }
-
-// func (a *atomicLDBlock) StoreV(v *ld.Block) {
-// 	(*atomic.Value)(a).Store(v)
-// }
 
 type atomicState atomic.Value
 

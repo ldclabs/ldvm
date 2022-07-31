@@ -42,9 +42,9 @@ type BlockBuilder struct {
 type txPoolForBuilder interface {
 	Len() int
 	AddLocal(...*ld.Transaction)
-	SetTxsHeight(int64, ...ids.ID)
 	PopTxsBySize(int) ld.Txs
 	Reject(*ld.Transaction)
+	Clear()
 }
 
 func NewBlockBuilder(nodeID ids.NodeID, txPool txPoolForBuilder, toEngine chan<- common.Message) *BlockBuilder {
@@ -83,7 +83,7 @@ func (b *BlockBuilder) markBuilding() {
 	case b.toEngine <- common.PendingTxs:
 		b.status = waitBuild
 	default:
-		logging.Log.Debug("dropping message to consensus engine")
+		logging.Log.Debug("BlockBuilder.markBuilding: dropping message to consensus engine")
 	}
 }
 
@@ -92,10 +92,13 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 	defer b.mu.Unlock()
 
 	blk, err := b.build(ctx)
+	go b.txPool.Clear()
+
 	if err != nil {
 		b.status = dontBuild
-		return nil, err
+		return nil, util.ErrPrefix("BlockBuilder.Build error: ").ErrorIf(err)
 	}
+
 	b.status = building
 	return blk, nil
 }
@@ -104,6 +107,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	ts := uint64(time.Now().UTC().Unix())
 	preferred := ctx.Chain().PreferredBlock()
 	parentHeight := preferred.Height()
+
 	if b.lastBuildHeight > parentHeight {
 		return nil, fmt.Errorf("wait lastBuildHeight %d becoming preferred, current at %d",
 			b.lastBuildHeight, parentHeight)
@@ -115,7 +119,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	}
 	if ts == pts && b.txPool.Len() < minTxsWhenBuild {
 		time.AfterFunc(waitForMoreTxs, b.SignalTxsReady)
-		return nil, fmt.Errorf("BlockBuilder.Build error: wait txs to build")
+		return nil, fmt.Errorf("wait txs to build")
 	}
 
 	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
@@ -132,7 +136,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	nblk.InitState(preferred, preferred.State().VersionDB())
 	vbs, err := nblk.State().DeriveState()
 	if err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
+		return nil, err
 	}
 
 	// 1. BuildMiner
@@ -145,14 +149,15 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		for i := range txs {
 			nvbs, err := vbs.DeriveState()
 			if err != nil {
-				return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
+				return nil, err
 			}
+
 			tx := txs[i]
 			switch {
 			case tx.IsBatched():
 				status = nblk.BuildTxs(nvbs, tx.Txs()...)
 			case tx.Type == ld.TypeTest:
-				tx.Err = fmt.Errorf("BlockBuilder.Build error: TextTx should be in Batch Tx")
+				tx.Err = fmt.Errorf("TextTx should be in a batch txs")
 				status = choices.Rejected
 			default:
 				status = nblk.BuildTxs(nvbs, tx)
@@ -166,26 +171,27 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 			default:
 				vbs = nvbs
 				nblk.originTxs = append(nblk.originTxs, tx)
-				b.txPool.SetTxsHeight(int64(blk.Height), tx.ID)
 			}
 		}
+
 		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize) - nblk.TxsSize())
 	}
+
 	if len(blk.Txs) == 0 {
-		return nil, fmt.Errorf("BlockBuilder.Build error: no txs to build")
+		return nil, fmt.Errorf("no txs to build")
 	}
 
 	// 3. BuildMinerFee
 	if err := nblk.BuildMinerFee(vbs); err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
+		return nil, err
 	}
 
 	// 4. BuildState and Verify block
 	if err := nblk.BuildState(vbs); err != nil {
-		return nil, fmt.Errorf("BlockBuilder.Build error: %v", err)
+		return nil, err
 	}
 
 	b.lastBuildHeight = blk.Height
-	logging.Log.Info("Build block %s at %d", blk.ID, blk.Height)
+	logging.Log.Info("BlockBuilder.Build: build block %s at %d, parent %s", blk.ID, blk.Height, blk.Parent)
 	return nblk, nil
 }

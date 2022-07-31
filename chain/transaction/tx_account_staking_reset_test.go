@@ -39,7 +39,7 @@ func TestTxResetStake(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -52,7 +52,7 @@ func TestTxResetStake(t *testing.T) {
 		To:        &keeper,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	txData = &ld.TxData{
@@ -65,7 +65,7 @@ func TestTxResetStake(t *testing.T) {
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -78,7 +78,7 @@ func TestTxResetStake(t *testing.T) {
 		Amount:    big.NewInt(0),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"Transaction.SyntacticVerify error: TxData.SyntacticVerify error: nil to together with amount")
 
@@ -91,7 +91,7 @@ func TestTxResetStake(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -104,7 +104,7 @@ func TestTxResetStake(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid stake account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	txData = &ld.TxData{
@@ -117,7 +117,7 @@ func TestTxResetStake(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"StakeConfig.Unmarshal error: cbor: cannot unmarshal primitives into Go value of type ld.StakeConfig")
 
@@ -147,7 +147,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	keeperAcc := bs.MustAccount(keeper)
@@ -192,7 +192,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err,
 		"TxResetStake.SyntacticVerify error: invalid lockTime, expected > 1000, got 1000")
 
@@ -214,7 +214,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -248,7 +248,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -275,7 +275,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -301,7 +301,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -328,7 +328,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.NoError(itx.Apply(bctx, bs))
@@ -357,7 +357,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	senderAcc := bs.MustAccount(sender)
@@ -393,7 +393,7 @@ func TestTxResetStake(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -429,7 +429,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -451,7 +451,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -487,7 +487,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

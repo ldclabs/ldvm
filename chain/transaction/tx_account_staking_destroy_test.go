@@ -39,7 +39,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -51,7 +51,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to as pledge recipient")
 
 	txData = &ld.TxData{
@@ -65,7 +65,7 @@ func TestTxDestroyStake(t *testing.T) {
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -79,7 +79,7 @@ func TestTxDestroyStake(t *testing.T) {
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, should be nil")
 
 	txData = &ld.TxData{
@@ -92,7 +92,7 @@ func TestTxDestroyStake(t *testing.T) {
 		To:        &keeper,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"TxDestroyStake.SyntacticVerify error: invalid stake account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
@@ -108,7 +108,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -142,7 +142,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	keeperAcc := bs.MustAccount(keeper)
@@ -179,7 +179,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -196,7 +196,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -218,7 +218,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.NoError(itx.Apply(bctx, bs))
@@ -247,7 +247,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	senderAcc := bs.MustAccount(sender)
@@ -283,7 +283,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -313,7 +313,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -335,7 +335,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -365,7 +365,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -419,7 +419,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -450,7 +450,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -516,7 +516,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	keeperAcc := bs.MustAccount(keeper)
@@ -564,7 +564,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -575,7 +575,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -603,7 +603,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -640,7 +640,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	approverAcc := bs.MustAccount(approver)
 	approverAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -670,7 +670,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -691,7 +691,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -717,7 +717,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

@@ -44,15 +44,16 @@ var (
 // If the status of the block is Accepted or Rejected; Parent, Verify, Accept,
 // and Reject will never be called.
 type Block struct {
-	ld        *ld.Block
-	ctx       *Context
-	parent    *Block // the genesis block is the parent of itself
-	bs        BlockState
-	status    choices.Status
-	txs       []transaction.Transaction // txs field will unfold batch tx
-	originTxs []*ld.Transaction         // originTxs keep the original txs
-	txIDs     []ids.ID
-	verified  bool
+	ld           *ld.Block
+	ctx          *Context
+	parent       *Block // the genesis block is the parent of itself
+	bs           BlockState
+	status       choices.Status
+	txs          []transaction.Transaction // txs field will unfold batch tx
+	originTxs    []*ld.Transaction         // originTxs keep the original txs
+	txIDs        []ids.ID
+	verified     bool
+	nextGasPrice uint64
 }
 
 func NewBlock(b *ld.Block, ctx *Context) *Block {
@@ -90,7 +91,6 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 	blk.status = choices.Accepted
 	blk.verified = true
 	blk.ctx.Chain().AddVerifiedBlock(blk)
-	blk.ctx.Chain().SetTxsHeight(0, blk.TxIDs()...)
 	return blk, nil
 }
 
@@ -113,7 +113,7 @@ func (b *Block) Unmarshal(data []byte) error {
 		tx := b.ld.Txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		ntx, err := transaction.NewTx(tx, false)
+		ntx, err := transaction.NewTx(tx)
 		if err != nil {
 			return err
 		}
@@ -152,6 +152,15 @@ func (b *Block) State() BlockState { return b.bs }
 func (b *Block) ID() ids.ID { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
+
+func (b *Block) Tx(id ids.ID) transaction.Transaction {
+	for _, tx := range b.txs {
+		if tx.ID() == id {
+			return tx
+		}
+	}
+	return nil
+}
 
 func (b *Block) TxIDs() []ids.ID {
 	if len(b.txIDs) != len(b.ld.Txs) {
@@ -211,8 +220,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		}
 		gas += tx.Gas()
 
-		// syntacticVerify again after gas calculation
-		ntx, err := transaction.NewTx(tx, true)
+		ntx, err := transaction.NewTx(tx)
 		if err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
@@ -369,7 +377,6 @@ func (b *Block) Verify() error {
 
 	b.verified = true
 	b.ctx.Chain().AddVerifiedBlock(b)
-	b.ctx.Chain().SetTxsHeight(int64(b.ld.Height), b.TxIDs()...)
 	logging.Log.Info("Block.Verify %s at %d", b.ID(), b.Height())
 	return nil
 }
@@ -448,6 +455,7 @@ func (b *Block) Accept() error {
 	}
 
 	b.status = choices.Accepted
+	b.ctx.Chain().SetTxsHeight(b.ld.Height, b.TxIDs()...)
 	return nil
 }
 
@@ -536,21 +544,24 @@ func (b *Block) GasPrice() *big.Int {
 }
 
 func (b *Block) NextGasPrice() uint64 {
-	feeCfg := b.FeeConfig()
-	nextGasPrice := b.ld.GasPrice
-	txsSize := b.ld.Txs.BytesSize()
-	if uint64(txsSize)*2 < feeCfg.MaxBlockTxsSize {
-		nextGasPrice = uint64(float64(nextGasPrice) / math.SqrtPhi)
-		if nextGasPrice < feeCfg.MinGasPrice {
-			nextGasPrice = feeCfg.MinGasPrice
+	if b.nextGasPrice == 0 {
+		feeCfg := b.FeeConfig()
+		nextGasPrice := b.ld.GasPrice
+		txsSize := b.ld.Txs.BytesSize()
+		if uint64(txsSize)*2 < feeCfg.MaxBlockTxsSize {
+			nextGasPrice = uint64(float64(nextGasPrice) / math.SqrtPhi)
+			if nextGasPrice < feeCfg.MinGasPrice {
+				nextGasPrice = feeCfg.MinGasPrice
+			}
+		} else if float64(txsSize)*math.SqrtPhi > float64(feeCfg.MaxBlockTxsSize) {
+			nextGasPrice = uint64(float64(nextGasPrice) * math.SqrtPhi)
+			if nextGasPrice > feeCfg.MaxGasPrice {
+				nextGasPrice = feeCfg.MaxGasPrice
+			}
 		}
-	} else if float64(txsSize)*math.SqrtPhi > float64(feeCfg.MaxBlockTxsSize) {
-		nextGasPrice = uint64(float64(nextGasPrice) * math.SqrtPhi)
-		if nextGasPrice > feeCfg.MaxGasPrice {
-			nextGasPrice = feeCfg.MaxGasPrice
-		}
+		b.nextGasPrice = nextGasPrice
 	}
-	return nextGasPrice
+	return b.nextGasPrice
 }
 
 // Regard to pareto 80/20 Rule

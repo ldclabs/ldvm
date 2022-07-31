@@ -96,6 +96,10 @@ func (a *Account) ID() util.EthID {
 	return a.id
 }
 
+func (a *Account) LD() *ld.Account {
+	return a.ld
+}
+
 func (a *Account) Type() ld.AccountType {
 	return a.ld.Type
 }

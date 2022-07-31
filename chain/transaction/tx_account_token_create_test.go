@@ -40,7 +40,7 @@ func TestTxCreateToken(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -52,7 +52,7 @@ func TestTxCreateToken(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to as token account")
 
 	txData = &ld.TxData{
@@ -65,7 +65,7 @@ func TestTxCreateToken(t *testing.T) {
 		To:        &tokenid,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil amount")
 
 	txData = &ld.TxData{
@@ -80,7 +80,7 @@ func TestTxCreateToken(t *testing.T) {
 		Token:     &token,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -94,7 +94,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -109,7 +109,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := &ld.TxAccounter{}
@@ -125,7 +125,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
 
 	input = &ld.TxAccounter{}
@@ -141,7 +141,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
@@ -160,7 +160,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
@@ -179,7 +179,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = &ld.TxAccounter{
@@ -200,7 +200,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid approver, expected not 0x0000000000000000000000000000000000000000")
 
@@ -222,7 +222,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, `invalid name "LDC\nToken"`)
 
 	input = &ld.TxAccounter{
@@ -244,7 +244,7 @@ func TestTxCreateToken(t *testing.T) {
 		Data:      input.Bytes(),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, `invalid name "LD", expected length >= 3`)
 
 	input = &ld.TxAccounter{
@@ -267,7 +267,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -295,7 +295,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(bctx, bs))
@@ -338,7 +338,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	bs.CommitAccounts()
@@ -357,7 +357,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -366,7 +366,7 @@ func TestTxCreateToken(t *testing.T) {
 
 	assert.NoError(txData.SignWith(util.Signer2))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -401,7 +401,7 @@ func TestTxCreateToken(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(bctx, bs))
@@ -452,7 +452,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
-	_, err := NewTx(tt, true)
+	_, err := NewTx2(tt)
 	assert.ErrorContains(err,
 		"invalid to as token account, expected not 0x0000000000000000000000000000000000000000")
 
@@ -509,7 +509,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.ErrorContains(err, "TxBase.SyntacticVerify error: invalid from")
 
 	assert.NoError(bs.VerifyState())
