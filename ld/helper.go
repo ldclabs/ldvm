@@ -38,3 +38,20 @@ func MustMarshal(v Marshaler) []byte {
 func Uint16Ptr(u uint16) *uint16 {
 	return &u
 }
+
+type Copier interface {
+	Marshal() ([]byte, error)
+	Unmarshal([]byte) error
+	SyntacticVerify() error
+}
+
+func Copy(dst, src Copier) error {
+	data, err := src.Marshal()
+	if err != nil {
+		return err
+	}
+	if err = dst.Unmarshal(data); err != nil {
+		return err
+	}
+	return dst.SyntacticVerify()
+}

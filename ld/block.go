@@ -99,6 +99,7 @@ func (b *Block) SyntacticVerify() error {
 		}
 		gas += tx.Gas()
 	}
+
 	if b.Gas != gas {
 		return errp.Errorf("invalid gas, expected %d, got %d", gas, b.Gas)
 	}

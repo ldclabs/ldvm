@@ -22,13 +22,14 @@ const (
 // locally. They exit the pool when they are included in the blockchain.
 type TxPool interface {
 	Len() int
-	SetTxsHeight(height int64, txIDs ...ids.ID)
+	SetTxsHeight(height uint64, txIDs ...ids.ID)
 	ClearTxs(txIDs ...ids.ID)
 	AddRemote(txs ...*ld.Transaction)
 	AddLocal(txs ...*ld.Transaction)
 	GetHeight(txID ids.ID) int64
 	PopTxsBySize(askSize int) ld.Txs
 	Reject(tx *ld.Transaction)
+	Clear()
 }
 
 // NewTxPool creates a new transaction pool.
@@ -36,7 +37,7 @@ func NewTxPool() *txPool {
 	return &txPool{
 		txQueueSet:     ids.NewSet(10000),
 		txQueue:        make([]*ld.Transaction, 0, 10000),
-		knownTxs:       collections.NewTTLMap(knownTxsCapacity),
+		knownTxs:       &knownTxs{collections.NewTTLMap(knownTxsCapacity)},
 		signalTxsReady: func() {},                   // initially noop
 		gossipTx:       func(tx *ld.Transaction) {}, // initially noop
 	}
@@ -46,9 +47,31 @@ type txPool struct {
 	mu             sync.RWMutex
 	txQueueSet     ids.Set
 	txQueue        ld.Txs
-	knownTxs       *collections.TTLMap
+	knownTxs       *knownTxs
 	signalTxsReady func()
 	gossipTx       func(tx *ld.Transaction)
+}
+
+type knownTxs struct {
+	cache *collections.TTLMap
+}
+
+func (k *knownTxs) getHeight(txID ids.ID) int64 {
+	if s, ok := k.cache.Get(string(txID[:])); ok {
+		return s.(int64)
+	}
+	return -3
+}
+
+func (k *knownTxs) setHeight(txID ids.ID, height int64) {
+	k.cache.Set(string(txID[:]), height, knownTxsTTL)
+}
+
+func (k *knownTxs) clear() {
+	i := 100
+	for i == 100 {
+		i = k.cache.RemoveExpired(i)
+	}
 }
 
 // Len returns the number of transactions in the pool.
@@ -68,24 +91,26 @@ func (p *txPool) Len() int {
 	return n
 }
 
-// GetStatus returns the status of a transaction by ID.
+// GetHeight returns the height of block that transactions included in.
+// -3: the transaction is not in the pool
+// -2: the transaction is rejected
+// -1: the transaction is in the pool, but not yet included in a block
+// >= 0: the transaction is included in a block with the given height
 func (p *txPool) GetHeight(txID ids.ID) int64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if s, ok := p.knownTxs.Get(string(txID[:])); ok {
-		return s.(int64)
-	}
-	return -1
+	return p.knownTxs.getHeight(txID)
 }
 
-// SetTxsHeight sets the height of block thaht transactions belong in.
-func (p *txPool) SetTxsHeight(height int64, txIDs ...ids.ID) {
+// SetTxsHeight sets the height of block that transactions included in.
+// It should be called only when block accepted.
+func (p *txPool) SetTxsHeight(height uint64, txIDs ...ids.ID) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	for _, txID := range txIDs {
-		p.knownTxs.Set(string(txID[:]), height, knownTxsTTL)
+		p.knownTxs.setHeight(txID, int64(height))
 	}
 }
 
@@ -115,17 +140,12 @@ func (p *txPool) clear(txID ids.ID) {
 	}
 }
 
-func (p *txPool) has(txID ids.ID) bool {
-	return p.txQueueSet.Contains(txID)
-}
-
 func (p *txPool) knownTx(txID ids.ID) bool {
 	if p.txQueueSet.Contains(txID) {
 		return true
 	}
 
-	_, ok := p.knownTxs.Get(string(txID[:]))
-	return ok
+	return p.knownTxs.getHeight(txID) >= -2
 }
 
 // AddRemote adds transaction entities from the network (API or AppGossip).
@@ -140,7 +160,7 @@ func (p *txPool) AddRemote(txs ...*ld.Transaction) {
 	for i, tx := range txs {
 		if !p.knownTx(tx.ID) {
 			added++
-			p.knownTxs.Set(string(tx.ID[:]), int64(-1), knownTxsTTL)
+			p.knownTxs.setHeight(tx.ID, int64(-1))
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 
@@ -160,8 +180,12 @@ func (p *txPool) AddLocal(txs ...*ld.Transaction) {
 	defer p.mu.Unlock()
 
 	for i, tx := range txs {
+		if p.knownTxs.getHeight(tx.ID) <= -2 {
+			// transaction expired or rejected, ignore it.
+			continue
+		}
+
 		if !p.txQueueSet.Contains(tx.ID) {
-			p.knownTxs.Set(string(tx.ID[:]), int64(-1), knownTxsTTL)
 			p.txQueueSet.Add(tx.ID)
 			p.txQueue = append(p.txQueue, txs[i])
 		}
@@ -174,7 +198,7 @@ func (p *txPool) Reject(tx *ld.Transaction) {
 	defer p.mu.Unlock()
 
 	p.clear(tx.ID)
-	p.knownTxs.Set(string(tx.ID[:]), int64(-2), knownTxsTTL)
+	p.knownTxs.setHeight(tx.ID, int64(-2))
 }
 
 // PopTxsBySize sorts transactions by priority and returns
@@ -206,4 +230,8 @@ func (p *txPool) PopTxsBySize(askSize int) ld.Txs {
 		p.txQueue = p.txQueue[:n]
 	}
 	return rt
+}
+
+func (p *txPool) Clear() {
+	p.knownTxs.clear()
 }

@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/ava-labs/avalanchego/snow/choices"
-	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -25,7 +24,7 @@ type IssueTxArgs struct {
 func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *GetReply) error {
 	tx := &ld.Transaction{}
 	if len(args.Tx) > 0 {
-		data, err := formatting.Decode(formatting.Hex, args.Tx)
+		data, err := decodeBytes(args.Tx)
 		if err != nil {
 			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
 		}
@@ -33,7 +32,7 @@ func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *Get
 			return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
 		}
 	} else {
-		data, err := formatting.Decode(formatting.Hex, args.UnsignedTx)
+		data, err := decodeBytes(args.UnsignedTx)
 		if err != nil {
 			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
 		}

@@ -20,6 +20,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/jsonrpc"
 )
 
 type EthAPI struct {
@@ -33,7 +34,7 @@ func NewEthAPI(bc chain.BlockChain, version string) *EthAPI {
 
 // RPC is the main entrypoint for the ETH wallet client.
 // https://ethereum.org/en/developers/docs/apis/json-rpc
-func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) RPC(req *jsonrpc.Req) *jsonrpc.Res {
 	switch req.Method {
 	case "web3_clientVersion":
 		return req.Result(api.version)
@@ -42,12 +43,12 @@ func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
 		return api.web3Sha3(req)
 
 	case "eth_chainId":
-		chainId := api.bc.Context().ChainConfig().ChainID
-		return req.Result(formatUint64(chainId))
+		chainID := api.bc.Context().ChainConfig().ChainID
+		return req.Result(formatUint64(chainID))
 
 	case "net_version":
-		chainId := api.bc.Context().ChainConfig().ChainID
-		return req.Result(strconv.FormatUint(chainId, 10))
+		chainID := api.bc.Context().ChainConfig().ChainID
+		return req.Result(strconv.FormatUint(chainID, 10))
 
 	case "eth_blockNumber":
 		blk := api.bc.LastAcceptedBlock()
@@ -91,9 +92,9 @@ func (api *EthAPI) RPC(req *JsonrpcReq) *JsonrpcRes {
 	}
 }
 
-func (api *EthAPI) web3Sha3(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) web3Sha3(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.Error(err)
 	}
 	if len(params) != 1 {
@@ -108,9 +109,9 @@ func (api *EthAPI) web3Sha3(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(formatBytes(crypto.Keccak256(data)))
 }
 
-func (api *EthAPI) getTransactionCount(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getTransactionCount(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.Error(err)
 	}
 	if len(params) != 2 {
@@ -123,17 +124,17 @@ func (api *EthAPI) getTransactionCount(req *JsonrpcReq) *JsonrpcRes {
 
 	acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
 	if err != nil {
-		return req.Error(&JsonrpcErr{
-			Code:    AccountErrorCode,
+		return req.Error(&jsonrpc.Err{
+			Code:    CodeAccountError,
 			Message: err.Error(),
 		})
 	}
 	return req.Result(formatUint64(acc.Nonce()))
 }
 
-func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getBalance(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.Error(err)
 	}
 	if len(params) != 2 {
@@ -146,22 +147,22 @@ func (api *EthAPI) getBalance(req *JsonrpcReq) *JsonrpcRes {
 
 	acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
 	if err != nil {
-		return req.Error(&JsonrpcErr{
-			Code:    AccountErrorCode,
+		return req.Error(&jsonrpc.Err{
+			Code:    CodeAccountError,
 			Message: err.Error(),
 		})
 	}
 	return req.Result(formatEthBalance(acc.Balance()))
 }
 
-func (api *EthAPI) gasPrice(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) gasPrice(req *jsonrpc.Req) *jsonrpc.Res {
 	nextGasPrice := api.bc.PreferredBlock().NextGasPrice()
 	return req.Result(formatEthBalance(new(big.Int).SetUint64(nextGasPrice)))
 }
 
-func (api *EthAPI) estimateGas(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) estimateGas(req *jsonrpc.Req) *jsonrpc.Res {
 	var txs []*ethTx
-	if err := req.ParseParams(&txs); err != nil {
+	if err := req.DecodeParams(&txs); err != nil {
 		return req.InvalidParams("parse eth_estimateGas params error, " + err.Error())
 	}
 	if len(txs) == 0 || txs[0] == nil {
@@ -194,9 +195,9 @@ func (api *EthAPI) estimateGas(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(formatUint64(gas))
 }
 
-func (api *EthAPI) getBlockByHash(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getBlockByHash(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []json.RawMessage
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
 	}
 	if len(params) != 2 {
@@ -217,9 +218,9 @@ func (api *EthAPI) getBlockByHash(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(toEthBlock(blk.LD(), fullTxs))
 }
 
-func (api *EthAPI) getBlockByNumber(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getBlockByNumber(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []json.RawMessage
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getBlockByNumber params error, " + err.Error())
 	}
 	if len(params) != 2 {
@@ -242,9 +243,9 @@ func (api *EthAPI) getBlockByNumber(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(toEthBlock(blk.LD(), fullTxs))
 }
 
-func (api *EthAPI) getTransactionByHash(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getTransactionByHash(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getTransactionByHash params error, " + err.Error())
 	}
 	if len(params) != 1 {
@@ -277,9 +278,9 @@ func (api *EthAPI) getTransactionByHash(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(txs[0])
 }
 
-func (api *EthAPI) getTransactionReceipt(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) getTransactionReceipt(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_getTransactionReceipt params error, " + err.Error())
 	}
 	if len(params) != 1 {
@@ -306,9 +307,9 @@ func (api *EthAPI) getTransactionReceipt(req *JsonrpcReq) *JsonrpcRes {
 	return req.Result(toEthReceipt(blk.LD(), id))
 }
 
-func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) call(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []json.RawMessage
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_call params error, " + err.Error())
 	}
 	if len(params) == 0 || len(params[0]) == 0 {
@@ -322,8 +323,8 @@ func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 	token := util.TokenSymbol(etx.To)
 	symbol := token.String()
 	if symbol == "" {
-		return req.Error(&JsonrpcErr{
-			Code:    AccountErrorCode,
+		return req.Error(&jsonrpc.Err{
+			Code:    CodeAccountError,
 			Message: fmt.Sprintf("invalid token address %s", etx.To.String()),
 		})
 	}
@@ -360,15 +361,15 @@ func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 		case "18160ddd": // totalSupply()
 			tokenAcc, err := api.bc.LastAcceptedBlock().State().LoadAccount(etx.To)
 			if err != nil {
-				return req.Error(&JsonrpcErr{
-					Code:    AccountErrorCode,
+				return req.Error(&jsonrpc.Err{
+					Code:    CodeAccountError,
 					Message: err.Error(),
 				})
 			}
 
 			if !tokenAcc.Valid(ld.TokenAccount) {
-				return req.Error(&JsonrpcErr{
-					Code:    AccountErrorCode,
+				return req.Error(&jsonrpc.Err{
+					Code:    CodeAccountError,
 					Message: fmt.Sprintf("invalid token address %s", etx.To.String()),
 				})
 			}
@@ -385,8 +386,8 @@ func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 			copy(id[:], data[4:])
 			acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
 			if err != nil {
-				return req.Error(&JsonrpcErr{
-					Code:    AccountErrorCode,
+				return req.Error(&jsonrpc.Err{
+					Code:    CodeAccountError,
 					Message: err.Error(),
 				})
 			}
@@ -397,9 +398,9 @@ func (api *EthAPI) call(req *JsonrpcReq) *JsonrpcRes {
 	return req.InvalidParams("invalid eth_call params, only balanceOf(address) is supported")
 }
 
-func (api *EthAPI) sendRawTransaction(req *JsonrpcReq) *JsonrpcRes {
+func (api *EthAPI) sendRawTransaction(req *jsonrpc.Req) *jsonrpc.Res {
 	var params []string
-	if err := req.ParseParams(&params); err != nil {
+	if err := req.DecodeParams(&params); err != nil {
 		return req.InvalidParams("parse eth_call params error, " + err.Error())
 	}
 	if len(params) != 1 || len(params[0]) < 100 {
@@ -436,22 +437,21 @@ func (api *EthAPI) sendRawTransaction(req *JsonrpcReq) *JsonrpcRes {
 
 func (api *EthAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		writeRes(w, http.StatusMethodNotAllowed, &JsonrpcErr{
+		writeJSONRes(w, http.StatusMethodNotAllowed, &jsonrpc.Err{
 			Code:    -32600,
-			Message: "EthAPI: POST method required, received " + r.Method,
+			Message: fmt.Sprintf("POST method required, got %q", r.Method),
 		})
 		return
 	}
 
 	contentType := r.Header.Get("Content-Type")
-	idx := strings.Index(contentType, ";")
-	if idx != -1 {
+	if idx := strings.Index(contentType, ";"); idx != -1 {
 		contentType = contentType[:idx]
 	}
 	if contentType != "application/json" {
-		writeRes(w, http.StatusUnsupportedMediaType, &JsonrpcErr{
+		writeJSONRes(w, http.StatusUnsupportedMediaType, &jsonrpc.Err{
 			Code:    -32600,
-			Message: "EthAPI: unsupported Content-Type, " + contentType,
+			Message: fmt.Sprintf("unsupported Content-Type, got %q", contentType),
 		})
 		return
 	}
@@ -459,32 +459,41 @@ func (api *EthAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	buf, err := ioutil.ReadAll(r.Body)
 	r.Body.Close()
 	if err != nil {
-		writeRes(w, http.StatusBadRequest, &JsonrpcErr{
+		writeJSONRes(w, http.StatusBadRequest, &jsonrpc.Err{
 			Code:    -32600,
-			Message: "EthAPI: invalid request, " + err.Error(),
+			Message: fmt.Sprintf("read request body error, %v", err),
 		})
 	}
 
-	req, err := NewJsonrpcRequest(buf)
+	req, err := jsonrpc.DecodeReq(buf)
 	if err != nil {
-		writeRes(w, http.StatusBadRequest, err)
+		writeJSONRes(w, http.StatusBadRequest, err)
 		return
 	}
 
-	logging.Log.Info("ETH Req: %s", req.String())
-	writeRes(w, http.StatusOK, api.RPC(req))
+	logging.Debug(func() string {
+		return fmt.Sprintf("Request: %s", req.String())
+	})
+	res := api.RPC(req)
+	logging.Debug(func() string {
+		return fmt.Sprintf("Response: %s", res.String())
+	})
+	writeJSONRes(w, http.StatusOK, res)
 }
 
-func writeRes(w http.ResponseWriter, code int, val interface{}) {
+func writeJSONRes(w http.ResponseWriter, code int, val interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
 	data, err := json.Marshal(val)
 	if err != nil {
-		val = &JsonrpcErr{Code: -32603, Message: err.Error()}
+		code = 500
+		val = &jsonrpc.Err{Code: -32603, Message: err.Error()}
 		data, _ = json.Marshal(val)
 	}
 
-	logging.Log.Info("ETH Res: %d, %s", code, string(data))
+	if code >= 500 {
+		logging.Log.Warn("write response %d, %s", code, string(data))
+	}
+	w.WriteHeader(code)
 	w.Write(data)
 }
 
@@ -629,63 +638,4 @@ func toEthBlock(blk *ld.Block, fullTxs bool) map[string]interface{} {
 		res["transactions"] = toEthTxIDs(blk)
 	}
 	return res
-}
-
-func formatEthBalance(amount *big.Int) string {
-	return "0x" + ld.ToEthBalance(amount).Text(16)
-}
-
-func formatUint64(u uint64) string {
-	return "0x" + strconv.FormatUint(u, 16)
-}
-
-func formatBytes(data []byte) string {
-	return "0x" + hex.EncodeToString(data)
-}
-
-func decodeBytes(s string) (data []byte, err error) {
-	if !strings.HasPrefix(s, "0x") {
-		err = fmt.Errorf("invalid hex data, %s", s)
-		return
-	}
-	data, err = hex.DecodeString(s[2:])
-	return
-}
-
-func decodeAddress(s string) (id util.EthID, err error) {
-	data, e := decodeBytes(s)
-	if e != nil {
-		err = e
-		return
-	}
-
-	if len(data) != 20 {
-		err = fmt.Errorf("invalid address, %s", s)
-		return
-	}
-	copy(id[:], data)
-	return
-}
-
-func decodeHash(s string) (id ids.ID, err error) {
-	data, e := decodeBytes(s)
-	if e != nil {
-		err = e
-		return
-	}
-
-	if len(data) != 32 {
-		err = fmt.Errorf("invalid hash, %s", s)
-		return
-	}
-	copy(id[:], data)
-	return
-}
-
-func decodeHashByRaw(data json.RawMessage) (id ids.ID, err error) {
-	var s string
-	if err = json.Unmarshal(data, &s); err != nil {
-		return
-	}
-	return decodeHash(s)
 }

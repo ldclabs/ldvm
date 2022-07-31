@@ -35,7 +35,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -48,7 +48,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		To:        &constants.GenesisAccount,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	txData = &ld.TxData{
@@ -61,7 +61,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Token:     &constants.NativeToken,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
@@ -74,7 +74,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Amount:    big.NewInt(1),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil to together with amount")
 
 	txData = &ld.TxData{
@@ -86,7 +86,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -99,7 +99,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Data:      []byte("你好👋"),
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := []uint64{10}
@@ -115,7 +115,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "no nonce")
 
 	input = make([]uint64, 1026)
@@ -134,7 +134,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Data:      inputData,
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "too many nonces, expected <= 1024, got 1025")
 
 	input = []uint64{bs.Timestamp() - 1, 123}
@@ -152,7 +152,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "invalid expire time, expected > 1000, got 999")
 
 	input = []uint64{3600*24*30 + 2, 123}
@@ -170,7 +170,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = 1
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "invalid expire time, expected <= 2592001, got 2592002")
 
 	input = []uint64{bs.Timestamp() + 1, 1, 3, 7, 5}
@@ -188,7 +188,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -230,7 +230,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -252,7 +252,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -280,7 +280,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 
@@ -320,7 +320,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()
@@ -350,7 +350,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(bctx, bs))
 

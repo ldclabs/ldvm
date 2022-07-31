@@ -39,11 +39,11 @@ func TestTxTransferCash(t *testing.T) {
 		From:      from.id,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to")
 
 	txData = &ld.TxData{
@@ -58,7 +58,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, should be nil")
 
 	txData = &ld.TxData{
@@ -72,7 +72,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
@@ -87,7 +87,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := ld.TxTransfer{
@@ -108,7 +108,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil issuer")
 
 	input = ld.TxTransfer{
@@ -130,7 +130,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid issuer, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
 
@@ -152,7 +152,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "nil recipient")
 
 	input = ld.TxTransfer{
@@ -174,7 +174,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
 		"invalid recipient, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
@@ -197,7 +197,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, expected NativeLDC, got $LDC")
 
 	input = ld.TxTransfer{
@@ -219,7 +219,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid token, expected $LDC, got NativeLDC")
 
 	input = ld.TxTransfer{
@@ -239,7 +239,7 @@ func TestTxTransferCash(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = ld.TxTransfer{
@@ -262,7 +262,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt := txData.ToTransaction()
 	tt.Timestamp = 10
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "data expired")
 
 	input = ld.TxTransfer{
@@ -286,7 +286,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
-	_, err = NewTx(tt, true)
+	_, err = NewTx2(tt)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
@@ -304,7 +304,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	tt.Timestamp = 10
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	assert.NoError(err)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
@@ -331,7 +331,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(txData.ExSignWith(util.Signer2))
 	tt = txData.ToTransaction()
 	tt.Timestamp = bs.Timestamp()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(err)
 
 	bs.CommitAccounts()

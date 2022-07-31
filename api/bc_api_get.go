@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
 
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/constants"
@@ -104,18 +105,56 @@ func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *G
 	return nil
 }
 
+// GetTxStatus
+func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
+	if args.ID == ids.Empty {
+		return fmt.Errorf("invalid transaction id: %v", args.ID)
+	}
+
+	switch api.bc.GetTxHeight(args.ID) {
+	case -3:
+		reply.Status = choices.Unknown.String()
+	case -2:
+		reply.Status = choices.Rejected.String()
+	case -1:
+		reply.Status = choices.Processing.String()
+	default:
+		reply.Status = choices.Accepted.String()
+	}
+
+	reply.ID = args.ID.String()
+	return nil
+}
+
 // GetTx
-// func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
-// 	if args.ID == ids.Empty {
-// 		return fmt.Errorf("invalid transaction id: %v", args.ID)
-// 	}
+func (api *BlockChainAPI) GetTx(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
+	if args.ID == ids.Empty {
+		return fmt.Errorf("invalid transaction id: %v", args.ID)
+	}
 
-// 	status := api.bc.GetTxStatus(args.ID)
+	height := api.bc.GetTxHeight(args.ID)
+	switch height {
+	case -3:
+		reply.Status = choices.Unknown.String()
+	case -2:
+		reply.Status = choices.Rejected.String()
+	case -1:
+		reply.Status = choices.Processing.String()
+	default:
+		reply.Status = choices.Accepted.String()
+	}
 
-// 	reply.ID = args.ID.String()
-// 	reply.Status = status.String()
-// 	return nil
-// }
+	if height >= 0 {
+		blk, err := api.bc.GetBlockAtHeight(uint64(height))
+		if err != nil {
+			return err
+		}
+		reply.Data = blk.Tx(args.ID)
+	}
+
+	reply.ID = args.ID.String()
+	return nil
+}
 
 type GetModelArgs struct {
 	ID util.ModelID `json:"id"`

@@ -62,15 +62,16 @@ func (api *VMAPI) Genesis(_ *http.Request, args *NoArgs, reply *genesis.Genesis)
 }
 
 type TransactionArgs struct {
-	Type      uint16          `json:"type"`
-	ChainID   uint64          `json:"chainID"`
-	Nonce     uint64          `json:"Nonce"`
-	GasTip    uint64          `json:"gasTip"`
-	GasFeeCap uint64          `json:"gasFeeCap"`
-	From      util.EthID      `json:"from"`
-	To        *util.EthID     `json:"to"`
-	Amount    *big.Int        `json:"amount"`
-	Data      json.RawMessage `json:"data"`
+	Type      uint16            `json:"type"`
+	ChainID   uint64            `json:"chainID"`
+	Nonce     uint64            `json:"nonce"`
+	GasTip    uint64            `json:"gasTip"`
+	GasFeeCap uint64            `json:"gasFeeCap"`
+	From      util.EthID        `json:"from"`
+	To        *util.EthID       `json:"to"`
+	Token     *util.TokenSymbol `json:"token"`
+	Amount    *big.Int          `json:"amount"`
+	Data      json.RawMessage   `json:"data"`
 }
 
 func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *EncodeReply) error {
@@ -83,54 +84,9 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 		GasFeeCap: args.GasFeeCap,
 		From:      args.From,
 		To:        args.To,
+		Token:     args.Token,
 		Amount:    args.Amount,
 		Data:      data,
 	}
 	return reply.SetTxData(tx)
 }
-
-type DataInfoArgs struct {
-	ModelID   util.ModelID    `json:"mID"`
-	Version   uint64          `json:"version"`
-	Threshold uint16          `json:"threshold"`
-	Keepers   util.EthIDs     `json:"keepers"`
-	Data      json.RawMessage `json:"data"`
-}
-
-func (api *VMAPI) EncodeCreateData(_ *http.Request, args *DataInfoArgs, reply *EncodeReply) error {
-	data := util.UnmarshalJSONData(args.Data)
-	tx := &ld.DataInfo{
-		ModelID:   args.ModelID,
-		Version:   args.Version,
-		Threshold: args.Threshold,
-		Keepers:   args.Keepers,
-		Data:      data,
-	}
-	return reply.SetTxData(tx)
-}
-
-type ModelInfoArgs struct {
-	Name      string          `json:"name"`
-	Threshold uint16          `json:"threshold"`
-	Keepers   util.EthIDs     `json:"keepers"`
-	Data      json.RawMessage `json:"data"`
-}
-
-func (api *VMAPI) EncodeCreateModel(_ *http.Request, args *ModelInfoArgs, reply *EncodeReply) error {
-	data := util.UnmarshalJSONData(args.Data)
-	tx := &ld.ModelInfo{
-		Name:      args.Name,
-		Threshold: args.Threshold,
-		Keepers:   args.Keepers,
-		Data:      data,
-	}
-	return reply.SetTxData(tx)
-}
-
-// func (api *VMAPI) EncodeName(_ *http.Request, args *service.Name, reply *EncodeReply) error {
-// 	return reply.SetTxData(args)
-// }
-
-// func (api *VMAPI) EncodeInfo(_ *http.Request, args *service.Profile, reply *EncodeReply) error {
-// 	return reply.SetTxData(args)
-// }

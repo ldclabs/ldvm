@@ -37,11 +37,11 @@ func TestTxTransfer(t *testing.T) {
 		From:      from.id,
 	}
 	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid to")
 
 	txData = &ld.TxData{
@@ -55,7 +55,7 @@ func TestTxTransfer(t *testing.T) {
 	}
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx(txData.ToTransaction(), true)
+	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err, "invalid amount")
 
 	txData = &ld.TxData{
@@ -73,7 +73,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	assert.NoError(txData.SyntacticVerify())
 	tt := txData.ToTransaction()
-	itx, err := NewTx(tt, true)
+	itx, err := NewTx2(tt)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient NativeLDC balance")
 	bs.CheckoutAccounts()
@@ -112,7 +112,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "insufficient $LDC balance")
 	bs.CheckoutAccounts()
@@ -151,7 +151,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(txData.SyntacticVerify())
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
-	itx, err = NewTx(tt, true)
+	itx, err = NewTx2(tt)
 	assert.NoError(itx.Apply(bctx, bs), "should support 0 amount")
 
 	assert.NoError(bs.VerifyState())
