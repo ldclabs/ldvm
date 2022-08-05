@@ -200,7 +200,7 @@ func (tx *TxCreateData) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	}
 
 	if tx.ns != nil {
-		if err = bs.SetName(tx.ns.Name, tx.di.ID); err != nil {
+		if err = bs.SetASCIIName(tx.ns.ASCII(), tx.di.ID); err != nil {
 			return errp.ErrorIf(err)
 		}
 	}
@@ -277,11 +277,8 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 			if err = tx.ns.SyntacticVerify(); err != nil {
 				return errp.ErrorIf(err)
 			}
-			if _, err = bs.ResolveNameID(tx.ns.Name); err == nil {
-				return errp.Errorf("name %q conflict", tx.ns.Name)
-			}
 
-			if err = bs.SetName(tx.ns.Name, tx.di.ID); err != nil {
+			if err = bs.SetASCIIName(tx.ns.ASCII(), tx.di.ID); err != nil {
 				return errp.ErrorIf(err)
 			}
 		}

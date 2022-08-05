@@ -27,7 +27,7 @@ func NewDN(name string) (*DN, error) {
 	var err error
 	dn := &DN{}
 
-	if strings.IndexRune(name, '.') > -1 {
+	if strings.ContainsRune(name, '.') {
 		dn.isDomain = true
 		dn.ascii, err = idna.Registration.ToASCII(name)
 		if err != nil {
@@ -79,3 +79,15 @@ func (d *DN) ASCII() string {
 func (d *DN) IsDomain() bool {
 	return d.isDomain
 }
+
+// func NameToASCII(name string) (string, error) {
+// 	dn, err := NewDN(name)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	if dn.String() != name {
+// 		return "", fmt.Errorf("%q is not unicode form", name)
+// 	}
+
+// 	return dn.ASCII(), nil
+// }

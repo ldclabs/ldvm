@@ -217,8 +217,9 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 		v.Log.Error("CreateHandlers error: %v", err)
 		return nil, err
 	}
-	ethAPI := api.NewEthAPI(v.bc, Version.String())
 
+	ethAPI := api.NewEthAPI(v.bc, Version.String())
+	cborAPI := api.NewAPI(v.bc, Version.String())
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
@@ -228,6 +229,10 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 		"/eth": {
 			LockOptions: common.WriteLock,
 			Handler:     ethAPI,
+		},
+		"/cborrpc": {
+			LockOptions: common.WriteLock,
+			Handler:     cborAPI,
 		},
 	}, nil
 }

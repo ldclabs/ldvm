@@ -95,6 +95,10 @@ func (req *Req) Result(result interface{}) *Res {
 	return &Res{Result: data}
 }
 
+func (req *Req) ResultRaw(result cbor.RawMessage) *Res {
+	return &Res{Result: result}
+}
+
 func (req *Req) Error(err error) *Res {
 	var rpcErr *Err
 

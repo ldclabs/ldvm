@@ -26,7 +26,7 @@ type BlockState interface {
 	LoadMiner(util.StakeSymbol) (*Account, error)
 	ResolveNameID(name string) (util.DataID, error)
 	ResolveName(name string) (*ld.DataInfo, error)
-	SetName(name string, id util.DataID) error
+	SetASCIIName(name string, id util.DataID) error
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
 	SaveModel(util.ModelID, *ld.ModelInfo) error
 	LoadData(util.DataID) (*ld.DataInfo, error)

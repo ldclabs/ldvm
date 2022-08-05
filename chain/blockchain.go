@@ -86,6 +86,7 @@ type BlockChain interface {
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
 	LoadData(util.DataID) (*ld.DataInfo, error)
 	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
+	LoadRawData(rawType string, key []byte) ([]byte, error)
 }
 
 type blockChain struct {
@@ -99,9 +100,11 @@ type blockChain struct {
 	heightDB       *db.PrefixDB
 	lastAcceptedDB *db.PrefixDB
 	accountDB      *db.PrefixDB
+	ledgerDB       *db.PrefixDB
 	modelDB        *db.PrefixDB
 	dataDB         *db.PrefixDB
 	prevDataDB     *db.PrefixDB
+	stateDB        *db.PrefixDB
 	nameDB         *db.PrefixDB
 
 	preferred         *atomicBlock
@@ -140,9 +143,11 @@ func NewChain(
 		heightDB:          pdb.With(heightDBPrefix),
 		lastAcceptedDB:    pdb.With(lastAcceptedKey),
 		accountDB:         pdb.With(accountDBPrefix),
+		ledgerDB:          pdb.With(ledgerDBPrefix),
 		modelDB:           pdb.With(modelDBPrefix),
 		dataDB:            pdb.With(dataDBPrefix),
 		prevDataDB:        pdb.With(prevDataDBPrefix),
+		stateDB:           pdb.With(stateDBPrefix),
 		nameDB:            pdb.With(nameDBPrefix),
 	}
 
@@ -690,18 +695,39 @@ func (bc *blockChain) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo
 		return nil, fmt.Errorf("data not found")
 	}
 
-	v := database.PackUInt64(version)
-	key := make([]byte, 20+len(v))
-	copy(key, id[:])
-	copy(key[20:], v)
-
-	obj, err := bc.prevDataDB.LoadObject(key, bc.recentData)
+	obj, err := bc.prevDataDB.LoadObject(id.VersionKey(version), bc.recentData)
 	if err != nil {
 		return nil, err
 	}
 	rt := obj.(*ld.DataInfo)
 	rt.ID = id
 	return rt, nil
+}
+
+func (bc *blockChain) LoadRawData(rawType string, key []byte) ([]byte, error) {
+	var pdb *db.PrefixDB
+	switch rawType {
+	case "block":
+		pdb = bc.blockDB
+	case "state":
+		pdb = bc.stateDB
+	case "account":
+		pdb = bc.accountDB
+	case "ledger":
+		pdb = bc.ledgerDB
+	case "model":
+		pdb = bc.modelDB
+	case "data":
+		pdb = bc.dataDB
+	case "prevdata":
+		pdb = bc.prevDataDB
+	case "name":
+		pdb = bc.nameDB
+	default:
+		return nil, fmt.Errorf("unknown type %q", rawType)
+	}
+
+	return pdb.Get(key)
 }
 
 type atomicBlock atomic.Value
