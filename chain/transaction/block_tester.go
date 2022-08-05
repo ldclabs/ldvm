@@ -189,8 +189,16 @@ func (m *MockBS) ResolveName(name string) (*ld.DataInfo, error) {
 	return m.LoadData(id)
 }
 
-func (m *MockBS) SetName(name string, id util.DataID) error {
-	m.NC[name] = id
+func (m *MockBS) SetASCIIName(name string, id util.DataID) error {
+	oid, ok := m.NC[name]
+	switch {
+	case ok:
+		if !bytes.Equal(oid[:], id[:]) {
+			return fmt.Errorf("name %q conflict", name)
+		}
+	default:
+		m.NC[name] = id
+	}
 	return nil
 }
 

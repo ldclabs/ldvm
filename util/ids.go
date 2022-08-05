@@ -8,10 +8,108 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
 )
+
+// Hash ==========
+type Hash [32]byte
+
+var HashEmpty = Hash{}
+
+func HashFromString(str string) (Hash, error) {
+	if str == "" {
+		return HashEmpty, nil
+	}
+	id, err := ids.FromString(str)
+	if err != nil {
+		return HashEmpty, ErrPrefix("HashFromString error: ").ErrorIf(err)
+	}
+	return Hash(id), nil
+}
+
+func (id Hash) ToID() ids.ID {
+	return ids.ID(id)
+}
+
+func (id Hash) String() string {
+	return ids.ID(id).String()
+}
+
+func (id Hash) GoString() string {
+	return id.String()
+}
+
+func (id Hash) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *Hash) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("Hash.UnmarshalText error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+
+	str := string(b)
+	if str == "" {
+		return nil
+	}
+
+	hash, err := HashFromString(str)
+	if err == nil {
+		*id = hash
+	}
+	return errp.ErrorIf(err)
+}
+
+func (id Hash) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + id.String() + "\""), nil
+}
+
+func (id *Hash) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("Hash.UnmarshalJSON error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+
+	str := string(b)
+	if str == "null" || str == `""` { // If "null", do nothing
+		return nil
+	}
+	lastIndex := len(str) - 1
+	if str[0] != '"' || str[lastIndex] != '"' {
+		return errp.Errorf("invalid string %q", str)
+	}
+
+	str = str[1:lastIndex]
+	return id.UnmarshalText([]byte(str))
+}
+
+func (id Hash) MarshalCBOR() ([]byte, error) {
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("Hash.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
+}
+
+func (id *Hash) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("Hash.UnmarshalCBOR error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+	var b []byte
+	if err := UnmarshalCBOR(data, &b); err != nil {
+		return err
+	}
+	if len(b) != 32 {
+		return errp.Errorf("invalid bytes length, expected 32, got %d", len(b))
+	}
+	copy((*id)[:], b)
+	return nil
+}
 
 // EthID ==========
 type EthID [20]byte
@@ -248,6 +346,14 @@ func (id DataID) String() string {
 
 func (id DataID) GoString() string {
 	return id.String()
+}
+
+func (id DataID) VersionKey(version uint64) []byte {
+	v := database.PackUInt64(version)
+	key := make([]byte, 20+len(v))
+	copy(key, id[:])
+	copy(key[20:], v)
+	return key
 }
 
 func (id DataID) MarshalText() ([]byte, error) {

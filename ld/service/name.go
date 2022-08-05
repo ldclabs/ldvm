@@ -19,6 +19,7 @@ type Name struct {
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
+	dn  *DN    `cbor:"-" json:"-"`
 }
 
 func NameModel() (*ld.IPLDModel, error) {
@@ -73,7 +74,19 @@ func (n *Name) SyntacticVerify() error {
 	if n.raw, err = n.Marshal(); err != nil {
 		return errp.ErrorIf(err)
 	}
+	n.dn = dn
 	return nil
+}
+
+func (n *Name) ASCII() string {
+	if n.dn == nil {
+		dn, err := NewDN(n.Name)
+		if err != nil {
+			panic(err)
+		}
+		n.dn = dn
+	}
+	return n.dn.ASCII()
 }
 
 func (n *Name) Bytes() []byte {

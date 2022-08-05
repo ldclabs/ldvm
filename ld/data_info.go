@@ -28,7 +28,7 @@ type DataInfo struct {
 	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Data        util.RawData `cbor:"d" json:"data"`
 	// full data signature signing by Data Keeper
-	KSig util.Signature `cbor:"ks" json:"kSig"`
+	KSig util.Signature `cbor:"ks" json:"kSig"` // TODO: redesign
 	// full data signature signing by ModelService Authority
 	MSig *util.Signature `cbor:"ms,omitempty" json:"mSig,omitempty"`
 

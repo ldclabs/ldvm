@@ -230,13 +230,13 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, erro
 }
 
 // name should be ASCII form (IDNA2008)
-func (bs *blockState) SetName(name string, id util.DataID) error {
+func (bs *blockState) SetASCIIName(name string, id util.DataID) error {
 	key := []byte(name)
 	data, err := bs.nameDB.Get(key)
 	switch err {
 	case nil:
 		if !bytes.Equal(data, id[:]) {
-			return fmt.Errorf("name conflict")
+			return fmt.Errorf("name %q conflict", name)
 		}
 	case database.ErrNotFound:
 		err = bs.nameDB.Put(key, id[:])
@@ -245,9 +245,15 @@ func (bs *blockState) SetName(name string, id util.DataID) error {
 	return err
 }
 
-// name should be Unicode form
+// name should be unicode form
 func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
-	data, err := bs.nameDB.Get([]byte(name))
+	dn, err := service.NewDN(name)
+	if err != nil {
+		return util.DataIDEmpty,
+			fmt.Errorf("invalid name %q, error: %v", name, err)
+	}
+
+	data, err := bs.nameDB.Get([]byte(dn.ASCII()))
 	if err != nil {
 		return util.DataIDEmpty, err
 	}
@@ -255,12 +261,9 @@ func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
 	return util.DataID(id), err
 }
 
+// name should be unicode form
 func (bs *blockState) ResolveName(name string) (*ld.DataInfo, error) {
-	dn, err := service.NewDN(name)
-	if err != nil {
-		return nil, fmt.Errorf("invalid name %q, error: %v", name, err)
-	}
-	id, err := bs.ResolveNameID(dn.String())
+	id, err := bs.ResolveNameID(name)
 	if err != nil {
 		return nil, err
 	}
@@ -320,11 +323,7 @@ func (bs *blockState) SavePrevData(id util.DataID, di *ld.DataInfo) error {
 		return err
 	}
 
-	v := database.PackUInt64(di.Version)
-	key := make([]byte, 20+len(v))
-	copy(key, id[:])
-	copy(key[20:], v)
-	return bs.prevDataDB.Put(key, di.Bytes())
+	return bs.prevDataDB.Put(id.VersionKey(di.Version), di.Bytes())
 }
 
 func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) error {
@@ -336,12 +335,8 @@ func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte
 		return err
 	}
 	for version > 0 {
-		v := database.PackUInt64(version)
+		bs.prevDataDB.Delete(id.VersionKey(version))
 		version--
-		key := make([]byte, 20+len(v))
-		copy(key, id[:])
-		copy(key[20:], v)
-		bs.prevDataDB.Delete(key)
 	}
 	return nil
 }
