@@ -41,7 +41,8 @@ type Profile struct {
 	Extensions []*Extension `cbor:"ex" json:"extensions"`                  // optional, extra properties
 
 	// external assignment fields
-	raw []byte `cbor:"-" json:"-"`
+	DID util.DataID `cbor:"-" json:"did"`
+	raw []byte      `cbor:"-" json:"-"`
 }
 
 type Extension struct {

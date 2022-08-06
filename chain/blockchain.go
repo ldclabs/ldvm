@@ -14,6 +14,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/constants"
@@ -82,10 +83,10 @@ type BlockChain interface {
 	GetTxHeight(ids.ID) int64
 
 	LoadAccount(util.EthID) (*ld.Account, error)
-	ResolveName(name string) (*ld.DataInfo, error)
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
 	LoadData(util.DataID) (*ld.DataInfo, error)
 	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
+	ResolveName(name string) (*service.Name, error)
 	LoadRawData(rawType string, key []byte) ([]byte, error)
 }
 
@@ -141,7 +142,7 @@ func NewChain(
 		verifiedBlocks:    new(sync.Map),
 		blockDB:           pdb.With(blockDBPrefix),
 		heightDB:          pdb.With(heightDBPrefix),
-		lastAcceptedDB:    pdb.With(lastAcceptedKey),
+		lastAcceptedDB:    pdb.With(lastAcceptedDBPrefix),
 		accountDB:         pdb.With(accountDBPrefix),
 		ledgerDB:          pdb.With(ledgerDBPrefix),
 		modelDB:           pdb.With(modelDBPrefix),
@@ -150,6 +151,8 @@ func NewChain(
 		stateDB:           pdb.With(stateDBPrefix),
 		nameDB:            pdb.With(nameDBPrefix),
 	}
+
+	s.nameDB.SetHashKey(nameHashKey)
 
 	txPool := NewTxPool()
 	builder := NewBlockBuilder(ctx.NodeID, txPool, toEngine)
@@ -485,7 +488,7 @@ func (bc *blockChain) BuildBlock() (*Block, error) {
 }
 
 func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
-	id := util.IDFromData(data)
+	id := ids.ID(util.HashFromData(data))
 	blk, err := bc.GetBlock(id)
 	if err == nil {
 		return blk, nil
@@ -607,7 +610,7 @@ func (bc *blockChain) AddRemoteTxs(txs ...*ld.Transaction) error {
 	}
 
 	if tx.Type == ld.TypeTest {
-		return fmt.Errorf("TestTx should be in a batch transactions.")
+		return fmt.Errorf("TestTx should be in a batch transactions")
 	}
 	bc.txPool.AddRemote(tx)
 	return nil
@@ -625,12 +628,12 @@ func (bc *blockChain) GetTxHeight(id ids.ID) int64 {
 	return bc.txPool.GetHeight(id)
 }
 
-func (bc *blockChain) ResolveName(name string) (*ld.DataInfo, error) {
+func (bc *blockChain) ResolveName(name string) (*service.Name, error) {
 	dn, err := service.NewDN(name)
 	if err != nil {
 		return nil, fmt.Errorf("invalid name %q, error: %v", name, err)
 	}
-	obj, err := bc.nameDB.LoadObject([]byte(dn.String()), bc.recentNames)
+	obj, err := bc.nameDB.LoadObject([]byte(dn.ASCII()), bc.recentNames)
 	if err != nil {
 		return nil, err
 	}
@@ -640,7 +643,19 @@ func (bc *blockChain) ResolveName(name string) (*ld.DataInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return bc.LoadData(util.DataID(id))
+	di, err := bc.LoadData(util.DataID(id))
+	if err != nil {
+		return nil, err
+	}
+	ns := &service.Name{}
+	if err := ns.Unmarshal(di.Data); err != nil {
+		return nil, err
+	}
+	if err := ns.SyntacticVerify(); err != nil {
+		return nil, err
+	}
+	ns.DID = di.ID
+	return ns, nil
 }
 
 func (bc *blockChain) LoadAccount(id util.EthID) (*ld.Account, error) {
@@ -749,4 +764,9 @@ func (a *atomicState) LoadV() snow.State {
 
 func (a *atomicState) StoreV(v snow.State) {
 	(*atomic.Value)(a).Store(&v)
+}
+
+func nameHashKey(key []byte) []byte {
+	k := sha3.Sum256(key)
+	return k[:]
 }

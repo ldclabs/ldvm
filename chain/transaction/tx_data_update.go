@@ -6,7 +6,6 @@ package transaction
 import (
 	"encoding/json"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
@@ -83,9 +82,6 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 
 	case len(tx.input.Data) == 0:
 		return errp.Errorf("invalid data")
-
-	case tx.input.KSig == nil:
-		return errp.Errorf("nil kSig")
 	}
 
 	if tx.input.To == nil {
@@ -98,9 +94,6 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 
 		case tx.ld.ExSignatures != nil:
 			return errp.Errorf("invalid exSignatures, should be nil")
-
-		case tx.input.MSig != nil:
-			return errp.Errorf("invalid mSig, should be nil")
 		}
 	} else {
 		// with model keepers
@@ -115,9 +108,6 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 		case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
 			return errp.Errorf("invalid amount, expected %s, got %s",
 				tx.input.Amount, tx.ld.Amount)
-
-		case tx.input.MSig == nil:
-			return errp.Errorf("nil mSig")
 
 		case tx.input.Expire < tx.ld.Timestamp:
 			return errp.Errorf("data expired")
@@ -156,7 +146,7 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 
 	tx.prevDI = tx.di.Clone()
 	switch tx.di.ModelID {
-	case constants.RawModelID, constants.CBORModelID, constants.JSONModelID:
+	case ld.RawModelID, ld.CBORModelID, ld.JSONModelID:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
@@ -184,21 +174,22 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 			if tx.input.To == nil {
 				return errp.Errorf("nil to")
 			}
-			if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
-				return errp.Errorf("invalid mSig for model keepers, %v", err)
-			}
 			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
 				return errp.Errorf("invalid exSignature for model keepers")
 			}
-			tx.di.MSig = tx.input.MSig
 		}
 	}
 
-	if err = tx.di.VerifySig(tx.di.Keepers, *tx.input.KSig); err != nil {
-		return errp.Errorf("invalid data signature for data keepers, %v", err)
-	}
-	tx.di.KSig = *tx.input.KSig
 	tx.di.Version++
+	if tx.input.SigClaims != nil {
+		tx.di.SigClaims = tx.input.SigClaims
+		tx.di.Sig = tx.input.Sig
+
+		if _, err = tx.di.Signer(); err != nil {
+			return errp.ErrorIf(err)
+		}
+	}
+
 	if err = tx.di.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -216,10 +207,10 @@ func (tx *TxUpdateData) Apply(bctx BlockContext, bs BlockState) error {
 		}
 	}
 
-	if err = bs.SavePrevData(*tx.input.ID, tx.prevDI); err != nil {
+	if err = bs.SavePrevData(tx.prevDI); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
+	if err = bs.SaveData(tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

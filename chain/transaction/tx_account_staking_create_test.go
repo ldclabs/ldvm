@@ -111,7 +111,7 @@ func TestTxCreateStake(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "cbor: cannot unmarshal")
+	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.TxAccounter{}
 	txData = &ld.TxData{

@@ -188,7 +188,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 
 			nonce := uint64(0)
 			tx := &ld.Transaction{
-				Type:    ld.TypeUpdateAccountKeepers,
+				Type:    ld.TypeUpdateAccountInfo,
 				ChainID: g.Chain.ChainID,
 				Nonce:   nonce,
 				From:    util.EthID(id),
@@ -212,7 +212,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	cfgData := &ld.TxUpdater{
-		ModelID:   &constants.JSONModelID,
+		ModelID:   &ld.JSONModelID,
 		Version:   1,
 		Threshold: &genesisAccount.Threshold,
 		Keepers:   &genesisAccount.Keepers,

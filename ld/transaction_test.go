@@ -206,7 +206,7 @@ func TestTransaction(t *testing.T) {
 	assert.False(tx.NeedApprove(nil, nil))
 	assert.True(tx.NeedApprove(&constants.GenesisAccount, nil))
 	assert.True(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeTransfer}))
-	assert.False(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeUpdateAccountKeepers}))
+	assert.False(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeUpdateAccountInfo}))
 }
 
 func TestTxs(t *testing.T) {

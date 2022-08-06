@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxUpdateAccountKeepers(t *testing.T) {
+func TestTxUpdateAccountInfo(t *testing.T) {
 	assert := assert.New(t)
 
 	// SyntacticVerify
-	tx := &TxUpdateAccountKeepers{}
+	tx := &TxUpdateAccountInfo{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
 	assert.NoError(err)
@@ -30,7 +30,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	approver := util.Signer2.Address()
 
 	txData := &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -42,7 +42,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -55,7 +55,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -68,7 +68,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -81,7 +81,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.ErrorContains(err, "nil to together with amount")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -93,7 +93,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.ErrorContains(err, "invalid data")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -103,12 +103,12 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "cbor: cannot unmarshal")
+	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := ld.TxAccounter{}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -132,7 +132,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -161,9 +161,9 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
-		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
@@ -176,7 +176,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateAccountKeepers","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeAddNonceTable","TypeUpdateAccountKeepers","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]},"signatures":["f17168d2ddcf516e263bd27ad2bd400b89b8482053ed4760aba782953dbf2e4b05d1ff96d7bc0a1c0726829373579216602e631ac25f8c2352b3cc6b9472315400"],"id":"KuMRgdoifs9ytwAv7EWwgmwrHrQpmoFEMu9YF9XaF8eMRZjMj"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeAddNonceTable","TypeUpdateAccountInfo","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]},"signatures":["f17168d2ddcf516e263bd27ad2bd400b89b8482053ed4760aba782953dbf2e4b05d1ff96d7bc0a1c0726829373579216602e631ac25f8c2352b3cc6b9472315400"],"id":"KuMRgdoifs9ytwAv7EWwgmwrHrQpmoFEMu9YF9XaF8eMRZjMj"}`, string(jsondata))
 
 	// update ApproveList
 	input = ld.TxAccounter{
@@ -184,7 +184,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
@@ -209,9 +209,9 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
-		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
@@ -225,7 +225,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
@@ -241,9 +241,9 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
-		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
@@ -258,7 +258,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     3,
 		GasTip:    100,
@@ -274,9 +274,9 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
-		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
@@ -288,7 +288,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     4,
 		GasTip:    100,
@@ -313,7 +313,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 		"DeriveSigners error: duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     4,
 		GasTip:    100,
@@ -330,9 +330,9 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*bctx.Price,
-		itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(bctx.Price+100),
 		senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
@@ -347,7 +347,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData = &ld.TxData{
-		Type:      ld.TypeUpdateAccountKeepers,
+		Type:      ld.TypeUpdateAccountInfo,
 		ChainID:   bctx.ChainConfig().ChainID,
 		Nonce:     5,
 		GasTip:    100,
@@ -364,7 +364,7 @@ func TestTxUpdateAccountKeepers(t *testing.T) {
 	assert.NoError(bs.VerifyState())
 }
 
-func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
+func TestTxUpdateAccountInfoGenesis(t *testing.T) {
 	assert := assert.New(t)
 
 	bctx := NewMockBCtx()
@@ -377,18 +377,18 @@ func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
 	}
 	assert.NoError(input.SyntacticVerify())
 	txData := &ld.TxData{
-		Type:    ld.TypeUpdateAccountKeepers,
+		Type:    ld.TypeUpdateAccountInfo,
 		ChainID: bctx.ChainConfig().ChainID,
 		From:    sender,
 		Data:    input.Bytes(),
 	}
 	itx, err := NewGenesisTx(txData.ToTransaction())
 	assert.NoError(err)
-	assert.NoError(itx.(*TxUpdateAccountKeepers).ApplyGenesis(bctx, bs))
+	assert.NoError(itx.(*TxUpdateAccountInfo).ApplyGenesis(bctx, bs))
 
 	senderAcc := bs.MustAccount(sender)
-	assert.Equal(uint64(0), itx.(*TxUpdateAccountKeepers).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxUpdateAccountKeepers).miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), senderAcc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
@@ -398,7 +398,7 @@ func TestTxUpdateAccountKeepersGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateAccountKeepers","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"]},"id":"yK8rnb4pH5r5vJGPWicdsR4yiL6AhK9gJLnWhh2tLSQDSfNFz"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"]},"id":"yK8rnb4pH5r5vJGPWicdsR4yiL6AhK9gJLnWhh2tLSQDSfNFz"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

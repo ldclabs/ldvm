@@ -469,7 +469,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(2, len(sa.ledger.Stake))
 
 	total = sa.GetStakeAmount(constants.NativeToken, util.Signer1.Address()).Uint64()
-	am, err = sa.WithdrawStake(constants.NativeToken, util.Signer1.Address(),
+	_, err = sa.WithdrawStake(constants.NativeToken, util.Signer1.Address(),
 		util.EthIDs{}, new(big.Int).SetUint64(total))
 	assert.ErrorContains(err,
 		"insufficient NativeLDC balance for withdraw, expected 13036950323, got 3036950323")

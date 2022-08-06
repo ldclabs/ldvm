@@ -29,7 +29,7 @@ func TestTxType(t *testing.T) {
 		case TypePunish:
 			assert.Equal(TxType(16), ty)
 			assert.True(AllTxTypes.Has(ty))
-		case TypeUpdateModelKeepers:
+		case TypeUpdateModelInfo:
 			assert.Equal(TxType(18), ty)
 			assert.True(ModelTxTypes.Has(ty))
 		case TypeCreateData:

@@ -4,7 +4,6 @@
 package chain
 
 import (
-	"bytes"
 	"fmt"
 	"math/big"
 	"sync"
@@ -79,7 +78,7 @@ type BlockState interface {
 func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseDB database.Database) *blockState {
 	vdb := versiondb.New(baseDB)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
-	return &blockState{
+	bs := &blockState{
 		ctx:            ctx,
 		height:         height,
 		timestamp:      timestamp,
@@ -88,7 +87,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 		vdb:            vdb,
 		blockDB:        pdb.With(blockDBPrefix),
 		heightDB:       pdb.With(heightDBPrefix),
-		lastAcceptedDB: pdb.With(lastAcceptedKey),
+		lastAcceptedDB: pdb.With(lastAcceptedDBPrefix),
 		accountDB:      pdb.With(accountDBPrefix),
 		ledgerDB:       pdb.With(ledgerDBPrefix),
 		modelDB:        pdb.With(modelDBPrefix),
@@ -98,6 +97,9 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, b
 		nameDB:         pdb.With(nameDBPrefix),
 		accountCache:   getAccountCache(),
 	}
+
+	bs.nameDB.SetHashKey(nameHashKey)
+	return bs
 }
 
 func (bs *blockState) Height() uint64 {
@@ -138,6 +140,8 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		nameDB:         pdb.With(nameDBPrefix),
 		accountCache:   getAccountCache(),
 	}
+
+	nbs.nameDB.SetHashKey(nameHashKey)
 
 	for _, a := range bs.accountCache {
 		data, ledger, err := a.Marshal()
@@ -229,45 +233,22 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, erro
 	return bs.LoadAccount(miner)
 }
 
-// name should be ASCII form (IDNA2008)
-func (bs *blockState) SetASCIIName(name string, id util.DataID) error {
+func (bs *blockState) SaveName(ns *service.Name) error {
+	if ns.DID == util.DataIDEmpty {
+		return fmt.Errorf("blockState.SaveName: data ID is empty")
+	}
+
+	name := ns.ASCII()
 	key := []byte(name)
-	data, err := bs.nameDB.Get(key)
-	switch err {
-	case nil:
-		if !bytes.Equal(data, id[:]) {
-			return fmt.Errorf("name %q conflict", name)
-		}
-	case database.ErrNotFound:
-		err = bs.nameDB.Put(key, id[:])
+	ok, err := bs.nameDB.Has(key)
+	switch {
+	case ok:
+		return fmt.Errorf("name %q conflict", name)
+	case err == nil:
+		err = bs.nameDB.Put(key, ns.DID[:])
 	}
 
 	return err
-}
-
-// name should be unicode form
-func (bs *blockState) ResolveNameID(name string) (util.DataID, error) {
-	dn, err := service.NewDN(name)
-	if err != nil {
-		return util.DataIDEmpty,
-			fmt.Errorf("invalid name %q, error: %v", name, err)
-	}
-
-	data, err := bs.nameDB.Get([]byte(dn.ASCII()))
-	if err != nil {
-		return util.DataIDEmpty, err
-	}
-	id, err := ids.ToShortID(data)
-	return util.DataID(id), err
-}
-
-// name should be unicode form
-func (bs *blockState) ResolveName(name string) (*ld.DataInfo, error) {
-	id, err := bs.ResolveNameID(name)
-	if err != nil {
-		return nil, err
-	}
-	return bs.LoadData(id)
 }
 
 func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
@@ -286,12 +267,16 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	return mi, nil
 }
 
-func (bs *blockState) SaveModel(id util.ModelID, mi *ld.ModelInfo) error {
+func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
+	if mi.ID == util.ModelIDEmpty {
+		return fmt.Errorf("blockState.SaveModel: model ID is empty")
+	}
+
 	if err := mi.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.ls.UpdateModel(id, mi.Bytes())
-	return bs.modelDB.Put(id[:], mi.Bytes())
+	bs.ls.UpdateModel(mi.ID, mi.Bytes())
+	return bs.modelDB.Put(mi.ID[:], mi.Bytes())
 }
 
 func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
@@ -310,32 +295,44 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	return di, nil
 }
 
-func (bs *blockState) SaveData(id util.DataID, di *ld.DataInfo) error {
+func (bs *blockState) SaveData(di *ld.DataInfo) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("blockState.SaveData: data ID is empty")
+	}
+
 	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	bs.ls.UpdateData(id, di.Bytes())
-	return bs.dataDB.Put(id[:], di.Bytes())
+	bs.ls.UpdateData(di.ID, di.Bytes())
+	return bs.dataDB.Put(di.ID[:], di.Bytes())
 }
 
-func (bs *blockState) SavePrevData(id util.DataID, di *ld.DataInfo) error {
+func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("blockState.SavePrevData: data ID is empty")
+	}
+
 	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
 
-	return bs.prevDataDB.Put(id.VersionKey(di.Version), di.Bytes())
+	return bs.prevDataDB.Put(di.ID.VersionKey(di.Version), di.Bytes())
 }
 
-func (bs *blockState) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) error {
+func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("blockState.DeleteData: data ID is empty")
+	}
+
 	version := di.Version
 	if err := di.MarkDeleted(message); err != nil {
 		return err
 	}
-	if err := bs.SaveData(id, di); err != nil {
+	if err := bs.SaveData(di); err != nil {
 		return err
 	}
 	for version > 0 {
-		bs.prevDataDB.Delete(id.VersionKey(version))
+		bs.prevDataDB.Delete(di.ID.VersionKey(version))
 		version--
 	}
 	return nil

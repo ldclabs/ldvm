@@ -107,7 +107,7 @@ func (b *Block) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
-	b.ID = util.IDFromData(b.raw)
+	b.ID = ids.ID(util.HashFromData(b.raw))
 	return nil
 }
 

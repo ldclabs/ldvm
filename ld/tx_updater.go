@@ -11,14 +11,20 @@ import (
 
 // TxUpdater is a hybrid data model for:
 //
-// TxCreateData{ModelID, Version, Threshold, Keepers, Data, KSig[, Approver, ApproveList]} no model keepers
-// TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, KSig, MSig, Expire[, Approver, ApproveList]} with model keepers
-// TxUpdateData{ID, Version, Data, KSig} no model keepers
-// TxUpdateData{ID, Version, To, Amount, Data, KSig, MSig, Expire} with model keepers
+// TxCreateData{ModelID, Version, Threshold, Keepers, Data[, Approver, ApproveList]} no model keepers
+// TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, Expire[, Approver, ApproveList]} with model keepers
+//
+// TxUpdateData{ID, Version, Data} no model keepers
+// TxUpdateData{ID, Version, SigClaims, Sig, Data} no model keepers
+// TxUpdateData{ID, Version, To, Amount, Data, Expire} with model keepers
+// TxUpdateData{ID, Version, SigClaims, Sig, To, Amount, Data, Expire} with model keepers
+//
 // TxDeleteData{ID, Version[, Data]}
-// TxUpdateDataKeepers{ID, Version, Threshold, Keepers, KSig[, Approver, ApproveList, Data]}
-// TxUpdateDataKeepersByAuth{ID, Version, To, Amount, Threshold, Keepers, KSig, Expire[, Approver, ApproveList, Token, Data]}
-// TxUpdateModelKeepers{ModelID, Threshold, Keepers[, Approver, Data]}
+//
+// TxUpdateDataInfo{ID, Version, Threshold, Keepers[, SigClaims, Sig, Approver, ApproveList]}
+// TxUpdateDataInfoByAuth{ID, Version, To, Amount, Threshold, Keepers, Expire[, Approver, ApproveList, Token]}
+//
+// TxUpdateModelInfo{ModelID, Threshold, Keepers[, Approver]}
 type TxUpdater struct {
 	ID          *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
 	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
@@ -30,8 +36,8 @@ type TxUpdater struct {
 	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
 	To          *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
 	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
-	KSig        *util.Signature   `cbor:"ks,omitempty" json:"kSig,omitempty"`  // full data signature signing by Data Keeper
-	MSig        *util.Signature   `cbor:"ms,omitempty" json:"mSig,omitempty"`  // full data signature signing by Model Service Authority
+	SigClaims   *SigClaims        `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
+	Sig         *util.Signature   `cbor:"s,omitempty" json:"sig,omitempty"`
 	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
 	Data        util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 
@@ -90,6 +96,20 @@ func (t *TxUpdater) SyntacticVerify() error {
 			if !DataTxTypes.Has(ty) {
 				return errp.Errorf("invalid TxType %s in approveList", ty)
 			}
+		}
+	}
+
+	if t.SigClaims != nil || t.Sig != nil {
+		switch {
+		case t.SigClaims == nil:
+			return errp.Errorf("nil sigClaims together with sig")
+
+		case t.Sig == nil:
+			return errp.Errorf("nil sig together with sigClaims")
+		}
+
+		if err = t.SigClaims.SyntacticVerify(); err != nil {
+			return errp.Errorf("invalid sigClaims, %v", err)
 		}
 	}
 

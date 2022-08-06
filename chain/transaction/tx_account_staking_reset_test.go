@@ -119,7 +119,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
 	assert.ErrorContains(err,
-		"StakeConfig.Unmarshal error: cbor: cannot unmarshal primitives into Go value of type ld.StakeConfig")
+		"StakeConfig.Unmarshal error: cbor")
 
 	// create a stake account for testing
 	scfg := &ld.StakeConfig{

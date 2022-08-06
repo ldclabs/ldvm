@@ -68,12 +68,13 @@ func (tx *TxPunish) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
+	// we can pubish deleted data.
 	switch {
-	case tx.input.ID == nil:
-		return errp.Errorf("nil data id")
-
-	case *tx.input.ID == util.DataIDEmpty:
+	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
 		return errp.Errorf("invalid data id")
+
+	case !util.ValidMessage(string(tx.input.Data)):
+		return errp.Errorf("invalid deleting message")
 	}
 	return nil
 }
@@ -90,7 +91,7 @@ func (tx *TxPunish) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
+	if err = bs.DeleteData(tx.di, tx.input.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

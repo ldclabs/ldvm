@@ -22,6 +22,11 @@ type PrefixDB struct {
 	db        database.Database
 	prefixLen int
 	keyBuf    []byte
+	hashKey   func([]byte) []byte
+}
+
+func noopHashKey(key []byte) []byte {
+	return key
 }
 
 func NewPrefixDB(db database.Database, prefix []byte, keyBufSize int) *PrefixDB {
@@ -29,6 +34,7 @@ func NewPrefixDB(db database.Database, prefix []byte, keyBufSize int) *PrefixDB 
 		db:        db,
 		prefixLen: len(prefix),
 		keyBuf:    make([]byte, keyBufSize),
+		hashKey:   noopHashKey,
 	}
 	copy(p.keyBuf, prefix)
 	return p
@@ -39,17 +45,22 @@ func (p *PrefixDB) With(prefix []byte) *PrefixDB {
 		db:        p.db,
 		prefixLen: p.prefixLen + len(prefix),
 		keyBuf:    make([]byte, len(p.keyBuf)),
+		hashKey:   p.hashKey,
 	}
 	copy(np.keyBuf, p.keyBuf[:p.prefixLen])
 	copy(np.keyBuf[p.prefixLen:], prefix)
 	return np
 }
 
+func (p *PrefixDB) SetHashKey(fn func([]byte) []byte) {
+	p.hashKey = fn
+}
+
 func (p *PrefixDB) Has(key []byte) (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	n := copy(p.keyBuf[p.prefixLen:], key)
+	n := copy(p.keyBuf[p.prefixLen:], p.hashKey(key))
 	return p.db.Has(p.keyBuf[:n+p.prefixLen])
 }
 
@@ -61,7 +72,7 @@ func (p *PrefixDB) Get(key []byte) ([]byte, error) {
 }
 
 func (p *PrefixDB) get(key []byte) ([]byte, error) {
-	n := copy(p.keyBuf[p.prefixLen:], key)
+	n := copy(p.keyBuf[p.prefixLen:], p.hashKey(key))
 	return p.db.Get(p.keyBuf[:n+p.prefixLen])
 }
 
@@ -94,7 +105,7 @@ func (p *PrefixDB) Put(key, value []byte) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	n := copy(p.keyBuf[p.prefixLen:], key)
+	n := copy(p.keyBuf[p.prefixLen:], p.hashKey(key))
 	return p.db.Put(p.keyBuf[:n+p.prefixLen], value)
 }
 
@@ -102,6 +113,6 @@ func (p *PrefixDB) Delete(key []byte) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	n := copy(p.keyBuf[p.prefixLen:], key)
+	n := copy(p.keyBuf[p.prefixLen:], p.hashKey(key))
 	return p.db.Delete(p.keyBuf[:n+p.prefixLen])
 }

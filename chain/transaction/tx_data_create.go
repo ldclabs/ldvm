@@ -39,8 +39,8 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-// TxCreateData{ID, Version, Threshold, Keepers, Data, KSig} no model keepers
-// TxCreateData{ID, Version, To, Amount, Threshold, Keepers, Data, KSig, MSig, Expire} with model keepers
+// TxCreateData{ID, Version, Threshold, Keepers, Data} no model keepers
+// TxCreateData{ID, Version, To, Amount, Threshold, Keepers, Data, Expire} with model keepers
 func (tx *TxCreateData) SyntacticVerify() error {
 	var err error
 	errp := util.ErrPrefix("TxCreateData.SyntacticVerify error: ")
@@ -79,10 +79,10 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		return errp.Errorf("empty keepers")
 
 	case len(tx.input.Data) == 0:
-		return errp.Errorf("invalid data")
+		return errp.Errorf("empty data")
 
-	case tx.input.KSig == nil:
-		return errp.Errorf("nil kSig")
+	case tx.input.SigClaims != nil:
+		return errp.Errorf("invalid sigClaims, should be nil")
 	}
 
 	tx.di = &ld.DataInfo{
@@ -93,12 +93,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		Approver:    tx.input.Approver,
 		ApproveList: tx.input.ApproveList,
 		Data:        tx.input.Data,
-		KSig:        *tx.input.KSig,
-		MSig:        tx.input.MSig,
 		ID:          util.DataID(tx.ld.ShortID()),
-	}
-	if err := tx.di.VerifySig(tx.di.Keepers, tx.di.KSig); err != nil {
-		return errp.Errorf("invalid kSig, %v", err)
 	}
 
 	if tx.input.To == nil {
@@ -111,9 +106,6 @@ func (tx *TxCreateData) SyntacticVerify() error {
 
 		case tx.ld.ExSignatures != nil:
 			return errp.Errorf("invalid exSignatures, should be nil")
-
-		case tx.input.MSig != nil:
-			return errp.Errorf("invalid mSig, should be nil")
 		}
 	} else {
 		// with model keepers
@@ -124,9 +116,6 @@ func (tx *TxCreateData) SyntacticVerify() error {
 
 		case tx.input.Expire < tx.ld.Timestamp:
 			return errp.Errorf("data expired")
-
-		case tx.input.MSig == nil:
-			return errp.Errorf("nil mSig")
 
 		case tx.input.Amount == nil || tx.ld.Amount == nil:
 			return errp.Errorf("nil amount")
@@ -140,6 +129,10 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		if err != nil {
 			return errp.Errorf("invalid exSignatures, %v", err)
 		}
+	}
+
+	if err = tx.di.SyntacticVerify(); err != nil {
+		return errp.ErrorIf(err)
 	}
 	return nil
 }
@@ -182,6 +175,9 @@ func (tx *TxCreateData) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 		Data:      tx.input.Data,
 		ID:        util.DataID(tx.ld.ShortID()),
 	}
+	if err = tx.di.SyntacticVerify(); err != nil {
+		return errp.ErrorIf(err)
+	}
 
 	tx.amount = new(big.Int)
 	tx.tip = new(big.Int)
@@ -199,12 +195,7 @@ func (tx *TxCreateData) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.ns != nil {
-		if err = bs.SetASCIIName(tx.ns.ASCII(), tx.di.ID); err != nil {
-			return errp.ErrorIf(err)
-		}
-	}
-	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
+	if err = bs.SaveData(tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
@@ -219,12 +210,12 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 	}
 
 	switch tx.di.ModelID {
-	case constants.RawModelID:
+	case ld.RawModelID:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
 
-	case constants.CBORModelID:
+	case ld.CBORModelID:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
@@ -232,7 +223,7 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 			return errp.Errorf("invalid CBOR encoding data: %v", err)
 		}
 
-	case constants.JSONModelID:
+	case ld.JSONModelID:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
@@ -256,13 +247,10 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 			if tx.input.To == nil {
 				return errp.Errorf("nil to")
 			}
-			if err = tx.di.VerifySig(mi.Keepers, *tx.input.MSig); err != nil {
-				return errp.Errorf("invalid mSig for model keepers, %v", err)
-			}
+
 			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
 				return errp.Errorf("invalid exSignatures for model keepers")
 			}
-			tx.di.MSig = tx.input.MSig
 		}
 
 		if err = mi.Model().Valid(tx.di.Data); err != nil {
@@ -278,13 +266,14 @@ func (tx *TxCreateData) Apply(bctx BlockContext, bs BlockState) error {
 				return errp.ErrorIf(err)
 			}
 
-			if err = bs.SetASCIIName(tx.ns.ASCII(), tx.di.ID); err != nil {
+			tx.ns.DID = tx.di.ID
+			if err = bs.SaveName(tx.ns); err != nil {
 				return errp.ErrorIf(err)
 			}
 		}
 	}
 
-	if err = bs.SaveData(tx.di.ID, tx.di); err != nil {
+	if err = bs.SaveData(tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

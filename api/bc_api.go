@@ -83,8 +83,8 @@ func (api *API) RPC(req *cborrpc.Req) *cborrpc.Res {
 	case "getNameID":
 		return api.getNameID(req)
 
-	case "resolveName":
-		return api.resolveName(req)
+	case "getNameData":
+		return api.getNameData(req)
 
 	default:
 		return req.InvalidMethod()
@@ -302,7 +302,7 @@ func (api *API) getNameID(req *cborrpc.Req) *cborrpc.Res {
 	return req.ResultRaw(raw)
 }
 
-func (api *API) resolveName(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getNameData(req *cborrpc.Req) *cborrpc.Res {
 	var name string
 	if err := req.DecodeParams(name); err != nil {
 		return req.Error(err)

@@ -18,8 +18,9 @@ type Name struct {
 	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
 
 	// external assignment fields
-	raw []byte `cbor:"-" json:"-"`
-	dn  *DN    `cbor:"-" json:"-"`
+	DID util.DataID `cbor:"-" json:"did"`
+	raw []byte      `cbor:"-" json:"-"`
+	dn  *DN         `cbor:"-" json:"-"`
 }
 
 func NameModel() (*ld.IPLDModel, error) {
@@ -36,7 +37,7 @@ func NameModel() (*ld.IPLDModel, error) {
 
 type lazyName struct {
 	Name    string          `cbor:"n"`
-	Linked  cbor.RawMessage `cbor:"l,omitempty"`
+	Linked  cbor.RawMessage `cbor:"l"`
 	Records cbor.RawMessage `cbor:"rs"`
 }
 

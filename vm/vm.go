@@ -61,20 +61,24 @@ type VM struct {
 // Initialize implements the common.VM Initialize interface
 // Initialize this VM.
 // [ctx]: Metadata about this VM.
-//     [ctx.networkID]: The ID of the network this VM's chain is running on.
-//     [ctx.chainID]: The unique ID of the chain this VM is running on.
-//     [ctx.Log]: Used to log messages
-//     [ctx.NodeID]: The unique staker ID of this node.
-//     [ctx.Lock]: A Read/Write lock shared by this VM and the consensus
-//                 engine that manages this VM. The write lock is held
-//                 whenever code in the consensus engine calls the VM.
+//
+//	[ctx.networkID]: The ID of the network this VM's chain is running on.
+//	[ctx.chainID]: The unique ID of the chain this VM is running on.
+//	[ctx.Log]: Used to log messages
+//	[ctx.NodeID]: The unique staker ID of this node.
+//	[ctx.Lock]: A Read/Write lock shared by this VM and the consensus
+//	            engine that manages this VM. The write lock is held
+//	            whenever code in the consensus engine calls the VM.
+//
 // [dbManager]: The manager of the database this VM will persist data to.
 // [genesisBytes]: The byte-encoding of the genesis information of this
-//                 VM. The VM uses it to initialize its state. For
-//                 example, if this VM were an account-based payments
-//                 system, `genesisBytes` would probably contain a genesis
-//                 transaction that gives coins to some accounts, and this
-//                 transaction would be in the genesis block.
+//
+//	VM. The VM uses it to initialize its state. For
+//	example, if this VM were an account-based payments
+//	system, `genesisBytes` would probably contain a genesis
+//	transaction that gives coins to some accounts, and this
+//	transaction would be in the genesis block.
+//
 // [toEngine]: The channel used to send messages to the consensus engine.
 // [fxs]: Feature extensions that attach to this VM.
 func (v *VM) Initialize(
@@ -344,7 +348,7 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	id := util.IDFromData(data)
+	id := ids.ID(util.HashFromData(data))
 	err = ld.Recover("", func() error {
 		blk, err = v.bc.ParseBlock(data)
 		return err

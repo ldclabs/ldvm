@@ -9,11 +9,11 @@ import (
 )
 
 type State struct {
-	Parent   ids.ID            `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
-	Accounts map[string]ids.ID `cbor:"a" json:"accounts"`
-	Ledgers  map[string]ids.ID `cbor:"l" json:"ledgers"`
-	Datas    map[string]ids.ID `cbor:"d" json:"datas"`
-	Models   map[string]ids.ID `cbor:"m" json:"models"`
+	Parent   ids.ID               `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
+	Accounts map[string]util.Hash `cbor:"a" json:"accounts"`
+	Ledgers  map[string]util.Hash `cbor:"l" json:"ledgers"`
+	Datas    map[string]util.Hash `cbor:"d" json:"datas"`
+	Models   map[string]util.Hash `cbor:"m" json:"models"`
 
 	// external assignment fields
 	ID  ids.ID `cbor:"-" json:"id"`
@@ -23,10 +23,10 @@ type State struct {
 func NewState(parent ids.ID) *State {
 	return &State{
 		Parent:   parent,
-		Accounts: make(map[string]ids.ID),
-		Ledgers:  make(map[string]ids.ID),
-		Datas:    make(map[string]ids.ID),
-		Models:   make(map[string]ids.ID),
+		Accounts: make(map[string]util.Hash),
+		Ledgers:  make(map[string]util.Hash),
+		Datas:    make(map[string]util.Hash),
+		Models:   make(map[string]util.Hash),
 	}
 }
 
@@ -56,33 +56,33 @@ func (s *State) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
-	s.ID = util.IDFromData(s.raw)
+	s.ID = ids.ID(util.HashFromData(s.raw))
 	return nil
 }
 
 func (s *State) UpdateAccount(id util.EthID, data []byte) {
-	s.Accounts[string(id[:])] = util.IDFromData(data)
+	s.Accounts[string(id[:])] = util.HashFromData(data)
 }
 
 func (s *State) UpdateLedger(id util.EthID, data []byte) {
-	s.Ledgers[string(id[:])] = util.IDFromData(data)
+	s.Ledgers[string(id[:])] = util.HashFromData(data)
 }
 
 func (s *State) UpdateData(id util.DataID, data []byte) {
-	s.Datas[string(id[:])] = util.IDFromData(data)
+	s.Datas[string(id[:])] = util.HashFromData(data)
 }
 
 func (s *State) UpdateModel(id util.ModelID, data []byte) {
-	s.Models[string(id[:])] = util.IDFromData(data)
+	s.Models[string(id[:])] = util.HashFromData(data)
 }
 
 func (s *State) Clone() *State {
 	ns := &State{
 		Parent:   s.Parent,
-		Accounts: make(map[string]ids.ID, len(s.Accounts)),
-		Ledgers:  make(map[string]ids.ID, len(s.Ledgers)),
-		Datas:    make(map[string]ids.ID, len(s.Datas)),
-		Models:   make(map[string]ids.ID, len(s.Models)),
+		Accounts: make(map[string]util.Hash, len(s.Accounts)),
+		Ledgers:  make(map[string]util.Hash, len(s.Ledgers)),
+		Datas:    make(map[string]util.Hash, len(s.Datas)),
+		Models:   make(map[string]util.Hash, len(s.Models)),
 	}
 
 	for k := range s.Accounts {

@@ -25,28 +25,28 @@ const (
 	TypePunish TxType = 16 + iota
 
 	// Model
-	TypeCreateModel        // create a data model
-	TypeUpdateModelKeepers // update data model's Keepers and Threshold
+	TypeCreateModel     // create a data model
+	TypeUpdateModelInfo // update data model's info
 
 	// Data
-	TypeCreateData              // create a data from the model
-	TypeUpdateData              // update the data's Data
-	TypeUpdateDataKeepers       // update data's Keepers and Threshold
-	TypeUpdateDataKeepersByAuth // update data's Keepers and Threshold by authorization
-	TypeDeleteData              // delete the data
+	TypeCreateData           // create a data from the model
+	TypeUpdateData           // update the data's Data
+	TypeUpdateDataInfo       // update data's info, such as keepers, threshold, approvers, sigClaims, etc.
+	TypeUpdateDataInfoByAuth // update data's info by authorization
+	TypeDeleteData           // delete the data
 )
 
 const (
 	// Account
-	TypeAddNonceTable        TxType = 32 + iota // add more nonce with expire time to account
-	TypeUpdateAccountKeepers                    // update account's Keepers and Threshold
-	TypeCreateToken                             // create a token account
-	TypeDestroyToken                            // destroy a token account
-	TypeCreateStake                             // create a stake account
-	TypeResetStake                              // reset a stake account
-	TypeDestroyStake                            // destroy a stake account
-	TypeTakeStake                               // take a stake in
-	TypeWithdrawStake                           // withdraw stake
+	TypeAddNonceTable     TxType = 32 + iota // add more nonce with expire time to account
+	TypeUpdateAccountInfo                    // update account's Keepers and Threshold
+	TypeCreateToken                          // create a token account
+	TypeDestroyToken                         // destroy a token account
+	TypeCreateStake                          // create a stake account
+	TypeResetStake                           // reset a stake account
+	TypeDestroyStake                         // destroy a stake account
+	TypeTakeStake                            // take a stake in
+	TypeWithdrawStake                        // withdraw stake
 	TypeUpdateStakeApprover
 	TypeOpenLending
 	TypeCloseLending
@@ -56,17 +56,17 @@ const (
 
 // TxTypes set
 var TransferTxTypes = TxTypes{TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange}
-var ModelTxTypes = TxTypes{TypeUpdateModelKeepers}
-var DataTxTypes = TxTypes{TypeUpdateData, TypeUpdateDataKeepers, TypeUpdateDataKeepersByAuth, TypeDeleteData}
-var AccountTxTypes = TxTypes{TypeAddNonceTable, TypeUpdateAccountKeepers, TypeCreateToken,
+var ModelTxTypes = TxTypes{TypeUpdateModelInfo}
+var DataTxTypes = TxTypes{TypeUpdateData, TypeUpdateDataInfo, TypeUpdateDataInfoByAuth, TypeDeleteData}
+var AccountTxTypes = TxTypes{TypeAddNonceTable, TypeUpdateAccountInfo, TypeCreateToken,
 	TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake, TypeTakeStake,
 	TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending, TypeBorrow, TypeRepay}
 var AllTxTypes = TxTypes{TypeTest, TypePunish, TypeCreateModel, TypeCreateData}.Union(
 	TransferTxTypes, ModelTxTypes, DataTxTypes, AccountTxTypes)
 
-var TokenFromTxTypes = TxTypes{TypeEth, TypeTransfer, TypeUpdateAccountKeepers, TypeAddNonceTable, TypeDestroyToken, TypeOpenLending, TypeCloseLending}
+var TokenFromTxTypes = TxTypes{TypeEth, TypeTransfer, TypeUpdateAccountInfo, TypeAddNonceTable, TypeDestroyToken, TypeOpenLending, TypeCloseLending}
 var TokenToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeExchange, TypeCreateToken, TypeBorrow, TypeRepay}
-var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountKeepers, TypeAddNonceTable, TypeResetStake, TypeDestroyStake}
+var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountInfo, TypeAddNonceTable, TypeResetStake, TypeDestroyStake}
 var StakeFromTxTypes1 = TxTypes{TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending}.Union(StakeFromTxTypes0)
 var StakeFromTxTypes2 = TxTypes{TypeEth, TypeTransfer}.Union(StakeFromTxTypes1)
 var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeBorrow, TypeRepay}
@@ -82,7 +82,7 @@ func (t TxType) Gas() uint64 {
 	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
 		TypeExchange, TypeAddNonceTable:
 		return 42
-	case TypeUpdateAccountKeepers, TypeCreateToken,
+	case TypeUpdateAccountInfo, TypeCreateToken,
 		TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake:
 		return 1000
 	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
@@ -93,11 +93,11 @@ func (t TxType) Gas() uint64 {
 		return 500
 	case TypePunish:
 		return 42
-	case TypeCreateModel, TypeUpdateModelKeepers:
+	case TypeCreateModel, TypeUpdateModelInfo:
 		return 500
-	case TypeCreateData, TypeUpdateData, TypeUpdateDataKeepers:
+	case TypeCreateData, TypeUpdateData, TypeUpdateDataInfo:
 		return 100
-	case TypeUpdateDataKeepersByAuth, TypeDeleteData:
+	case TypeUpdateDataInfoByAuth, TypeDeleteData:
 		return 200
 	default:
 		return 10000
@@ -122,8 +122,8 @@ func (t TxType) String() string {
 		return "TypeExchange"
 	case TypeAddNonceTable:
 		return "TypeAddNonceTable"
-	case TypeUpdateAccountKeepers:
-		return "TypeUpdateAccountKeepers"
+	case TypeUpdateAccountInfo:
+		return "TypeUpdateAccountInfo"
 	case TypeCreateToken:
 		return "TypeCreateToken"
 	case TypeDestroyToken:
@@ -150,16 +150,16 @@ func (t TxType) String() string {
 		return "TypeRepay"
 	case TypeCreateModel:
 		return "TypeCreateModel"
-	case TypeUpdateModelKeepers:
-		return "TypeUpdateModelKeepers"
+	case TypeUpdateModelInfo:
+		return "TypeUpdateModelInfo"
 	case TypeCreateData:
 		return "TypeCreateData"
 	case TypeUpdateData:
 		return "TypeUpdateData"
-	case TypeUpdateDataKeepers:
-		return "TypeUpdateDataKeepers"
-	case TypeUpdateDataKeepersByAuth:
-		return "TypeUpdateDataKeepersByAuth"
+	case TypeUpdateDataInfo:
+		return "TypeUpdateDataInfo"
+	case TypeUpdateDataInfoByAuth:
+		return "TypeUpdateDataInfoByAuth"
 	case TypeDeleteData:
 		return "TypeDeleteData"
 	default:
