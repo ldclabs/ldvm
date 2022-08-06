@@ -102,7 +102,7 @@ func TestTxDeleteData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "cbor: cannot unmarshal")
+	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.TxUpdater{}
 	txData = &ld.TxData{
@@ -169,7 +169,7 @@ func TestTxDeleteData(t *testing.T) {
 	bs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
@@ -177,11 +177,8 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err := util.Signer2.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	assert.NoError(bs.SaveData(di.ID, di))
+	assert.NoError(bs.SaveData(di))
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid version, expected 2, got 1")
 	bs.CheckoutAccounts()
@@ -205,7 +202,7 @@ func TestTxDeleteData(t *testing.T) {
 	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
@@ -213,29 +210,23 @@ func TestTxDeleteData(t *testing.T) {
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	assert.NoError(bs.SaveData(di.ID, di))
+	assert.NoError(bs.SaveData(di))
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs), "invalid signature for data approver")
 	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	assert.NoError(bs.SaveData(di.ID, di))
+	assert.NoError(bs.SaveData(di))
 	assert.NoError(itx.Apply(bctx, bs))
 
 	senderGas := tt.Gas()
@@ -250,7 +241,6 @@ func TestTxDeleteData(t *testing.T) {
 	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di2.Version)
-	assert.Equal(util.SignatureEmpty, di2.KSig)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -276,18 +266,15 @@ func TestTxDeleteData(t *testing.T) {
 	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	assert.NoError(bs.SaveData(di.ID, di))
+	assert.NoError(bs.SaveData(di))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2, Data: []byte(`421`)}
 	txData = &ld.TxData{
@@ -308,7 +295,6 @@ func TestTxDeleteData(t *testing.T) {
 	di2, err = bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di2.Version)
-	assert.Equal(util.SignatureEmpty, di2.KSig)
 	assert.Equal([]byte(`421`), []byte(di2.Data))
 
 	assert.NoError(bs.VerifyState())

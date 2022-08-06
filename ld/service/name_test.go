@@ -35,6 +35,7 @@ func TestName(t *testing.T) {
 		Name:    "公信.com.",
 		Linked:  &address,
 		Records: []string{},
+		DID:     util.DataID{5, 6, 7, 8},
 	}
 	assert.NoError(name.SyntacticVerify())
 
@@ -49,7 +50,8 @@ func TestName(t *testing.T) {
 	data, err := json.Marshal(name)
 	assert.NoError(err)
 
-	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"]}`, string(data))
+	// fmt.Println(string(data))
+	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1"],"did":"LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX"}`, string(data))
 
 	nm, err := NameModel()
 	assert.NoError(err)
@@ -64,9 +66,11 @@ func TestName(t *testing.T) {
 	name2 = &Name{}
 	assert.NoError(name2.Unmarshal(data))
 	assert.NoError(name2.SyntacticVerify())
+	name2.DID = name.DID
 
 	data, err = json.Marshal(name2)
 	assert.NoError(err)
 
-	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"]}`, string(data))
+	// fmt.Println(string(data))
+	assert.Equal(`{"name":"公信.com.","linked":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"],"did":"LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX"}`, string(data))
 }

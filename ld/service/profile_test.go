@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -47,7 +47,7 @@ func TestProfile(t *testing.T) {
 		Name:    "LDC",
 		Follows: util.DataIDs{},
 		Extensions: []*Extension{{
-			ModelID: constants.JSONModelID,
+			ModelID: ld.JSONModelID,
 			Title:   "test",
 			Properties: map[string]interface{}{
 				"age": 23,
@@ -59,7 +59,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}]}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
 
 	p2 := &Profile{}
 	assert.NoError(p2.Unmarshal(p.Bytes()))
@@ -87,7 +87,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
 
 	ipldops := cborpatch.Patch{
 		{Op: "replace", Path: "/u", Value: util.MustMarshalCBOR("https://ldclabs.org")},
@@ -105,5 +105,5 @@ func TestProfile(t *testing.T) {
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}]}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
 }

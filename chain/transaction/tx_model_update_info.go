@@ -10,19 +10,19 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxUpdateModelKeepers struct {
+type TxUpdateModelInfo struct {
 	TxBase
 	input *ld.TxUpdater
 	mi    *ld.ModelInfo
 }
 
-func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateModelInfo) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateModelKeepers.MarshalJSON error: ")
+	errp := util.ErrPrefix("TxUpdateModelInfo.MarshalJSON error: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -34,9 +34,9 @@ func (tx *TxUpdateModelKeepers) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
+func (tx *TxUpdateModelInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateModelKeepers.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxUpdateModelInfo.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -70,9 +70,9 @@ func (tx *TxUpdateModelKeepers) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateModelKeepers) Apply(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateModelInfo) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateModelKeepers.Apply error: ")
+	errp := util.ErrPrefix("TxUpdateModelInfo.Apply error: ")
 
 	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
@@ -101,7 +101,7 @@ func (tx *TxUpdateModelKeepers) Apply(bctx BlockContext, bs BlockState) error {
 		tx.mi.Threshold = *tx.input.Threshold
 		tx.mi.Keepers = *tx.input.Keepers
 	}
-	if err = bs.SaveModel(*tx.input.ModelID, tx.mi); err != nil {
+	if err = bs.SaveModel(tx.mi); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

@@ -11,20 +11,20 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxUpdateDataKeepersByAuth struct {
+type TxUpdateDataInfoByAuth struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
 	di        *ld.DataInfo
 }
 
-func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateDataInfoByAuth) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.MarshalJSON error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.MarshalJSON error: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -36,9 +36,9 @@ func (tx *TxUpdateDataKeepersByAuth) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
+func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -69,8 +69,8 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	case tx.input.Keepers != nil:
 		return errp.Errorf("invalid keepers, should be nil")
 
-	case tx.input.KSig != nil:
-		return errp.Errorf("invalid kSig, should be nil")
+	case tx.input.SigClaims != nil:
+		return errp.Errorf("invalid sigClaims, should be nil")
 
 	case tx.input.Approver != nil:
 		return errp.Errorf("invalid approver, should be nil")
@@ -107,9 +107,9 @@ func (tx *TxUpdateDataKeepersByAuth) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateDataKeepersByAuth) Apply(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateDataInfoByAuth) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepersByAuth.Apply error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.Apply error: ")
 
 	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
@@ -132,7 +132,6 @@ func (tx *TxUpdateDataKeepersByAuth) Apply(bctx BlockContext, bs BlockState) err
 	}
 
 	tx.di.Version++
-	tx.di.KSig = util.Signature{}
 	tx.di.Threshold = tx.from.Threshold()
 	tx.di.Keepers = tx.from.Keepers()
 	if len(tx.di.Keepers) == 0 {
@@ -142,7 +141,7 @@ func (tx *TxUpdateDataKeepersByAuth) Apply(bctx BlockContext, bs BlockState) err
 	tx.di.Approver = nil
 	tx.di.ApproveList = nil
 
-	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
+	if err = bs.SaveData(tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

@@ -55,7 +55,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
 	cbordata2 := tx2.Bytes()
-	jsondata2, err := json.Marshal(tx2)
+	jsondata2, _ := json.Marshal(tx2)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
 }

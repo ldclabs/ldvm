@@ -103,7 +103,7 @@ func (t *TxData) SyntacticVerify() error {
 
 	t.calcUnsignedBytes()
 	t.gas = t.Type.Gas() + uint64(math.Pow(float64(size), math.SqrtPhi))
-	t.id = util.IDFromData(t.raw)
+	t.id = ids.ID(util.HashFromData(t.raw))
 	return nil
 }
 

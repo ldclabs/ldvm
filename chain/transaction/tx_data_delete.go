@@ -70,6 +70,9 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 
 	case tx.input.Version == 0:
 		return errp.Errorf("invalid data version")
+
+	case !util.ValidMessage(string(tx.input.Data)):
+		return errp.Errorf("invalid deleting message")
 	}
 	return nil
 }
@@ -98,7 +101,7 @@ func (tx *TxDeleteData) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.Errorf("invalid signature for data approver")
 	}
 
-	if err = bs.DeleteData(*tx.input.ID, tx.di, tx.input.Data); err != nil {
+	if err = bs.DeleteData(tx.di, tx.input.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

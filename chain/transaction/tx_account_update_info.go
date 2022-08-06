@@ -12,18 +12,18 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxUpdateAccountKeepers struct {
+type TxUpdateAccountInfo struct {
 	TxBase
 	input *ld.TxAccounter
 }
 
-func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateAccountInfo) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.MarshalJSON error: ")
+	errp := util.ErrPrefix("TxUpdateAccountInfo.MarshalJSON error: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,9 +35,9 @@ func (tx *TxUpdateAccountKeepers) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
+func (tx *TxUpdateAccountInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxUpdateAccountInfo.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -75,9 +75,9 @@ func (tx *TxUpdateAccountKeepers) SyntacticVerify() error {
 }
 
 // ApplyGenesis skipping signature verification
-func (tx *TxUpdateAccountKeepers) ApplyGenesis(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateAccountInfo) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.ApplyGenesis error: ")
+	errp := util.ErrPrefix("TxUpdateAccountInfo.ApplyGenesis error: ")
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
@@ -110,9 +110,9 @@ func (tx *TxUpdateAccountKeepers) ApplyGenesis(bctx BlockContext, bs BlockState)
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
 }
 
-func (tx *TxUpdateAccountKeepers) Apply(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateAccountInfo) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountKeepers.Apply error: ")
+	errp := util.ErrPrefix("TxUpdateAccountInfo.Apply error: ")
 
 	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)

@@ -43,8 +43,8 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 
 	case ld.TypeAddNonceTable:
 		tt = &TxAddNonceTable{TxBase: TxBase{ld: tx}}
-	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateAccountInfo:
+		tt = &TxUpdateAccountInfo{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateToken:
 		tt = &TxCreateToken{TxBase: TxBase{ld: tx}}
 	case ld.TypeDestroyToken:
@@ -72,17 +72,17 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 
 	case ld.TypeCreateModel:
 		tt = &TxCreateModel{TxBase: TxBase{ld: tx}}
-	case ld.TypeUpdateModelKeepers:
-		tt = &TxUpdateModelKeepers{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateModelInfo:
+		tt = &TxUpdateModelInfo{TxBase: TxBase{ld: tx}}
 
 	case ld.TypeCreateData:
 		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateData:
 		tt = &TxUpdateData{TxBase: TxBase{ld: tx}}
-	case ld.TypeUpdateDataKeepers:
-		tt = &TxUpdateDataKeepers{TxBase: TxBase{ld: tx}}
-	case ld.TypeUpdateDataKeepersByAuth:
-		tt = &TxUpdateDataKeepersByAuth{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateDataInfo:
+		tt = &TxUpdateDataInfo{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateDataInfoByAuth:
+		tt = &TxUpdateDataInfoByAuth{TxBase: TxBase{ld: tx}}
 	case ld.TypeDeleteData:
 		tt = &TxDeleteData{TxBase: TxBase{ld: tx}}
 	case ld.TypePunish:
@@ -119,8 +119,8 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	switch tx.Type {
 	case ld.TypeTransfer:
 		tt = &TxTransfer{TxBase: TxBase{ld: tx}}
-	case ld.TypeUpdateAccountKeepers:
-		tt = &TxUpdateAccountKeepers{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateAccountInfo:
+		tt = &TxUpdateAccountInfo{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateToken:
 		tt = &TxCreateToken{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateModel:

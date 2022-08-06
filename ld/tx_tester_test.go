@@ -98,7 +98,7 @@ func TestTxTester(t *testing.T) {
 	// ModelObject
 	tx = &TxTester{
 		ObjectType: ModelObject,
-		ObjectID:   ids.ShortID(constants.CBORModelID),
+		ObjectID:   ids.ShortID(CBORModelID),
 		Tests: TestOps{
 			{Path: "/n", Value: util.MustMarshalCBOR("NameService")},
 			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
@@ -187,7 +187,7 @@ func TestTxTester(t *testing.T) {
 
 	v := &person{Name: "John", Age: 42}
 	di = &DataInfo{
-		ModelID:   constants.CBORModelID,
+		ModelID:   CBORModelID,
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
@@ -198,7 +198,7 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.Test(di.Bytes()))
 
 	di = &DataInfo{
-		ModelID:   constants.JSONModelID,
+		ModelID:   JSONModelID,
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},

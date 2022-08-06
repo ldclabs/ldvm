@@ -114,3 +114,7 @@ func MustMarshalJSON(v interface{}) []byte {
 	}
 	return data
 }
+
+func Uint16Ptr(u uint16) *uint16 {
+	return &u
+}

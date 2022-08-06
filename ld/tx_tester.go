@@ -10,7 +10,6 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -134,8 +133,8 @@ func (t *TxTester) maybeTestData() bool {
 	return false
 }
 
-var rawRawModelID = string(util.MustMarshalCBOR(constants.RawModelID))
-var rawJSONModelID = string(util.MustMarshalCBOR(constants.JSONModelID))
+var rawRawModelID = string(util.MustMarshalCBOR(RawModelID))
+var rawJSONModelID = string(util.MustMarshalCBOR(JSONModelID))
 
 func (t *TxTester) Test(doc []byte) error {
 	var err error

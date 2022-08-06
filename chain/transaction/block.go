@@ -8,6 +8,7 @@ import (
 
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -24,13 +25,11 @@ type BlockState interface {
 	LoadAccount(util.EthID) (*Account, error)
 	LoadLedger(*Account) error
 	LoadMiner(util.StakeSymbol) (*Account, error)
-	ResolveNameID(name string) (util.DataID, error)
-	ResolveName(name string) (*ld.DataInfo, error)
-	SetASCIIName(name string, id util.DataID) error
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
-	SaveModel(util.ModelID, *ld.ModelInfo) error
+	SaveModel(*ld.ModelInfo) error
 	LoadData(util.DataID) (*ld.DataInfo, error)
-	SaveData(util.DataID, *ld.DataInfo) error
-	SavePrevData(util.DataID, *ld.DataInfo) error
-	DeleteData(util.DataID, *ld.DataInfo, []byte) error
+	SaveData(*ld.DataInfo) error
+	SavePrevData(*ld.DataInfo) error
+	DeleteData(*ld.DataInfo, []byte) error
+	SaveName(*service.Name) error
 }

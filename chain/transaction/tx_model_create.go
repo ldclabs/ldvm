@@ -95,7 +95,7 @@ func (tx *TxCreateModel) ApplyGenesis(bctx BlockContext, bs BlockState) error {
 	}
 	tx.from, err = bs.LoadAccount(tx.ld.From)
 
-	if err = bs.SaveModel(tx.input.ID, tx.input); err != nil {
+	if err = bs.SaveModel(tx.input); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))
@@ -108,7 +108,7 @@ func (tx *TxCreateModel) Apply(bctx BlockContext, bs BlockState) error {
 	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if err = bs.SaveModel(tx.input.ID, tx.input); err != nil {
+	if err = bs.SaveModel(tx.input); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

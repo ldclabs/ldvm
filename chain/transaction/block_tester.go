@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -173,31 +174,26 @@ func (m *MockBS) LoadMiner(id util.StakeSymbol) (*Account, error) {
 	return m.LoadAccount(miner)
 }
 
-func (m *MockBS) ResolveNameID(name string) (util.DataID, error) {
+func (m *MockBS) LoadDataByName(name string) (*ld.DataInfo, error) {
 	id, ok := m.NC[name]
 	if !ok {
-		return util.DataIDEmpty, fmt.Errorf("MBS.ResolveNameID: %q not found", name)
-	}
-	return id, nil
-}
-
-func (m *MockBS) ResolveName(name string) (*ld.DataInfo, error) {
-	id, err := m.ResolveNameID(name)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("MBS.LoadDataByName: %q not found", name)
 	}
 	return m.LoadData(id)
 }
 
-func (m *MockBS) SetASCIIName(name string, id util.DataID) error {
-	oid, ok := m.NC[name]
+func (m *MockBS) SaveName(ns *service.Name) error {
+	if ns.DID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.SaveName: model ID is empty")
+	}
+
+	name := ns.ASCII()
+	_, ok := m.NC[name]
 	switch {
 	case ok:
-		if !bytes.Equal(oid[:], id[:]) {
-			return fmt.Errorf("name %q conflict", name)
-		}
+		return fmt.Errorf("name %q conflict", name)
 	default:
-		m.NC[name] = id
+		m.NC[name] = ns.DID
 	}
 	return nil
 }
@@ -214,14 +210,19 @@ func (m *MockBS) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	if err := mi.SyntacticVerify(); err != nil {
 		return nil, err
 	}
+	mi.ID = id
 	return mi, nil
 }
 
-func (m *MockBS) SaveModel(id util.ModelID, mi *ld.ModelInfo) error {
+func (m *MockBS) SaveModel(mi *ld.ModelInfo) error {
+	if mi.ID == util.ModelIDEmpty {
+		return fmt.Errorf("MBS.SaveModel: model ID is empty")
+	}
+
 	if err := mi.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.MC[id] = mi.Bytes()
+	m.MC[mi.ID] = mi.Bytes()
 	return nil
 }
 
@@ -237,33 +238,45 @@ func (m *MockBS) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	if err := di.SyntacticVerify(); err != nil {
 		return nil, err
 	}
+	di.ID = id
 	return di, nil
 }
 
-func (m *MockBS) SaveData(id util.DataID, di *ld.DataInfo) error {
+func (m *MockBS) SaveData(di *ld.DataInfo) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.SaveData: data ID is empty")
+	}
 	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.DC[id] = di.Bytes()
+	m.DC[di.ID] = di.Bytes()
 	return nil
 }
 
-func (m *MockBS) SavePrevData(id util.DataID, di *ld.DataInfo) error {
+func (m *MockBS) SavePrevData(di *ld.DataInfo) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.SavePrevData: data ID is empty")
+	}
+
 	if err := di.SyntacticVerify(); err != nil {
 		return err
 	}
-	m.PDC[id] = di.Bytes()
+	m.PDC[di.ID] = di.Bytes()
 	return nil
 }
 
-func (m *MockBS) DeleteData(id util.DataID, di *ld.DataInfo, message []byte) error {
+func (m *MockBS) DeleteData(di *ld.DataInfo, message []byte) error {
+	if di.ID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.DeleteData: data ID is empty")
+	}
+
 	if err := di.MarkDeleted(message); err != nil {
 		return err
 	}
-	if err := m.SaveData(id, di); err != nil {
+	if err := m.SaveData(di); err != nil {
 		return err
 	}
-	delete(m.PDC, id)
+	delete(m.PDC, di.ID)
 	return nil
 }
 

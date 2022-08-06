@@ -79,7 +79,7 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "cbor: cannot unmarshal")
+	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.TxUpdater{}
 	txData = &ld.TxData{
@@ -196,25 +196,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.ErrorContains(err, "invalid data")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
-		Data: []byte(`421`)}
-	txData = &ld.TxData{
-		Type:      ld.TypeUpdateData,
-		ChainID:   bctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      owner,
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil kSig")
-
-	kSig, err := util.Signer1.Sign(input.Data)
-	assert.NoError(err)
-	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
-		KSig: &kSig,
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -246,7 +228,6 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
-		KSig: &kSig,
 		To:   &modelKeeper,
 	}
 	txData = &ld.TxData{
@@ -265,7 +246,6 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
-		KSig: &kSig,
 		To:   &modelKeeper,
 	}
 	txData = &ld.TxData{
@@ -285,7 +265,6 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
-		KSig: &kSig,
 		To:   &modelKeeper,
 	}
 	txData = &ld.TxData{
@@ -304,7 +283,6 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data:   []byte(`421`),
-		KSig:   &kSig,
 		To:     &modelKeeper,
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -324,31 +302,8 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data:   []byte(`421`),
-		KSig:   &kSig,
 		To:     &modelKeeper,
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
-	}
-	txData = &ld.TxData{
-		Type:      ld.TypeUpdateData,
-		ChainID:   bctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      owner,
-		To:        &modelKeeper,
-		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil mSig")
-
-	input = &ld.TxUpdater{ID: &did, Version: 1,
-		Data:   []byte(`421`),
-		KSig:   &kSig,
-		To:     &modelKeeper,
-		Amount: new(big.Int).SetUint64(constants.MilliLDC),
-		MSig:   &kSig,
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -369,10 +324,8 @@ func TestTxUpdateData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data:   []byte(`421`),
-		KSig:   &kSig,
 		To:     &modelKeeper,
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
-		MSig:   &kSig,
 		Expire: 10,
 	}
 	txData = &ld.TxData{
@@ -401,7 +354,7 @@ func TestTxUpdateData(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 3586100, got 0")
+		"insufficient NativeLDC balance, expected 2613700, got 0")
 	bs.CheckoutAccounts()
 
 	ownerAcc := bs.MustAccount(owner)
@@ -412,36 +365,30 @@ func TestTxUpdateData(t *testing.T) {
 	bs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	bs.SaveData(di.ID, di)
+	bs.SaveData(di)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid version, expected 2, got 1")
 	bs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
-		ModelID:   constants.RawModelID,
+		ModelID:   ld.RawModelID,
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
 		ID:        did,
 	}
-	kSig, err = util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	bs.SaveData(di.ID, di)
+	bs.SaveData(di)
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
 		"invalid to, should be nil")
@@ -450,33 +397,6 @@ func TestTxUpdateData(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
 	}
-	kSig, err = util.Signer2.Sign(input.Data)
-	assert.NoError(err)
-	input.KSig = &kSig
-	txData = &ld.TxData{
-		Type:      ld.TypeUpdateData,
-		ChainID:   bctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      owner,
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid data signature for data keepers, invalid signature")
-	bs.CheckoutAccounts()
-
-	input = &ld.TxUpdater{ID: &did, Version: 1,
-		Data: []byte(`421`),
-	}
-	kSig, err = util.Signer1.Sign(input.Data)
-	assert.NoError(err)
-	input.KSig = &kSig
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.ChainConfig().ChainID,
@@ -504,8 +424,6 @@ func TestTxUpdateData(t *testing.T) {
 	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(2), di2.Version)
-	assert.NotEqual(kSig, di.KSig)
-	assert.Equal(kSig, di2.KSig)
 	assert.Equal([]byte(`42`), []byte(di.Data))
 	assert.Equal([]byte(`421`), []byte(di2.Data))
 	assert.Equal(bs.PDC[di.ID], di.Bytes())
@@ -513,7 +431,7 @@ func TestTxUpdateData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":1,"kSig":"a7ea3017929b5c73b2a3d83f01514c1cbd311b799e2baa25aedb32bb6d8843eb51b30264f29ea32f37676e75de95664c1a64a3ed719259409395d8b09e14fe1100","data":421},"signatures":["2af27438a4d317195e2237dcddf6da4e94371195a3c7ed58934b69318a0d5d607c73692fd341ca8f56d3b7477fddaf957875b19ab1acba3c2ebba25db579bad301"],"id":"2aabVr5bHFzNHzSjC4VSxNN1MeZZUxf3NzJKucBReRxP8r73hF"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":1,"data":421},"signatures":["5d93b7b8dde6e66fa63b04e1414ca0083463b7e71e4b0139ef88a5a02eeb52dc1f41fd2d3dbfd5a18045b5d699f836aebc67fe889bf4bdd131ff44a33dfc451c01"],"id":"2f2LQRC5wSwuNXLWjsNfCGKRgDQjuSRCw9Lj6gYjonTJq1isN5"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -543,25 +461,19 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.NoError(err)
 
 	di := &ld.DataInfo{
-		ModelID:   constants.CBORModelID,
+		ModelID:   ld.CBORModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
-	kSig, err := util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	bs.SaveData(di.ID, di)
+	bs.SaveData(di)
 
 	input := &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: di.Data[2:],
 	}
-	kSig, err = util.Signer1.Sign(input.Data)
-	assert.NoError(err)
-	input.KSig = &kSig
 	txData := &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.ChainConfig().ChainID,
@@ -583,36 +495,12 @@ func TestTxUpdateCBORData(t *testing.T) {
 		{Op: "add", Path: "/no/-", Value: util.MustMarshalCBOR(4)},
 	}
 	patchdata := util.MustMarshalCBOR(patch)
-	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
-		Data: patchdata,
-	}
-	input.KSig = &kSig
-	txData = &ld.TxData{
-		Type:      ld.TypeUpdateData,
-		ChainID:   bctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      owner,
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid data signature for data keepers, invalid signature")
-	bs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: patchdata,
 	}
 	newData, err := patch.Apply(di.Data)
 	assert.NoError(err)
-	kSig, err = util.Signer1.Sign(newData)
-	assert.NoError(err)
-	input.KSig = &kSig
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.ChainConfig().ChainID,
@@ -629,7 +517,6 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.NoError(itx.Apply(bctx, bs))
 
 	ownerGas := tt.Gas()
-	tx = itx.(*TxUpdateData)
 	assert.Equal(ownerGas*bctx.Price,
 		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
 	assert.Equal(ownerGas*100,
@@ -641,8 +528,6 @@ func TestTxUpdateCBORData(t *testing.T) {
 	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(3), di2.Version)
-	assert.NotEqual(kSig, di.KSig)
-	assert.Equal(kSig, di2.KSig)
 	assert.NotEqual(newData, []byte(di.Data))
 	assert.Equal(newData, []byte(di2.Data))
 	assert.Equal(bs.PDC[di.ID], di.Bytes())
@@ -654,7 +539,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"565023ebbf2f8a00bf65056c6e4aebd63ec58c66d410b6d4ae62b6859e451b6d00de0bd83535adcaa1bb8d81bd06d0727b3cf2d3a712f0576be588151f02403600","data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["1a0306bf9768771d9806458fea0162940e398630b27f4eaf209d0bcd276d0a3e50aeeac718ec43da7b02ac453185d7c447167d64bb8430588f1bfed6bb25b62001"],"id":"LdoZA49wq9kbkxQGd1XCxcmLSp7mS7XfuMuvoJ243pVgYNY2X"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"},"signatures":["2c673cba46cfef2a9d58bdd38b4ef5dc282b75c97cdfd45f47e8bf44c447e462010f3f8ac14f955fcd31180560826f3cd5d415471a25ad35956b61ff6a6f320800"],"id":"NXDSC7nwqwNFv4YB2zN2J5vtnczTbxipKpwTJQwAPzL6kxWwf"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }
@@ -677,25 +562,19 @@ func TestTxUpdateJSONData(t *testing.T) {
 
 	data := []byte(`{"name":"test","nonces":[1,2,3]}`)
 	di := &ld.DataInfo{
-		ModelID:   constants.JSONModelID,
+		ModelID:   ld.JSONModelID,
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Data:      data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
-	kSig, err := util.Signer1.Sign(di.Data)
-	assert.NoError(err)
-	di.KSig = kSig
 	assert.NoError(di.SyntacticVerify())
-	bs.SaveData(di.ID, di)
+	bs.SaveData(di)
 
 	input := &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: []byte(`{}`),
 	}
-	kSig, err = util.Signer1.Sign(input.Data)
-	assert.NoError(err)
-	input.KSig = &kSig
 	txData := &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.ChainConfig().ChainID,
@@ -715,34 +594,19 @@ func TestTxUpdateJSONData(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
 		Data: []byte(`[{"op": "replace", "path": "/name", "value": "Tester"}]`),
+		SigClaims: &ld.SigClaims{
+			Issuer:     util.DataID{1, 2, 3, 4},
+			Subject:    di.ID,
+			Audience:   di.ModelID,
+			Expiration: 100,
+			IssuedAt:   1,
+			CWTID:      util.HashFromData([]byte(`{"name":"Tester","nonces":[1,2,3]}`)),
+		},
 	}
-	kSig, err = util.Signer1.Sign(input.Data)
+	sig, err := util.Signer2.Sign(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.KSig = &kSig
-	txData = &ld.TxData{
-		Type:      ld.TypeUpdateData,
-		ChainID:   bctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: bctx.Price,
-		From:      owner,
-		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
-	assert.NoError(err)
-	bs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(bctx, bs),
-		"invalid data signature for data keepers, invalid signature")
-	bs.CheckoutAccounts()
+	input.Sig = &sig
 
-	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
-		Data: []byte(`[{"op": "replace", "path": "/name", "value": "Tester"}]`),
-	}
-	kSig, err = util.Signer1.Sign([]byte(`{"name":"Tester","nonces":[1,2,3]}`))
-	assert.NoError(err)
-	input.KSig = &kSig
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   bctx.ChainConfig().ChainID,
@@ -770,16 +634,22 @@ func TestTxUpdateJSONData(t *testing.T) {
 	di2, err := bs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(3), di2.Version)
-	assert.NotEqual(kSig, di.KSig)
-	assert.Equal(kSig, di2.KSig)
 	assert.Equal([]byte(`{"name":"test","nonces":[1,2,3]}`), []byte(di.Data))
 	assert.Equal([]byte(`{"name":"Tester","nonces":[1,2,3]}`), []byte(di2.Data))
 	assert.Equal(bs.PDC[di.ID], di.Bytes())
 
+	signer, err := di.Signer()
+	assert.ErrorContains(err, "DataInfo.Signer error: invalid signature claims")
+	assert.Equal(util.EthIDEmpty, signer)
+
+	signer, err = di2.Signer()
+	assert.NoError(err)
+	assert.Equal(util.Signer2.Address(), signer)
+
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"kSig":"5ea1b80028d7b80a1545ae788183bc7be028ac2fc9d0e2859203378b53e678106bdfc3fa4960277d48ed6025e2b461b10f16a6c6034a4b290aaa696facfedbc501","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["8a6a5d649497eb1aec1e50026b179474a9f2f42055b3a3437aab983ac85317c15220f0423a3328b0823c88812e8fc442061ab18efc2ed5ccdbf3aa39154b02cb00"],"id":"GPLaz3tZacJDwa9AEYQYZyanwjb5xW23CCD5wA6fVdRzGqcX6"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"sigClaims":{"iss":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","sub":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","aud":"LM1111111111111111111L17Xp3","exp":100,"nbf":0,"iat":1,"cti":"Do6oUfVMCkZKbUZ4FgNmjFQfNVjBYWUDJNuq1GVpgcuBFmibS"},"sig":"18dfe9e0c9a3f7be51d5686041414fab698cb737be92894c70c0d0ff851f2ff70211e341599511c0c6af10992664b3351a06890488a7dfbf6feb6ded66b7618401","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["e76b8f3684d2914dea0e3b441d474f9c034442262ee2cfb4f8fa5df095729b333c70b1f939933e916965cbf99f02746a429138eed63ed765fbbbba20cbc2625200"],"id":"2h6axc4m9gPCncJtKUaVcaCqabgCg1oXLHfzKE9EZViYdMkdYj"}`, string(jsondata))
 
 	assert.NoError(bs.VerifyState())
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"golang.org/x/crypto/sha3"
 )
@@ -49,8 +48,8 @@ func NodeIDToStakeAddress(nodeIDs ...EthID) EthIDs {
 	return rt
 }
 
-func IDFromData(data []byte) ids.ID {
-	return ids.ID(sha3.Sum256(data))
+func HashFromData(data []byte) Hash {
+	return Hash(sha3.Sum256(data))
 }
 
 type EthIDs []EthID

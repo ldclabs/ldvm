@@ -57,11 +57,11 @@ func TestJSON(t *testing.T) {
 	}
 }
 
-func TestIDFromData(t *testing.T) {
+func TestHashFromData(t *testing.T) {
 	assert := assert.New(t)
 
-	assert.Equal(IDFromData([]byte{'a', 'b', 'c'}), IDFromData([]byte{'a', 'b', 'c'}))
-	assert.NotEqual(IDFromData([]byte{'a', 'b', 'c'}), IDFromData([]byte{'a', 'b', 'c', 'd'}))
+	assert.Equal(HashFromData([]byte{'a', 'b', 'c'}), HashFromData([]byte{'a', 'b', 'c'}))
+	assert.NotEqual(HashFromData([]byte{'a', 'b', 'c'}), HashFromData([]byte{'a', 'b', 'c', 'd'}))
 }
 
 func TestEthIDs(t *testing.T) {

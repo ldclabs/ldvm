@@ -10,19 +10,19 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxUpdateDataKeepers struct {
+type TxUpdateDataInfo struct {
 	TxBase
 	input *ld.TxUpdater
 	di    *ld.DataInfo
 }
 
-func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateDataInfo) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateDataKeepers.MarshalJSON error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfo.MarshalJSON error: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -34,9 +34,9 @@ func (tx *TxUpdateDataKeepers) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
+func (tx *TxUpdateDataInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepers.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfo.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -68,16 +68,17 @@ func (tx *TxUpdateDataKeepers) SyntacticVerify() error {
 	case tx.input.Version == 0:
 		return errp.Errorf("invalid data version")
 
-	case tx.input.Threshold == nil && tx.input.Approver == nil && tx.input.ApproveList == nil:
+	case tx.input.Threshold == nil && tx.input.Approver == nil &&
+		tx.input.ApproveList == nil && tx.input.SigClaims == nil:
 		return errp.Errorf("no thing to update")
 	}
 
 	return nil
 }
 
-func (tx *TxUpdateDataKeepers) Apply(bctx BlockContext, bs BlockState) error {
+func (tx *TxUpdateDataInfo) Apply(bctx BlockContext, bs BlockState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataKeepers.Apply error: ")
+	errp := util.ErrPrefix("TxUpdateDataInfo.Apply error: ")
 
 	if err = tx.TxBase.verify(bctx, bs); err != nil {
 		return errp.ErrorIf(err)
@@ -100,20 +101,6 @@ func (tx *TxUpdateDataKeepers) Apply(bctx BlockContext, bs BlockState) error {
 		return errp.Errorf("invalid signature for data approver")
 	}
 
-	if tx.input.KSig != nil {
-		kSigner, err := util.DeriveSigner(tx.di.Data, (*tx.input.KSig)[:])
-		if err != nil {
-			return errp.Errorf("invalid kSig: %v", err)
-		}
-		keepers := tx.di.Keepers
-		if tx.input.Keepers != nil {
-			keepers = *tx.input.Keepers
-		}
-		if !keepers.Has(kSigner) {
-			return errp.Errorf("invalid kSig")
-		}
-	}
-
 	tx.di.Version++
 	if tx.input.Approver != nil {
 		if *tx.input.Approver == util.EthIDEmpty {
@@ -123,17 +110,26 @@ func (tx *TxUpdateDataKeepers) Apply(bctx BlockContext, bs BlockState) error {
 			tx.di.Approver = tx.input.Approver
 		}
 	}
+
 	if tx.input.ApproveList != nil {
 		tx.di.ApproveList = tx.input.ApproveList
 	}
+
 	if tx.input.Threshold != nil {
 		tx.di.Threshold = *tx.input.Threshold
 		tx.di.Keepers = *tx.input.Keepers
 	}
-	if tx.input.KSig != nil {
-		tx.di.KSig = *tx.input.KSig
+
+	if tx.input.SigClaims != nil {
+		tx.di.SigClaims = tx.input.SigClaims
+		tx.di.Sig = tx.input.Sig
+
+		if _, err = tx.di.Signer(); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
-	if err = bs.SaveData(*tx.input.ID, tx.di); err != nil {
+
+	if err = bs.SaveData(tx.di); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(bctx, bs))

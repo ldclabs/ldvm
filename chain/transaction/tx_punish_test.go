@@ -120,7 +120,7 @@ func TestTxPunish(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "cbor: cannot unmarshal")
+	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := ld.TxUpdater{}
 	assert.NoError(input.SyntacticVerify())
@@ -135,7 +135,7 @@ func TestTxPunish(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil data id")
+	assert.ErrorContains(err, "invalid data id")
 
 	input = ld.TxUpdater{ID: &util.DataIDEmpty}
 	assert.NoError(input.SyntacticVerify())
@@ -185,12 +185,12 @@ func TestTxPunish(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Data:      []byte(`"test...."`),
+		ID:        did,
 	}
-	di.KSig, err = util.Signer2.Sign(di.Data)
 	assert.NoError(err)
 	assert.NoError(di.SyntacticVerify())
-	assert.NoError(bs.SaveData(did, di))
-	assert.NoError(bs.SavePrevData(did, di))
+	assert.NoError(bs.SaveData(di))
+	assert.NoError(bs.SavePrevData(di))
 	assert.NoError(itx.Apply(bctx, bs))
 
 	assert.Equal(tt.Gas()*bctx.Price,
@@ -204,8 +204,6 @@ func TestTxPunish(t *testing.T) {
 	di, err = bs.LoadData(did)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di.Version)
-	assert.Equal(util.SignatureEmpty, di.KSig)
-	assert.Nil(di.MSig)
 	assert.Equal(input.Data, di.Data)
 
 	jsondata, err := itx.MarshalJSON()

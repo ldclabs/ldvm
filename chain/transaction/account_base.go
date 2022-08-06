@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -22,8 +21,8 @@ type Account struct {
 	mu         sync.RWMutex
 	id         util.EthID // account address
 	pledge     *big.Int   // token account and stake account should have pledge
-	ldHash     ids.ID
-	ledgerHash ids.ID
+	ldHash     util.Hash
+	ledgerHash util.Hash
 }
 
 func NewAccount(id util.EthID) *Account {
@@ -42,7 +41,7 @@ func NewAccount(id util.EthID) *Account {
 		id:     id,
 		pledge: new(big.Int),
 		ld:     ld,
-		ldHash: util.IDFromData(ld.Bytes()),
+		ldHash: util.HashFromData(ld.Bytes()),
 	}
 }
 
@@ -57,7 +56,7 @@ func ParseAccount(id util.EthID, data []byte) (*Account, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	a.ld.ID = id
-	a.ldHash = util.IDFromData(a.ld.Bytes())
+	a.ldHash = util.HashFromData(a.ld.Bytes())
 	return a, nil
 }
 
@@ -88,7 +87,7 @@ func (a *Account) InitLedger(data []byte) error {
 	if err := a.ledger.SyntacticVerify(); err != nil {
 		errp.ErrorIf(err)
 	}
-	a.ledgerHash = util.IDFromData(a.ledger.Bytes())
+	a.ledgerHash = util.HashFromData(a.ledger.Bytes())
 	return nil
 }
 
@@ -520,9 +519,9 @@ func (a *Account) Marshal() ([]byte, []byte, error) {
 }
 
 func (a *Account) AccountChanged(data []byte) bool {
-	return a.ldHash != util.IDFromData(data)
+	return a.ldHash != util.HashFromData(data)
 }
 
 func (a *Account) LedgerChanged(data []byte) bool {
-	return a.ledgerHash != util.IDFromData(data)
+	return a.ledgerHash != util.HashFromData(data)
 }

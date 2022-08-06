@@ -22,7 +22,7 @@
     "id": "2eimHuyjLHtuoshLiaL8vbwwhKPsyHf24SabHhEzhkUntL4hMh"
   },
   {
-    "type": "TypeUpdateAccountKeepers",
+    "type": "TypeUpdateAccountInfo",
     "chainID": 2357,
     "nonce": 0,
     "gasTip": 0,
@@ -43,7 +43,7 @@
     "id": "2bHcrWpJz56s2qSUDPrsmzDnQfpCVSb8ErNxUspqzQpDGf9ACJ"
   },
   {
-    "type": "TypeUpdateAccountKeepers",
+    "type": "TypeUpdateAccountInfo",
     "chainID": 2357,
     "nonce": 1,
     "gasTip": 0,

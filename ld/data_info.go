@@ -4,13 +4,25 @@
 package ld
 
 import (
-	"fmt"
-
 	cborpatch "github.com/ldclabs/cbor-patch"
 	jsonpatch "github.com/ldclabs/json-patch"
 
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
+)
+
+var (
+	// LM111111111111111111116DBWJs
+	RawModelID = util.ModelIDEmpty
+	// LM1111111111111111111Ax1asG
+	CBORModelID = util.ModelID{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	}
+	// LM1111111111111111111L17Xp3
+	JSONModelID = util.ModelID{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+	}
 )
 
 type DataInfo struct {
@@ -27,10 +39,10 @@ type DataInfo struct {
 	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Data        util.RawData `cbor:"d" json:"data"`
-	// full data signature signing by Data Keeper
-	KSig util.Signature `cbor:"ks" json:"kSig"` // TODO: redesign
-	// full data signature signing by ModelService Authority
-	MSig *util.Signature `cbor:"ms,omitempty" json:"mSig,omitempty"`
+	// data signature claims
+	SigClaims *SigClaims `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
+	// data signature signing by a certificate authority
+	Sig *util.Signature `cbor:"s,omitempty" json:"sig,omitempty"`
 
 	// external assignment fields
 	ID  util.DataID `cbor:"-" json:"id"`
@@ -40,6 +52,7 @@ type DataInfo struct {
 func (t *DataInfo) Clone() *DataInfo {
 	x := new(DataInfo)
 	*x = *t
+
 	x.Keepers = make(util.EthIDs, len(t.Keepers))
 	copy(x.Keepers, t.Keepers)
 	if t.Approver != nil {
@@ -52,9 +65,14 @@ func (t *DataInfo) Clone() *DataInfo {
 	}
 	x.Data = make([]byte, len(t.Data))
 	copy(x.Data, t.Data)
-	if t.MSig != nil {
-		mSig := *t.MSig
-		x.MSig = &mSig
+
+	if t.SigClaims != nil {
+		sc := *t.SigClaims
+		x.SigClaims = &sc
+	}
+	if t.Sig != nil {
+		sig := *t.Sig
+		x.Sig = &sig
 	}
 	x.raw = nil
 	return x
@@ -77,6 +95,12 @@ func (t *DataInfo) SyntacticVerify() error {
 
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
 		return errp.Errorf("invalid approver")
+
+	case t.Sig == nil && t.SigClaims != nil:
+		return errp.Errorf("invalid signature")
+
+	case t.Sig != nil && t.SigClaims == nil:
+		return errp.Errorf("invalid signature claims")
 	}
 
 	if err = t.Keepers.CheckDuplicate(); err != nil {
@@ -99,9 +123,9 @@ func (t *DataInfo) SyntacticVerify() error {
 		}
 	}
 
-	if t.KSig != util.SignatureEmpty && len(t.Keepers) > 0 {
-		if err = t.VerifySig(t.Keepers, t.KSig); err != nil {
-			return errp.Errorf("invalid kSig, %v", err)
+	if t.SigClaims != nil {
+		if err = t.SigClaims.SyntacticVerify(); err != nil {
+			return errp.ErrorIf(err)
 		}
 	}
 
@@ -111,24 +135,37 @@ func (t *DataInfo) SyntacticVerify() error {
 	return nil
 }
 
-func (t *DataInfo) VerifySig(signers util.EthIDs, sig util.Signature) error {
-	signer, err := util.DeriveSigner(t.Data, sig[:])
+// Signer returns the signer of the DataInfo.
+// Should be called after DataInfo.SyntacticVerify.
+// Should be called with DataInfo.ID.
+func (t *DataInfo) Signer() (signer util.EthID, err error) {
+	errp := util.ErrPrefix("DataInfo.Signer error: ")
+
 	switch {
-	case err != nil:
-		return err
-	case !signers.Has(signer):
-		return fmt.Errorf("invalid signature")
+	case t.Sig == nil || t.SigClaims == nil:
+		return signer, errp.Errorf("invalid signature claims")
+
+	case t.SigClaims.Subject != t.ID:
+		return signer, errp.Errorf("invalid subject, expected %s, got %s",
+			t.ID, t.SigClaims.Subject)
+
+	case t.SigClaims.Audience != t.ModelID:
+		return signer, errp.Errorf("invalid audience, expected %s, got %s",
+			t.ModelID, t.SigClaims.Audience)
+
+	case t.SigClaims.CWTID != util.HashFromData(t.Data):
+		return signer, errp.Errorf("invalid CWT id")
 	}
-	return nil
+
+	signer, err = util.DeriveSigner(t.SigClaims.Bytes(), t.Sig[:])
+	return signer, errp.ErrorIf(err)
 }
 
 func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
-	t.KSig = util.SignatureEmpty
-	t.MSig = nil
-	if data != nil {
-		t.Data = data
-	}
+	t.SigClaims = nil
+	t.Sig = nil
+	t.Data = data
 	return t.SyntacticVerify()
 }
 
@@ -144,16 +181,16 @@ func (t *DataInfo) Patch(operations []byte) ([]byte, error) {
 	errp := util.ErrPrefix("DataInfo.Patch error: ")
 
 	switch t.ModelID {
-	case constants.RawModelID:
+	case RawModelID:
 		return operations, nil
 
-	case constants.CBORModelID:
+	case CBORModelID:
 		p, err = cborpatch.NewPatch(operations)
 		if err != nil {
 			return nil, errp.Errorf("invalid CBOR patch, %v", err)
 		}
 
-	case constants.JSONModelID:
+	case JSONModelID:
 		p, err = jsonpatch.NewPatch(operations)
 		if err != nil {
 			return nil, errp.Errorf("invalid JSON patch, %v", err)
@@ -181,4 +218,67 @@ func (t *DataInfo) Unmarshal(data []byte) error {
 func (t *DataInfo) Marshal() ([]byte, error) {
 	return util.ErrPrefix("DataInfo.Marshal error: ").
 		ErrorMap(util.MarshalCBOR(t))
+}
+
+// SigClaims is a set of claims that used to sign a DataInfo.
+// reference to https://www.rfc-editor.org/rfc/rfc8392.html#section-3
+type SigClaims struct {
+	Issuer     util.DataID  `cbor:"1,keyasint" json:"iss"` // the id of certificate authority
+	Subject    util.DataID  `cbor:"2,keyasint" json:"sub"` // the id of DataInfo
+	Audience   util.ModelID `cbor:"3,keyasint" json:"aud"` // the model id of DataInfo
+	Expiration uint64       `cbor:"4,keyasint" json:"exp"`
+	NotBefore  uint64       `cbor:"5,keyasint" json:"nbf"`
+	IssuedAt   uint64       `cbor:"6,keyasint" json:"iat"`
+	CWTID      util.Hash    `cbor:"7,keyasint" json:"cti"` // the hash of DataInfo.Data
+
+	// external assignment fields
+	raw []byte `cbor:"-" json:"-"`
+}
+
+func (s *SigClaims) SyntacticVerify() error {
+	var err error
+	errp := util.ErrPrefix("SigClaims.SyntacticVerify error: ")
+
+	switch {
+	case s == nil:
+		return errp.Errorf("nil pointer")
+
+	case s.Issuer == util.DataIDEmpty:
+		return errp.Errorf("invalid issuer")
+
+	case s.Subject == util.DataIDEmpty:
+		return errp.Errorf("invalid subject")
+
+	case s.Expiration == 0:
+		return errp.Errorf("invalid expiration time")
+
+	case s.IssuedAt == 0:
+		return errp.Errorf("invalid issued time")
+
+	case s.CWTID == util.HashEmpty:
+		return errp.Errorf("invalid CWT id")
+	}
+
+	if s.raw, err = s.Marshal(); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	return nil
+}
+
+func (s *SigClaims) Bytes() []byte {
+	if len(s.raw) == 0 {
+		s.raw = MustMarshal(s)
+	}
+	return s.raw
+}
+
+func (s *SigClaims) Unmarshal(data []byte) error {
+	return util.ErrPrefix("SigClaims.Unmarshal error: ").
+		ErrorIf(util.UnmarshalCBOR(data, s))
+}
+
+func (s *SigClaims) Marshal() ([]byte, error) {
+	return util.ErrPrefix("SigClaims.Marshal error: ").
+		ErrorMap(util.MarshalCBOR(s))
 }

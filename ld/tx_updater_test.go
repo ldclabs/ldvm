@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
@@ -47,9 +46,28 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(24) in approveList")
 
 	tx = &TxUpdater{ApproveList: TxTypes{
-		TypeUpdateDataKeepers, TypeDeleteData, TypeUpdateDataKeepers}}
+		TypeUpdateDataInfo, TypeDeleteData, TypeUpdateDataInfo}}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid approveList, duplicate TxType TypeUpdateDataKeepers")
+		"invalid approveList, duplicate TxType TypeUpdateDataInfo")
+
+	tx = &TxUpdater{SigClaims: &SigClaims{}}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"TxUpdater.SyntacticVerify error: nil sig together with sigClaims")
+
+	tx = &TxUpdater{Sig: &util.Signature{}}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"TxUpdater.SyntacticVerify error: nil sigClaims together with sig")
+
+	tx = &TxUpdater{
+		Sig: &util.Signature{},
+		SigClaims: &SigClaims{
+			Issuer:     util.DataID{1, 2, 3, 4},
+			Subject:    util.DataID{5, 6, 7, 8},
+			Expiration: 100,
+		},
+	}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"TxUpdater.SyntacticVerify error: invalid sigClaims, SigClaims.SyntacticVerify error: invalid issued time")
 
 	tx = &TxUpdater{Token: &util.NativeToken}
 	assert.NoError(tx.SyntacticVerify())
@@ -63,8 +81,7 @@ func TestTxUpdater(t *testing.T) {
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,
 		Amount:    big.NewInt(1000),
-		KSig:      &util.Signature{1, 2, 3},
-		Expire:    uint64(time.Now().Unix()),
+		Expire:    uint64(1000),
 		Data:      []byte(`"Hello, world!"`),
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
@@ -79,8 +96,7 @@ func TestTxUpdater(t *testing.T) {
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,
 		Amount:    big.NewInt(1000),
-		KSig:      &util.Signature{1, 2, 3},
-		Expire:    uint64(time.Now().Unix()),
+		Expire:    uint64(1000),
 		Data:      []byte(`"Hello, world!"`),
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -88,17 +104,13 @@ func TestTxUpdater(t *testing.T) {
 	assert.NoError(err)
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-	assert.Contains(string(jsondata), `"approver":"0x0000000000000000000000000000000000000000"`)
-	assert.Contains(string(jsondata), `"token":""`)
-	assert.Contains(string(jsondata), `"data":"Hello, world!"`)
-	assert.NotContains(string(jsondata), `"mid":`)
-	assert.NotContains(string(jsondata), `"mSig":`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"id":"LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"approver":"0x0000000000000000000000000000000000000000","token":"","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"expire":1000,"data":"Hello, world!"}`, string(jsondata))
 
 	tx2 = &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(cbordata))
 	assert.NoError(tx2.SyntacticVerify())
-	cbordata2 := tx2.Bytes()
-	jsondata2, err := json.Marshal(tx2)
+	jsondata2, _ := json.Marshal(tx2)
 	assert.Equal(string(jsondata), string(jsondata2))
-	assert.Equal(cbordata, cbordata2)
+	assert.Equal(cbordata, tx2.Bytes())
 }

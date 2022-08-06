@@ -35,10 +35,6 @@ func MustMarshal(v Marshaler) []byte {
 	return data
 }
 
-func Uint16Ptr(u uint16) *uint16 {
-	return &u
-}
-
 type Copier interface {
 	Marshal() ([]byte, error)
 	Unmarshal([]byte) error
