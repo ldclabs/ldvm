@@ -57,47 +57,47 @@ func TestGenesis(t *testing.T) {
 	assert.True(alloc2.Keepers.Has(address2))
 
 	_, err = gs.Chain.AppendFeeConfig([]byte{})
-	assert.ErrorContains(err, "JSON input")
+	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig error")
 
-	_, err = gs.Chain.AppendFeeConfig([]byte(`{}`))
+	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{}))
 	assert.ErrorContains(err, "invalid thresholdGas")
 
-	_, err = gs.Chain.AppendFeeConfig([]byte(`{
-		"startHeight": 0,
-		"thresholdGas": 1000,
-		"minGasPrice": 10000,
-		"maxGasPrice": 100000,
-		"maxTxGas": 42000000,
+	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+		"startHeight":     0,
+		"thresholdGas":    1000,
+		"minGasPrice":     10000,
+		"maxGasPrice":     100000,
+		"maxTxGas":        42000000,
 		"maxBlockTxsSize": 4200000,
-		"gasRebateRate": 1000,
-		"minTokenPledge": 1000000,
-		"minStakePledge": 1000000
-	}`))
+		"gasRebateRate":   1000,
+		"minTokenPledge":  1000000,
+		"minStakePledge":  1000000,
+	}))
 	assert.ErrorContains(err, "invalid minTokenPledge")
 
-	_, err = gs.Chain.AppendFeeConfig([]byte(`{
-		"startHeight": 1000,
-		"thresholdGas": 9999,
-		"minGasPrice": 10000,
-		"maxGasPrice": 100000,
-		"maxTxGas": 42000000,
+	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+		"startHeight":     1000,
+		"thresholdGas":    9999,
+		"minGasPrice":     10000,
+		"maxGasPrice":     100000,
+		"maxTxGas":        42000000,
 		"maxBlockTxsSize": 4200000,
-		"gasRebateRate": 1000,
-		"minTokenPledge": 10000000000000,
-		"minStakePledge": 1000000000000
-	}`))
+		"gasRebateRate":   1000,
+		"minTokenPledge":  10000000000000,
+		"minStakePledge":  1000000000000,
+	}))
 	assert.NoError(err)
-	_, err = gs.Chain.AppendFeeConfig([]byte(`{
-		"startHeight": 100,
-		"thresholdGas": 88888,
-		"minGasPrice": 10000,
-		"maxGasPrice": 100000,
-		"maxTxGas": 42000000,
+	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+		"startHeight":     100,
+		"thresholdGas":    88888,
+		"minGasPrice":     10000,
+		"maxGasPrice":     100000,
+		"maxTxGas":        42000000,
 		"maxBlockTxsSize": 4200000,
-		"gasRebateRate": 1000,
-		"minTokenPledge": 10000000000000,
-		"minStakePledge": 1000000000000
-	}`))
+		"gasRebateRate":   1000,
+		"minTokenPledge":  10000000000000,
+		"minStakePledge":  1000000000000,
+	}))
 	assert.NoError(err)
 	assert.Equal(uint64(1000), gs.Chain.Fee(10).ThresholdGas)
 	assert.Equal(uint64(88888), gs.Chain.Fee(100).ThresholdGas)
@@ -107,7 +107,7 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	assert.NoError(err)
-	assert.Equal("LDKodJ9zvdQXnHBn6cuvMYV7UQVmR1RrSr1", gs.Chain.FeeConfigID.String())
+	assert.Equal("LDJudgySoPznGNbyFLvCkYiz2uHU9A3pi3q", gs.Chain.FeeConfigID.String())
 	assert.Equal("LM8Y7apZJb2br3bzE9jRi7nCWra3NukwSFu", gs.Chain.NameServiceID.String())
 	assert.Equal("LMQ4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3", gs.Chain.ProfileServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
