@@ -27,14 +27,16 @@ type Allocation struct {
 }
 
 type ChainConfig struct {
-	ChainID          uint64       `json:"chainID"`
-	MaxTotalSupply   *big.Int     `json:"maxTotalSupply"`
-	Message          string       `json:"message"`
+	ChainID        uint64     `json:"chainID"`
+	MaxTotalSupply *big.Int   `json:"maxTotalSupply"`
+	Message        string     `json:"message"`
+	FeeConfig      *FeeConfig `json:"feeConfig"`
+
+	// external assignment fields
+	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
 	FeeConfigID      util.DataID  `json:"feeConfigID"`
 	NameServiceID    util.ModelID `json:"nameAppID"`
 	ProfileServiceID util.ModelID `json:"profileAppID"`
-	FeeConfig        *FeeConfig   `json:"feeConfig"`
-	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
 }
 
 func (c *ChainConfig) IsNameService(id util.ModelID) bool {
@@ -55,7 +57,7 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 	fee := new(FeeConfig)
 	errp := util.ErrPrefix("ChainConfig.AppendFeeConfig error: ")
 
-	if err := json.Unmarshal(data, fee); err != nil {
+	if err := util.UnmarshalCBOR(data, fee); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	if err := fee.SyntacticVerify(); err != nil {
@@ -207,12 +209,12 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 
 	// config data tx
-	cfg, err := json.Marshal(g.Chain.FeeConfig)
+	cfg, err := util.MarshalCBOR(g.Chain.FeeConfig)
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	cfgData := &ld.TxUpdater{
-		ModelID:   &ld.JSONModelID,
+		ModelID:   &ld.CBORModelID,
 		Version:   1,
 		Threshold: &genesisAccount.Threshold,
 		Keepers:   &genesisAccount.Keepers,
