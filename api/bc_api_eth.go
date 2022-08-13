@@ -15,6 +15,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/crypto"
+	"go.uber.org/zap"
 
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/ld"
@@ -491,7 +492,9 @@ func writeJSONRes(w http.ResponseWriter, code int, val interface{}) {
 	}
 
 	if code >= 500 {
-		logging.Log.Warn("write response %d, %s", code, string(data))
+		logging.Log.Warn("writeJSONRes error",
+			zap.Int("code", code),
+			zap.String("res", fmt.Sprintf("%v", val)))
 	}
 	w.WriteHeader(code)
 	w.Write(data)
