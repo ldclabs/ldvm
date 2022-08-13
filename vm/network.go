@@ -5,6 +5,7 @@ package vm
 
 import (
 	"github.com/ava-labs/avalanchego/ids"
+	"go.uber.org/zap"
 
 	"github.com/ldclabs/ldvm/ld"
 )
@@ -33,13 +34,13 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 	}
 
 	if err != nil {
-		n.vm.Log.Warn("PushNetwork marshal txs failed: %v", err)
+		n.vm.Log.Warn("PushNetwork.GossipTx marshal txs failed", zap.Error(err))
 		return
 	}
 
-	n.vm.Log.Debug("PushNetwork GossipTx %d bytes", len(data))
+	n.vm.Log.Debug("PushNetwork.GossipTx SendAppGossip", zap.Int("bytes", len(data)))
 	if err = n.vm.appSender.SendAppGossip(data); err != nil {
-		n.vm.Log.Warn("PushNetwork sendTxs failed: %v", err)
+		n.vm.Log.Warn("PushNetwork.GossipTx SendAppGossip failed", zap.Error(err))
 	}
 }
 
@@ -62,7 +63,10 @@ func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 	var tx *ld.Transaction
 
 	if err = txs.Unmarshal(msg); err == nil {
-		v.Log.Info("AppGossip from %s, %d bytes, %d txs", nodeID, len(msg), len(txs))
+		v.Log.Info("LDVM.AppGossip",
+			zap.Stringer("nodeID", nodeID),
+			zap.Int("bytes", len(msg)),
+			zap.Int("txs", len(txs)))
 
 		if tx, err = txs.To(); err == nil {
 			err = v.bc.AddRemoteTxs(tx)
@@ -70,7 +74,10 @@ func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
 	}
 
 	if err != nil {
-		v.Log.Warn("AppGossip from %s, %d bytes, error: %v", nodeID, len(msg), err)
+		v.Log.Warn("LDVM.AppGossip",
+			zap.Stringer("nodeID", nodeID),
+			zap.Int("bytes", len(msg)),
+			zap.Error(err))
 	}
 	return err
 }

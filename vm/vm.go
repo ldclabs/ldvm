@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/rpc/v2"
+	"go.uber.org/zap"
 
 	"github.com/ava-labs/avalanchego/database/manager"
 	"github.com/ava-labs/avalanchego/ids"
@@ -97,40 +98,34 @@ func (v *VM) Initialize(
 	v.toEngine = toEngine
 	v.NewPushNetwork()
 
+	errp := util.ErrPrefix("LDVM.Initialize error: ")
 	var cfg *config.Config
 	cfg, err = config.New(configData)
 	if err != nil {
-		return fmt.Errorf("LDVM Initialize failed to get config: %s", err)
+		return errp.Errorf("failed to get config, %v", err)
 	}
 
 	cfg.Logger.MsgPrefix = fmt.Sprintf("%s@%s", Name, Version)
 	logFactory := avalogging.NewFactory(cfg.Logger)
 	v.Log, err = logFactory.Make("ldvm-" + ctx.NodeID.String())
 	if err != nil {
-		return fmt.Errorf("LDVM Initialize failed to create logger: %s", err)
+		return errp.Errorf("failed to create logger, %v", err)
 	}
 
-	// mh, err := ctx.ValidatorState.GetMinimumHeight()
-	// v.Log.Info("ValidatorState MH, %d, %v", mh, err)
-	// ch, err := ctx.ValidatorState.GetCurrentHeight()
-	// v.Log.Info("ValidatorState CH %d, %v", ch, err)
-	// if err == nil {
-	// 	nodes, err := ctx.ValidatorState.GetValidatorSet(ch, ctx.SubnetID)
-	// 	v.Log.Info("ValidatorState Nodes %v, %v", nodes, err)
-	// }
-
 	logging.SetLogger(v.Log)
-	v.Log.Info("LDVM Initialize NetworkID %v, SubnetID %v, ChainID %v",
-		ctx.NetworkID, ctx.SubnetID, ctx.ChainID)
-	v.Log.Info("LDVM Initialize with genesisData: <%s>", string(genesisData))
-	v.Log.Info("LDVM Initialize with upgradeData: <%s>", string(upgradeData))
-	v.Log.Info("LDVM Initialize with configData: <%s>", string(configData))
+	v.Log.Info("LDVM.Initialize",
+		zap.Uint32("networkID", ctx.NetworkID),
+		zap.Stringer("subnetID", ctx.SubnetID),
+		zap.Stringer("chainID", ctx.ChainID),
+		zap.String("genesisData", string(genesisData)),
+		zap.String("upgradeData", string(upgradeData)),
+		zap.String("configData", string(configData)))
 
 	err = v.initialize(cfg, genesisData, toEngine)
 	if err != nil {
-		v.Log.Error(err.Error())
+		v.Log.Error("LDVM.Initialize failed", zap.Error(err))
 	}
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (v *VM) initialize(
@@ -145,7 +140,7 @@ func (v *VM) initialize(
 
 	gs, err = genesis.FromJSON(genesisData)
 	if err != nil {
-		return fmt.Errorf("parse genesis data error: %v", err)
+		return fmt.Errorf("parse genesis data error, %v", err)
 	}
 
 	// update the ChainID
@@ -166,14 +161,14 @@ func (v *VM) SetState(state snow.State) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.Log.Info("SetState %v", state)
+	v.Log.Info("LDVM.SetState %v", zap.Stringer("state", state))
 	return v.bc.SetState(state)
 }
 
 // Shutdown implements the common.VM Shutdown interface
 // Shutdown is called when the node is shutting down.
 func (v *VM) Shutdown() error {
-	v.Log.Info("Shutdown")
+	v.Log.Info("LDVM.Shutdown")
 	// TODO graceful shutdown
 	v.dbManager.Close()
 	return nil
@@ -218,7 +213,7 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
 	if err := server.RegisterService(api.NewBlockChainAPI(v.bc), Name); err != nil {
-		v.Log.Error("CreateHandlers error: %v", err)
+		v.Log.Error("LDVM.CreateHandlers error", zap.Error(err))
 		return nil, err
 	}
 
@@ -251,14 +246,16 @@ func (v *VM) HealthCheck() (interface{}, error) {
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
 func (v *VM) Connected(id ids.NodeID, nodeVersion *version.Application) error {
-	v.Log.Info("Connected %s, %v", id, nodeVersion)
+	v.Log.Info("LDVM.Connected",
+		zap.Stringer("nodeID", id),
+		zap.Stringer("version", nodeVersion))
 	return nil // noop
 }
 
 // Disconnected implements the common.VM Disconnected interface
 // Connector represents a handler that is called when a connection is marked as disconnected
 func (v *VM) Disconnected(id ids.NodeID) error {
-	v.Log.Info("Disconnected %s", id)
+	v.Log.Info("LDVM.Disconnected", zap.Stringer("nodeID", id))
 	return nil // noop
 }
 
@@ -276,8 +273,12 @@ func (v *VM) Disconnected(id ids.NodeID) error {
 // This node should typically send an AppResponse to [nodeID] in response to
 // a valid message using the same request ID before the deadline. However,
 // the VM may arbitrarily choose to not send a response to this request.
-func (v *VM) AppRequest(nodeID ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
-	v.Log.Info("AppRequest %s, %d, %d bytes", nodeID, requestID, len(request))
+func (v *VM) AppRequest(id ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
+	v.Log.Info("LDVM.AppRequest",
+		zap.Stringer("nodeID", id),
+		zap.Uint32("requestID", requestID),
+		zap.Int("requestBytes", len(request)),
+		zap.Time("deadline", deadline))
 	return nil
 }
 
@@ -301,8 +302,11 @@ func (v *VM) AppRequest(nodeID ids.NodeID, requestID uint32, deadline time.Time,
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another AppRequest, or it may give
 // up trying to get the requested information.
-func (v *VM) AppResponse(nodeID ids.NodeID, requestID uint32, response []byte) error {
-	v.Log.Info("AppResponse %s, %d, %d bytes", nodeID, requestID, len(response))
+func (v *VM) AppResponse(id ids.NodeID, requestID uint32, response []byte) error {
+	v.Log.Info("LDVM.AppResponse",
+		zap.Stringer("nodeID", id),
+		zap.Uint32("requestID", requestID),
+		zap.Int("responseBytes", len(response)))
 	return nil
 }
 
@@ -319,8 +323,10 @@ func (v *VM) AppResponse(nodeID ids.NodeID, requestID uint32, response []byte) e
 // * This engine sent a request to [nodeID] with ID [requestID].
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
-func (v *VM) AppRequestFailed(nodeID ids.NodeID, requestID uint32) error {
-	v.Log.Warn("AppRequestFailed %s, %d", nodeID, requestID)
+func (v *VM) AppRequestFailed(id ids.NodeID, requestID uint32) error {
+	v.Log.Info("LDVM.AppRequestFailed",
+		zap.Stringer("nodeID", id),
+		zap.Uint32("requestID", requestID))
 	return nil
 }
 
@@ -334,9 +340,11 @@ func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
 
 	blk, err = v.bc.GetBlock(id)
 	if err != nil {
-		v.Log.Error("VM GetBlock %s error: %v", id, err)
+		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id), zap.Error(err))
 	} else {
-		v.Log.Info("VM GetBlock %s at %d", id, blk.Height())
+		v.Log.Info("LDVM.GetBlock",
+			zap.Stringer("id", id),
+			zap.Uint64("height", blk.Height()))
 	}
 	return
 }
@@ -355,9 +363,11 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 	})
 
 	if err != nil {
-		v.Log.Error("VM ParseBlock %s error, %v", id, err)
+		v.Log.Error("LDVM.ParseBlock", zap.Stringer("id", id), zap.Error(err))
 	} else {
-		v.Log.Info("VM ParseBlock %s at %d", blk.ID(), blk.Height())
+		v.Log.Info("LDVM.ParseBlock",
+			zap.Stringer("id", id),
+			zap.Uint64("height", blk.Height()))
 	}
 	return
 }
@@ -372,9 +382,11 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 
 	blk, err = v.bc.BuildBlock()
 	if err != nil {
-		v.Log.Warn("VM BuildBlock %v", err)
+		v.Log.Error("LDVM.BuildBlock", zap.Error(err))
 	} else {
-		v.Log.Info("VM BuildBlock %s at %d", blk.ID(), blk.Height())
+		v.Log.Info("LDVM.BuildBlock",
+			zap.Stringer("id", blk.ID()),
+			zap.Uint64("height", blk.Height()))
 	}
 	return
 }
@@ -387,10 +399,10 @@ func (v *VM) SetPreference(id ids.ID) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.Log.Info("VM SetPreference %s", id)
+	v.Log.Info("LDVM.SetPreference %s", zap.Stringer("id", id))
 	err := v.bc.SetPreference(id)
 	if err != nil {
-		v.Log.Error("VM SetPreference %s error %v", id, err)
+		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id), zap.Error(err))
 	}
 	return err
 }
@@ -403,7 +415,9 @@ func (v *VM) SetPreference(id ids.ID) error {
 // returned.
 func (v *VM) LastAccepted() (ids.ID, error) {
 	blk := v.bc.LastAcceptedBlock()
-	v.Log.Info("VM LastAccepted %s at %d", blk.ID(), blk.Height())
+	v.Log.Info("LDVM.LastAccepted",
+		zap.Stringer("id", blk.ID()),
+		zap.Uint64("height", blk.Height()))
 	return blk.ID(), nil
 }
 
@@ -422,9 +436,13 @@ func (v *VM) VerifyHeightIndex() error {
 func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 	id, err := v.bc.GetBlockIDAtHeight(height)
 	if err != nil {
-		v.Log.Error("VM GetBlockIDAtHeight %d error %v", height, err)
+		v.Log.Error("LDVM.GetBlockIDAtHeight %d error %v",
+			zap.Uint64("height", height),
+			zap.Error(err))
 	} else {
-		v.Log.Info("VM GetBlockIDAtHeight %d: %s", height, id)
+		v.Log.Info("LDVM.GetBlockIDAtHeight",
+			zap.Stringer("id", id),
+			zap.Uint64("height", height))
 	}
 	return id, err
 }

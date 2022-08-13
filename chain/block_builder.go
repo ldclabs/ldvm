@@ -11,6 +11,8 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"go.uber.org/zap"
+
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
@@ -192,6 +194,10 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	}
 
 	b.lastBuildHeight = blk.Height
-	logging.Log.Info("BlockBuilder.Build: build block %s at %d, parent %s", blk.ID, blk.Height, blk.Parent)
+
+	logging.Log.Info("BlockBuilder.Build",
+		zap.Stringer("id", blk.ID),
+		zap.Uint64("height", blk.Height),
+		zap.Stringer("parent", blk.Parent))
 	return nblk, nil
 }

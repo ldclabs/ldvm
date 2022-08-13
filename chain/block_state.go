@@ -4,13 +4,13 @@
 package chain
 
 import (
-	"fmt"
 	"math/big"
 	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
 	"github.com/ava-labs/avalanchego/ids"
+	"go.uber.org/zap"
 
 	"github.com/ldclabs/ldvm/chain/transaction"
 	"github.com/ldclabs/ldvm/constants"
@@ -171,6 +171,7 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 	acc := bs.accountCache[id]
 	if acc == nil {
+		errp := util.ErrPrefix("BlockState.LoadAccount error: ")
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
@@ -181,7 +182,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return nil, errp.ErrorIf(err)
 		}
 
 		pledge := new(big.Int)
@@ -204,11 +205,12 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 func (bs *blockState) LoadLedger(acc *transaction.Account) error {
 	if acc.Ledger() == nil {
 		id := acc.ID()
+		errp := util.ErrPrefix("BlockState.LoadLedger error: ")
 		data, err := bs.ledgerDB.Get(id[:])
 		if err != nil && err != database.ErrNotFound {
-			return err
+			return errp.ErrorIf(err)
 		}
-		return acc.InitLedger(data)
+		return errp.ErrorIf(acc.InitLedger(data))
 	}
 	return nil
 }
@@ -234,8 +236,9 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, erro
 }
 
 func (bs *blockState) SaveName(ns *service.Name) error {
+	errp := util.ErrPrefix("BlockState.SaveName error: ")
 	if ns.DID == util.DataIDEmpty {
-		return fmt.Errorf("blockState.SaveName: data ID is empty")
+		return errp.Errorf("data ID is empty")
 	}
 
 	name := ns.ASCII()
@@ -243,93 +246,101 @@ func (bs *blockState) SaveName(ns *service.Name) error {
 	ok, err := bs.nameDB.Has(key)
 	switch {
 	case ok:
-		return fmt.Errorf("name %q conflict", name)
+		return errp.Errorf("name %q conflict", name)
 	case err == nil:
 		err = bs.nameDB.Put(key, ns.DID[:])
 	}
 
-	return err
+	return errp.ErrorIf(err)
 }
 
 func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
+	errp := util.ErrPrefix("BlockState.LoadModel error: ")
 	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
+
 	mi := &ld.ModelInfo{}
 	if err := mi.Unmarshal(data); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	if err := mi.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	mi.ID = id
 	return mi, nil
 }
 
 func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
+	errp := util.ErrPrefix("BlockState.SaveModel error: ")
 	if mi.ID == util.ModelIDEmpty {
-		return fmt.Errorf("blockState.SaveModel: model ID is empty")
+		return errp.Errorf("model id is empty")
 	}
 
 	if err := mi.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	bs.ls.UpdateModel(mi.ID, mi.Bytes())
-	return bs.modelDB.Put(mi.ID[:], mi.Bytes())
+	return errp.ErrorIf(bs.modelDB.Put(mi.ID[:], mi.Bytes()))
 }
 
 func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
+	errp := util.ErrPrefix("BlockState.LoadData error: ")
 	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
+
 	di := &ld.DataInfo{}
 	if err := di.Unmarshal(data); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	if err := di.SyntacticVerify(); err != nil {
-		return nil, err
+		return nil, errp.ErrorIf(err)
 	}
 	di.ID = id
 	return di, nil
 }
 
 func (bs *blockState) SaveData(di *ld.DataInfo) error {
+	errp := util.ErrPrefix("BlockState.SaveData error: ")
 	if di.ID == util.DataIDEmpty {
-		return fmt.Errorf("blockState.SaveData: data ID is empty")
+		return errp.Errorf("data id is empty")
 	}
 
 	if err := di.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	bs.ls.UpdateData(di.ID, di.Bytes())
-	return bs.dataDB.Put(di.ID[:], di.Bytes())
+	return errp.ErrorIf(bs.dataDB.Put(di.ID[:], di.Bytes()))
 }
 
 func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
+	errp := util.ErrPrefix("BlockState.SavePrevData error: ")
 	if di.ID == util.DataIDEmpty {
-		return fmt.Errorf("blockState.SavePrevData: data ID is empty")
+		return errp.Errorf("data id is empty")
 	}
 
 	if err := di.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
-	return bs.prevDataDB.Put(di.ID.VersionKey(di.Version), di.Bytes())
+	return errp.ErrorIf(bs.prevDataDB.Put(di.ID.VersionKey(di.Version), di.Bytes()))
 }
 
 func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
+	errp := util.ErrPrefix("BlockState.DeleteData error: ")
 	if di.ID == util.DataIDEmpty {
-		return fmt.Errorf("blockState.DeleteData: data ID is empty")
+		return errp.Errorf("data id is empty")
 	}
 
 	version := di.Version
 	if err := di.MarkDeleted(message); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	if err := bs.SaveData(di); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 	for version > 0 {
 		bs.prevDataDB.Delete(di.ID.VersionKey(version))
@@ -339,14 +350,16 @@ func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
 }
 
 func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
+	errp := util.ErrPrefix("BlockState.GetBlockIDAtHeight error: ")
 	data, err := bs.heightDB.Get(database.PackUInt64(height))
 	if err != nil {
-		return ids.Empty, err
+		return ids.Empty, errp.ErrorIf(err)
 	}
 	return ids.ToID(data)
 }
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
+	errp := util.ErrPrefix("BlockState.SaveBlock error: ")
 	for _, a := range bs.accountCache {
 		data, ledger, err := a.Marshal()
 		if err == nil {
@@ -362,39 +375,41 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 			}
 		}
 		if err != nil {
-			return err
+			return errp.ErrorIf(err)
 		}
 	}
 	if err := bs.ls.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
 	// will update block's state and id
 	blk.State = bs.ls.ID
 	if err := blk.SyntacticVerify(); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
 
 	hKey := database.PackUInt64(blk.Height)
 	if ok, _ := bs.heightDB.Has(hKey); ok {
-		return fmt.Errorf("SaveBlock height error: block %s at height %d exists", blk.ID, blk.Height)
+		return errp.Errorf("block %s at height %d exists", blk.ID, blk.Height)
 	}
+
 	if err := bs.blockDB.Put(blk.ID[:], blk.Bytes()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return bs.heightDB.Put(hKey, blk.ID[:])
+	return errp.ErrorIf(bs.heightDB.Put(hKey, blk.ID[:]))
 }
 
 // Commit when accept
 func (bs *blockState) Commit() error {
+	errp := util.ErrPrefix("BlockState.Commit error: ")
 	if err := bs.vdb.SetDatabase(bs.bc.DB()); err != nil {
-		return err
+		return errp.ErrorIf(err)
 	}
-	return bs.vdb.Commit()
+	return errp.ErrorIf(bs.vdb.Commit())
 }
 
 func (bs *blockState) Free() {
-	logging.Log.Info("free blockState at height %d", bs.height)
+	logging.Log.Info("blockState.Free", zap.Uint64("height", bs.height))
 	putAccountCache(bs.accountCache)
 	bs.accountCache = nil
 }

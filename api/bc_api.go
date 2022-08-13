@@ -16,6 +16,7 @@ import (
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/cborrpc"
+	"go.uber.org/zap"
 )
 
 type API struct {
@@ -387,7 +388,9 @@ func writeCBORRes(w http.ResponseWriter, code int, val interface{}) {
 	}
 
 	if code >= 500 {
-		logging.Log.Warn("write response %d, %v", code, val)
+		logging.Log.Warn("writeCBORRes error",
+			zap.Int("code", code),
+			zap.String("res", fmt.Sprintf("%v", val)))
 	}
 	w.WriteHeader(code)
 	w.Write(data)
