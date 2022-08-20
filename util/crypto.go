@@ -199,6 +199,7 @@ func SatisfySigning(threshold uint16, keepers, signers EthIDs, whenZero bool) bo
 	for _, v := range keepers {
 		set[v] = struct{}{}
 	}
+
 	t := uint16(0)
 	for _, id := range signers {
 		if _, ok := set[id]; ok {

@@ -13,14 +13,6 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-var EthSigner = types.NewLondonSigner(big.NewInt(2357))
-
-// SetChainID will be set when VM.Initialize
-func SetChainID(id uint64) {
-	gChainID = id
-	EthSigner = types.NewLondonSigner(big.NewInt(int64(id)))
-}
-
 type TxEth struct {
 	tx   *types.Transaction
 	from util.EthID

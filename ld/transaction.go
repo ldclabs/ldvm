@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -22,6 +23,14 @@ const (
 
 // gChainID will be updated by SetChainID when VM.Initialize
 var gChainID = uint64(2357)
+
+var EthSigner = types.NewLondonSigner(big.NewInt(2357))
+
+// SetChainID will be set when VM.Initialize
+func SetChainID(id uint64) {
+	gChainID = id
+	EthSigner = types.NewLondonSigner(big.NewInt(int64(id)))
+}
 
 type Signer interface {
 	Sign(data []byte) (util.Signature, error)
