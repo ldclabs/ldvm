@@ -7,7 +7,7 @@ import "fmt"
 
 const (
 	// The "test" transaction tests that a value of data at the target location
-	// is equal to a specified value. test transaction will not write to the block.
+	// is equal to a specified value.
 	// It should be in a batch transactions.
 	TypeTest TxType = iota
 
@@ -79,26 +79,22 @@ func (t TxType) Gas() uint64 {
 	switch t {
 	case TypeTest:
 		return 0
-	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash,
-		TypeExchange, TypeAddNonceTable:
+	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange:
 		return 42
-	case TypeUpdateAccountInfo, TypeCreateToken,
-		TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake:
-		return 1000
+	case TypeAddNonceTable, TypeUpdateAccountInfo, TypeUpdateData, TypeUpdateDataInfo:
+		return 42
+	case TypePunish, TypeCreateData, TypeUpdateDataInfoByAuth, TypeDeleteData:
+		return 200
 	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
-		return 500
-	case TypeOpenLending, TypeCloseLending:
-		return 1000
+		return 200
 	case TypeBorrow, TypeRepay:
 		return 500
-	case TypePunish:
-		return 42
 	case TypeCreateModel, TypeUpdateModelInfo:
 		return 500
-	case TypeCreateData, TypeUpdateData, TypeUpdateDataInfo:
-		return 100
-	case TypeUpdateDataInfoByAuth, TypeDeleteData:
-		return 200
+	case TypeCreateToken, TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake:
+		return 1000
+	case TypeOpenLending, TypeCloseLending:
+		return 1000
 	default:
 		return 10000
 	}

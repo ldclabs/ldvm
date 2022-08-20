@@ -326,7 +326,7 @@ func TestTxCreateData(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 951500, got 0")
+		"insufficient NativeLDC balance, expected 1061500, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -402,7 +402,7 @@ func TestTxCreateCBORData(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1015300, got 0")
+		"insufficient NativeLDC balance, expected 1125300, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -503,7 +503,7 @@ func TestTxCreateJSONData(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1074700, got 0")
+		"insufficient NativeLDC balance, expected 1184700, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
@@ -613,7 +613,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1116500, got 0")
+		"insufficient NativeLDC balance, expected 1226500, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)

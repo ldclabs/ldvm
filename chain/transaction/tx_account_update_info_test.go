@@ -147,7 +147,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 2088900, got 0")
+		"insufficient NativeLDC balance, expected 1035100, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)

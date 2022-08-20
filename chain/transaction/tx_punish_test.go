@@ -171,7 +171,7 @@ func TestTxPunish(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 784300, got 0")
+		"insufficient NativeLDC balance, expected 958100, got 0")
 	bs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
