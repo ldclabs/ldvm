@@ -12,7 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 
-	"github.com/ldclabs/ldvm/chain/transaction"
+	"github.com/ldclabs/ldvm/chain/transactions"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/ld"
@@ -27,17 +27,17 @@ var (
 
 var poolAccountCache = sync.Pool{
 	New: func() any {
-		v := make(transaction.AccountCache, 256)
+		v := make(transactions.AccountCache, 256)
 		return &v
 	},
 }
 
-func getAccountCache() transaction.AccountCache {
-	ac := poolAccountCache.Get().(*transaction.AccountCache)
+func getAccountCache() transactions.AccountCache {
+	ac := poolAccountCache.Get().(*transactions.AccountCache)
 	return *ac
 }
 
-func putAccountCache(cc transaction.AccountCache) {
+func putAccountCache(cc transactions.AccountCache) {
 	for k := range cc {
 		delete(cc, k)
 	}
@@ -60,19 +60,19 @@ type blockState struct {
 	prevDataDB        *db.PrefixDB
 	stateDB           *db.PrefixDB
 	nameDB            *db.PrefixDB
-	accountCache      transaction.AccountCache
+	accountCache      transactions.AccountCache
 }
 
 type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
-	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transaction.Account)
+	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transactions.Account)
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
 	Free()
 
-	transaction.BlockState
+	transactions.ChainState
 }
 
 func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseDB database.Database) *blockState {
@@ -168,17 +168,17 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
+func (bs *blockState) LoadAccount(id util.EthID) (*transactions.Account, error) {
 	acc := bs.accountCache[id]
 	if acc == nil {
 		errp := util.ErrPrefix("BlockState.LoadAccount error: ")
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
-			acc, err = transaction.ParseAccount(id, data)
+			acc, err = transactions.ParseAccount(id, data)
 		case database.ErrNotFound:
 			err = nil
-			acc = transaction.NewAccount(id)
+			acc = transactions.NewAccount(id)
 		}
 
 		if err != nil {
@@ -202,7 +202,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transaction.Account, error) {
 	return bs.accountCache[id], nil
 }
 
-func (bs *blockState) LoadLedger(acc *transaction.Account) error {
+func (bs *blockState) LoadLedger(acc *transactions.Account) error {
 	if acc.Ledger() == nil {
 		id := acc.ID()
 		errp := util.ErrPrefix("BlockState.LoadLedger error: ")
@@ -215,7 +215,7 @@ func (bs *blockState) LoadLedger(acc *transaction.Account) error {
 	return nil
 }
 
-func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transaction.Account) {
+func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transactions.Account) {
 	id := util.EthID(nodeID).ToStakeSymbol()
 	acc, err := bs.LoadAccount(util.EthID(id))
 	if err != nil || !acc.Valid(ld.StakeAccount) {
@@ -224,7 +224,7 @@ func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSym
 	return id, acc
 }
 
-func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transaction.Account, error) {
+func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transactions.Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
 		acc, err := bs.LoadAccount(util.EthID(id))

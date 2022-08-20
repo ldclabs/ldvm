@@ -19,7 +19,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 	"go.uber.org/zap"
 
-	"github.com/ldclabs/ldvm/chain/transaction"
+	"github.com/ldclabs/ldvm/chain/transactions"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
@@ -28,8 +28,8 @@ import (
 )
 
 var (
-	_ snowman.Block            = &Block{}
-	_ transaction.BlockContext = &Block{}
+	_ snowman.Block             = &Block{}
+	_ transactions.ChainContext = &Block{}
 
 	emptyBlock = &Block{ld: &ld.Block{}}
 )
@@ -50,8 +50,8 @@ type Block struct {
 	parent       *Block // the genesis block is the parent of itself
 	bs           BlockState
 	status       choices.Status
-	txs          []transaction.Transaction // txs field will unfold batch tx
-	originTxs    []*ld.Transaction         // originTxs keep the original txs
+	txs          []transactions.Transaction // txs field will unfold batch tx
+	originTxs    []*ld.Transaction          // originTxs keep the original txs
 	txIDs        []ids.ID
 	verified     bool
 	nextGasPrice uint64
@@ -71,16 +71,16 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 	}, ctx)
 
 	blk.InitState(blk, memdb.NewWithSize(0))
-	blk.txs = make([]transaction.Transaction, len(blk.ld.Txs))
+	blk.txs = make([]transactions.Transaction, len(blk.ld.Txs))
 	gas := uint64(0)
 	for i := range blk.ld.Txs {
 		tx := blk.ld.Txs[i]
-		ntx, err := transaction.NewGenesisTx(tx)
+		ntx, err := transactions.NewGenesisTx(tx)
 		if err != nil {
 			return nil, errp.ErrorIf(err)
 		}
 		gas += tx.Gas()
-		if err := ntx.(transaction.GenesisTx).ApplyGenesis(blk, blk.bs); err != nil {
+		if err := ntx.(transactions.GenesisTx).ApplyGenesis(blk, blk.bs); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
 		blk.txs[i] = ntx
@@ -111,12 +111,12 @@ func (b *Block) Unmarshal(data []byte) error {
 		return errp.ErrorIf(err)
 	}
 
-	b.txs = make([]transaction.Transaction, len(b.ld.Txs))
+	b.txs = make([]transactions.Transaction, len(b.ld.Txs))
 	for i := range b.ld.Txs {
 		tx := b.ld.Txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		ntx, err := transaction.NewTx(tx)
+		ntx, err := transactions.NewTx(tx)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
@@ -157,7 +157,7 @@ func (b *Block) ID() ids.ID { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
 
-func (b *Block) Tx(id ids.ID) transaction.Transaction {
+func (b *Block) Tx(id ids.ID) transactions.Transaction {
 	for _, tx := range b.txs {
 		if tx.ID() == id {
 			return tx
@@ -207,7 +207,7 @@ func (b *Block) TryBuildTxs(txs ...*ld.Transaction) error {
 func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (choices.Status, error) {
 	feeCfg := b.FeeConfig()
 	gas := b.ld.Gas
-	ntxs := make([]transaction.Transaction, 0, len(txs))
+	ntxs := make([]transactions.Transaction, 0, len(txs))
 
 	for i := range txs {
 		tx := txs[i]
@@ -225,7 +225,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		}
 		gas += tx.Gas()
 
-		ntx, err := transaction.NewTx(tx)
+		ntx, err := transactions.NewTx(tx)
 		if err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
@@ -254,7 +254,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 
 func (b *Block) BuildMinerFee(vbs BlockState) error {
 	errp := util.ErrPrefix("Block.BuildMinerFee error: ")
-	shares := make([]*transaction.Account, 0)
+	shares := make([]*transactions.Account, 0)
 	b.ld.Validators = []util.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
 		var err error
@@ -276,7 +276,7 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 }
 
 func (b *Block) verifyMinerFee() error {
-	shares := make([]*transaction.Account, 0)
+	shares := make([]*transactions.Account, 0)
 	if b.ctx.ValidatorState != nil {
 		var err error
 		shares, err = b.getValidatorAccounts(b.ld.PCHeight, b.bs)
@@ -296,7 +296,7 @@ func (b *Block) verifyMinerFee() error {
 	return b.applyMinerFee(shares, b.bs)
 }
 
-func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transaction.Account, error) {
+func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transactions.Account, error) {
 	vs, err := b.ctx.ValidatorState.GetValidatorSet(pcHeight, b.ctx.SubnetID)
 	if err != nil {
 		return nil, fmt.Errorf("ValidatorState.GetValidatorSet error: %v", err)
@@ -313,7 +313,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 		return vs[vv[i]] > vs[vv[j]]
 	})
 
-	accs := make([]*transaction.Account, 0, len(vv))
+	accs := make([]*transactions.Account, 0, len(vv))
 	for _, nid := range vv {
 		if _, acc := vbs.LoadStakeAccountByNodeID(nid); acc != nil {
 			accs = append(accs, acc)
@@ -328,7 +328,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 	return accs, nil
 }
 
-func (b *Block) applyMinerFee(shares []*transaction.Account, vbs BlockState) error {
+func (b *Block) applyMinerFee(shares []*transactions.Account, vbs BlockState) error {
 	ldc, err := vbs.LoadAccount(constants.LDCAccount)
 	if err != nil {
 		return err
