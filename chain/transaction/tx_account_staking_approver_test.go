@@ -173,7 +173,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"insufficient NativeLDC balance, expected 1316700, got 0")
+		"insufficient NativeLDC balance, expected 986700, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)

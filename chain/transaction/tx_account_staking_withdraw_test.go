@@ -204,7 +204,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	bs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(bctx, bs),
-		"TxWithdrawStake.Apply error: Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 1362900, got 0")
+		"TxWithdrawStake.Apply error: Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 1032900, got 0")
 	bs.CheckoutAccounts()
 
 	senderAcc := bs.MustAccount(sender)
