@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
@@ -34,13 +33,13 @@ func TestTxTester(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"TxTester.SyntacticVerify error: nil pointer")
 
-	tx = &TxTester{ObjectType: ObjectType(4)}
-	assert.ErrorContains(tx.SyntacticVerify(),
-		"TxTester.SyntacticVerify error: invalid objectType UnknownObjectType(4)")
-
 	tx = &TxTester{ObjectType: AddressObject, Tests: TestOps{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"TxTester.SyntacticVerify error: empty tests")
+
+	tx = &TxTester{ObjectType: ObjectType(4), Tests: TestOps{{Path: "/"}}}
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"TxTester.SyntacticVerify error: invalid objectType UnknownObjectType(4)")
 
 	tx = &TxTester{ObjectType: AddressObject, Tests: TestOps{{Path: "/"}}}
 	assert.ErrorContains(tx.SyntacticVerify(),
@@ -49,7 +48,7 @@ func TestTxTester(t *testing.T) {
 	// AddressObject
 	tx = &TxTester{
 		ObjectType: AddressObject,
-		ObjectID:   ids.ShortID(constants.GenesisAccount),
+		ObjectID:   constants.GenesisAccount.String(),
 		Tests: TestOps{
 			{Path: "/t", Value: util.MustMarshalCBOR(NativeAccount)},
 			{Path: "/n", Value: util.MustMarshalCBOR(uint64(1))},
@@ -63,7 +62,7 @@ func TestTxTester(t *testing.T) {
 	data, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Address","objectId":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","tests":[{"path":"/t","value":"0x0017afa01d"},{"path":"/n","value":"0x017785459a"},{"path":"/b","value":"0xc2443b9aca00dfb73dae"},{"path":"/th","value":"0x017785459a"}]}`, string(data))
+	assert.Equal(`{"objectType":"Address","objectID":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","tests":[{"path":"/t","value":"0x0017afa01d"},{"path":"/n","value":"0x017785459a"},{"path":"/b","value":"0xc2443b9aca00dfb73dae"},{"path":"/th","value":"0x017785459a"}]}`, string(data))
 
 	acc := &Account{
 		Nonce:      0,
@@ -98,7 +97,7 @@ func TestTxTester(t *testing.T) {
 	// ModelObject
 	tx = &TxTester{
 		ObjectType: ModelObject,
-		ObjectID:   ids.ShortID(CBORModelID),
+		ObjectID:   CBORModelID.String(),
 		Tests: TestOps{
 			{Path: "/n", Value: util.MustMarshalCBOR("NameService")},
 			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
@@ -112,7 +111,7 @@ func TestTxTester(t *testing.T) {
 	data, err = json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Model","objectId":"LM1111111111111111111Ax1asG","tests":[{"path":"/n","value":"0x6b4e616d65536572766963655f6906be"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0xf65d4e5f13"}]}`, string(data))
+	assert.Equal(`{"objectType":"Model","objectID":"1111111111111111111Ax1asG","tests":[{"path":"/n","value":"0x6b4e616d65536572766963655f6906be"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0xf65d4e5f13"}]}`, string(data))
 
 	sch := `
 	type ID20 bytes
@@ -145,7 +144,7 @@ func TestTxTester(t *testing.T) {
 	// DataObject
 	tx = &TxTester{
 		ObjectType: DataObject,
-		ObjectID:   ids.ShortID{1, 2, 3},
+		ObjectID:   util.DataID{1, 2, 3}.String(),
 		Tests: TestOps{
 			{Path: "/v", Value: util.MustMarshalCBOR(uint64(1))},
 			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
@@ -178,7 +177,7 @@ func TestTxTester(t *testing.T) {
 	data, err = json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Data","objectId":"LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","tests":[{"path":"/v","value":"0x017785459a"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0x5444171c37ff5d7b7bb8dcad5c81f16284a229e641acaf799f"},{"path":"/d/name","value":"0x644a6f686e52bb61ab"},{"path":"/d/age","value":"0x182a20395c53"}]}`, string(data))
+	assert.Equal(`{"objectType":"Data","objectID":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","tests":[{"path":"/v","value":"0x017785459a"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0x5444171c37ff5d7b7bb8dcad5c81f16284a229e641acaf799f"},{"path":"/d/name","value":"0x644a6f686e52bb61ab"},{"path":"/d/age","value":"0x182a20395c53"}]}`, string(data))
 
 	type person struct {
 		Name string `cbor:"name" json:"name"`

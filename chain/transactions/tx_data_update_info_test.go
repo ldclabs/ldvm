@@ -181,14 +181,14 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1028500, got 0")
+		"insufficient NativeLDC balance, expected 1107700, got 0")
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
+		"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
 	cs.CheckoutAccounts()
 
 	assert.NoError(cs.SaveData(di))
@@ -285,7 +285,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","sub":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","aud":"LM111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"sig":"68446e6a605b4a6ed476a851ece334aa74855158470c64011cd29a08d8e0ac516869194007619c26dee4df3da012d4268f9d863f7a2f1130de540d4b9a24008f00"},"signatures":["01930101bbe6330496dfb924425165eb7c960d897299d089bd3f7172532f22d340105f1eeef266cc1c89eab534ee20bc045a5946c1f76127bebcc98596a9d94900","3a88cf918f603e465257f00e19237634ea37e498654451fb141fc5bb2c99bcc9280fdbe6d19e079c46cd11d53e859bf592826def1f74cc8e750c41542d27b58e01"],"id":"2pBpq3Y2HBobmw6GgNjAmtJtFouHZkkAsCr2HwKvNXqW3dmKzN"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"sig":"1a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200"},"signatures":["39e74ea5e3ab5767b6aabe748c8fd75306d0fb1ca2944bf5530d1d31ec8d047c4dc41e814bfc57356b11dd9e570f63632f43329b11d1043b32871a638828e4aa01","63a00a8278db92c8adc8335590c567d170bafced08ab093476c0a180d43eabd36c6a55ba2d7749567ab12184acfd3a9aca92d7620c6a498b1839a31a8a0b793a01"],"id":"b8nGV9qdBKjenMjf572zAvis2mUEXY2hfkLP9uCU4eRJcgZR3"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
 		Approver: &util.EthIDEmpty,

@@ -59,7 +59,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"mid":"1111111111111111111L17Xp3","title":"test","properties":{"age":23}}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
 
 	p2 := &Profile{}
 	assert.NoError(p2.Unmarshal(p.Bytes()))
@@ -87,7 +87,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J"],"extensions":[{"mid":"1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
 
 	ipldops := cborpatch.Patch{
 		{Op: "replace", Path: "/u", Value: util.MustMarshalCBOR("https://ldclabs.org")},
@@ -105,5 +105,5 @@ func TestProfile(t *testing.T) {
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4"],"extensions":[{"mid":"LM1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"LD111111111111111111116DBWJs"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J"],"extensions":[{"mid":"1111111111111111111L17Xp3","title":"test","properties":{"age":23,"email":"ldc@example.com"}}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
 }

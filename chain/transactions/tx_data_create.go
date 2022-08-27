@@ -93,7 +93,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		Approver:    tx.input.Approver,
 		ApproveList: tx.input.ApproveList,
 		Data:        tx.input.Data,
-		ID:          util.DataID(tx.ld.ShortID()),
+		ID:          util.DataID(tx.ld.ID),
 	}
 
 	if tx.input.To == nil {
@@ -173,7 +173,7 @@ func (tx *TxCreateData) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 		Threshold: *tx.input.Threshold,
 		Keepers:   *tx.input.Keepers,
 		Data:      tx.input.Data,
-		ID:        util.DataID(tx.ld.ShortID()),
+		ID:        util.DataID(tx.ld.ID),
 	}
 	if err = tx.di.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -266,7 +266,7 @@ func (tx *TxCreateData) Apply(ctx ChainContext, cs ChainState) error {
 				return errp.ErrorIf(err)
 			}
 
-			tx.ns.DID = tx.di.ID
+			tx.ns.DataID = tx.di.ID
 			if err = cs.SaveName(tx.ns); err != nil {
 				return errp.ErrorIf(err)
 			}

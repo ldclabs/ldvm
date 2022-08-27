@@ -14,6 +14,107 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// DataID ==========
+type DataID [32]byte
+
+var DataIDEmpty = DataID{}
+
+func DataIDFromString(str string) (DataID, error) {
+	if str == "" {
+		return DataIDEmpty, nil
+	}
+	id, err := ids.FromString(str)
+	if err != nil {
+		return DataIDEmpty, ErrPrefix("DataIDFromString error: ").ErrorIf(err)
+	}
+	return DataID(id), nil
+}
+
+func (id DataID) String() string {
+	return ids.ID(id).String()
+}
+
+func (id DataID) GoString() string {
+	return id.String()
+}
+
+func (id DataID) VersionKey(version uint64) []byte {
+	v := database.PackUInt64(version)
+	key := make([]byte, 32+len(v))
+	copy(key, id[:])
+	copy(key[32:], v)
+	return key
+}
+
+func (id DataID) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *DataID) UnmarshalText(b []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalText error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+
+	str := string(b)
+	if str == "" { // If "null", do nothing
+		return nil
+	}
+
+	sid, err := DataIDFromString(str)
+	if err == nil {
+		*id = sid
+	}
+	return errp.ErrorIf(err)
+}
+
+func (id DataID) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + id.String() + "\""), nil
+}
+
+func (id *DataID) UnmarshalJSON(b []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalJSON error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+
+	str := string(b)
+	if str == "null" || str == `""` { // If "null", do nothing
+		return nil
+	}
+	lastIndex := len(str) - 1
+	if str[0] != '"' || str[lastIndex] != '"' {
+		return errp.Errorf("invalid string %q", str)
+	}
+
+	str = str[1:lastIndex]
+	return id.UnmarshalText([]byte(str))
+}
+
+func (id DataID) MarshalCBOR() ([]byte, error) {
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, ErrPrefix("DataID.MarshalCBOR error: ").ErrorIf(err)
+	}
+	return data, nil
+}
+
+func (id *DataID) UnmarshalCBOR(data []byte) error {
+	errp := ErrPrefix("DataID.UnmarshalCBOR error: ")
+	if id == nil {
+		return errp.Errorf("nil pointer")
+	}
+	var b []byte
+	if err := UnmarshalCBOR(data, &b); err != nil {
+		return err
+	}
+	if len(b) != 32 {
+		return errp.Errorf("invalid bytes length, expected 32, got %d", len(b))
+	}
+	copy((*id)[:], b)
+	return nil
+}
+
 // Hash ==========
 type Hash [32]byte
 
@@ -240,7 +341,7 @@ func ModelIDFromString(str string) (ModelID, error) {
 	if str == "" {
 		return ModelIDEmpty, nil
 	}
-	id, err := ids.ShortFromPrefixedString(str, "LM")
+	id, err := ids.ShortFromString(str)
 	if err != nil {
 		return ModelIDEmpty, ErrPrefix("ModelIDFromString error: ").ErrorIf(err)
 	}
@@ -248,7 +349,7 @@ func ModelIDFromString(str string) (ModelID, error) {
 }
 
 func (id ModelID) String() string {
-	return ids.ShortID(id).PrefixedString("LM")
+	return ids.ShortID(id).String()
 }
 
 func (id ModelID) GoString() string {
@@ -310,107 +411,6 @@ func (id ModelID) MarshalCBOR() ([]byte, error) {
 
 func (id *ModelID) UnmarshalCBOR(data []byte) error {
 	errp := ErrPrefix("ModelID.UnmarshalCBOR error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
-	}
-	if len(b) != 20 {
-		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
-	}
-	copy((*id)[:], b)
-	return nil
-}
-
-// DataID ==========
-type DataID [20]byte
-
-var DataIDEmpty = DataID{}
-
-func DataIDFromString(str string) (DataID, error) {
-	if str == "" {
-		return DataIDEmpty, nil
-	}
-	id, err := ids.ShortFromPrefixedString(str, "LD")
-	if err != nil {
-		return DataIDEmpty, ErrPrefix("DataIDFromString error: ").ErrorIf(err)
-	}
-	return DataID(id), nil
-}
-
-func (id DataID) String() string {
-	return ids.ShortID(id).PrefixedString("LD")
-}
-
-func (id DataID) GoString() string {
-	return id.String()
-}
-
-func (id DataID) VersionKey(version uint64) []byte {
-	v := database.PackUInt64(version)
-	key := make([]byte, 20+len(v))
-	copy(key, id[:])
-	copy(key[20:], v)
-	return key
-}
-
-func (id DataID) MarshalText() ([]byte, error) {
-	return []byte(id.String()), nil
-}
-
-func (id *DataID) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalText error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-
-	str := string(b)
-	if str == "" { // If "null", do nothing
-		return nil
-	}
-
-	sid, err := DataIDFromString(str)
-	if err == nil {
-		*id = sid
-	}
-	return errp.ErrorIf(err)
-}
-
-func (id DataID) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + id.String() + "\""), nil
-}
-
-func (id *DataID) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalJSON error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-
-	str := string(b)
-	if str == "null" || str == `""` { // If "null", do nothing
-		return nil
-	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
-	}
-
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
-}
-
-func (id DataID) MarshalCBOR() ([]byte, error) {
-	data, err := MarshalCBOR(id[:])
-	if err != nil {
-		return nil, ErrPrefix("DataID.MarshalCBOR error: ").ErrorIf(err)
-	}
-	return data, nil
-}
-
-func (id *DataID) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalCBOR error: ")
 	if id == nil {
 		return errp.Errorf("nil pointer")
 	}

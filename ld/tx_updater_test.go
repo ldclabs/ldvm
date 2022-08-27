@@ -105,7 +105,7 @@ func TestTxUpdater(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"id":"LD6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"approver":"0x0000000000000000000000000000000000000000","token":"","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"expire":1000,"data":"Hello, world!"}`, string(jsondata))
+	assert.Equal(`{"id":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"approver":"0x0000000000000000000000000000000000000000","token":"","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"expire":1000,"data":"Hello, world!"}`, string(jsondata))
 
 	tx2 = &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(cbordata))

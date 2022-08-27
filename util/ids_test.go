@@ -93,7 +93,17 @@ func TestEthID(t *testing.T) {
 func TestModelID(t *testing.T) {
 	assert := assert.New(t)
 
-	mid := "LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
+	assert.Equal("111111111111111111116DBWJs", ModelIDEmpty.String())
+	assert.Equal("1111111111111111111Ax1asG", ModelID{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+	}.String())
+	assert.Equal("1111111111111111111L17Xp3", ModelID{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+	}.String())
+
+	mid := "7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
 	id, err := ModelIDFromString(mid)
 	assert.Nil(err)
 
@@ -109,11 +119,11 @@ func TestModelID(t *testing.T) {
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"`, string(data))
+	assert.Equal(`"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"`, string(data))
 
 	mids := make([]ModelID, 0)
 	err = json.Unmarshal([]byte(`[
-		"LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
 		"",
 		null
 	]`), &mids)
@@ -126,7 +136,7 @@ func TestModelID(t *testing.T) {
 
 	ptrMIDs := make([]*ModelID, 0)
 	err = json.Unmarshal([]byte(`[
-		"LM7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
 		"",
 		null
 	]`), &ptrMIDs)
@@ -145,11 +155,12 @@ func TestModelID(t *testing.T) {
 func TestDataID(t *testing.T) {
 	assert := assert.New(t)
 
-	mid := "LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
-	id, err := DataIDFromString(mid)
+	did := "2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM"
+	id, err := DataIDFromString(did)
 	assert.Nil(err)
+	assert.Equal(did, id.String())
 
-	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
+	cbordata, err := cbor.Marshal(ids.ShortID{1, 2, 3})
 	assert.Nil(err)
 	var id2 DataID
 	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
@@ -161,11 +172,11 @@ func TestDataID(t *testing.T) {
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"`, string(data))
+	assert.Equal(`"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM"`, string(data))
 
 	mids := make(DataIDs, 0)
 	err = json.Unmarshal([]byte(`[
-		"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM",
 		"",
 		null
 	]`), &mids)
@@ -178,7 +189,7 @@ func TestDataID(t *testing.T) {
 
 	ptrMIDs := make([]*DataID, 0)
 	err = json.Unmarshal([]byte(`[
-		"LD7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM",
 		"",
 		null
 	]`), &ptrMIDs)
@@ -319,7 +330,7 @@ func TestTokenSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "$LD‍C", // with Zero Width Joiner
+		{shouldErr: true, symbol: "$LD\u200dC", // with Zero Width Joiner
 			token: TokenSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -484,7 +495,7 @@ func TestStakeSymbol(t *testing.T) {
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			}},
-		{shouldErr: true, symbol: "#LD‍C", // with Zero Width Joiner
+		{shouldErr: true, symbol: "#LD\u200dC", // with Zero Width Joiner
 			token: StakeSymbol{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

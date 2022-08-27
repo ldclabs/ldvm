@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	// LM111111111111111111116DBWJs
+	// 111111111111111111116DBWJs
 	RawModelID = util.ModelIDEmpty
-	// LM1111111111111111111Ax1asG
+	// 1111111111111111111Ax1asG
 	CBORModelID = util.ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 	}
-	// LM1111111111111111111L17Xp3
+	// 1111111111111111111L17Xp3
 	JSONModelID = util.ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,

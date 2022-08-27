@@ -234,7 +234,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	genesisNonce++
-	g.Chain.FeeConfigID = util.DataID(tx.ShortID())
+	g.Chain.FeeConfigID = util.DataID(tx.ID)
 	txs = append(txs, tx)
 
 	// name app tx

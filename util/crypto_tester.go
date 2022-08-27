@@ -43,6 +43,14 @@ func (s *Signer) Sign(data []byte) (Signature, error) {
 	return Sign(data, s.PK)
 }
 
+func (s *Signer) MustSign(data []byte) *Signature {
+	sig, err := Sign(data, s.PK)
+	if err != nil {
+		panic(err)
+	}
+	return &sig
+}
+
 func (s *Signer) Address() EthID {
 	return EthID(crypto.PubkeyToAddress(s.PK.PublicKey))
 }

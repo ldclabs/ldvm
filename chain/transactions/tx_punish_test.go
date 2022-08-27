@@ -171,13 +171,13 @@ func TestTxPunish(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 958100, got 0")
+		"insufficient NativeLDC balance, expected 1032900, got 0")
 	cs.CheckoutAccounts()
 
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8 not found")
+		"jtZ1sadmr49B1MauiwmwEtuMte25vqm9kq1eHnccb3X1QRDAk not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
@@ -209,7 +209,7 @@ func TestTxPunish(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"LD9svQk6dYkcjZ33L4mZdXJArdPt5vQS7r8","data":"Illegal content"},"signatures":["c9f430b760115127737634c92ba2fb544134b00542703d1731239ddefa5ea28d06bc883916b3c8d08802c4109d7fadcaa7feeeb0900ac25b84f927424b8120c701"],"id":"2CfBQuuhuptvM81Hf9v4zZMmhaiQCurzh9Sgzu9YsJDSxF8nYy"}`, string(jsondata))
+	assert.Equal(`{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"jtZ1sadmr49B1MauiwmwEtuMte25vqm9kq1eHnccb3X1QRDAk","data":"Illegal content"},"signatures":["50f50d9a0d0ded4c5da43c11e1cc279cb1afb912d4049e71ea5b613dec4a52354627b327e9af0a27c46af3175550539e5b1afa5bca004aa64c79b11358fcac1801"],"id":"2u6rQZVNzhLiRPaWNjTdqjoZf5EsVWAxJXwSmgq6VcJ7os2nYp"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

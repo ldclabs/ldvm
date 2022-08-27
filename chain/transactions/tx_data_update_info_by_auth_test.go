@@ -321,7 +321,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1984400, got 0")
+		"insufficient NativeLDC balance, expected 2072400, got 0")
 	cs.CheckoutAccounts()
 
 	buyerAcc := cs.MustAccount(buyer)
@@ -333,7 +333,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	buyerAcc.Add(token, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
+		"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
@@ -440,7 +440,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataInfoByAuth","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000,"data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2,"token":"$LDC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"signatures":["0c245068bae0fd48c5080a5b22ede3e241eabda09cd1b995945e6685cd40b3886b1d661e0e3ba959c3d74a1cad580ceaa6b2a35d87448eebc38479fc252e7a7e00"],"exSignatures":["6a899b77c48dded7b87e374f111368bf56c49e3b7fd1d8329147721bb393b5d810e45732973137ad372bdebf28e5e0168c883957d63577b34f537d7527b4457e01","ce51288efa3bfa119530759b0d1a19ef6c0c20323686b1bd5c2bdd0c09cc3cb574ffda96e0be8bdcd1e24d8a7d31cb737cb376e5d637bb0dd6a4b9d3e253f8c000"],"id":"2TWQe2HNMuJGkfW5ANaAp1yHTZiWQLZKFqKScM1SWx3J6XDetP"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataInfoByAuth","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000,"data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"token":"$LDC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"signatures":["488f06ace22db6399d24420ee83b29ff53febe584790384c8b2756c4618f9713395bfa903db233c5db11ad5940f5a68f72a2f1f7556440ec7a446f6f5692855f00"],"exSignatures":["1b207b020f679fec178e6430960f58626eb55f56bb6e056351f35b3db34e9cb773e9a6d720174e2c6e81738d11c8d32b5d2d7bdf08f2e5c3f5988251800eaf5100","e89d959e0add6c27a44fb48f5030bddd603dbd3298c6dbeb2815692c2067c6f25c9020664ebe1d94100d0a6587e0ec4359489313fc88b6e4ad144cff61f58a3800"],"id":"2GMav3qSPe6cpUmPGeXBjLEdqmnPs3eLYmKZxKV7kA5JYhfTeH"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

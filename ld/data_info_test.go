@@ -58,7 +58,7 @@ func TestSigClaims(t *testing.T) {
 	jsondata, err := json.Marshal(sc)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"iss":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","sub":"LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX","aud":"LM111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"}`, string(jsondata))
+	assert.Equal(`{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"}`, string(jsondata))
 
 	sc2 := &SigClaims{}
 	assert.NoError(sc2.Unmarshal(cbordata))
@@ -148,7 +148,7 @@ func TestDataInfo(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
-	assert.Equal(`{"mid":"LM111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"id":"LD111111111111111111116DBWJs"}`, string(jsondata))
+	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
 	tx2 := &DataInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
@@ -171,10 +171,11 @@ func TestDataInfo(t *testing.T) {
 	assert.NoError(tx3.SyntacticVerify())
 	assert.Equal(cbordata, tx2.Bytes())
 	assert.NotEqual(cbordata, tx3.Bytes())
+	tx3.Sig = util.Signer1.MustSign(tx3.SigClaims.Bytes())
 	jsondata, err = json.Marshal(tx3)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
-	assert.Equal(`{"mid":"LM111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"sigClaims":{"iss":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","sub":"LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX","aud":"LM111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"sig":"0102030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":"LD111111111111111111116DBWJs"}`, string(jsondata))
+	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"sig":"ef0f0cea3a58f61a17ade4702a6e6262f93928ecbe44eb0b6d23eec4ade2b07a23058f86669a9f191d25df72667b12a75288e95302643bf66d4e82b9735b583201","id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
 	assert.NoError(tx.MarkDeleted(nil))
 	assert.Equal(uint64(0), tx.Version)
@@ -238,7 +239,7 @@ func TestDataInfoSigner(t *testing.T) {
 
 	signer, err = tx.Signer()
 	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid subject, expected LD111111111111111111116DBWJs, got LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX")
+		"DataInfo.Signer error: invalid subject, expected 11111111111111111111111111111111LpoYY, got 3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE")
 	assert.Equal(util.EthIDEmpty, signer)
 
 	tx = &DataInfo{
@@ -261,7 +262,7 @@ func TestDataInfoSigner(t *testing.T) {
 
 	signer, err = tx.Signer()
 	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid audience, expected LM1111111111111111111Ax1asG, got LM111111111111111111116DBWJs")
+		"DataInfo.Signer error: invalid audience, expected 1111111111111111111Ax1asG, got 111111111111111111116DBWJs")
 	assert.Equal(util.EthIDEmpty, signer)
 
 	tx = &DataInfo{
@@ -318,7 +319,7 @@ func TestDataInfoSigner(t *testing.T) {
 
 	_, err = tx3.Signer()
 	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid subject, expected LD111111111111111111116DBWJs, got LDTZbknDJJaphGQrsiR4qU5LxyFX98cfQX")
+		"DataInfo.Signer error: invalid subject, expected 11111111111111111111111111111111LpoYY, got 3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE")
 
 	tx3.ID = tx.ID
 	signer, err = tx3.Signer()
@@ -414,5 +415,5 @@ func TestDataInfoPatch(t *testing.T) {
 	}
 	_, err = di.Patch(MustMarshalJSON(jsonops))
 	assert.ErrorContains(err,
-		"DataInfo.Patch error: unsupport mid LM6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4")
+		"DataInfo.Patch error: unsupport mid 6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4")
 }

@@ -653,7 +653,7 @@ func (bc *blockChain) ResolveName(name string) (*service.Name, error) {
 	}
 
 	data := obj.(*db.RawObject)
-	id, err := ids.ToShortID(*data)
+	id, err := ids.ToID(*data)
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -668,7 +668,7 @@ func (bc *blockChain) ResolveName(name string) (*service.Name, error) {
 	if err := ns.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	ns.DID = di.ID
+	ns.DataID = di.ID
 	return ns, nil
 }
 

@@ -78,7 +78,7 @@ func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 	var data []byte
 	switch tx.input.ObjectType {
 	case ld.AddressObject:
-		acc, err := cs.LoadAccount(util.EthID(tx.input.ObjectID))
+		acc, err := cs.LoadAccount(util.EthID(tx.input.ShortID))
 		if err == nil {
 			data, _, err = acc.Marshal()
 		}
@@ -87,7 +87,7 @@ func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 		}
 
 	case ld.LedgerObject:
-		acc, err := cs.LoadAccount(util.EthID(tx.input.ObjectID))
+		acc, err := cs.LoadAccount(util.EthID(tx.input.ShortID))
 		if err == nil {
 			_, data, err = acc.Marshal()
 		}
@@ -96,14 +96,14 @@ func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 		}
 
 	case ld.ModelObject:
-		mi, err := cs.LoadModel(util.ModelID(tx.input.ObjectID))
+		mi, err := cs.LoadModel(util.ModelID(tx.input.ShortID))
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
 		data = mi.Bytes()
 
 	case ld.DataObject:
-		di, err := cs.LoadData(util.DataID(tx.input.ObjectID))
+		di, err := cs.LoadData(util.DataID(tx.input.ID))
 		if err != nil {
 			return errp.ErrorIf(err)
 		}

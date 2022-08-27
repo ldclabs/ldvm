@@ -226,7 +226,7 @@ func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *Get
 	if err != nil {
 		return err
 	}
-	reply.ID = data.DID.String()
+	reply.ID = data.DataID.String()
 	reply.Data = data
 	return nil
 }

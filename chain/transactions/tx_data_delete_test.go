@@ -165,7 +165,7 @@ func TestTxDeleteData(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
@@ -245,7 +245,7 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"LD6L5yRJL2iYi9PbrhRru6uKfEAzDGHwUJ","version":2},"signatures":["412d5a180fee8b76b36f0811584338dd0d084d8840e52b29988bc1fd2c00d37d01b3df69af6a524cebbe5f015f9c200c79d50d58d5ab6bf7fb7ce2b27f94c07300"],"id":"3xLkdg8i7DbhUR8u4aAr1BKEuYjDYiJ4HT3QYH1rwyK6acPA2"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2},"signatures":["8f7b8892853733c9d6eaf011012d077b99d792f8128077cce5b81d18a484701545cdeef97f178b4a7b2c3be6c85391438dc7379eb0bd67036d55dbe8e76bc62000"],"id":"9jWazPpZwhZ7YV5kp8eSKPrH6sXV1LefvqH2HQFf9AKEp4cD2"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
