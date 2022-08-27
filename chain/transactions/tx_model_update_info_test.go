@@ -206,11 +206,11 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(tt.Gas()*ctx.Price,
-		itx.(*TxUpdateModelInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateModelInfo).ldc.Balance().Uint64())
 	assert.Equal(tt.Gas()*100,
-		itx.(*TxUpdateModelInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateModelInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100),
-		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err = cs.LoadModel(mid)

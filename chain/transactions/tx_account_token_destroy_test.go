@@ -134,15 +134,15 @@ func TestTxDestroyToken(t *testing.T) {
 
 	tokenGas := tt.Gas()
 	assert.Equal(tokenGas*ctx.Price,
-		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal(tokenGas*100,
-		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransfer).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-tokenGas*(ctx.Price+100),
-		testToken.balanceOf(constants.NativeToken).Uint64())
+		testToken.Balance().Uint64())
 	assert.Equal(constants.LDC*9,
 		testToken.balanceOf(token).Uint64())
 	assert.Equal(uint64(0),
-		recipientAcc.balanceOf(constants.NativeToken).Uint64())
+		recipientAcc.Balance().Uint64())
 	assert.Equal(constants.LDC,
 		recipientAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(1), testToken.Nonce())
@@ -195,14 +195,14 @@ func TestTxDestroyToken(t *testing.T) {
 
 	recipientGas := tt.Gas()
 	assert.Equal((tokenGas+recipientGas)*ctx.Price,
-		itx.(*TxTransfer).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+recipientGas)*100,
-		itx.(*TxTransfer).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransfer).miner.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinTokenPledge.Uint64()+constants.LDC-tokenGas*(ctx.Price+100),
 		testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, testToken.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-recipientGas*(ctx.Price+100),
-		recipientAcc.balanceOf(constants.NativeToken).Uint64())
+		recipientAcc.Balance().Uint64())
 	assert.Equal(uint64(0), recipientAcc.balanceOf(token).Uint64())
 
 	txData = &ld.TxData{
@@ -223,16 +223,16 @@ func TestTxDestroyToken(t *testing.T) {
 
 	tokenGas += tt.Gas()
 	assert.Equal((tokenGas+recipientGas)*ctx.Price,
-		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+recipientGas)*100,
-		itx.(*TxDestroyToken).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).miner.Balance().Uint64())
 
-	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), testToken.Balance().Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(ctx.FeeConfig().MinTokenPledge.Uint64()+constants.LDC*2-(tokenGas+recipientGas)*(ctx.Price+100),
-		recipientAcc.balanceOf(constants.NativeToken).Uint64())
+		recipientAcc.Balance().Uint64())
 	assert.Equal(uint64(0), recipientAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), recipientAcc.balanceOfAll(token).Uint64())
 
@@ -293,17 +293,17 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).miner.Balance().Uint64())
 	assert.Equal(uint64(0),
-		tokenAcc.balanceOf(constants.NativeToken).Uint64())
+		tokenAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinTokenPledge.Uint64(),
 		tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10,
 		tokenAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
@@ -354,9 +354,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	tokenGas := tt.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.NotNil(tokenAcc.ld.Lending)
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 
@@ -382,9 +382,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	tokenGas += tt.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).miner.Balance().Uint64())
 	assert.Equal([]uint64{1, 2, 3}, tokenAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal(uint64(2), tokenAcc.Nonce())
 
@@ -419,9 +419,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxBorrow).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).miner.Balance().Uint64())
 	assert.Equal([]uint64{1, 2}, tokenAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal(constants.LDC*9, tokenAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, senderAcc.balanceOf(token).Uint64())
@@ -475,9 +475,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), senderAcc.balanceOf(token).Uint64())
 
@@ -500,9 +500,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	tokenGas += tt.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxDestroyToken).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).miner.Balance().Uint64())
 	assert.Equal(uint64(3), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())

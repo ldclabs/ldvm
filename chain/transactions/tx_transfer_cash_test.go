@@ -347,11 +347,11 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	tx = itx.(*TxTransferCash)
-	assert.Equal(tt.Gas()*ctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(tt.Gas()*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), to.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(tt.Gas()*ctx.Price, tx.ldc.Balance().Uint64())
+	assert.Equal(tt.Gas()*100, tx.miner.Balance().Uint64())
+	assert.Equal(uint64(0), to.Balance().Uint64())
 	assert.Equal(constants.LDC*2-tt.Gas()*(ctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
+		from.Balance().Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
 	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[cs.Timestamp()])
 

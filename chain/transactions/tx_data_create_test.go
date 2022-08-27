@@ -335,11 +335,11 @@ func TestTxCreateData(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -436,11 +436,11 @@ func TestTxCreateCBORData(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -537,11 +537,11 @@ func TestTxCreateJSONData(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -655,11 +655,11 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -931,11 +931,11 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -1031,12 +1031,12 @@ func TestTxCreateNameModelData(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.MilliLDC, itx.(*TxCreateData).to.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateData).miner.Balance().Uint64())
+	assert.Equal(constants.MilliLDC, itx.(*TxCreateData).to.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100)-constants.MilliLDC,
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadDataByName("ldc.to.")
@@ -1175,9 +1175,9 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.NoError(err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
-	assert.Equal(uint64(0), itx.(*TxCreateData).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxCreateData).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxCreateData).from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateData).ldc.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateData).miner.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateData).from.Balance().Uint64())
 	assert.Equal(uint64(1), itx.(*TxCreateData).from.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)

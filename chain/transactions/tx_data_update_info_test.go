@@ -259,11 +259,11 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*ctx.Price,
-		itx.(*TxUpdateDataInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateDataInfo).ldc.Balance().Uint64())
 	assert.Equal(ownerGas*100,
-		itx.(*TxUpdateDataInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateDataInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100),
-		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)

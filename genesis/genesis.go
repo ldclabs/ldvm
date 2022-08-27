@@ -237,7 +237,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	g.Chain.FeeConfigID = util.DataID(tx.ID)
 	txs = append(txs, tx)
 
-	// name app tx
+	// name service tx
 	nm, err := service.NameModel()
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -265,7 +265,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 
-	// Profile app tx
+	// Profile service tx
 	pm, err := service.ProfileModel()
 	if err != nil {
 		return nil, errp.ErrorIf(err)

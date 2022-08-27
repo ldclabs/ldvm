@@ -136,10 +136,10 @@ func TestTxOpenLending(t *testing.T) {
 
 	senderGas := tt.Gas()
 	tx = itx.(*TxOpenLending)
-	assert.Equal(senderGas*ctx.Price, tx.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(senderGas*100, tx.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(senderGas*ctx.Price, tx.ldc.Balance().Uint64())
+	assert.Equal(senderGas*100, tx.miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 	assert.NotNil(senderAcc.ld.Lending)
 	assert.Equal(constants.NativeToken, senderAcc.ld.Lending.Token)
@@ -201,9 +201,9 @@ func TestTxOpenLending(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCloseLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCloseLending).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCloseLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCloseLending).miner.Balance().Uint64())
 	assert.Nil(senderAcc.ld.Lending)
 	assert.Equal(0, len(senderAcc.ledger.Lending))
 
@@ -242,9 +242,9 @@ func TestTxOpenLending(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.Equal(uint64(3), senderAcc.Nonce())
 	assert.NotNil(senderAcc.ld.Lending)
 	assert.Equal(token, senderAcc.ld.Lending.Token)

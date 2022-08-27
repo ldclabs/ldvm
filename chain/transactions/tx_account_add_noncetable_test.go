@@ -201,11 +201,11 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 	assert.Equal(1, len(senderAcc.ld.NonceTable))
 	assert.Equal([]uint64{1, 3, 5, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
@@ -258,9 +258,9 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(2), senderAcc.Nonce())
 	assert.Equal(1, len(senderAcc.ld.NonceTable))
 	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
@@ -286,9 +286,9 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(3), senderAcc.Nonce())
 	assert.Equal(2, len(senderAcc.ld.NonceTable))
 	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
@@ -356,9 +356,9 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxTransferCash).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransferCash).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxTransferCash).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransferCash).miner.Balance().Uint64())
 	assert.Equal(1, len(senderAcc.ld.NonceTable))
 	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Nil(senderAcc.ld.NonceTable[cs.Timestamp()+2], "should clean emtpy nonce table")

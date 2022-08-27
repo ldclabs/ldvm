@@ -161,11 +161,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	assert.Equal(uint16(1), senderAcc.Threshold())
@@ -209,11 +209,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
 	assert.Equal(approver, *senderAcc.ld.Approver)
@@ -241,11 +241,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, senderAcc.Keepers())
 	assert.Nil(senderAcc.ld.Approver)
@@ -274,11 +274,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, senderAcc.Keepers())
 
@@ -330,11 +330,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, senderAcc.Keepers())
 	assert.Equal(approver, *senderAcc.ld.Approver)
@@ -387,9 +387,9 @@ func TestTxUpdateAccountInfoGenesis(t *testing.T) {
 	assert.NoError(itx.(*TxUpdateAccountInfo).ApplyGenesis(ctx, cs))
 
 	senderAcc := cs.MustAccount(sender)
-	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), senderAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
+	assert.Equal(uint64(0), senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	assert.Equal(uint16(1), senderAcc.Threshold())

@@ -26,7 +26,7 @@ func (a *Account) CreateStake(
 	if !stake.Valid() {
 		return errp.Errorf("invalid stake account")
 	}
-	if !a.isEmpty() {
+	if !a.IsEmpty() {
 		return errp.Errorf("stake account %s exists", stake)
 	}
 	if err := cfg.SyntacticVerify(); err != nil {

@@ -325,13 +325,13 @@ func TestTxCreateStake(t *testing.T) {
 
 	tx = itx.(*TxCreateStake)
 	assert.Equal(tt.Gas()*ctx.Price,
-		ldc.balanceOf(constants.NativeToken).Uint64())
+		ldc.Balance().Uint64())
 	assert.Equal(tt.Gas()*100,
-		miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		miner.Balance().Uint64())
+	assert.Equal(constants.LDC, stakeAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*1001, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
+		from.Balance().Uint64())
 
 	assert.Equal(uint64(0), stakeAcc.Nonce())
 	assert.Equal(uint16(1), stakeAcc.Threshold())
@@ -444,7 +444,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 
 	assert.Equal(uint64(1), stakeAcc.Nonce())

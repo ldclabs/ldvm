@@ -90,13 +90,37 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if tx.ldc, err = cs.LoadAccount(constants.LDCAccount); err != nil {
 		return errp.ErrorIf(err)
 	}
+
 	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.from, err = cs.LoadAccount(tx.ld.From)
+
+	if tx.from, err = cs.LoadAccount(tx.ld.From); err != nil {
+		return errp.ErrorIf(err)
+	}
 
 	if err = cs.SaveModel(tx.input); err != nil {
 		return errp.ErrorIf(err)
+	}
+
+	// create model account
+	if len(tx.input.Keepers) > 0 {
+		modelAcc, err := cs.LoadAccount(util.EthID(tx.input.ID))
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		if !modelAcc.IsEmpty() {
+			return errp.Errorf("model account %s exists", modelAcc.ID())
+		}
+
+		threshold := tx.input.Threshold
+		if threshold == 0 {
+			threshold = 1
+		}
+		if err = modelAcc.UpdateKeepers(
+			&threshold, &tx.input.Keepers, nil, nil); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))
 }
@@ -110,6 +134,27 @@ func (tx *TxCreateModel) Apply(ctx ChainContext, cs ChainState) error {
 	}
 	if err = cs.SaveModel(tx.input); err != nil {
 		return errp.ErrorIf(err)
+	}
+
+	// create model account
+	if len(tx.input.Keepers) > 0 {
+		modelAcc, err := cs.LoadAccount(util.EthID(tx.input.ID))
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		if !modelAcc.IsEmpty() {
+			return errp.Errorf("model account %s exists", modelAcc.ID())
+		}
+
+		threshold := tx.input.Threshold
+		if threshold == 0 {
+			threshold = 1
+		}
+		if err = modelAcc.UpdateKeepers(
+			&threshold, &tx.input.Keepers, nil, nil); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))
 }

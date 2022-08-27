@@ -312,14 +312,14 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(tt.Gas()*ctx.Price,
-		itx.(*TxExchange).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxExchange).ldc.Balance().Uint64())
 	assert.Equal(tt.Gas()*100,
-		itx.(*TxExchange).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxExchange).miner.Balance().Uint64())
+	assert.Equal(uint64(1_000_000), to.Balance().Uint64())
 	assert.Equal(uint64(0), to.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100)-1_000_000,
-		from.balanceOf(constants.NativeToken).Uint64())
+		from.Balance().Uint64())
 	assert.Equal(uint64(2), from.Nonce())
 	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[cs.Timestamp()])
 

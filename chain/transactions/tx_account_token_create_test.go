@@ -303,14 +303,14 @@ func TestTxCreateToken(t *testing.T) {
 	tokenAcc := cs.MustAccount(tokenid)
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), tokenAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).miner.Balance().Uint64())
+	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())
 	assert.Equal(uint64(10000000000000), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 
 	assert.Equal(uint64(0), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
@@ -377,9 +377,9 @@ func TestTxCreateToken(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxDestroyToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxDestroyToken).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyToken).miner.Balance().Uint64())
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
@@ -408,16 +408,16 @@ func TestTxCreateToken(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCreateToken).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateToken).miner.Balance().Uint64())
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
 	assert.Equal(approver, *tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
-	assert.Equal(uint64(0), tokenAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())
 	assert.Equal(uint64(10000000000000), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
 
@@ -477,11 +477,11 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 
 	ldcAcc := cs.MustAccount(constants.LDCAccount)
 	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(),
-		ldcAcc.balanceOf(constants.NativeToken).Uint64())
+		ldcAcc.Balance().Uint64())
 	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(),
 		ldcAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxCreateToken).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), itx.(*TxCreateToken).from.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateToken).miner.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxCreateToken).from.Balance().Uint64())
 	assert.Equal(uint64(1), itx.(*TxCreateToken).from.Nonce())
 
 	assert.Equal(uint64(0), ldcAcc.Nonce())
