@@ -116,10 +116,10 @@ func TestTxRepay(t *testing.T) {
 
 	lenderGas := tt.Gas()
 	tx2 := itx.(*TxOpenLending)
-	assert.Equal(lenderGas*ctx.Price, tx2.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(lenderGas*100, tx2.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(lenderGas*ctx.Price, tx2.ldc.Balance().Uint64())
+	assert.Equal(lenderGas*100, tx2.miner.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.NotNil(lenderAcc.ld.Lending)
 	assert.NotNil(lenderAcc.ledger)
 	assert.Equal(0, len(lenderAcc.ledger.Lending))
@@ -212,12 +212,12 @@ func TestTxRepay(t *testing.T) {
 
 	borrowerGas := tt.Gas()
 	tx3 := itx.(*TxBorrow)
-	assert.Equal((lenderGas+borrowerGas)*ctx.Price, tx3.ldc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal((lenderGas+borrowerGas)*100, tx3.miner.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal((lenderGas+borrowerGas)*ctx.Price, tx3.ldc.Balance().Uint64())
+	assert.Equal((lenderGas+borrowerGas)*100, tx3.miner.Balance().Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(ctx.Price+100),
-		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.Equal(uint64(0), lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*2, borrowerAcc.balanceOf(token).Uint64())
 
@@ -255,13 +255,13 @@ func TestTxRepay(t *testing.T) {
 
 	borrowerGas += tt.Gas()
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
-		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,
-		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(ctx.Price+100),
-		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.Equal(constants.LDC, lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC, borrowerAcc.balanceOf(token).Uint64())
 
@@ -299,13 +299,13 @@ func TestTxRepay(t *testing.T) {
 
 	borrowerGas += tt.Gas()
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
-		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,
-		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(ctx.Price+100),
-		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.Equal(constants.LDC+interest, lenderAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-interest, borrowerAcc.balanceOf(token).Uint64())
 	assert.Nil(lenderAcc.ledger.Lending[borrower.AsKey()], "clear entry when repay all")

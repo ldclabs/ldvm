@@ -219,13 +219,13 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	senderGas := tt.Gas()
 	tx2 := itx.(*TxCreateStake)
 	assert.Equal(senderGas*ctx.Price,
-		tx2.ldc.balanceOf(constants.NativeToken).Uint64())
+		tx2.ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		tx2.miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		tx2.miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
@@ -260,13 +260,13 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateStakeApprover).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateStakeApprover).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 
 	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
 	assert.Equal(approver, *stakeAcc.ledger.Stake[sender.AsKey()].Approver)
@@ -306,13 +306,13 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxUpdateStakeApprover).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxUpdateStakeApprover).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 
 	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
 	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()].Approver)

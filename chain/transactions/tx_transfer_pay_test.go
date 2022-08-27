@@ -354,13 +354,13 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(tt.Gas()*ctx.Price,
-		itx.(*TxTransferPay).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransferPay).ldc.Balance().Uint64())
 	assert.Equal(tt.Gas()*100,
-		itx.(*TxTransferPay).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTransferPay).miner.Balance().Uint64())
 	assert.Equal(constants.LDC, to.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), from.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100),
-		from.balanceOf(constants.NativeToken).Uint64())
+		from.Balance().Uint64())
 	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()

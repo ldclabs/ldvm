@@ -149,12 +149,12 @@ func TestTxBase(t *testing.T) {
 
 	senderGas := tx.ld.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		tx.ldc.balanceOf(constants.NativeToken).Uint64())
+		tx.ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		tx.miner.balanceOf(constants.NativeToken).Uint64())
+		tx.miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100)-1000,
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1000), tx.to.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
+	assert.Equal(uint64(1000), tx.to.Balance().Uint64())
 	assert.Equal(uint64(2), senderAcc.Nonce())
 
 	jsondata, err := tx.MarshalJSON()
@@ -190,11 +190,11 @@ func TestTxBase(t *testing.T) {
 
 	senderGas += tx.ld.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		tx.ldc.balanceOf(constants.NativeToken).Uint64())
+		tx.ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		tx.miner.balanceOf(constants.NativeToken).Uint64())
+		tx.miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100)-1000,
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1000), tx.to.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC-1000, tx.from.balanceOf(token).Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())

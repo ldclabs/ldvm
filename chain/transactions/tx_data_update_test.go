@@ -414,11 +414,11 @@ func TestTxUpdateData(t *testing.T) {
 
 	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*ctx.Price,
-		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).ldc.Balance().Uint64())
 	assert.Equal(ownerGas*100,
-		itx.(*TxUpdateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100),
-		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
@@ -518,11 +518,11 @@ func TestTxUpdateCBORData(t *testing.T) {
 
 	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*ctx.Price,
-		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).ldc.Balance().Uint64())
 	assert.Equal(ownerGas*100,
-		itx.(*TxUpdateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100),
-		itx.(*TxUpdateData).from.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).from.Balance().Uint64())
 	assert.Equal(uint64(1), itx.(*TxUpdateData).from.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
@@ -624,11 +624,11 @@ func TestTxUpdateJSONData(t *testing.T) {
 
 	ownerGas := tt.Gas()
 	assert.Equal(ownerGas*ctx.Price,
-		itx.(*TxUpdateData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).ldc.Balance().Uint64())
 	assert.Equal(ownerGas*100,
-		itx.(*TxUpdateData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100),
-		ownerAcc.balanceOf(constants.NativeToken).Uint64())
+		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)

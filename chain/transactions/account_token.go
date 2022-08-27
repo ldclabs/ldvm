@@ -22,7 +22,7 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 		return errp.Errorf("invalid token %s", token.GoString())
 	}
 
-	if !a.isEmpty() {
+	if !a.IsEmpty() {
 		return errp.Errorf("token account %s exists", token)
 	}
 

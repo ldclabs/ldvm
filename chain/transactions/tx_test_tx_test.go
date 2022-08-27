@@ -155,11 +155,11 @@ func TestTxTest(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxTest).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTest).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxTest).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTest).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	jsondata, err := itx.MarshalJSON()

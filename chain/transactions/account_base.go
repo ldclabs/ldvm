@@ -103,7 +103,7 @@ func (a *Account) Type() ld.AccountType {
 	return a.ld.Type
 }
 
-func (a *Account) isEmpty() bool {
+func (a *Account) IsEmpty() bool {
 	return len(a.ld.Keepers) == 0
 }
 
@@ -122,7 +122,7 @@ func (a *Account) valid(t ld.AccountType) bool {
 	case t == ld.NativeAccount && a.ld.Balance.Sign() >= 0:
 		return true
 
-	case (a.isEmpty() && a.id != util.EthIDEmpty) || a.ld.Balance.Cmp(a.pledge) < 0:
+	case (a.IsEmpty() && a.id != util.EthIDEmpty) || a.ld.Balance.Cmp(a.pledge) < 0:
 		return false
 
 	case t == ld.TokenAccount && (a.ld.MaxTotalSupply == nil || a.ld.MaxTotalSupply.Sign() <= 0):
@@ -311,7 +311,7 @@ func (a *Account) SatisfySigning(signers util.EthIDs) bool {
 	switch {
 	case a.id == constants.LDCAccount:
 		return false
-	case a.isEmpty() && signers.Has(a.id):
+	case a.IsEmpty() && signers.Has(a.id):
 		return true
 	default:
 		return util.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
@@ -325,7 +325,7 @@ func (a *Account) SatisfySigningPlus(signers util.EthIDs) bool {
 	switch {
 	case a.id == constants.LDCAccount:
 		return false
-	case a.isEmpty() && signers.Has(a.id):
+	case a.IsEmpty() && signers.Has(a.id):
 		return true
 	default:
 		return util.SatisfySigningPlus(a.ld.Threshold, a.ld.Keepers, signers)

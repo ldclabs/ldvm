@@ -340,11 +340,11 @@ func TestTxBorrow(t *testing.T) {
 
 	lenderGas := tt.Gas()
 	assert.Equal(lenderGas*ctx.Price,
-		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).ldc.Balance().Uint64())
 	assert.Equal(lenderGas*100,
-		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.NotNil(lenderAcc.ld.Lending)
 	assert.NotNil(lenderAcc.ledger)
 	assert.Equal(0, len(lenderAcc.ledger.Lending))
@@ -414,11 +414,11 @@ func TestTxBorrow(t *testing.T) {
 	borrowerGas := tt.Gas()
 	borrowerAcc := cs.MustAccount(borrower)
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
-		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,
-		itx.(*TxBorrow).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(ctx.Price+100),
-		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), borrowerAcc.Nonce())
 	assert.Equal(1, len(lenderAcc.ledger.Lending))
 	assert.NotNil(lenderAcc.ledger.Lending[borrowerAcc.id.AsKey()])
@@ -465,13 +465,13 @@ func TestTxBorrow(t *testing.T) {
 
 	borrowerGas += tt.Gas()
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
-		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,
-		itx.(*TxBorrow).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*3-borrowerGas*(ctx.Price+100),
-		borrowerAcc.balanceOf(constants.NativeToken).Uint64())
+		borrowerAcc.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
-		lenderAcc.balanceOf(constants.NativeToken).Uint64())
+		lenderAcc.Balance().Uint64())
 	assert.NotNil(lenderAcc.ledger.Lending[borrower.AsKey()])
 	entry = lenderAcc.ledger.Lending[borrower.AsKey()]
 	rate := 1 + float64(10_000)/1_000_000

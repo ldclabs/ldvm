@@ -417,11 +417,11 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 
 	buyerGas := tt.Gas()
 	assert.Equal(buyerGas*ctx.Price,
-		itx.(*TxUpdateDataInfoByAuth).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateDataInfoByAuth).ldc.Balance().Uint64())
 	assert.Equal(buyerGas*100,
-		itx.(*TxUpdateDataInfoByAuth).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateDataInfoByAuth).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-buyerGas*(ctx.Price+100),
-		buyerAcc.balanceOf(constants.NativeToken).Uint64())
+		buyerAcc.Balance().Uint64())
 	assert.Equal(constants.LDC-constants.MilliLDC, buyerAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.MilliLDC,
 		itx.(*TxUpdateDataInfoByAuth).to.balanceOf(token).Uint64())

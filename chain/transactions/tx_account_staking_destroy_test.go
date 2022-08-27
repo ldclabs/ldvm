@@ -153,14 +153,14 @@ func TestTxDestroyStake(t *testing.T) {
 	keeperGas := tt.Gas()
 	stakeAcc := cs.MustAccount(stakeid)
 	assert.Equal(keeperGas*ctx.Price,
-		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).ldc.Balance().Uint64())
 	assert.Equal(keeperGas*100,
-		itx.(*TxCreateStake).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(),
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-keeperGas*(ctx.Price+100),
-		keeperAcc.balanceOf(constants.NativeToken).Uint64())
+		keeperAcc.Balance().Uint64())
 
 	assert.NotNil(stakeAcc.ledger)
 	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
@@ -256,13 +256,13 @@ func TestTxDestroyStake(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
-		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
-		itx.(*TxTakeStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).miner.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*11,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
@@ -289,11 +289,11 @@ func TestTxDestroyStake(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
-		itx.(*TxUpdateStakeApprover).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
-		itx.(*TxUpdateStakeApprover).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.NotNil(senderEntry.Approver)
@@ -341,14 +341,14 @@ func TestTxDestroyStake(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
-		itx.(*TxWithdrawStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxWithdrawStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
-		itx.(*TxWithdrawStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxWithdrawStake).miner.Balance().Uint64())
 
 	withdrawFee := constants.LDC * 10 * scfg.WithdrawFee / 1_000_000
 	assert.Equal(constants.LDC*11-withdrawFee-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC+withdrawFee, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
+	assert.Equal(constants.LDC+withdrawFee, stakeAcc.Balance().Uint64())
 	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
 	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
@@ -371,12 +371,12 @@ func TestTxDestroyStake(t *testing.T) {
 
 	stakeGas := tt.Gas()
 	assert.Equal((keeperGas+senderGas+stakeGas)*ctx.Price,
-		itx.(*TxDestroyStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas+stakeGas)*100,
-		itx.(*TxDestroyStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).miner.Balance().Uint64())
 
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*2+withdrawFee-(keeperGas+stakeGas)*(ctx.Price+100),
-		keeperAcc.balanceOf(constants.NativeToken).Uint64())
+		keeperAcc.Balance().Uint64())
 	assert.Equal(ld.AccountType(0), stakeAcc.ld.Type)
 	assert.Equal(uint16(0), stakeAcc.ld.Threshold)
 	assert.Equal(uint64(1), stakeAcc.ld.Nonce)
@@ -425,11 +425,11 @@ func TestTxDestroyStake(t *testing.T) {
 
 	keeperGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas+stakeGas)*ctx.Price,
-		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas+stakeGas)*100,
-		itx.(*TxCreateStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).miner.Balance().Uint64())
 
-	assert.Equal(constants.LDC, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), keeperAcc.balanceOf(token).Uint64())
@@ -456,12 +456,12 @@ func TestTxDestroyStake(t *testing.T) {
 
 	stakeGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas+stakeGas)*ctx.Price,
-		itx.(*TxDestroyStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas+stakeGas)*100,
-		itx.(*TxDestroyStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).miner.Balance().Uint64())
 
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*2+withdrawFee-(keeperGas+stakeGas)*(ctx.Price+100),
-		keeperAcc.balanceOf(constants.NativeToken).Uint64())
+		keeperAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*9,
 		keeperAcc.balanceOf(token).Uint64())
 	assert.Equal(ld.AccountType(0), stakeAcc.ld.Type)
@@ -527,11 +527,11 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	keeperGas := tt.Gas()
 	stakeAcc := cs.MustAccount(stakeid)
 	assert.Equal((keeperGas)*ctx.Price,
-		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas)*100,
-		itx.(*TxCreateStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).miner.Balance().Uint64())
 
-	assert.Equal(constants.LDC, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), stakeAcc.balanceOf(token).Uint64())
@@ -581,9 +581,9 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	stakeGas := tt.Gas()
 	assert.Equal((keeperGas+stakeGas)*ctx.Price,
-		itx.(*TxOpenLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+stakeGas)*100,
-		itx.(*TxOpenLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.NotNil(stakeAcc.ld.Lending)
 	assert.Equal(uint64(1), stakeAcc.Nonce())
 
@@ -609,9 +609,9 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	stakeGas += tt.Gas()
 	assert.Equal((keeperGas+stakeGas)*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+stakeGas)*100,
-		itx.(*TxAddNonceTable).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxAddNonceTable).miner.Balance().Uint64())
 	assert.Equal([]uint64{1, 2, 3}, stakeAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal(uint64(2), stakeAcc.Nonce())
 
@@ -648,9 +648,9 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	approverGas := tt.Gas()
 	assert.Equal((keeperGas+stakeGas+approverGas)*ctx.Price,
-		itx.(*TxBorrow).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+stakeGas+approverGas)*100,
-		itx.(*TxBorrow).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxBorrow).miner.Balance().Uint64())
 
 	assert.Equal([]uint64{1, 2}, stakeAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal(constants.LDC*9, stakeAcc.balanceOf(token).Uint64())
@@ -697,9 +697,9 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	approverGas += tt.Gas()
 	assert.Equal((keeperGas+stakeGas+approverGas)*ctx.Price,
-		itx.(*TxRepay).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+stakeGas+approverGas)*100,
-		itx.(*TxRepay).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxRepay).miner.Balance().Uint64())
 
 	assert.Equal(constants.LDC*10, stakeAcc.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), approverAcc.balanceOf(token).Uint64())
@@ -723,11 +723,11 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	stakeGas += tt.Gas()
 	assert.Equal((keeperGas+stakeGas+approverGas)*ctx.Price,
-		itx.(*TxDestroyStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+stakeGas+approverGas)*100,
-		itx.(*TxDestroyStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDestroyStake).miner.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*2-(keeperGas+stakeGas)*(ctx.Price+100),
-		keeperAcc.balanceOf(constants.NativeToken).Uint64())
+		keeperAcc.Balance().Uint64())
 	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(token).Uint64())
 	assert.Equal(constants.LDC*10, keeperAcc.balanceOf(token).Uint64())
 

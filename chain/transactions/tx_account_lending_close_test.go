@@ -151,11 +151,11 @@ func TestTxCloseLending(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxCloseLending).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCloseLending).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxCloseLending).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCloseLending).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Nil(senderAcc.ld.Lending)
 	assert.Equal(0, len(senderAcc.ledger.Lending))
 

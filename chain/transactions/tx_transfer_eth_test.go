@@ -104,12 +104,12 @@ func TestTxEth(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(tt.Gas()*ctx.Price,
-		itx.(*TxEth).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxEth).ldc.Balance().Uint64())
 	assert.Equal(uint64(0),
-		itx.(*TxEth).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1_000_000), to.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxEth).miner.Balance().Uint64())
+	assert.Equal(uint64(1_000_000), to.Balance().Uint64())
 	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price)-1_000_000,
-		from.balanceOf(constants.NativeToken).Uint64())
+		from.Balance().Uint64())
 	assert.Equal(uint64(1), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()

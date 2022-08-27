@@ -35,7 +35,7 @@ func TestTokenAccount(t *testing.T) {
 		Amount: amount,
 	}))
 	assert.Equal(true, nativeToken.valid(ld.TokenAccount))
-	assert.Equal(amount.Uint64(), nativeToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(amount.Uint64(), nativeToken.Balance().Uint64())
 	assert.Equal(amount.Uint64(), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(amount.Uint64(), nativeToken.ld.MaxTotalSupply.Uint64())
 	assert.Equal(uint16(0), nativeToken.Threshold())
@@ -48,9 +48,9 @@ func TestTokenAccount(t *testing.T) {
 
 	nativeToken.Sub(constants.NativeToken, big.NewInt(1000))
 	acc.Add(constants.NativeToken, big.NewInt(1000))
-	assert.Equal(uint64(999000), nativeToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(999000), nativeToken.Balance().Uint64())
 	assert.Equal(uint64(999000), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(uint64(1000), acc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1000), acc.Balance().Uint64())
 
 	// CheckAsFrom
 	for _, ty := range ld.AllTxTypes {
@@ -86,7 +86,7 @@ func TestTokenAccount(t *testing.T) {
 	testToken.Add(constants.NativeToken, big.NewInt(100))
 	assert.Equal(true, testToken.valid(ld.TokenAccount))
 
-	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), testToken.Balance().Uint64())
 	assert.Equal(uint64(100), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOf(token).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOfAll(token).Uint64())
@@ -142,7 +142,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
 	testToken.Add(token, big.NewInt(2000))
 	assert.NoError(testToken.DestroyToken(acc))
-	assert.Equal(uint64(0), testToken.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), testToken.Balance().Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOf(token).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
@@ -152,7 +152,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.Nil(testToken.ld.MaxTotalSupply)
 	assert.Nil(testToken.ld.Lending)
 	assert.Equal(0, len(testToken.ledger.Lending))
-	assert.Equal(uint64(1100), acc.balanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(1100), acc.Balance().Uint64())
 
 	// Destroy again
 	assert.ErrorContains(testToken.DestroyToken(acc), "invalid token account")

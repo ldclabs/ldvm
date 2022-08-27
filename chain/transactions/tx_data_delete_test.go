@@ -231,11 +231,11 @@ func TestTxDeleteData(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxDeleteData).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDeleteData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxDeleteData).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxDeleteData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)

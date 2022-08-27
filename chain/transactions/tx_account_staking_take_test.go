@@ -420,14 +420,14 @@ func TestTxTakeStake(t *testing.T) {
 	keeperGas := tt.Gas()
 	stakeAcc := cs.MustAccount(stakeid)
 	assert.Equal(keeperGas*ctx.Price,
-		itx.(*TxCreateStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).ldc.Balance().Uint64())
 	assert.Equal(keeperGas*100,
-		itx.(*TxCreateStake).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxCreateStake).miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(),
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-keeperGas*(ctx.Price+100),
-		keeperAcc.balanceOf(constants.NativeToken).Uint64())
+		keeperAcc.Balance().Uint64())
 
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
@@ -470,14 +470,14 @@ func TestTxTakeStake(t *testing.T) {
 
 	senderGas := tt.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
-		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
-		itx.(*TxTakeStake).miner.balanceOf(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).miner.Balance().Uint64())
+	assert.Equal(constants.LDC*10, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*10,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.balanceOf(constants.NativeToken).Uint64())
+		senderAcc.Balance().Uint64())
 	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
@@ -556,12 +556,12 @@ func TestTxTakeStake(t *testing.T) {
 
 	senderGas += tt.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
-		itx.(*TxTakeStake).ldc.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
-		itx.(*TxTakeStake).miner.balanceOf(constants.NativeToken).Uint64())
+		itx.(*TxTakeStake).miner.Balance().Uint64())
 
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*100,
-		stakeAcc.balanceOf(constants.NativeToken).Uint64())
+		stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()*2+constants.LDC*100,
 		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
 	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
