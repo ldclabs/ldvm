@@ -449,7 +449,7 @@ func (api *EthAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.Index(contentType, ";"); idx != -1 {
 		contentType = contentType[:idx]
 	}
-	if contentType != "application/json" {
+	if contentType != jsonrpc.MIMEApplicationJSON {
 		writeJSONRes(w, http.StatusUnsupportedMediaType, &jsonrpc.Err{
 			Code:    -32600,
 			Message: fmt.Sprintf("unsupported Content-Type, got %q", contentType),
@@ -483,7 +483,7 @@ func (api *EthAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJSONRes(w http.ResponseWriter, code int, val interface{}) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Type", jsonrpc.MIMEApplicationJSONCharsetUTF8)
 	data, err := json.Marshal(val)
 	if err != nil {
 		code = 500

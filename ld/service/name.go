@@ -18,9 +18,9 @@ type Name struct {
 	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
 
 	// external assignment fields
-	DID util.DataID `cbor:"-" json:"did"`
-	raw []byte      `cbor:"-" json:"-"`
-	dn  *DN         `cbor:"-" json:"-"`
+	DataID util.DataID `cbor:"-" json:"did"`
+	raw    []byte      `cbor:"-" json:"-"`
+	dn     *DN         `cbor:"-" json:"-"`
 }
 
 func NameModel() (*ld.IPLDModel, error) {

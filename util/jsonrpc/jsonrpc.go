@@ -20,6 +20,11 @@ const (
 	CodeServerError    = -32000 // -32000 to -32099	Server error, Reserved for implementation-defined server-errors.
 )
 
+const (
+	MIMEApplicationJSON            = "application/json"
+	MIMEApplicationJSONCharsetUTF8 = "application/json; charset=utf-8"
+)
+
 type Req struct {
 	Version string          `json:"jsonrpc"`
 	ID      json.RawMessage `json:"id,omitempty"`

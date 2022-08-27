@@ -355,7 +355,7 @@ func TestTxCreateData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM111111111111111111116DBWJs","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":42},"signatures":["b6d67cf0d07327bae70469845c65c7a0edb50f5495b36dd9d74a6ceff8fccbab71f1c3a3384759b0f25d4c2b86c4caea70f4bed89add3c1dccc65a85f4592f5901"],"id":"2PpJt2u36UAPEHnGfimSqKdp7cUoJBdJr5BY8GQhjuGs32zVp"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"111111111111111111116DBWJs","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":42},"signatures":["b6d67cf0d07327bae70469845c65c7a0edb50f5495b36dd9d74a6ceff8fccbab71f1c3a3384759b0f25d4c2b86c4caea70f4bed89add3c1dccc65a85f4592f5901"],"id":"2PpJt2u36UAPEHnGfimSqKdp7cUoJBdJr5BY8GQhjuGs32zVp"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -456,7 +456,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM1111111111111111111Ax1asG","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa2626e616474657374626e6f830102031e0946b2"},"signatures":["0973e7f973a6d332bc6f43391b48fbd51eb01bf3f0e1606e702b06e58c507fa519904657c9d634a96d6fcadd3028aab5ab7cb5e6c7502c9911df9f4a3afc569201"],"id":"2FpeGMLZMgzjHD1WtmUkKY53SsZ5ZASPQkrdqcmqkLHXk2Dj8R"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"1111111111111111111Ax1asG","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa2626e616474657374626e6f830102031e0946b2"},"signatures":["0973e7f973a6d332bc6f43391b48fbd51eb01bf3f0e1606e702b06e58c507fa519904657c9d634a96d6fcadd3028aab5ab7cb5e6c7502c9911df9f4a3afc569201"],"id":"2FpeGMLZMgzjHD1WtmUkKY53SsZ5ZASPQkrdqcmqkLHXk2Dj8R"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -557,7 +557,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM1111111111111111111L17Xp3","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":{"na":"test","no":[1,2,3]}},"signatures":["8a56cbb69abcf6fcbe55a15d68cf30bc67c86f6b90e2db5f8410ef4ef800fb8b2d042562b7596bb3aa1dd27fba9596b620f354db78a24b270e79e12dc6cbd56901"],"id":"bcscpL2jzUQZSeVJVRuhzHB6US81zpUX7U8SDMxDMeCyxWRGC"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"1111111111111111111L17Xp3","version":1,"threshold":0,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":{"na":"test","no":[1,2,3]}},"signatures":["8a56cbb69abcf6fcbe55a15d68cf30bc67c86f6b90e2db5f8410ef4ef800fb8b2d042562b7596bb3aa1dd27fba9596b620f354db78a24b270e79e12dc6cbd56901"],"id":"bcscpL2jzUQZSeVJVRuhzHB6US81zpUX7U8SDMxDMeCyxWRGC"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -619,7 +619,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "LM6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1 not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1 not found")
 	cs.CheckoutAccounts()
 
 	assert.NoError(cs.SaveModel(ps))
@@ -684,7 +684,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa7616460616960616e6674657374657261740161756062657880626673807e921573"},"signatures":["9edd071f71feaaa25454991debd6d7b66713ad0fad75a909fe81549db99419687eac7f9a1dd75d657bcc718e9beeabe057aa919d30ce24e0ab165a740e21c65600"],"id":"2aVVPBL5DHKBhqy2p4DTHh7pDEfm7o7MMsm4ZCJFREuSPHXk1T"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa7616460616960616e6674657374657261740161756062657880626673807e921573"},"signatures":["9edd071f71feaaa25454991debd6d7b66713ad0fad75a909fe81549db99419687eac7f9a1dd75d657bcc718e9beeabe057aa919d30ce24e0ab165a740e21c65600"],"id":"2aVVPBL5DHKBhqy2p4DTHh7pDEfm7o7MMsm4ZCJFREuSPHXk1T"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -741,7 +741,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "LMQ4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3 not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "Q4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3 not found")
 	cs.CheckoutAccounts()
 	assert.NoError(cs.SaveModel(mi))
 	cs.CommitAccounts()
@@ -960,7 +960,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"LMQ4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["d2666008273e1d6d44eb2f6198e7718524b5d092a4a62e63992664f71aa1257310896dd4be3276cfcee64b378e1cc89a813cf06a5af22617dcdb57619acabb9500"],"exSignatures":["71d3104e46d4c9f060df26452aa30daed4d8c1495280d0d13f494436b5d28f8654b209ca482ccd5eb59c9851c1bbb41ff434e9dc7c992e8f5859192c553fba4c00"],"id":"JQHDUcT864HBs7vd1QTPLuEMwfhvMgUQ1tF7Hm6YBc82UzSu7"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"Q4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["d2666008273e1d6d44eb2f6198e7718524b5d092a4a62e63992664f71aa1257310896dd4be3276cfcee64b378e1cc89a813cf06a5af22617dcdb57619acabb9500"],"exSignatures":["71d3104e46d4c9f060df26452aa30daed4d8c1495280d0d13f494436b5d28f8654b209ca482ccd5eb59c9851c1bbb41ff434e9dc7c992e8f5859192c553fba4c00"],"id":"JQHDUcT864HBs7vd1QTPLuEMwfhvMgUQ1tF7Hm6YBc82UzSu7"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -1059,7 +1059,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"LM8Y7apZJb2br3bzE9jRi7nCWra3NukwSFu","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["c59671c07a36b412b8a2c1c5360556522228eb6cbf0969050bb17292b11cc6c15150a84ea8507cfde128f098782a2ca0247060b761082c870c2dfd71c0f2714500"],"exSignatures":["55c18e008f172373be69ccb8f1d1bd4187b0f3e8a6d631a2e43493e762ff40cf71217a655c75d3cef06defa8a79ae7f8492ceefb9d0281ba8b4974b2a0bbf62c01"],"id":"FcsFaozwawX9bokf92E1tj9j3qtZsVYy68SRRsQLSAo68SyGt"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"8Y7apZJb2br3bzE9jRi7nCWra3NukwSFu","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["c59671c07a36b412b8a2c1c5360556522228eb6cbf0969050bb17292b11cc6c15150a84ea8507cfde128f098782a2ca0247060b761082c870c2dfd71c0f2714500"],"exSignatures":["55c18e008f172373be69ccb8f1d1bd4187b0f3e8a6d631a2e43493e762ff40cf71217a655c75d3cef06defa8a79ae7f8492ceefb9d0281ba8b4974b2a0bbf62c01"],"id":"FcsFaozwawX9bokf92E1tj9j3qtZsVYy68SRRsQLSAo68SyGt"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 
@@ -1193,7 +1193,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"LM1111111111111111111L17Xp3","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":{"startHeight":0,"thresholdGas":1000,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"maxBlockTxsSize":4200000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000}},"id":"7o7fYNFS27SGZF8uEXC8PExi5mgVW4p4Hj7gdCg1wEqCUB1qk"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"1111111111111111111L17Xp3","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":{"startHeight":0,"thresholdGas":1000,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"maxBlockTxsSize":4200000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000}},"id":"7o7fYNFS27SGZF8uEXC8PExi5mgVW4p4Hj7gdCg1wEqCUB1qk"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

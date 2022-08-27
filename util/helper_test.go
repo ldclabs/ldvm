@@ -4,6 +4,7 @@
 package util
 
 import (
+	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,15 +97,20 @@ func TestDataIDs(t *testing.T) {
 	assert.NoError(ids.CheckDuplicate())
 	assert.NoError(ids.CheckEmptyID())
 
+	id1 := DataID{}
+	rand.Read(id1[:])
+	id2 := DataID{}
+	rand.Read(id2[:])
+
 	ids = DataIDs{
 		DataIDEmpty,
 		{1, 2, 3},
-		DataID(Signer1.Address()),
-		DataID(Signer2.Address()),
+		id1,
+		id2,
 	}
 	assert.True(ids.Has(DataIDEmpty))
 	assert.True(ids.Has(DataID{1, 2, 3}))
-	assert.True(ids.Has(DataID(Signer2.Address())))
+	assert.True(ids.Has(id2))
 
 	assert.False(ids.Has(DataID{1, 2, 4}))
 	assert.Nil(ids.CheckDuplicate())

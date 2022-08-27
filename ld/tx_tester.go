@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ava-labs/avalanchego/ids"
-
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -44,13 +43,14 @@ func (t ObjectType) MarshalJSON() ([]byte, error) {
 
 // TxTester
 type TxTester struct {
-	ObjectType ObjectType  `cbor:"ot" json:"objectType"`
-	OID        any         `cbor:"-" json:"objectId"` // external field
-	ObjectID   ids.ShortID `cbor:"oid" json:"-"`
-	Tests      TestOps     `cbor:"ts" json:"tests"`
+	ObjectType ObjectType `cbor:"ot" json:"objectType"`
+	ObjectID   string     `cbor:"oid" json:"objectID"`
+	Tests      TestOps    `cbor:"ts" json:"tests"`
 
 	// external assignment fields
-	raw []byte `cbor:"-" json:"-"`
+	ID      ids.ID      `cbor:"-" json:"-"`
+	ShortID ids.ShortID `cbor:"-" json:"-"`
+	raw     []byte      `cbor:"-" json:"-"`
 }
 
 type TestOp struct {
@@ -95,25 +95,39 @@ func (t *TxTester) SyntacticVerify() error {
 	case t == nil:
 		return errp.Errorf("nil pointer")
 
-	case t.ObjectType > DataObject:
-		return errp.Errorf("invalid objectType %s", t.ObjectType.String())
-
 	case len(t.Tests) == 0:
 		return errp.Errorf("empty tests")
+	}
+
+	switch t.ObjectType {
+	case AddressObject, LedgerObject:
+		id, err := util.EthIDFromString(t.ObjectID)
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		t.ShortID = ids.ShortID(id)
+
+	case ModelObject:
+		id, err := util.ModelIDFromString(t.ObjectID)
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		t.ShortID = ids.ShortID(id)
+
+	case DataObject:
+		id, err := util.DataIDFromString(t.ObjectID)
+		if err != nil {
+			return errp.ErrorIf(err)
+		}
+		t.ID = ids.ID(id)
+
+	default:
+		return errp.Errorf("invalid objectType %s", t.ObjectType.String())
 	}
 
 	var err error
 	if err = t.Tests.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
-	}
-
-	switch t.ObjectType {
-	case AddressObject, LedgerObject:
-		t.OID = util.EthID(t.ObjectID)
-	case ModelObject:
-		t.OID = util.ModelID(t.ObjectID)
-	case DataObject:
-		t.OID = util.DataID(t.ObjectID)
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {

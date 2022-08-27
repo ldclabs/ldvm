@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -106,7 +105,7 @@ func TestTxTest(t *testing.T) {
 
 	input := ld.TxTester{
 		ObjectType: ld.AddressObject,
-		ObjectID:   ids.ShortID(to),
+		ObjectID:   to.String(),
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeTest,
@@ -124,7 +123,7 @@ func TestTxTest(t *testing.T) {
 
 	input = ld.TxTester{
 		ObjectType: ld.AddressObject,
-		ObjectID:   ids.ShortID(sender),
+		ObjectID:   sender.String(),
 		Tests: ld.TestOps{
 			{Path: "/b", Value: util.MustMarshalCBOR(new(big.Int).SetUint64(constants.LDC))},
 		},
@@ -147,7 +146,7 @@ func TestTxTest(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 738100, got 0")
+		"insufficient NativeLDC balance, expected 870100, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
@@ -166,5 +165,5 @@ func TestTxTest(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"objectType":"Address","objectId":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","tests":[{"path":"/b","value":"0xc2443b9aca00dfb73dae"}]},"signatures":["455c06419f62d87ce2fbb91feb11441c7926590a079613b105bf48ebf2fb286137ca45185d5ec6bc754288d6894244942660db94ad1118849b9d65ebddefa4d701"],"id":"UDSNmc4yoNvgugjusj5Z1hnujt5UT2Za6TWUhgbM1PMAFmcAL"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"objectType":"Address","objectID":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","tests":[{"path":"/b","value":"0xc2443b9aca00dfb73dae"}]},"signatures":["e7061b592e31d4a5e2d37eba4fb6fce8e188d3ed02f68bec9493a2e5df616bc94cfb3e8e567c4cf464d1f169bff7903f9a2ed5fd3e1bc8076d474f71d71e8e7b01"],"id":"TfPy6S7GRFSqqkRJikr73Mor4M582ipVPDy9pB8mMopgEkJHn"}`, string(jsondata))
 }

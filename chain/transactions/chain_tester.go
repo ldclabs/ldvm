@@ -183,8 +183,8 @@ func (m *MockChainState) LoadDataByName(name string) (*ld.DataInfo, error) {
 }
 
 func (m *MockChainState) SaveName(ns *service.Name) error {
-	if ns.DID == util.DataIDEmpty {
-		return fmt.Errorf("MBS.SaveName: model ID is empty")
+	if ns.DataID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.SaveName: name ID is empty")
 	}
 
 	name := ns.ASCII()
@@ -193,7 +193,7 @@ func (m *MockChainState) SaveName(ns *service.Name) error {
 	case ok:
 		return fmt.Errorf("name %q conflict", name)
 	default:
-		m.NC[name] = ns.DID
+		m.NC[name] = ns.DataID
 	}
 	return nil
 }

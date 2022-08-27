@@ -237,7 +237,7 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transactions.Account, err
 
 func (bs *blockState) SaveName(ns *service.Name) error {
 	errp := util.ErrPrefix("BlockState.SaveName error: ")
-	if ns.DID == util.DataIDEmpty {
+	if ns.DataID == util.DataIDEmpty {
 		return errp.Errorf("data ID is empty")
 	}
 
@@ -248,7 +248,7 @@ func (bs *blockState) SaveName(ns *service.Name) error {
 	case ok:
 		return errp.Errorf("name %q conflict", name)
 	case err == nil:
-		err = bs.nameDB.Put(key, ns.DID[:])
+		err = bs.nameDB.Put(key, ns.DataID[:])
 	}
 
 	return errp.ErrorIf(err)

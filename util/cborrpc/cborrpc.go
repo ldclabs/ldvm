@@ -22,6 +22,11 @@ const (
 	CodeServerError    = -32000 // -32000 to -32099	Server error, Reserved for implementation-defined server-errors.
 )
 
+const (
+	MIMEApplicationCBOR            = "application/cbor"
+	MIMEApplicationCBORCharsetUTF8 = "application/cbor; charset=utf-8"
+)
+
 type Req struct {
 	Method string          `cbor:"method"`
 	Params cbor.RawMessage `cbor:"params,omitempty"`

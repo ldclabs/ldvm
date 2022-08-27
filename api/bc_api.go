@@ -345,7 +345,7 @@ func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.Index(contentType, ";"); idx != -1 {
 		contentType = contentType[:idx]
 	}
-	if contentType != "application/cbor" {
+	if contentType != cborrpc.MIMEApplicationCBOR {
 		writeCBORRes(w, http.StatusUnsupportedMediaType, &cborrpc.Err{
 			Code:    -32600,
 			Message: fmt.Sprintf("unsupported Content-Type, got %q", contentType),
@@ -379,7 +379,7 @@ func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeCBORRes(w http.ResponseWriter, code int, val interface{}) {
-	w.Header().Set("Content-Type", "application/cbor; charset=utf-8")
+	w.Header().Set("Content-Type", cborrpc.MIMEApplicationCBORCharsetUTF8)
 	data, err := util.MarshalCBOR(val)
 	if err != nil {
 		code = 500
