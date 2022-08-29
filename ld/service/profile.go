@@ -46,6 +46,7 @@ type Profile struct {
 }
 
 type Extension struct {
+	DataID     util.DataID            `cbor:"id" json:"did"`  // data id
 	ModelID    util.ModelID           `cbor:"m" json:"mid"`   // model id
 	Title      string                 `cbor:"t" json:"title"` // extension title
 	Properties map[string]interface{} `cbor:"ps" json:"properties"`
@@ -117,14 +118,24 @@ func (p *Profile) SyntacticVerify() error {
 		if ex == nil {
 			return errp.Errorf("nil extension at %d", i)
 		}
+
+		if ex.DataID == util.DataIDEmpty {
+			return errp.Errorf("invalid data id at %d", i)
+		}
+
+		if ex.ModelID == util.ModelIDEmpty {
+			return errp.Errorf("invalid model id at %d", i)
+		}
+
 		if !util.ValidName(ex.Title) {
 			return errp.Errorf("invalid extension title %q at %d", ex.Title, i)
 		}
-		id := string(ex.ModelID[:]) + ex.Title
-		if _, ok := set[id]; ok {
+
+		key := string(ex.ModelID[:]) + ex.Title
+		if _, ok := set[key]; ok {
 			return errp.Errorf("%q exists in extensions at %d", ex.Title, i)
 		}
-		set[id] = struct{}{}
+		set[key] = struct{}{}
 	}
 
 	if p.raw, err = p.Marshal(); err != nil {
