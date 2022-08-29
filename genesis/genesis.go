@@ -82,33 +82,35 @@ type FeeConfig struct {
 func (cfg *FeeConfig) SyntacticVerify() error {
 	errp := util.ErrPrefix("FeeConfig.SyntacticVerify error: ")
 
-	if cfg == nil {
+	switch {
+	case cfg == nil:
 		return errp.Errorf("nil pointer")
-	}
-	if cfg.ThresholdGas <= 500 {
+
+	case cfg.ThresholdGas <= 500:
 		return errp.Errorf("invalid thresholdGas")
-	}
-	if cfg.MinGasPrice <= 500 {
+
+	case cfg.MinGasPrice <= 500:
 		return errp.Errorf("invalid minGasPrice")
-	}
-	if cfg.MaxGasPrice <= cfg.MinGasPrice {
+
+	case cfg.MaxGasPrice <= cfg.MinGasPrice:
 		return errp.Errorf("invalid maxGasPrice")
-	}
-	if cfg.MaxTxGas <= 1000000 {
+
+	case cfg.MaxTxGas <= 1000000:
 		return errp.Errorf("invalid maxTxGas")
-	}
-	if cfg.MaxBlockTxsSize <= 1000000 {
+
+	case cfg.MaxBlockTxsSize <= 1000000:
 		return errp.Errorf("invalid maxBlockTxsSize")
-	}
-	if cfg.GasRebateRate > 1000 {
+
+	case cfg.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
-	}
-	if cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
+
+	case cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
 		return errp.Errorf("invalid minTokenPledge")
-	}
-	if cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0 {
+
+	case cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
 		return errp.Errorf("invalid minStakePledge")
 	}
+
 	return nil
 }
 
@@ -223,6 +225,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	if err = cfgData.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
@@ -246,11 +249,12 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Name:      nm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      nm.Schema(),
+		Schema:    nm.Schema(),
 	}
 	if err = ns.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
@@ -274,11 +278,12 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Name:      pm.Name(),
 		Threshold: genesisAccount.Threshold,
 		Keepers:   genesisAccount.Keepers,
-		Data:      pm.Schema(),
+		Schema:    pm.Schema(),
 	}
 	if err = ps.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+
 	tx = &ld.Transaction{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,

@@ -113,7 +113,7 @@ func TestTxCreateModel(t *testing.T) {
 		Name:      ipldm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      ipldm.Schema(),
+		Schema:    ipldm.Schema(),
 	}
 	txData = &ld.TxData{
 		Type:      ld.TypeCreateModel,
@@ -131,7 +131,7 @@ func TestTxCreateModel(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 4096400, got 0")
+		"insufficient NativeLDC balance, expected 4079900, got 0")
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
@@ -150,14 +150,14 @@ func TestTxCreateModel(t *testing.T) {
 	mi, err := cs.LoadModel(itx.(*TxCreateModel).input.ID)
 	assert.NoError(err)
 	assert.Equal(input.Name, mi.Name)
-	assert.Equal(input.Data, mi.Data)
+	assert.Equal(input.Schema, mi.Schema)
 	assert.Equal(input.Threshold, mi.Threshold)
 	assert.Equal(input.Keepers, mi.Keepers)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0x0a097479706520494432302062797465730a09747970652050726f66696c655365727669636520737472756374207b0a0909747970652020202020202020496e74202020202020202020202020202872656e616d6520227422290a09096e616d652020202020202020537472696e67202020202020202020202872656e616d6520226e22290a09096465736372697074696f6e20537472696e67202020202020202020202872656e616d6520226422290a0909696d61676520202020202020537472696e67202020202020202020202872656e616d6520226922290a090975726c202020202020202020537472696e67202020202020202020202872656e616d6520227522290a0909666f6c6c6f777320202020205b494432305d202020202020202020202872656e616d652022667322290a09096d656d6265727320202020206f7074696f6e616c205b494432305d202872656e616d6520226d7322290a0909657874656e73696f6e7320205b416e795d20202020202020202020202872656e616d652022657822290a097d0aed7dc765","id":"4jk4H6TitAwi4seemgtuVPRwqbdSbzsKn"},"signatures":["98b85349935fc3f58c3eea84bad6b47b77e7e6103282d9de38f5aaff1eec6d73154e739fb6d892d3ae32c88a1f044272bcae533ff3269c1ce13022a475b6e92b01"],"id":"K452VextWSEbApsBDXA34pp8aSn6MRZrdSY78aq5CgvX99GYH"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"ex\")\n\t}","id":"2bYKAnh12DMf27qi91zr77TpVcKd4idZP"},"signatures":["3440886cff68e7b555dc2df596b91623f62afc72e971745df9332f1e6d4a6b0f6179a281ad5176e583efed17c20cd0f0886ad44847d46e6ac5ab82570a4a384d00"],"id":"8i4AuoQgc4WphxdRPjo1FsShRc8i6t1bH8krwuuuxf3HJyYgT"}`, string(jsondata))
 
 	modelAcc := cs.MustAccount(util.EthID(mi.ID))
 	assert.Equal(input.Threshold, modelAcc.Threshold())
@@ -238,7 +238,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 		Name:      nm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      nm.Schema(),
+		Schema:    nm.Schema(),
 	}
 	assert.NoError(mi.SyntacticVerify())
 
@@ -265,12 +265,12 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(util.EthIDs{owner}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
 	assert.Equal(mi.Name, mi2.Name)
-	assert.Equal(mi.Data, mi2.Data)
+	assert.Equal(mi.Schema, mi2.Schema)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"NameService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0x0a097479706520494432302062797465730a0974797065204e616d655365727669636520737472756374207b0a09096e616d6520202020537472696e6720202020202020202872656e616d6520226e22290a09096c696e6b656420206f7074696f6e616c2049443230202872656e616d6520226c22290a09097265636f726473205b537472696e675d2020202020202872656e616d652022727322290a097d0ad7077bb1","id":"G7314Qg687h2DRg3WHszkeM9wHsGJVEDM"},"id":"2Fy56G1oPMf5xW1MTCDHtc4DqX2M6td8TjG2d41yWsaZwBzkFy"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"NameService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype NameService struct {\n\t\tname    String        (rename \"n\")\n\t\tlinked  optional ID20 (rename \"l\")\n\t\trecords [String]      (rename \"rs\")\n\t}","id":"Lia6mdbA5o5oQVhiUqWA7w5ibxwjTMpmL"},"id":"2eFXGeT5Mg2ngJSsaGgvR35wfaaQmtSdKwKyVPpHzFxDPLcT6m"}`, string(jsondata))
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
@@ -278,7 +278,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 		Name:      pm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      pm.Schema(),
+		Schema:    pm.Schema(),
 	}
 	assert.NoError(mi.SyntacticVerify())
 
@@ -306,12 +306,12 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(util.EthIDs{owner}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
 	assert.Equal(mi.Name, mi2.Name)
-	assert.Equal(mi.Data, mi2.Data)
+	assert.Equal(mi.Schema, mi2.Schema)
 
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0x0a097479706520494432302062797465730a09747970652050726f66696c655365727669636520737472756374207b0a0909747970652020202020202020496e74202020202020202020202020202872656e616d6520227422290a09096e616d652020202020202020537472696e67202020202020202020202872656e616d6520226e22290a09096465736372697074696f6e20537472696e67202020202020202020202872656e616d6520226422290a0909696d61676520202020202020537472696e67202020202020202020202872656e616d6520226922290a090975726c202020202020202020537472696e67202020202020202020202872656e616d6520227522290a0909666f6c6c6f777320202020205b494432305d202020202020202020202872656e616d652022667322290a09096d656d6265727320202020206f7074696f6e616c205b494432305d202872656e616d6520226d7322290a0909657874656e73696f6e7320205b416e795d20202020202020202020202872656e616d652022657822290a097d0aed7dc765","id":"4TUY7qt97DMQAwr89td6t4JXoHvnfTDbn"},"id":"HhUwLXYTdWjXvy4U3Qh9MjaDkU4W7LLH2W7JrJHWiRfYasife"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"ex\")\n\t}","id":"P6FwwUqQbWsy2wrDXACgH7pdVo5tE4UQw"},"id":"2qigReVpHbUi2gdhUVFAAYwJXc97dbQpRdC11s5Stj8L5rW7uq"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

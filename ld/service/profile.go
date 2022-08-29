@@ -5,6 +5,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -53,7 +54,7 @@ type Extension struct {
 }
 
 func ProfileModel() (*ld.IPLDModel, error) {
-	sch := `
+	schema := `
 	type ID20 bytes
 	type ProfileService struct {
 		type        Int             (rename "t")
@@ -66,7 +67,7 @@ func ProfileModel() (*ld.IPLDModel, error) {
 		extensions  [Any]           (rename "ex")
 	}
 `
-	return ld.NewIPLDModel("ProfileService", []byte(sch))
+	return ld.NewIPLDModel("ProfileService", strings.TrimSpace(schema))
 }
 
 // SyntacticVerify verifies that a *Profile is well-formed.
