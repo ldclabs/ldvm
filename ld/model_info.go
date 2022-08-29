@@ -5,6 +5,7 @@ package ld
 
 import (
 	"regexp"
+	"unicode/utf8"
 
 	"github.com/ldclabs/ldvm/util"
 )
@@ -21,9 +22,9 @@ type ModelInfo struct {
 	// keepers who owned this model, no more than 1024
 	// Creating data using this model requires keepers to sign.
 	// no keepers or threshold is 0 means don't need sign.
-	Keepers  util.EthIDs  `cbor:"kp" json:"keepers"`
-	Approver *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
-	Data     util.RawData `cbor:"d" json:"data"`
+	Keepers  util.EthIDs `cbor:"kp" json:"keepers"`
+	Approver *util.EthID `cbor:"ap,omitempty" json:"approver,omitempty"`
+	Schema   string      `cbor:"sc" json:"schema"`
 
 	// external assignment fields
 	ID    util.ModelID `cbor:"-" json:"id"`
@@ -56,8 +57,8 @@ func (t *ModelInfo) SyntacticVerify() error {
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
 		return errp.Errorf("invalid approver")
 
-	case len(t.Data) < 10:
-		return errp.Errorf("invalid data bytes")
+	case len(t.Schema) < 10 || !utf8.ValidString(t.Schema):
+		return errp.Errorf("invalid schema string")
 	}
 
 	if err = t.Keepers.CheckDuplicate(); err != nil {
@@ -68,7 +69,7 @@ func (t *ModelInfo) SyntacticVerify() error {
 		return errp.Errorf("invalid keepers, %v", err)
 	}
 
-	if t.model, err = NewIPLDModel(t.Name, t.Data); err != nil {
+	if t.model, err = NewIPLDModel(t.Name, t.Schema); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if t.raw, err = t.Marshal(); err != nil {

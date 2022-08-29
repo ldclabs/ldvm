@@ -576,7 +576,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 		Name:      pm.Name(),
 		Threshold: 0,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      pm.Schema(),
+		Schema:    pm.Schema(),
 		ID:        util.ModelID{1, 2, 3, 4, 5},
 	}
 
@@ -704,7 +704,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Name:      pm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      pm.Schema(),
+		Schema:    pm.Schema(),
 		ID:        ctx.ChainConfig().ProfileServiceID,
 	}
 
@@ -741,7 +741,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "Q4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3 not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "2FGxmZwYAuebXdEukTpj84EVKFVMK5fHu not found")
 	cs.CheckoutAccounts()
 	assert.NoError(cs.SaveModel(mi))
 	cs.CommitAccounts()
@@ -960,7 +960,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"Q4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["d2666008273e1d6d44eb2f6198e7718524b5d092a4a62e63992664f71aa1257310896dd4be3276cfcee64b378e1cc89a813cf06a5af22617dcdb57619acabb9500"],"exSignatures":["71d3104e46d4c9f060df26452aa30daed4d8c1495280d0d13f494436b5d28f8654b209ca482ccd5eb59c9851c1bbb41ff434e9dc7c992e8f5859192c553fba4c00"],"id":"JQHDUcT864HBs7vd1QTPLuEMwfhvMgUQ1tF7Hm6YBc82UzSu7"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"2FGxmZwYAuebXdEukTpj84EVKFVMK5fHu","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["fbd88343c51942fa1ec0c2c5539a1937622fa0d913028ee2bb03e8d4575da3052e1c3f3ac960051a7af49873fdd27ab30c4f247b758f6dd2f15e56c666a90ca801"],"exSignatures":["9dc099eca03d85ed7058f9cf7a1b5e8bdfae60542c973527dab69958da0f1da8472efc71b1fd9d1be6b3386cce589c370632024b429d549ee0476474422397d500"],"id":"2oGuwdYVzBqd4LZqdUHJwBVbV1ERjbwdv5KnHK8c8QRbEbGvoc"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -980,7 +980,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Name:      nm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      nm.Schema(),
+		Schema:    nm.Schema(),
 		ID:        ctx.ChainConfig().NameServiceID,
 	}
 
@@ -1059,7 +1059,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"8Y7apZJb2br3bzE9jRi7nCWra3NukwSFu","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["c59671c07a36b412b8a2c1c5360556522228eb6cbf0969050bb17292b11cc6c15150a84ea8507cfde128f098782a2ca0247060b761082c870c2dfd71c0f2714500"],"exSignatures":["55c18e008f172373be69ccb8f1d1bd4187b0f3e8a6d631a2e43493e762ff40cf71217a655c75d3cef06defa8a79ae7f8492ceefb9d0281ba8b4974b2a0bbf62c01"],"id":"FcsFaozwawX9bokf92E1tj9j3qtZsVYy68SRRsQLSAo68SyGt"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"CMpsSKUM1dfWVyYMpRHuQfHHYTUWcV6PQ","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["94ed805397ddfedb106a5a3f91e9434d573c238ebdf1535f7c54d7a344133c161cd8d737d0a3a811d5aec4e7ad53d3507d829bd6be2114fc2586604fdb18e3c200"],"exSignatures":["33dfd5a016ce6a9aa1de4e1995fab94b48178003a46d8707203aeed7f57bf2b962643f05e95b0f681e877c9ab6b1cc3df43712c3012a080daf1184588cab6f9801"],"id":"U9M2MvTEjmwCqKfsG9w9YJ8BaouiyJuVDhaY4rXsauduTy2gn"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 

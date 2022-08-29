@@ -14,31 +14,31 @@ import (
 func TestIPLDModel(t *testing.T) {
 	assert := assert.New(t)
 
-	sch := `
+	sc := `
 	type SomeModel string
 	`
-	_, err := NewIPLDModel("SomeModel", []byte(sch))
+	_, err := NewIPLDModel("SomeModel", sc)
 	assert.ErrorContains(err, `NewIPLDModel("SomeModel") error: should be a map, list or struct`)
 
-	sch = `
+	sc = `
 	type SomeModel {String:Any}
 	`
-	_, err = NewIPLDModel("SomeModel2", []byte(sch))
+	_, err = NewIPLDModel("SomeModel2", sc)
 	assert.ErrorContains(err, `NewIPLDModel("SomeModel2") error: type not found`)
 
-	sch = `
+	sc = `
 	abc
 	`
-	_, err = NewIPLDModel("SomeModel", []byte(sch))
+	_, err = NewIPLDModel("SomeModel", sc)
 	assert.ErrorContains(err, `unexpected token: "abc"`)
 
-	sch = `
+	sc = `
 	type SomeModel {String:Any}
 	`
-	im, err := NewIPLDModel("SomeModel", []byte(sch))
+	im, err := NewIPLDModel("SomeModel", sc)
 	assert.NoError(err)
 	assert.Equal("SomeModel", im.Name())
-	assert.Equal(sch, string(im.Schema()))
+	assert.Equal(sc, string(im.Schema()))
 	assert.Equal("map", im.Type().TypeKind().String())
 
 	data, err := util.MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
@@ -49,13 +49,13 @@ func TestIPLDModel(t *testing.T) {
 	assert.NoError(err)
 	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid error: decode error`)
 
-	sch = `
+	sc = `
 	type NameService struct {
 		name    String        (rename "n")
 		records [String]      (rename "rs")
 	}
 `
-	im, err = NewIPLDModel("NameService", []byte(sch))
+	im, err = NewIPLDModel("NameService", sc)
 	assert.NoError(err)
 	assert.Equal("struct", im.Type().TypeKind().String())
 
@@ -75,7 +75,7 @@ func TestIPLDModel(t *testing.T) {
 func TestIPLDModelApplyPatch(t *testing.T) {
 	assert := assert.New(t)
 
-	sch := `
+	sc := `
 	type ID20 bytes
 	type ProfileService struct {
 		type       Int             (rename "t")
@@ -96,7 +96,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 		Members util.DataIDs `cbor:"ms,omitempty"`
 	}
 
-	mo, err := NewIPLDModel("ProfileService", []byte(sch))
+	mo, err := NewIPLDModel("ProfileService", sc)
 	assert.NoError(err)
 
 	v1 := &profile{

@@ -198,7 +198,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		Name:      ipldm.Name(),
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      ipldm.Schema(),
+		Schema:    ipldm.Schema(),
 		ID:        mid,
 	}
 	assert.NoError(mi.SyntacticVerify())

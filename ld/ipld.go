@@ -21,22 +21,23 @@ import (
 type IPLDModel struct {
 	mu         sync.Mutex
 	name       string
-	sch        []byte
+	schema     string
 	buf        *bytes.Buffer
 	schemaType schema.Type
 	prototype  schema.TypedPrototype
 	// builder    datamodel.NodeBuilder
 }
 
-func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
-	b := &IPLDModel{name: name, sch: sch, buf: new(bytes.Buffer)}
+func NewIPLDModel(name string, sc string) (*IPLDModel, error) {
+	b := &IPLDModel{name: name, schema: sc, buf: new(bytes.Buffer)}
 
 	errp := util.ErrPrefix(fmt.Sprintf("NewIPLDModel(%q) error: ", name))
 	err := Recover(errp, func() error {
-		ts, err := ipld.LoadSchemaBytes(sch)
+		ts, err := ipld.LoadSchemaBytes([]byte(sc))
 		if err != nil {
 			return err
 		}
+
 		b.schemaType = ts.TypeByName(name)
 		switch typ := b.schemaType.(type) {
 		case *schema.TypeMap, *schema.TypeList, *schema.TypeStruct:
@@ -50,6 +51,7 @@ func NewIPLDModel(name string, sch []byte) (*IPLDModel, error) {
 		// b.builder = b.prototype.Representation().NewBuilder()
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +62,8 @@ func (l *IPLDModel) Name() string {
 	return l.name
 }
 
-func (l *IPLDModel) Schema() []byte {
-	return l.sch
+func (l *IPLDModel) Schema() string {
+	return l.schema
 }
 
 func (l *IPLDModel) Type() schema.Type {

@@ -4,6 +4,7 @@
 package service
 
 import (
+	"strings"
 	"unicode/utf8"
 
 	"github.com/fxamacker/cbor/v2"
@@ -24,7 +25,7 @@ type Name struct {
 }
 
 func NameModel() (*ld.IPLDModel, error) {
-	sch := `
+	schema := `
 	type ID20 bytes
 	type NameService struct {
 		name    String        (rename "n")
@@ -32,7 +33,7 @@ func NameModel() (*ld.IPLDModel, error) {
 		records [String]      (rename "rs")
 	}
 `
-	return ld.NewIPLDModel("NameService", []byte(sch))
+	return ld.NewIPLDModel("NameService", strings.TrimSpace(schema))
 }
 
 type lazyName struct {

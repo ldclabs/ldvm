@@ -14,7 +14,7 @@ import (
 func TestModelInfo(t *testing.T) {
 	assert := assert.New(t)
 
-	sch := `
+	sc := `
 	type ID20 bytes
 	type NameService struct {
 		name    String        (rename "n")
@@ -45,20 +45,20 @@ func TestModelInfo(t *testing.T) {
 	tx = &ModelInfo{Name: "Name", Approver: &util.EthIDEmpty}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
-	tx = &ModelInfo{Name: "Name", Data: []byte("abc")}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid data")
+	tx = &ModelInfo{Name: "Name", Schema: "abc"}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid schema string")
 
-	tx = &ModelInfo{Name: "Name", Data: []byte(sch), Threshold: 1, Keepers: util.EthIDs{util.EthIDEmpty}}
+	tx = &ModelInfo{Name: "Name", Schema: sc, Threshold: 1, Keepers: util.EthIDs{util.EthIDEmpty}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &ModelInfo{Name: "Name", Data: []byte(sch)}
+	tx = &ModelInfo{Name: "Name", Schema: sc}
 	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel("Name") error`)
 
 	tx = &ModelInfo{
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
-		Data:      []byte(sch),
+		Schema:    sc,
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
@@ -67,7 +67,7 @@ func TestModelInfo(t *testing.T) {
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(sch),
+		Schema:    sc,
 	}
 	assert.NoError(tx.SyntacticVerify())
 	cbordata, err := tx.Marshal()

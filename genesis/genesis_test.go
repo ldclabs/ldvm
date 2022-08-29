@@ -108,8 +108,8 @@ func TestGenesis(t *testing.T) {
 	txs, err := gs.ToTxs()
 	assert.NoError(err)
 	assert.Equal("2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM", gs.Chain.FeeConfigID.String())
-	assert.Equal("8Y7apZJb2br3bzE9jRi7nCWra3NukwSFu", gs.Chain.NameServiceID.String())
-	assert.Equal("Q4FVRTkF8AJd4AZxstvAYzQeojw5Yqni3", gs.Chain.ProfileServiceID.String())
+	assert.Equal("CMpsSKUM1dfWVyYMpRHuQfHHYTUWcV6PQ", gs.Chain.NameServiceID.String())
+	assert.Equal("2FGxmZwYAuebXdEukTpj84EVKFVMK5fHu", gs.Chain.ProfileServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
 	jsondata, err := json.Marshal(txs)

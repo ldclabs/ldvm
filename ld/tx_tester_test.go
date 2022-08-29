@@ -126,7 +126,7 @@ func TestTxTester(t *testing.T) {
 		Name:      "NameService",
 		Threshold: 0,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(sch),
+		Schema:    sch,
 	}
 	assert.NoError(mi.SyntacticVerify())
 	assert.ErrorContains(tx.Test(mi.Bytes()),
@@ -136,7 +136,7 @@ func TestTxTester(t *testing.T) {
 		Name:      "NameService",
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(sch),
+		Schema:    sch,
 	}
 	assert.NoError(mi.SyntacticVerify())
 	assert.NoError(tx.Test(mi.Bytes()))
