@@ -239,7 +239,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	}
 	sig, err := util.Signer2.Sign(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.Sig = &sig
+	input.TypedSig = sig.Typed()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -285,7 +285,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"sig":"1a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200"},"signatures":["5e3ab4fed193e009c4ea72a96a0f85a81d9e247941c17a56b23621b9d9d6fa0435386805290093ad696264ad53daa3d955bfe94d4177684b65b5cd7dedd19d9f00","b7973007382fc66fb6840515e258a8690d003ef69cc877be0110dba698af595e142a4d2740be6bf8ed7e281629448aba619b0ee35baa7b7993d0f41853640f5f00"],"id":"AhVT5GXxjSbeua8rQR2wLhR7Jsytt8qBhxfY8Ls6jJJizZUng"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"typedSig":"0x001a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200de1abfe8"},"signatures":["3777101d23c2dcce66521e501325fca5921e8d390f62dc9a087c85ccc3c8fe792f637431610cba647236b0cf6c2652fec66e3dc988533000aa5d530ea13edbbf00","2e3a5a2c70753bd5cf217669816fa77c06a530d5f59742939b59886f23048a840f29d12b5b2782ed36cfef70c0e507ca29822fa63692efa34e39dc9c0ffa36b300"],"id":"2D9nwbMUKQWgYdN2xBwC6gUH8r6vdN2xNQ5zFKFZQrUtqVUpof"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
 		Approver: &util.EthIDEmpty,
@@ -438,7 +438,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	}
 	sig, err = util.Signer2.Sign(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.Sig = &sig
+	input.TypedSig = sig.Typed()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,

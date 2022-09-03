@@ -139,9 +139,9 @@ func TestTxUpdateModelInfo(t *testing.T) {
 
 	mid := util.ModelID{'1', '2', '3', '4', '5', '6'}
 	input = ld.TxUpdater{ModelID: &mid, Keepers: &util.EthIDs{}}
-	assert.ErrorContains(input.SyntacticVerify(), "nil threshold")
+	assert.ErrorContains(input.SyntacticVerify(), "invalid threshold")
 	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint16Ptr(0)}
-	assert.ErrorContains(input.SyntacticVerify(), "nil keepers")
+	assert.ErrorContains(input.SyntacticVerify(), "no keepers, threshold should be nil")
 	input = ld.TxUpdater{ModelID: &mid, Threshold: ld.Uint16Ptr(1), Keepers: &util.EthIDs{}}
 	assert.ErrorContains(input.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
 

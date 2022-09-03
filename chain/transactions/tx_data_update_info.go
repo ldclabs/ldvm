@@ -122,11 +122,15 @@ func (tx *TxUpdateDataInfo) Apply(ctx ChainContext, cs ChainState) error {
 
 	if tx.input.SigClaims != nil {
 		tx.di.SigClaims = tx.input.SigClaims
-		tx.di.Sig = tx.input.Sig
+		tx.di.TypedSig = tx.input.TypedSig
+	}
 
-		if _, err = tx.di.Signer(); err != nil {
-			return errp.ErrorIf(err)
-		}
+	if err = tx.di.SyntacticVerify(); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	if err = tx.di.ValidSigClaims(); err != nil {
+		return errp.ErrorIf(err)
 	}
 
 	if err = cs.SaveData(tx.di); err != nil {

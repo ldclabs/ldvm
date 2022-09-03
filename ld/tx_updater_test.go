@@ -27,23 +27,28 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
 	tx = &TxUpdater{Keepers: &util.EthIDs{}}
-	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 	tx2 := &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))
-	assert.ErrorContains(tx2.SyntacticVerify(), "nil threshold")
+	assert.ErrorContains(tx2.SyntacticVerify(), "invalid threshold")
 
 	tx = &TxUpdater{Threshold: Uint16Ptr(1)}
-	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"no keepers, threshold should be nil")
 	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid threshold, expected <= 0, got 1")
 	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid keepers, empty address exists")
 
 	tx = &TxUpdater{ApproveList: TxTypes{TypeCreateData}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeCreateData in approveList")
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid TxType TypeCreateData in approveList")
 
 	tx = &TxUpdater{ApproveList: TxTypes{TypeDeleteData + 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(25) in approveList")
+	assert.ErrorContains(tx.SyntacticVerify(),
+		"invalid TxType TypeUnknown(25) in approveList")
 
 	tx = &TxUpdater{ApproveList: TxTypes{
 		TypeUpdateDataInfo, TypeDeleteData, TypeUpdateDataInfo}}
@@ -52,14 +57,14 @@ func TestTxUpdater(t *testing.T) {
 
 	tx = &TxUpdater{SigClaims: &SigClaims{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"TxUpdater.SyntacticVerify error: nil sig together with sigClaims")
+		"invalid typed signature")
 
-	tx = &TxUpdater{Sig: &util.Signature{}}
+	tx = &TxUpdater{TypedSig: []byte{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"TxUpdater.SyntacticVerify error: nil sigClaims together with sig")
+		"no sigClaims, typed signature should be nil")
 
 	tx = &TxUpdater{
-		Sig: &util.Signature{},
+		TypedSig: util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -67,7 +72,7 @@ func TestTxUpdater(t *testing.T) {
 		},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"TxUpdater.SyntacticVerify error: invalid sigClaims, SigClaims.SyntacticVerify error: invalid issued time")
+		"invalid sigClaims, SigClaims.SyntacticVerify error: invalid issued time")
 
 	tx = &TxUpdater{Token: &util.NativeToken}
 	assert.NoError(tx.SyntacticVerify())

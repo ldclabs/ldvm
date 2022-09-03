@@ -15,9 +15,11 @@ import (
 // TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, Expire[, Approver, ApproveList]} with model keepers
 //
 // TxUpdateData{ID, Version, Data} no model keepers
-// TxUpdateData{ID, Version, SigClaims, Sig, Data} no model keepers
+// TxUpdateData{ID, Version, SigClaims, TypedSig, Data} no model keepers
 // TxUpdateData{ID, Version, To, Amount, Data, Expire} with model keepers
-// TxUpdateData{ID, Version, SigClaims, Sig, To, Amount, Data, Expire} with model keepers
+// TxUpdateData{ID, Version, SigClaims, TypedSig, To, Amount, Data, Expire} with model keepers
+// TxUpgradeData{ID, Version, To, Amount, Data, Expire} with model keepers
+// TxUpgradeData{ID, Version, SigClaims, TypedSig, To, Amount, Data, Expire} with model keepers
 //
 // TxDeleteData{ID, Version[, Data]}
 //
@@ -37,7 +39,7 @@ type TxUpdater struct {
 	To          *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
 	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
 	SigClaims   *SigClaims        `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
-	Sig         *util.Signature   `cbor:"s,omitempty" json:"sig,omitempty"`
+	TypedSig    util.RawData      `cbor:"ts,omitempty" json:"typedSig,omitempty"`
 	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
 	Data        util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 
@@ -59,16 +61,22 @@ func (t *TxUpdater) SyntacticVerify() error {
 
 	case t.Amount != nil && t.Amount.Sign() < 0:
 		return errp.Errorf("invalid amount")
+
+	case t.Keepers == nil && t.Threshold != nil:
+		return errp.Errorf("no keepers, threshold should be nil")
+
+	case t.Keepers != nil && t.Threshold == nil:
+		return errp.Errorf("invalid threshold")
+
+	case t.SigClaims == nil && t.TypedSig != nil:
+		return errp.Errorf("no sigClaims, typed signature should be nil")
+
+	case t.SigClaims != nil && (len(t.TypedSig) < 65 || len(t.TypedSig) > 160):
+		return errp.Errorf("invalid typed signature")
 	}
 
-	if t.Keepers != nil || t.Threshold != nil {
+	if t.Keepers != nil {
 		switch {
-		case t.Threshold == nil:
-			return errp.Errorf("nil threshold together with keepers")
-
-		case t.Keepers == nil:
-			return errp.Errorf("nil keepers together with threshold")
-
 		case int(*t.Threshold) > len(*t.Keepers):
 			return errp.Errorf("invalid threshold, expected <= %d, got %d",
 				len(*t.Keepers), *t.Threshold)
@@ -99,15 +107,7 @@ func (t *TxUpdater) SyntacticVerify() error {
 		}
 	}
 
-	if t.SigClaims != nil || t.Sig != nil {
-		switch {
-		case t.SigClaims == nil:
-			return errp.Errorf("nil sigClaims together with sig")
-
-		case t.Sig == nil:
-			return errp.Errorf("nil sig together with sigClaims")
-		}
-
+	if t.SigClaims != nil {
 		if err = t.SigClaims.SyntacticVerify(); err != nil {
 			return errp.Errorf("invalid sigClaims, %v", err)
 		}
