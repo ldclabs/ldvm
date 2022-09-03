@@ -183,17 +183,15 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	tx.di.ModelID = mi.ID
 	if tx.input.SigClaims != nil {
 		tx.di.SigClaims = tx.input.SigClaims
-		tx.di.Sig = tx.input.Sig
+		tx.di.TypedSig = tx.input.TypedSig
 	}
 
 	if err = tx.di.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.di.SigClaims != nil {
-		if _, err = tx.di.Signer(); err != nil {
-			return errp.ErrorIf(err)
-		}
+	if err = tx.di.ValidSigClaims(); err != nil {
+		return errp.ErrorIf(err)
 	}
 
 	if ctx.ChainConfig().IsNameService(tx.di.ModelID) { // todo: support upgrade?

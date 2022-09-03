@@ -203,7 +203,7 @@ func TestTxUpgradeData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil keepers together with threshold")
+	assert.ErrorContains(err, "no keepers, threshold should be nil")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Threshold: ld.Uint16Ptr(1),

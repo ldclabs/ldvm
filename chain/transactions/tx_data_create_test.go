@@ -143,7 +143,7 @@ func TestTxCreateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil keepers")
+	assert.ErrorContains(err, "no keepers, threshold should be nil")
 
 	input = &ld.TxUpdater{
 		ModelID:   &ld.RawModelID,
@@ -278,7 +278,7 @@ func TestTxCreateData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &util.EthIDs{util.Signer1.Address()},
 		Data:      []byte(`42`),
-		Sig:       &util.Signature{1, 2, 3},
+		TypedSig:  util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &ld.SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},

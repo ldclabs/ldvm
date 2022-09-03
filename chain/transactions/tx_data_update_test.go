@@ -136,7 +136,7 @@ func TestTxUpdateData(t *testing.T) {
 	}
 	assert.NoError(txData.SignWith(util.Signer1))
 	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil keepers together with threshold")
+	assert.ErrorContains(err, "no keepers, threshold should be nil")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1),
 		Keepers: &util.EthIDs{util.Signer1.Address()}}
@@ -605,7 +605,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	}
 	sig, err := util.Signer2.Sign(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.Sig = &sig
+	input.TypedSig = sig.Typed()
 
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -638,10 +638,12 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.Equal([]byte(`{"name":"Tester","nonces":[1,2,3]}`), []byte(di2.Payload))
 	assert.Equal(cs.PDC[di.ID], di.Bytes())
 
+	assert.NoError(di.ValidSigClaims())
 	signer, err := di.Signer()
-	assert.ErrorContains(err, "DataInfo.Signer error: invalid signature claims")
+	assert.ErrorContains(err, "invalid typed signature length, expected 66, got 0")
 	assert.Equal(util.EthIDEmpty, signer)
 
+	assert.NoError(di2.ValidSigClaims())
 	signer, err = di2.Signer()
 	assert.NoError(err)
 	assert.Equal(util.Signer2.Address(), signer)
@@ -649,7 +651,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"1111111111111111111L17Xp3","exp":100,"nbf":0,"iat":1,"cti":"Do6oUfVMCkZKbUZ4FgNmjFQfNVjBYWUDJNuq1GVpgcuBFmibS"},"sig":"e64cc098eaa126aeee90a85936baf2e5e7ea4ae2b6eb9f5fa537939097c08ff7286b246640c92a4473ac30ce8fb02e175134abf5c16415c279e901743ccf519a00","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["5854e108c12da18fa31a3f9fa103c59669d69b0c1c2b12e63c3f833bff5f36a96d24c4dc73f371e5a4c05080e0d86179f2de4574f8432ca03d4738db129fa53201"],"id":"2oDuEKsfLgSExoa3CWAiCt4Eir4aNxX64QF17hWHtB92ScfmN8"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"1111111111111111111L17Xp3","exp":100,"nbf":0,"iat":1,"cti":"Do6oUfVMCkZKbUZ4FgNmjFQfNVjBYWUDJNuq1GVpgcuBFmibS"},"typedSig":"0x00e64cc098eaa126aeee90a85936baf2e5e7ea4ae2b6eb9f5fa537939097c08ff7286b246640c92a4473ac30ce8fb02e175134abf5c16415c279e901743ccf519a00a71dcdb3","data":[{"op":"replace","path":"/name","value":"Tester"}]},"signatures":["790f55433ee2f2e7938bf3edcac127ab035778f3f7aa8bfe13a8578479324fa130060b4bebf88c461f294f335559e12f6938c6f3189ff8c531f5d5026784d9ca01"],"id":"b6vRYF1y6vyYLetyLRDyejKoHHczAiXmUaS4aXQuEVdi4v4eK"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

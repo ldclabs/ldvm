@@ -104,6 +104,12 @@ func (id *Signature) UnmarshalCBOR(data []byte) error {
 	return nil
 }
 
+func (id Signature) Typed() []byte {
+	data := make([]byte, crypto.SignatureLength+1)
+	copy(data[1:], id[:])
+	return data
+}
+
 func SignaturesFromStrings(ss []string) ([]Signature, error) {
 	sigs := make([]Signature, len(ss))
 	for i, s := range ss {

@@ -145,7 +145,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 
 	input = &ld.TxUpdater{
 		ID: &did, Version: 1,
-		Sig: &util.Signature{1, 2, 3},
+		TypedSig: util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &ld.SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -433,7 +433,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(util.EthIDs{buyer}, di2.Keepers)
 	assert.Equal(di.Payload, di2.Payload)
-	assert.Nil(di2.Sig)
+	assert.Nil(di2.TypedSig)
 	assert.Nil(di2.Approver)
 	assert.Nil(di2.ApproveList)
 

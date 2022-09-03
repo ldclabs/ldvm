@@ -42,7 +42,8 @@ type DataInfo struct {
 	// data signature claims
 	SigClaims *SigClaims `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
 	// data signature signing by a certificate authority
-	Sig *util.Signature `cbor:"s,omitempty" json:"sig,omitempty"`
+	// <a byte type><signature>, 0: secp256k1, 1: Ed25519
+	TypedSig util.RawData `cbor:"ts,omitempty" json:"typedSig,omitempty"`
 
 	// external assignment fields
 	ID  util.DataID `cbor:"-" json:"id"`
@@ -70,9 +71,9 @@ func (t *DataInfo) Clone() *DataInfo {
 		sc := *t.SigClaims
 		x.SigClaims = &sc
 	}
-	if t.Sig != nil {
-		sig := *t.Sig
-		x.Sig = &sig
+	if t.TypedSig != nil {
+		x.TypedSig = make([]byte, len(t.TypedSig))
+		copy(x.TypedSig, t.TypedSig)
 	}
 	x.raw = nil
 	return x
@@ -96,11 +97,11 @@ func (t *DataInfo) SyntacticVerify() error {
 	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
 		return errp.Errorf("invalid approver")
 
-	case t.Sig == nil && t.SigClaims != nil:
-		return errp.Errorf("invalid signature")
+	case t.SigClaims == nil && t.TypedSig != nil:
+		return errp.Errorf("no sigClaims, typed signature should be nil")
 
-	case t.Sig != nil && t.SigClaims == nil:
-		return errp.Errorf("invalid signature claims")
+	case t.SigClaims != nil && (len(t.TypedSig) < 65 || len(t.TypedSig) > 160):
+		return errp.Errorf("invalid typed signature")
 	}
 
 	if err = t.Keepers.CheckDuplicate(); err != nil {
@@ -135,36 +136,58 @@ func (t *DataInfo) SyntacticVerify() error {
 	return nil
 }
 
-// Signer returns the signer of the DataInfo.
-// Should be called after DataInfo.SyntacticVerify.
-// Should be called with DataInfo.ID.
-func (t *DataInfo) Signer() (signer util.EthID, err error) {
-	errp := util.ErrPrefix("DataInfo.Signer error: ")
+// ValidSigClaims should be called after DataInfo.SyntacticVerify.
+// ValidSigClaims should be called with DataInfo.ID.
+func (t *DataInfo) ValidSigClaims() error {
+	if t.SigClaims == nil {
+		return nil
+	}
 
+	errp := util.ErrPrefix("DataInfo.ValidSigClaims error: ")
 	switch {
-	case t.Sig == nil || t.SigClaims == nil:
-		return signer, errp.Errorf("invalid signature claims")
+	case t.ID == util.DataIDEmpty:
+		return errp.Errorf("invalid data id")
+
+	case len(t.TypedSig) < 65 || len(t.TypedSig) > 160:
+		return errp.Errorf("invalid typed signature")
 
 	case t.SigClaims.Subject != t.ID:
-		return signer, errp.Errorf("invalid subject, expected %s, got %s",
+		return errp.Errorf("invalid subject, expected %s, got %s",
 			t.ID, t.SigClaims.Subject)
 
 	case t.SigClaims.Audience != t.ModelID:
-		return signer, errp.Errorf("invalid audience, expected %s, got %s",
+		return errp.Errorf("invalid audience, expected %s, got %s",
 			t.ModelID, t.SigClaims.Audience)
 
 	case t.SigClaims.CWTID != util.HashFromData(t.Payload):
-		return signer, errp.Errorf("invalid CWT id")
+		return errp.Errorf("invalid CWT id")
 	}
 
-	signer, err = util.DeriveSigner(t.SigClaims.Bytes(), t.Sig[:])
+	return nil
+}
+
+// Signer should be called after DataInfo.SyntacticVerify and DataInfo.ValidSigClaims.
+// It only support secp256k1 signature
+func (t *DataInfo) Signer() (signer util.EthID, err error) {
+	errp := util.ErrPrefix("DataInfo.Signer error: ")
+
+	if s := len(t.TypedSig); s != 66 {
+		return signer, errp.Errorf("invalid typed signature length, expected 66, got %d", s)
+	}
+
+	if u := t.TypedSig[0]; u != 0 {
+		return signer, errp.Errorf("unknown signature type, expected 0, got %d", u)
+	}
+
+	signer, err = util.DeriveSigner(t.SigClaims.Bytes(), t.TypedSig[1:])
 	return signer, errp.ErrorIf(err)
 }
 
 func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
+	t.ModelID = RawModelID
 	t.SigClaims = nil
-	t.Sig = nil
+	t.TypedSig = nil
 	t.Payload = data
 	return t.SyntacticVerify()
 }

@@ -76,157 +76,147 @@ func TestSigClaims(t *testing.T) {
 func TestDataInfo(t *testing.T) {
 	assert := assert.New(t)
 
-	var tx *DataInfo
-	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
+	var di *DataInfo
+	assert.ErrorContains(di.SyntacticVerify(), "nil pointer")
 
-	tx = &DataInfo{Threshold: 1}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
+	di = &DataInfo{Threshold: 1}
+	assert.ErrorContains(di.SyntacticVerify(), "invalid threshold")
 
-	tx = &DataInfo{Keepers: util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
+	di = &DataInfo{Keepers: util.EthIDs{util.EthIDEmpty}}
+	assert.ErrorContains(di.SyntacticVerify(), "invalid keepers, empty address exists")
 
-	tx = &DataInfo{Version: 1, Approver: &util.EthIDEmpty}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
+	di = &DataInfo{Version: 1, Approver: &util.EthIDEmpty}
+	assert.ErrorContains(di.SyntacticVerify(), "invalid approver")
 
-	tx = &DataInfo{ApproveList: TxTypes{TxType(255)}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
+	di = &DataInfo{ApproveList: TxTypes{TxType(255)}}
+	assert.ErrorContains(di.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
 
-	tx = &DataInfo{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
+	di = &DataInfo{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
+	assert.ErrorContains(di.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
 
-	tx = &DataInfo{
-		Version: 1,
-		Keepers: util.EthIDs{util.Signer1.Address()},
-		Payload: []byte(`42`),
-		Sig:     &util.Signature{1, 2, 3},
+	di = &DataInfo{
+		Version:  1,
+		Keepers:  util.EthIDs{util.Signer1.Address()},
+		Payload:  []byte(`42`),
+		TypedSig: []byte{1, 2, 3},
 	}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid signature claims")
+	assert.ErrorContains(di.SyntacticVerify(), "no sigClaims, typed signature should be nil")
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version:   1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Payload:   []byte(`42`),
 		SigClaims: &SigClaims{},
+		TypedSig:  []byte{1, 2, 3},
 	}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid signature")
+	assert.ErrorContains(di.SyntacticVerify(), "invalid typed signature")
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version:   1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Payload:   []byte(`42`),
-		Sig:       &util.Signature{1, 2, 3},
 		SigClaims: &SigClaims{Issuer: util.DataID{1, 2, 3, 4}},
+		TypedSig:  util.Signature{1, 2, 3}.Typed(),
 	}
-	assert.ErrorContains(tx.SyntacticVerify(),
+	assert.ErrorContains(di.SyntacticVerify(),
 		"SigClaims.SyntacticVerify error: invalid subject")
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version: 0,
 		Payload: []byte(`42`),
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
 		Payload:   []byte(`42`),
 	}
-	assert.ErrorContains(tx.SyntacticVerify(),
+	assert.ErrorContains(di.SyntacticVerify(),
 		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Payload:   []byte(`42`),
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
 
-	cbordata, err := tx.Marshal()
+	cbordata, err := di.Marshal()
 	assert.NoError(err)
-	jsondata, err := json.Marshal(tx)
+	jsondata, err := json.Marshal(di)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
 	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"payload":42,"id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
-	tx2 := &DataInfo{}
-	assert.NoError(tx2.Unmarshal(cbordata))
-	assert.NoError(tx2.SyntacticVerify())
+	di2 := &DataInfo{}
+	assert.NoError(di2.Unmarshal(cbordata))
+	assert.NoError(di2.SyntacticVerify())
 
-	jsondata2, _ := json.Marshal(tx2)
+	jsondata2, _ := json.Marshal(di2)
 	assert.Equal(string(jsondata), string(jsondata2))
-	assert.Equal(cbordata, tx2.Bytes())
-	assert.Equal(cbordata, tx2.Clone().Bytes())
+	assert.Equal(cbordata, di2.Bytes())
+	assert.Equal(cbordata, di2.Clone().Bytes())
 
-	tx3 := tx2.Clone()
-	tx3.Sig = &util.Signature{1, 2, 3}
-	tx3.SigClaims = &SigClaims{
+	di3 := di2.Clone()
+	di3.TypedSig = util.Signature{1, 2, 3}.Typed()
+	di3.SigClaims = &SigClaims{
 		Issuer:     util.DataID{1, 2, 3, 4},
 		Subject:    util.DataID{5, 6, 7, 8},
 		Expiration: 100,
 		IssuedAt:   1,
 		CWTID:      util.Hash{9, 10, 11, 12},
 	}
-	assert.NoError(tx3.SyntacticVerify())
-	assert.Equal(cbordata, tx2.Bytes())
-	assert.NotEqual(cbordata, tx3.Bytes())
-	tx3.Sig = util.Signer1.MustSign(tx3.SigClaims.Bytes())
-	jsondata, err = json.Marshal(tx3)
+	assert.NoError(di3.SyntacticVerify())
+	assert.Equal(cbordata, di2.Bytes())
+	assert.NotEqual(cbordata, di3.Bytes())
+	di3.TypedSig = util.Signer1.MustSign(di3.SigClaims.Bytes())[:]
+	jsondata, err = json.Marshal(di3)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
-	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"payload":42,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"sig":"ef0f0cea3a58f61a17ade4702a6e6262f93928ecbe44eb0b6d23eec4ade2b07a23058f86669a9f191d25df72667b12a75288e95302643bf66d4e82b9735b583201","id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
+	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"payload":42,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"typedSig":"0xef0f0cea3a58f61a17ade4702a6e6262f93928ecbe44eb0b6d23eec4ade2b07a23058f86669a9f191d25df72667b12a75288e95302643bf66d4e82b9735b583201571f1250","id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
-	assert.NoError(tx.MarkDeleted(nil))
-	assert.Equal(uint64(0), tx.Version)
-	assert.Nil(tx.Sig)
-	assert.Nil(tx.SigClaims)
-	assert.Nil(tx.Payload)
+	assert.NoError(di.MarkDeleted(nil))
+	assert.Equal(uint64(0), di.Version)
+	assert.Nil(di.TypedSig)
+	assert.Nil(di.SigClaims)
+	assert.Nil(di.Payload)
 
-	cbordata, err = tx.Marshal()
+	cbordata, err = di.Marshal()
 	assert.NoError(err)
-	tx2 = &DataInfo{}
-	assert.NoError(tx2.Unmarshal(cbordata))
-	assert.NoError(tx2.SyntacticVerify())
-	assert.Equal(cbordata, tx2.Bytes())
+	di2 = &DataInfo{}
+	assert.NoError(di2.Unmarshal(cbordata))
+	assert.NoError(di2.SyntacticVerify())
+	assert.Equal(cbordata, di2.Bytes())
 
-	assert.NoError(tx2.MarkDeleted([]byte(`"test"`)))
-	assert.Equal([]byte(`"test"`), []byte(tx2.Payload))
+	assert.NoError(di2.MarkDeleted([]byte(`"test"`)))
+	assert.Equal([]byte(`"test"`), []byte(di2.Payload))
 }
 
-func TestDataInfoSigner(t *testing.T) {
+func TestDataInfoValidSigClaims(t *testing.T) {
 	assert := assert.New(t)
 
-	tx := &DataInfo{
+	di := &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Payload:   []byte(`42`),
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(di.ValidSigClaims())
 
-	signer, err := tx.Signer()
-	assert.ErrorContains(err, "DataInfo.Signer error: invalid signature claims")
+	signer, err := di.Signer()
+	assert.ErrorContains(err, "invalid typed signature length, expected 66, got 0")
 	assert.Equal(util.EthIDEmpty, signer)
 
-	tx = &DataInfo{
+	di = &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Payload:   []byte(`42`),
-		Sig:       &util.Signature{1, 2, 3},
-	}
-
-	signer, err = tx.Signer()
-	assert.ErrorContains(err, "DataInfo.Signer error: invalid signature claims")
-	assert.Equal(util.EthIDEmpty, signer)
-
-	tx = &DataInfo{
-		Version:   1,
-		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Payload:   []byte(`42`),
-		Sig:       &util.Signature{1, 2, 3},
+		TypedSig:  util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -235,20 +225,17 @@ func TestDataInfoSigner(t *testing.T) {
 			CWTID:      util.Hash{9, 10, 11, 12},
 		},
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
+	assert.ErrorContains(di.ValidSigClaims(),
+		"DataInfo.ValidSigClaims error: invalid data id")
 
-	signer, err = tx.Signer()
-	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid subject, expected 11111111111111111111111111111111LpoYY, got 3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE")
-	assert.Equal(util.EthIDEmpty, signer)
-
-	tx = &DataInfo{
+	di = &DataInfo{
 		ModelID:   CBORModelID,
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Payload:   []byte(`42`),
-		Sig:       &util.Signature{1, 2, 3},
+		TypedSig:  util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -258,20 +245,17 @@ func TestDataInfoSigner(t *testing.T) {
 		},
 		ID: util.DataID{5, 6, 7, 8},
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
+	assert.ErrorContains(di.ValidSigClaims(),
+		"invalid audience, expected 1111111111111111111Ax1asG, got 111111111111111111116DBWJs")
 
-	signer, err = tx.Signer()
-	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid audience, expected 1111111111111111111Ax1asG, got 111111111111111111116DBWJs")
-	assert.Equal(util.EthIDEmpty, signer)
-
-	tx = &DataInfo{
+	di = &DataInfo{
 		ModelID:   CBORModelID,
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 		Payload:   util.MustMarshalCBOR(42),
-		Sig:       &util.Signature{1, 2, 3},
+		TypedSig:  util.Signature{1, 2, 3}.Typed(),
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -282,47 +266,57 @@ func TestDataInfoSigner(t *testing.T) {
 		},
 		ID: util.DataID{5, 6, 7, 8},
 	}
-	assert.NoError(tx.SyntacticVerify())
+	assert.NoError(di.SyntacticVerify())
+	assert.ErrorContains(di.ValidSigClaims(),
+		"invalid CWT id")
 
-	signer, err = tx.Signer()
-	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid CWT id")
-	assert.Equal(util.EthIDEmpty, signer)
+	di.SigClaims.CWTID = util.HashFromData(di.Payload)
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(di.ValidSigClaims())
 
-	tx.SigClaims.CWTID = util.HashFromData(tx.Payload)
-	assert.NoError(tx.SyntacticVerify())
+	di.TypedSig = di.TypedSig[1:]
+	_, err = di.Signer()
+	assert.ErrorContains(err, "invalid typed signature length, expected 66, got 65")
 
-	signer, err = tx.Signer()
+	di.TypedSig = util.Signature{1, 2, 3}.Typed()
+	di.TypedSig[0] = 1
+	_, err = di.Signer()
+	assert.ErrorContains(err, "unknown signature type, expected 0, got 1")
+
+	di.TypedSig = util.Signature{1, 2, 3}.Typed()
+	signer, err = di.Signer()
 	assert.ErrorContains(err,
 		"DataInfo.Signer error: DeriveSigner error: recovery failed")
 	assert.Equal(util.EthIDEmpty, signer)
 
-	sig, err := util.Signer1.Sign(tx.SigClaims.Bytes())
+	sig, err := util.Signer1.Sign(di.SigClaims.Bytes())
 	assert.NoError(err)
-	tx.Sig = &sig
-	assert.NoError(tx.SyntacticVerify())
+	di.TypedSig = sig.Typed()
+	assert.NoError(di.SyntacticVerify())
+	assert.NoError(di.ValidSigClaims())
 
-	signer, err = tx.Signer()
-	assert.NoError(err)
-	assert.Equal(util.Signer1.Address(), signer)
-
-	tx2 := tx.Clone()
-	assert.NoError(tx2.SyntacticVerify())
-
-	signer, err = tx2.Signer()
+	signer, err = di.Signer()
 	assert.NoError(err)
 	assert.Equal(util.Signer1.Address(), signer)
 
-	tx3 := &DataInfo{}
-	assert.NoError(tx3.Unmarshal(tx.Bytes()))
-	assert.NoError(tx3.SyntacticVerify())
+	di2 := di.Clone()
+	assert.NoError(di2.SyntacticVerify())
+	assert.NoError(di2.ValidSigClaims())
 
-	_, err = tx3.Signer()
-	assert.ErrorContains(err,
-		"DataInfo.Signer error: invalid subject, expected 11111111111111111111111111111111LpoYY, got 3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE")
+	signer, err = di2.Signer()
+	assert.NoError(err)
+	assert.Equal(util.Signer1.Address(), signer)
 
-	tx3.ID = tx.ID
-	signer, err = tx3.Signer()
+	di3 := &DataInfo{}
+	assert.NoError(di3.Unmarshal(di.Bytes()))
+	assert.NoError(di3.SyntacticVerify())
+
+	assert.ErrorContains(di3.ValidSigClaims(),
+		"DataInfo.ValidSigClaims error: invalid data id")
+
+	di3.ID = di.ID
+	assert.NoError(di3.ValidSigClaims())
+	signer, err = di3.Signer()
 	assert.NoError(err)
 	assert.Equal(util.Signer1.Address(), signer)
 }
