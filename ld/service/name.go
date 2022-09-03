@@ -14,9 +14,12 @@ import (
 )
 
 type Name struct {
-	Name    string       `cbor:"n" json:"name"`                       // should be Unicode form
-	Linked  *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"` // optional, linked (ProfileService) data id
-	Records []string     `cbor:"rs" json:"records"`                   // DNS resource records
+	// name should be Unicode form
+	Name string `cbor:"n" json:"name"`
+	// optional, linked (ProfileService) data id
+	Linked     *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"`
+	Records    []string     `cbor:"rs" json:"records"` // DNS resource records
+	Extensions Extensions   `cbor:"es" json:"extensions"`
 
 	// external assignment fields
 	DataID util.DataID `cbor:"-" json:"did"`
@@ -28,9 +31,10 @@ func NameModel() (*ld.IPLDModel, error) {
 	schema := `
 	type ID20 bytes
 	type NameService struct {
-		name    String        (rename "n")
-		linked  optional ID20 (rename "l")
-		records [String]      (rename "rs")
+		name       String        (rename "n")
+		linked     optional ID20 (rename "l")
+		records    [String]      (rename "rs")
+		extensions [Any]         (rename "es")
 	}
 `
 	return ld.NewIPLDModel("NameService", strings.TrimSpace(schema))
@@ -75,6 +79,10 @@ func (n *Name) SyntacticVerify() error {
 	}
 	if n.raw, err = n.Marshal(); err != nil {
 		return errp.ErrorIf(err)
+	}
+
+	if err = n.Extensions.SyntacticVerify(); err != nil {
+		return errp.Errorf("nil extensions")
 	}
 	n.dn = dn
 	return nil

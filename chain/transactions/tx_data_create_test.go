@@ -684,7 +684,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa7616460616960616e6674657374657261740161756062657880626673807e921573"},"signatures":["9edd071f71feaaa25454991debd6d7b66713ad0fad75a909fe81549db99419687eac7f9a1dd75d657bcc718e9beeabe057aa919d30ce24e0ab165a740e21c65600"],"id":"2aVVPBL5DHKBhqy2p4DTHh7pDEfm7o7MMsm4ZCJFREuSPHXk1T"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"6L5yRNNMubYqZoZRtmk1ykJMmZppNwb1","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"data":"0xa7616460616960616e6674657374657261740161756062657380626673800f668b8f"},"signatures":["b458c06845f6801cc7dba3a408f317f6ecb309300bae69294f5795db860828c168bd7e357ba66c871ec3f28f76bbd73f5192103432ff3a97b61bb96fb3280c1800"],"id":"2hBHiyL8aCCw7XYShEBBzVazjZXRKBb6tXKNg2v8PaTMdCimQp"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -960,7 +960,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["9d8a7f4ead2865eec107db8c77ca460cb10434e93582b83810bfbcccb6a9312374adf36866c47578bb2ec29d4216827199cbd9b36056ea33bb8ba18e3268e29e00"],"exSignatures":["4270378e6e572087b5ed7f8160d1b2a0f6d0bfd1d2e52b8e9737f626abacdcb10e4dbf62b0c0dd327553d3abd64b804bcab5148ed238edab6b060371a838f76c00"],"id":"28Y1nwE6fZrCdAdkt9WoQajvJZXXet65LMv4jqT2SfZxEocTaj"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657380626673802e82fe4d"},"signatures":["3be83660f8903004c4910843ad716e472aab5920b0dc72083b21809b65c057673877ea2a9acf5fac5cc489fd23b40554d49551fd4100b9c7509ce36d4d803bb401"],"exSignatures":["5ecdaa105760371558a82ba8090ad84d37a1b1f4afb1234b252b4408704c814f6c1227062bbcc8b967e863dcfe64ff357f288e92e0f95e4f275c81513f83ecce01"],"id":"2XnyQUpQjLvDx8xNUym9T4MaD4T3w8BT42QdHYNBZPfRDDCJwy"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -987,6 +987,12 @@ func TestTxCreateNameModelData(t *testing.T) {
 	name := &service.Name{
 		Name:    "ldc.to.",
 		Records: []string{"ldc.to. IN A 10.0.0.1"},
+		Extensions: service.Extensions{{
+			Title: "Test",
+			Properties: map[string]interface{}{
+				"desc": "desc",
+			},
+		}},
 	}
 	assert.NoError(name.SyntacticVerify())
 	data := name.Bytes()
@@ -1055,17 +1061,22 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.Equal(n2.Name, name.Name)
 	assert.Equal(n2.Records, name.Records)
 	assert.Equal(n2.Bytes(), name.Bytes())
+	assert.Equal(1, len(n2.Extensions))
+	assert.Equal("Test", n2.Extensions[0].Title)
+	assert.Equal(1, len(n2.Extensions[0].Properties))
+	assert.Equal("desc", n2.Extensions[0].Properties["desc"].(string))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"CMpsSKUM1dfWVyYMpRHuQfHHYTUWcV6PQ","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa2616e676c64632e746f2e62727381756c64632e746f2e20494e20412031302e302e302e31851ac289"},"signatures":["94ed805397ddfedb106a5a3f91e9434d573c238ebdf1535f7c54d7a344133c161cd8d737d0a3a811d5aec4e7ad53d3507d829bd6be2114fc2586604fdb18e3c200"],"exSignatures":["33dfd5a016ce6a9aa1de4e1995fab94b48178003a46d8707203aeed7f57bf2b962643f05e95b0f681e877c9ab6b1cc3df43712c3012a080daf1184588cab6f9801"],"id":"U9M2MvTEjmwCqKfsG9w9YJ8BaouiyJuVDhaY4rXsauduTy2gn"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"mid":"GDfSw9y2CKaYHQPupfjWHpC9zgNCVLTPA","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"expire":100,"data":"0xa3616e676c64632e746f2e62657381a261746454657374627073a16464657363646465736362727381756c64632e746f2e20494e20412031302e302e302e31e5c01479"},"signatures":["be4983772219fc800197dfa8acf376a7260764b7232365ff385ac82692e406585fadecb962c89b41e34e62980355e499758f9b22f49dab129fb07d04a9bb5c7f01"],"exSignatures":["305e05912ad7313e5b1cc5920339283efbaa8667b9e0a0b2330427838e0823565b77fa76647d4232801747bf715aa30e816deecc990637a961262577dfc9a93c01"],"id":"28h4HWgi8fQVipyZK2wzrLspsYzJhr1cBWCvvFM6bpwAXqPH3L"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 
 	name2 := &service.Name{
-		Name:    "ldc.to.",
-		Records: []string{"ldc.to. IN A 10.0.0.2"},
+		Name:       "ldc.to.",
+		Records:    []string{"ldc.to. IN A 10.0.0.2"},
+		Extensions: service.Extensions{},
 	}
 	assert.NoError(name2.SyntacticVerify())
 	data = name2.Bytes()
@@ -1105,8 +1116,9 @@ func TestTxCreateNameModelData(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	name2 = &service.Name{
-		Name:    "api.ldc.to.",
-		Records: []string{},
+		Name:       "api.ldc.to.",
+		Records:    []string{},
+		Extensions: service.Extensions{},
 	}
 	assert.NoError(name2.SyntacticVerify())
 	data = name2.Bytes()
