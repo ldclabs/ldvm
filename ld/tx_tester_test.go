@@ -150,7 +150,7 @@ func TestTxTester(t *testing.T) {
 			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
 			{Path: "/kp/0", Value: util.MustMarshalCBOR(util.Signer1.Address())},
 			{Path: "/ap", Value: util.MustMarshalCBOR(util.Signer2.Address())},
-			{Path: "/d", Value: util.MustMarshalCBOR([]byte(`42`))},
+			{Path: "/pl", Value: util.MustMarshalCBOR([]byte(`42`))},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -162,14 +162,14 @@ func TestTxTester(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Approver:  &approver,
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(tx.Test(di.Bytes()))
 
 	tx.Tests = append(tx.Tests[:len(tx.Tests)-1],
-		TestOp{Path: "/d/name", Value: util.MustMarshalCBOR("John")},
-		TestOp{Path: "/d/age", Value: util.MustMarshalCBOR(42)},
+		TestOp{Path: "/pl/name", Value: util.MustMarshalCBOR("John")},
+		TestOp{Path: "/pl/age", Value: util.MustMarshalCBOR(42)},
 	)
 	assert.NoError(tx.SyntacticVerify())
 	assert.True(tx.maybeTestData())
@@ -177,7 +177,7 @@ func TestTxTester(t *testing.T) {
 	data, err = json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Data","objectID":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","tests":[{"path":"/v","value":"0x017785459a"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0x5444171c37ff5d7b7bb8dcad5c81f16284a229e641acaf799f"},{"path":"/d/name","value":"0x644a6f686e52bb61ab"},{"path":"/d/age","value":"0x182a20395c53"}]}`, string(data))
+	assert.Equal(`{"objectType":"Data","objectID":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","tests":[{"path":"/v","value":"0x017785459a"},{"path":"/th","value":"0x017785459a"},{"path":"/kp/0","value":"0x548db97c7cece249c2b98bdc0226cc4c2a57bf52fc442832b9"},{"path":"/ap","value":"0x5444171c37ff5d7b7bb8dcad5c81f16284a229e641acaf799f"},{"path":"/pl/name","value":"0x644a6f686e52bb61ab"},{"path":"/pl/age","value":"0x182a20395c53"}]}`, string(data))
 
 	type person struct {
 		Name string `cbor:"name" json:"name"`
@@ -191,7 +191,7 @@ func TestTxTester(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Approver:  &approver,
-		Data:      util.MustMarshalCBOR(v),
+		Payload:   util.MustMarshalCBOR(v),
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(tx.Test(di.Bytes()))
@@ -202,7 +202,7 @@ func TestTxTester(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Approver:  &approver,
-		Data:      MustMarshalJSON(v),
+		Payload:   MustMarshalJSON(v),
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(tx.Test(di.Bytes()))

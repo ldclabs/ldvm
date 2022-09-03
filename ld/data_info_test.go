@@ -97,7 +97,7 @@ func TestDataInfo(t *testing.T) {
 	tx = &DataInfo{
 		Version: 1,
 		Keepers: util.EthIDs{util.Signer1.Address()},
-		Data:    []byte(`42`),
+		Payload: []byte(`42`),
 		Sig:     &util.Signature{1, 2, 3},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid signature claims")
@@ -105,7 +105,7 @@ func TestDataInfo(t *testing.T) {
 	tx = &DataInfo{
 		Version:   1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		SigClaims: &SigClaims{},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid signature")
@@ -113,7 +113,7 @@ func TestDataInfo(t *testing.T) {
 	tx = &DataInfo{
 		Version:   1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		Sig:       &util.Signature{1, 2, 3},
 		SigClaims: &SigClaims{Issuer: util.DataID{1, 2, 3, 4}},
 	}
@@ -122,7 +122,7 @@ func TestDataInfo(t *testing.T) {
 
 	tx = &DataInfo{
 		Version: 0,
-		Data:    []byte(`42`),
+		Payload: []byte(`42`),
 	}
 	assert.NoError(tx.SyntacticVerify())
 
@@ -130,7 +130,7 @@ func TestDataInfo(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
@@ -139,7 +139,7 @@ func TestDataInfo(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 	}
 	assert.NoError(tx.SyntacticVerify())
 
@@ -148,7 +148,7 @@ func TestDataInfo(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
-	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
+	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"payload":42,"id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
 	tx2 := &DataInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
@@ -175,13 +175,13 @@ func TestDataInfo(t *testing.T) {
 	jsondata, err = json.Marshal(tx3)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
-	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"data":42,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"sig":"ef0f0cea3a58f61a17ade4702a6e6262f93928ecbe44eb0b6d23eec4ade2b07a23058f86669a9f191d25df72667b12a75288e95302643bf66d4e82b9735b583201","id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
+	assert.Equal(`{"mid":"111111111111111111116DBWJs","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"payload":42,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"4ytusE1c632hPcJTdvDBFCUSde2ENhhsQG4aCNemLWgenkSZA"},"sig":"ef0f0cea3a58f61a17ade4702a6e6262f93928ecbe44eb0b6d23eec4ade2b07a23058f86669a9f191d25df72667b12a75288e95302643bf66d4e82b9735b583201","id":"11111111111111111111111111111111LpoYY"}`, string(jsondata))
 
 	assert.NoError(tx.MarkDeleted(nil))
 	assert.Equal(uint64(0), tx.Version)
 	assert.Nil(tx.Sig)
 	assert.Nil(tx.SigClaims)
-	assert.Nil(tx.Data)
+	assert.Nil(tx.Payload)
 
 	cbordata, err = tx.Marshal()
 	assert.NoError(err)
@@ -191,7 +191,7 @@ func TestDataInfo(t *testing.T) {
 	assert.Equal(cbordata, tx2.Bytes())
 
 	assert.NoError(tx2.MarkDeleted([]byte(`"test"`)))
-	assert.Equal([]byte(`"test"`), []byte(tx2.Data))
+	assert.Equal([]byte(`"test"`), []byte(tx2.Payload))
 }
 
 func TestDataInfoSigner(t *testing.T) {
@@ -201,7 +201,7 @@ func TestDataInfoSigner(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 	}
 	assert.NoError(tx.SyntacticVerify())
 
@@ -213,7 +213,7 @@ func TestDataInfoSigner(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		Sig:       &util.Signature{1, 2, 3},
 	}
 
@@ -225,7 +225,7 @@ func TestDataInfoSigner(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		Sig:       &util.Signature{1, 2, 3},
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
@@ -247,7 +247,7 @@ func TestDataInfoSigner(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		Sig:       &util.Signature{1, 2, 3},
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
@@ -270,7 +270,7 @@ func TestDataInfoSigner(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Data:      util.MustMarshalCBOR(42),
+		Payload:   util.MustMarshalCBOR(42),
 		Sig:       &util.Signature{1, 2, 3},
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
@@ -289,7 +289,7 @@ func TestDataInfoSigner(t *testing.T) {
 		"DataInfo.Signer error: invalid CWT id")
 	assert.Equal(util.EthIDEmpty, signer)
 
-	tx.SigClaims.CWTID = util.HashFromData(tx.Data)
+	tx.SigClaims.CWTID = util.HashFromData(tx.Payload)
 	assert.NoError(tx.SyntacticVerify())
 
 	signer, err = tx.Signer()
@@ -337,13 +337,13 @@ func TestDataInfoPatch(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      od,
+		Payload:   od,
 	}
 
 	nd := []byte(`"test"`)
 	data, err := di.Patch(nd)
 	assert.NoError(err)
-	assert.Equal(od, []byte(di.Data))
+	assert.Equal(od, []byte(di.Payload))
 	assert.Equal(nd, data)
 
 	type person struct {
@@ -360,7 +360,7 @@ func TestDataInfoPatch(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      od,
+		Payload:   od,
 	}
 
 	_, err = di.Patch([]byte(`"test"`))
@@ -372,7 +372,7 @@ func TestDataInfoPatch(t *testing.T) {
 	}
 	data, err = di.Patch(util.MustMarshalCBOR(cborops))
 	assert.NoError(err)
-	assert.Equal(od, []byte(di.Data))
+	assert.Equal(od, []byte(di.Payload))
 
 	v2 := &person{}
 	assert.NoError(util.UnmarshalCBOR(data, v2))
@@ -386,7 +386,7 @@ func TestDataInfoPatch(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      od,
+		Payload:   od,
 	}
 
 	_, err = di.Patch([]byte(`"test"`))
@@ -398,7 +398,7 @@ func TestDataInfoPatch(t *testing.T) {
 	}
 	data, err = di.Patch(MustMarshalJSON(jsonops))
 	assert.NoError(err)
-	assert.Equal(od, []byte(di.Data))
+	assert.Equal(od, []byte(di.Payload))
 
 	v2 = &person{}
 	assert.NoError(json.Unmarshal(data, v2))
@@ -411,7 +411,7 @@ func TestDataInfoPatch(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      od,
+		Payload:   od,
 	}
 	_, err = di.Patch(MustMarshalJSON(jsonops))
 	assert.ErrorContains(err,

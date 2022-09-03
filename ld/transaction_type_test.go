@@ -36,7 +36,7 @@ func TestTxType(t *testing.T) {
 			assert.Equal(TxType(19), ty)
 			assert.False(DataTxTypes.Has(ty))
 		case TypeDeleteData:
-			assert.Equal(TxType(23), ty)
+			assert.Equal(TxType(24), ty)
 			assert.True(DataTxTypes.Has(ty))
 		case TypeAddNonceTable:
 			assert.Equal(TxType(32), ty)

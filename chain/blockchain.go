@@ -269,7 +269,7 @@ func (bc *blockChain) Bootstrap() error {
 	if err != nil {
 		return errp.Errorf("load last fee config error: %v", err)
 	}
-	cfg, err := bc.genesis.Chain.AppendFeeConfig(di.Data)
+	cfg, err := bc.genesis.Chain.AppendFeeConfig(di.Payload)
 	if err != nil {
 		return errp.Errorf("unmarshal fee config error: %v", err)
 	}
@@ -279,7 +279,7 @@ func (bc *blockChain) Bootstrap() error {
 		if err != nil {
 			return errp.Errorf("load previous fee config error: %v", err)
 		}
-		cfg, err = bc.genesis.Chain.AppendFeeConfig(di.Data)
+		cfg, err = bc.genesis.Chain.AppendFeeConfig(di.Payload)
 		if err != nil {
 			return errp.Errorf("unmarshal fee config error: %v", err)
 		}
@@ -662,7 +662,7 @@ func (bc *blockChain) ResolveName(name string) (*service.Name, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	ns := &service.Name{}
-	if err := ns.Unmarshal(di.Data); err != nil {
+	if err := ns.Unmarshal(di.Payload); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	if err := ns.SyntacticVerify(); err != nil {

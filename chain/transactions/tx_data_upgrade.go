@@ -11,7 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxUpdateData struct {
+type TxUpgradeData struct {
 	TxBase
 	exSigners util.EthIDs
 	input     *ld.TxUpdater
@@ -19,13 +19,13 @@ type TxUpdateData struct {
 	prevDI    *ld.DataInfo
 }
 
-func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
+func (tx *TxUpgradeData) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateData.MarshalJSON error: ")
+	errp := util.ErrPrefix("TxUpgradeData.MarshalJSON error: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,9 +37,9 @@ func (tx *TxUpdateData) MarshalJSON() ([]byte, error) {
 	return errp.ErrorMap(json.Marshal(v))
 }
 
-func (tx *TxUpdateData) SyntacticVerify() error {
+func (tx *TxUpgradeData) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateData.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxUpgradeData.SyntacticVerify error: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -64,6 +64,10 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 	switch {
 	case tx.input.ID == nil || *tx.input.ID == util.DataIDEmpty:
 		return errp.Errorf("invalid data id")
+
+	case tx.input.ModelID == nil || *tx.input.ModelID == ld.RawModelID ||
+		*tx.input.ModelID == ld.JSONModelID || *tx.input.ModelID == ld.CBORModelID:
+		return errp.Errorf("invalid model id")
 
 	case tx.input.Version == 0:
 		return errp.Errorf("invalid data version")
@@ -120,9 +124,9 @@ func (tx *TxUpdateData) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxUpdateData) Apply(ctx ChainContext, cs ChainState) error {
+func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateData.Apply error: ")
+	errp := util.ErrPrefix("TxUpgradeData.Apply error: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -137,6 +141,9 @@ func (tx *TxUpdateData) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.Errorf("invalid version, expected %d, got %d",
 			tx.di.Version, tx.input.Version)
 
+	case tx.di.ModelID == *tx.input.ModelID:
+		return errp.Errorf("invalid model id, should be different")
+
 	case tx.di.SigClaims != nil && tx.input.SigClaims == nil:
 		return errp.Errorf("invalid sigClaims, should not be nil")
 
@@ -148,42 +155,32 @@ func (tx *TxUpdateData) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	tx.prevDI = tx.di.Clone()
-	switch tx.di.ModelID {
-	case ld.RawModelID, ld.CBORModelID, ld.JSONModelID:
+	mi, err := cs.LoadModel(*tx.input.ModelID)
+	if err != nil {
+		return errp.Errorf("load model error, %v", err)
+	}
+
+	if tx.di.Payload, err = mi.Model().ApplyPatch(tx.di.Payload, tx.input.Data); err != nil {
+		return errp.Errorf("apply patch error, %v", err)
+	}
+
+	switch {
+	case mi.Threshold == 0:
 		if tx.input.To != nil {
 			return errp.Errorf("invalid to, should be nil")
 		}
-		if tx.di.Payload, err = tx.di.Patch(tx.input.Data); err != nil {
-			return errp.ErrorIf(err)
+
+	case mi.Threshold > 0:
+		if tx.input.To == nil {
+			return errp.Errorf("nil to")
 		}
-
-	default:
-		mi, err := cs.LoadModel(tx.di.ModelID)
-		if err != nil {
-			return errp.Errorf("load model error, %v", err)
-		}
-
-		if tx.di.Payload, err = mi.Model().ApplyPatch(tx.di.Payload, tx.input.Data); err != nil {
-			return errp.Errorf("apply patch error, %v", err)
-		}
-
-		switch {
-		case mi.Threshold == 0:
-			if tx.input.To != nil {
-				return errp.Errorf("invalid to, should be nil")
-			}
-
-		case mi.Threshold > 0:
-			if tx.input.To == nil {
-				return errp.Errorf("nil to")
-			}
-			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
-				return errp.Errorf("invalid exSignature for model keepers")
-			}
+		if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
+			return errp.Errorf("invalid exSignature for model keepers")
 		}
 	}
 
 	tx.di.Version++
+	tx.di.ModelID = mi.ID
 	if tx.input.SigClaims != nil {
 		tx.di.SigClaims = tx.input.SigClaims
 		tx.di.Sig = tx.input.Sig
@@ -199,7 +196,7 @@ func (tx *TxUpdateData) Apply(ctx ChainContext, cs ChainState) error {
 		}
 	}
 
-	if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
+	if ctx.ChainConfig().IsNameService(tx.di.ModelID) { // todo: support upgrade?
 		var n1, n2 string
 		if n1, err = service.GetName(tx.prevDI.Payload); err != nil {
 			return errp.Errorf("invalid NameService data, %v", err)

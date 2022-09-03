@@ -341,7 +341,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		Approver:  &buyer,
 		ID:        did,
 	}
@@ -432,7 +432,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.Equal(di.Version+1, di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(util.EthIDs{buyer}, di2.Keepers)
-	assert.Equal(di.Data, di2.Data)
+	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di2.Sig)
 	assert.Nil(di2.Approver)
 	assert.Nil(di2.ApproveList)
@@ -440,7 +440,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataInfoByAuth","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000,"data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"token":"$LDC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"signatures":["488f06ace22db6399d24420ee83b29ff53febe584790384c8b2756c4618f9713395bfa903db233c5db11ad5940f5a68f72a2f1f7556440ec7a446f6f5692855f00"],"exSignatures":["1b207b020f679fec178e6430960f58626eb55f56bb6e056351f35b3db34e9cb773e9a6d720174e2c6e81738d11c8d32b5d2d7bdf08f2e5c3f5988251800eaf5100","e89d959e0add6c27a44fb48f5030bddd603dbd3298c6dbeb2815692c2067c6f25c9020664ebe1d94100d0a6587e0ec4359489313fc88b6e4ad144cff61f58a3800"],"id":"2GMav3qSPe6cpUmPGeXBjLEdqmnPs3eLYmKZxKV7kA5JYhfTeH"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataInfoByAuth","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000,"data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"token":"$LDC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"signatures":["8c8c1b663eba2435e1ae8882516ed3738a8b2c5b1733667c43d65379d448827b43461acad4d21a7db062ae90b4315066e40b0e0c16ddfa69920e722f137d301700"],"exSignatures":["1b207b020f679fec178e6430960f58626eb55f56bb6e056351f35b3db34e9cb773e9a6d720174e2c6e81738d11c8d32b5d2d7bdf08f2e5c3f5988251800eaf5100","e89d959e0add6c27a44fb48f5030bddd603dbd3298c6dbeb2815692c2067c6f25c9020664ebe1d94100d0a6587e0ec4359489313fc88b6e4ad144cff61f58a3800"],"id":"bmh6fHFj1jHUxETiVjZ4hdiiqKHLu1715RmyXLA8NY3qWVvNn"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

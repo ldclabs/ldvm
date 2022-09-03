@@ -139,7 +139,7 @@ func (t *TxTester) SyntacticVerify() error {
 func (t *TxTester) maybeTestData() bool {
 	if t.ObjectType == DataObject {
 		for _, te := range t.Tests {
-			if strings.HasPrefix(te.Path, "/d/") {
+			if strings.HasPrefix(te.Path, "/pl/") {
 				return true
 			}
 		}
@@ -159,7 +159,7 @@ func (t *TxTester) Test(doc []byte) error {
 
 	if t.maybeTestData() {
 		if rawModelID, _ := node.GetValue("/m", opts); rawModelID != nil {
-			if rawData, _ := node.GetValue("/d", opts); rawData != nil {
+			if rawData, _ := node.GetValue("/pl", opts); rawData != nil {
 				var data []byte
 				err = util.UnmarshalCBOR(rawData, &data)
 				if err == nil {
@@ -170,10 +170,10 @@ func (t *TxTester) Test(doc []byte) error {
 					case rawJSONModelID:
 						data, err = cborpatch.FromJSON(data, nil)
 						if err == nil {
-							err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/d", Value: data}}, opts)
+							err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/pl", Value: data}}, opts)
 						}
 					default:
-						err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/d", Value: data}}, opts)
+						err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/pl", Value: data}}, opts)
 					}
 				}
 

@@ -79,6 +79,8 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateData:
 		tt = &TxUpdateData{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpgradeData:
+		tt = &TxUpgradeData{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateDataInfo:
 		tt = &TxUpdateDataInfo{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateDataInfoByAuth:

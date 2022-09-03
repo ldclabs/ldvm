@@ -30,7 +30,8 @@ const (
 
 	// Data
 	TypeCreateData           // create a data from the model
-	TypeUpdateData           // update the data's Data
+	TypeUpdateData           // update the data's data
+	TypeUpgradeData          // upgrade the data's model and data
 	TypeUpdateDataInfo       // update data's info, such as keepers, threshold, approvers, sigClaims, etc.
 	TypeUpdateDataInfoByAuth // update data's info by authorization
 	TypeDeleteData           // delete the data
@@ -55,21 +56,106 @@ const (
 )
 
 // TxTypes set
-var TransferTxTypes = TxTypes{TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange}
-var ModelTxTypes = TxTypes{TypeUpdateModelInfo}
-var DataTxTypes = TxTypes{TypeUpdateData, TypeUpdateDataInfo, TypeUpdateDataInfoByAuth, TypeDeleteData}
-var AccountTxTypes = TxTypes{TypeAddNonceTable, TypeUpdateAccountInfo, TypeCreateToken,
-	TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake, TypeTakeStake,
-	TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending, TypeBorrow, TypeRepay}
-var AllTxTypes = TxTypes{TypeTest, TypePunish, TypeCreateModel, TypeCreateData}.Union(
-	TransferTxTypes, ModelTxTypes, DataTxTypes, AccountTxTypes)
+var TransferTxTypes = TxTypes{
+	TypeEth,
+	TypeTransfer,
+	TypeTransferPay,
+	TypeTransferCash,
+	TypeExchange,
+}
 
-var TokenFromTxTypes = TxTypes{TypeEth, TypeTransfer, TypeUpdateAccountInfo, TypeAddNonceTable, TypeDestroyToken, TypeOpenLending, TypeCloseLending}
-var TokenToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeExchange, TypeCreateToken, TypeBorrow, TypeRepay}
-var StakeFromTxTypes0 = TxTypes{TypeUpdateAccountInfo, TypeAddNonceTable, TypeResetStake, TypeDestroyStake}
-var StakeFromTxTypes1 = TxTypes{TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeOpenLending, TypeCloseLending}.Union(StakeFromTxTypes0)
-var StakeFromTxTypes2 = TxTypes{TypeEth, TypeTransfer}.Union(StakeFromTxTypes1)
-var StakeToTxTypes = TxTypes{TypeTest, TypeEth, TypeTransfer, TypeCreateStake, TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover, TypeBorrow, TypeRepay}
+var ModelTxTypes = TxTypes{
+	TypeUpdateModelInfo,
+}
+
+var DataTxTypes = TxTypes{
+	TypeUpdateData,
+	TypeUpgradeData,
+	TypeUpdateDataInfo,
+	TypeUpdateDataInfoByAuth,
+	TypeDeleteData,
+}
+
+var AccountTxTypes = TxTypes{
+	TypeAddNonceTable,
+	TypeUpdateAccountInfo,
+	TypeCreateToken,
+	TypeDestroyToken,
+	TypeCreateStake,
+	TypeResetStake,
+	TypeDestroyStake,
+	TypeTakeStake,
+	TypeWithdrawStake,
+	TypeUpdateStakeApprover,
+	TypeOpenLending,
+	TypeCloseLending,
+	TypeBorrow,
+	TypeRepay,
+}
+
+var AllTxTypes = TxTypes{
+	TypeTest,
+	TypePunish,
+	TypeCreateModel,
+	TypeCreateData,
+}.Union(
+	TransferTxTypes,
+	ModelTxTypes,
+	DataTxTypes,
+	AccountTxTypes,
+)
+
+var TokenFromTxTypes = TxTypes{
+	TypeEth,
+	TypeTransfer,
+	TypeUpdateAccountInfo,
+	TypeAddNonceTable,
+	TypeDestroyToken,
+	TypeOpenLending,
+	TypeCloseLending,
+}
+
+var TokenToTxTypes = TxTypes{
+	TypeTest,
+	TypeEth,
+	TypeTransfer,
+	TypeExchange,
+	TypeCreateToken,
+	TypeBorrow,
+	TypeRepay,
+}
+
+var StakeFromTxTypes0 = TxTypes{
+	TypeUpdateAccountInfo,
+	TypeAddNonceTable,
+	TypeResetStake,
+	TypeDestroyStake,
+}
+
+var StakeFromTxTypes1 = TxTypes{
+	TypeTakeStake,
+	TypeWithdrawStake,
+	TypeUpdateStakeApprover,
+	TypeOpenLending,
+	TypeCloseLending,
+}.Union(StakeFromTxTypes0)
+
+var StakeFromTxTypes2 = TxTypes{
+	TypeEth,
+	TypeTransfer,
+}.Union(StakeFromTxTypes1)
+
+var StakeToTxTypes = TxTypes{
+	TypeTest,
+	TypeEth,
+	TypeTransfer,
+	TypeCreateStake,
+	TypeTakeStake,
+	TypeWithdrawStake,
+	TypeUpdateStakeApprover,
+	TypeBorrow,
+	TypeRepay,
+}
 
 // TxType is an uint16 representing the type of the tx.
 // to avoid encode/decode TxTypes as []uint8, aka []byte.
@@ -79,22 +165,31 @@ func (t TxType) Gas() uint64 {
 	switch t {
 	case TypeTest:
 		return 0
+
 	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange:
 		return 42
+
 	case TypeAddNonceTable, TypeUpdateAccountInfo, TypeUpdateData, TypeUpdateDataInfo:
 		return 42
-	case TypePunish, TypeCreateData, TypeUpdateDataInfoByAuth, TypeDeleteData:
+
+	case TypePunish, TypeCreateData, TypeUpgradeData, TypeUpdateDataInfoByAuth, TypeDeleteData:
 		return 200
+
 	case TypeTakeStake, TypeWithdrawStake, TypeUpdateStakeApprover:
 		return 200
+
 	case TypeBorrow, TypeRepay:
 		return 500
+
 	case TypeCreateModel, TypeUpdateModelInfo:
 		return 500
+
 	case TypeCreateToken, TypeDestroyToken, TypeCreateStake, TypeResetStake, TypeDestroyStake:
 		return 1000
+
 	case TypeOpenLending, TypeCloseLending:
 		return 1000
+
 	default:
 		return 10000
 	}
@@ -152,6 +247,8 @@ func (t TxType) String() string {
 		return "TypeCreateData"
 	case TypeUpdateData:
 		return "TypeUpdateData"
+	case TypeUpgradeData:
+		return "TypeUpgradeData"
 	case TypeUpdateDataInfo:
 		return "TypeUpdateDataInfo"
 	case TypeUpdateDataInfoByAuth:

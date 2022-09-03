@@ -350,7 +350,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal([]byte(`42`), []byte(di.Data))
+	assert.Equal([]byte(`42`), []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -451,7 +451,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal(data, []byte(di.Data))
+	assert.Equal(data, []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -552,7 +552,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal(data, []byte(di.Data))
+	assert.Equal(data, []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
@@ -670,10 +670,10 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal(data, []byte(di.Data))
+	assert.Equal(data, []byte(di.Payload))
 
 	p2 := &service.Profile{}
-	assert.NoError(p2.Unmarshal(di.Data))
+	assert.NoError(p2.Unmarshal(di.Payload))
 	assert.NoError(p2.SyntacticVerify())
 	assert.Equal(p.Type, p2.Type)
 	assert.Equal(p.Name, p2.Name)
@@ -705,7 +705,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Schema:    pm.Schema(),
-		ID:        ctx.ChainConfig().ProfileServiceID,
+		ID:        util.ModelID{1, 2, 3},
 	}
 
 	pf := &service.Profile{
@@ -741,7 +741,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "2FGxmZwYAuebXdEukTpj84EVKFVMK5fHu not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4 not found")
 	cs.CheckoutAccounts()
 	assert.NoError(cs.SaveModel(mi))
 	cs.CommitAccounts()
@@ -946,10 +946,10 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal(data, []byte(di.Data))
+	assert.Equal(data, []byte(di.Payload))
 
 	p2 := &service.Profile{}
-	assert.NoError(p2.Unmarshal(di.Data))
+	assert.NoError(p2.Unmarshal(di.Payload))
 	assert.NoError(p2.SyntacticVerify())
 	assert.Equal(pf.Type, p2.Type)
 	assert.Equal(pf.Name, p2.Name)
@@ -960,7 +960,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"2FGxmZwYAuebXdEukTpj84EVKFVMK5fHu","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["fbd88343c51942fa1ec0c2c5539a1937622fa0d913028ee2bb03e8d4575da3052e1c3f3ac960051a7af49873fdd27ab30c4f247b758f6dd2f15e56c666a90ca801"],"exSignatures":["9dc099eca03d85ed7058f9cf7a1b5e8bdfae60542c973527dab69958da0f1da8472efc71b1fd9d1be6b3386cce589c370632024b429d549ee0476474422397d500"],"id":"2oGuwdYVzBqd4LZqdUHJwBVbV1ERjbwdv5KnHK8c8QRbEbGvoc"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"data":{"mid":"6L5yB2u4uKaHNHEMc4ygsv9c58ZNDTE4","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":0,"expire":100,"data":"0xa7616460616960616e634c444361740161756062657880626673804aa7ee41"},"signatures":["9d8a7f4ead2865eec107db8c77ca460cb10434e93582b83810bfbcccb6a9312374adf36866c47578bb2ec29d4216827199cbd9b36056ea33bb8ba18e3268e29e00"],"exSignatures":["4270378e6e572087b5ed7f8160d1b2a0f6d0bfd1d2e52b8e9737f626abacdcb10e4dbf62b0c0dd327553d3abd64b804bcab5148ed238edab6b060371a838f76c00"],"id":"28Y1nwE6fZrCdAdkt9WoQajvJZXXet65LMv4jqT2SfZxEocTaj"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -1047,10 +1047,10 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.Equal(data, []byte(di.Data))
+	assert.Equal(data, []byte(di.Payload))
 
 	n2 := &service.Name{}
-	assert.NoError(n2.Unmarshal(di.Data))
+	assert.NoError(n2.Unmarshal(di.Payload))
 	assert.NoError(n2.SyntacticVerify())
 	assert.Equal(n2.Name, name.Name)
 	assert.Equal(n2.Records, name.Records)
@@ -1188,7 +1188,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.Equal(util.EthIDs{sender}, di.Keepers)
 	assert.Nil(di.Approver)
 	assert.Nil(di.ApproveList)
-	assert.True(jsonpatch.Equal(cfg, di.Data))
+	assert.True(jsonpatch.Equal(cfg, di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
