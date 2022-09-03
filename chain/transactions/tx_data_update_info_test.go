@@ -154,7 +154,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -181,7 +181,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1107700, got 0")
+		"insufficient NativeLDC balance, expected 1113200, got 0")
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
@@ -234,7 +234,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 			Audience:   di.ModelID,
 			Expiration: 100,
 			IssuedAt:   1,
-			CWTID:      util.HashFromData(di.Data),
+			CWTID:      util.HashFromData(di.Payload),
 		},
 	}
 	sig, err := util.Signer2.Sign(input.SigClaims.Bytes())
@@ -272,7 +272,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(util.EthIDs{util.Signer2.Address()}, di.Keepers)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
-	assert.Equal(di.Data, di2.Data)
+	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di.Approver)
 	assert.NotNil(di2.Approver)
 	assert.Equal(util.Signer2.Address(), *di2.Approver)
@@ -285,7 +285,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"sig":"1a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200"},"signatures":["39e74ea5e3ab5767b6aabe748c8fd75306d0fb1ca2944bf5530d1d31ec8d047c4dc41e814bfc57356b11dd9e570f63632f43329b11d1043b32871a638828e4aa01","63a00a8278db92c8adc8335590c567d170bafced08ab093476c0a180d43eabd36c6a55ba2d7749567ab12184acfd3a9aca92d7620c6a498b1839a31a8a0b793a01"],"id":"b8nGV9qdBKjenMjf572zAvis2mUEXY2hfkLP9uCU4eRJcgZR3"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"sig":"1a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200"},"signatures":["5e3ab4fed193e009c4ea72a96a0f85a81d9e247941c17a56b23621b9d9d6fa0435386805290093ad696264ad53daa3d955bfe94d4177684b65b5cd7dedd19d9f00","b7973007382fc66fb6840515e258a8690d003ef69cc877be0110dba698af595e142a4d2740be6bf8ed7e281629448aba619b0ee35baa7b7993d0f41853640f5f00"],"id":"AhVT5GXxjSbeua8rQR2wLhR7Jsytt8qBhxfY8Ls6jJJizZUng"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
 		Approver: &util.EthIDEmpty,
@@ -319,7 +319,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.Equal(uint64(4), di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
-	assert.Equal(di.Data, di2.Data)
+	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di2.Approver)
 	assert.Nil(di2.ApproveList)
 
@@ -403,6 +403,43 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	input = &ld.TxUpdater{ID: &did, Version: 6,
 		Data: []byte(`421`),
 	}
+	txData = &ld.TxData{
+		Type:      ld.TypeUpdateData,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     4,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      owner,
+		Data:      input.Bytes(),
+	}
+	tt = txData.ToTransaction()
+	_, err = NewTx2(tt)
+	assert.ErrorContains(err, "DeriveSigners error: no signature")
+
+	assert.NoError(txData.SignWith(util.Signer1))
+	tt = txData.ToTransaction()
+	itx, err = NewTx2(tt)
+	assert.NoError(err)
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs), "invalid sigClaims, should not be nil")
+	cs.CheckoutAccounts()
+
+	// can't update data
+	input = &ld.TxUpdater{ID: &did, Version: 6,
+		Data: []byte(`421`),
+		SigClaims: &ld.SigClaims{
+			Issuer:     util.DataID{1, 2, 3, 4},
+			Subject:    di.ID,
+			Audience:   di.ModelID,
+			Expiration: 100,
+			IssuedAt:   1,
+			CWTID:      util.HashFromData([]byte(`421`)),
+		},
+	}
+	sig, err = util.Signer2.Sign(input.SigClaims.Bytes())
+	assert.NoError(err)
+	input.Sig = &sig
+
 	txData = &ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,

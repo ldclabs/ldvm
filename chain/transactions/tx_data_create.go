@@ -92,7 +92,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		Keepers:     *tx.input.Keepers,
 		Approver:    tx.input.Approver,
 		ApproveList: tx.input.ApproveList,
-		Data:        tx.input.Data,
+		Payload:     tx.input.Data,
 		ID:          util.DataID(tx.ld.ID),
 	}
 
@@ -172,7 +172,7 @@ func (tx *TxCreateData) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 		Version:   1,
 		Threshold: *tx.input.Threshold,
 		Keepers:   *tx.input.Keepers,
-		Data:      tx.input.Data,
+		Payload:   tx.input.Data,
 		ID:        util.DataID(tx.ld.ID),
 	}
 	if err = tx.di.SyntacticVerify(); err != nil {
@@ -253,13 +253,13 @@ func (tx *TxCreateData) Apply(ctx ChainContext, cs ChainState) error {
 			}
 		}
 
-		if err = mi.Model().Valid(tx.di.Data); err != nil {
+		if err = mi.Model().Valid(tx.di.Payload); err != nil {
 			return errp.ErrorIf(err)
 		}
 
 		if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
 			tx.ns = &service.Name{}
-			if err = tx.ns.Unmarshal(tx.di.Data); err != nil {
+			if err = tx.ns.Unmarshal(tx.di.Payload); err != nil {
 				return errp.ErrorIf(err)
 			}
 			if err = tx.ns.SyntacticVerify(); err != nil {

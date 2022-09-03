@@ -184,7 +184,7 @@ func TestTxPunish(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Data:      []byte(`"test...."`),
+		Payload:   []byte(`"test...."`),
 		ID:        did,
 	}
 	assert.NoError(err)
@@ -204,7 +204,7 @@ func TestTxPunish(t *testing.T) {
 	di, err = cs.LoadData(did)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di.Version)
-	assert.Equal(input.Data, di.Data)
+	assert.Equal(input.Data, di.Payload)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

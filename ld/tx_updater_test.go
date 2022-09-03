@@ -43,7 +43,7 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeCreateData in approveList")
 
 	tx = &TxUpdater{ApproveList: TxTypes{TypeDeleteData + 1}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(24) in approveList")
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(25) in approveList")
 
 	tx = &TxUpdater{ApproveList: TxTypes{
 		TypeUpdateDataInfo, TypeDeleteData, TypeUpdateDataInfo}}

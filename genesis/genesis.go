@@ -33,10 +33,9 @@ type ChainConfig struct {
 	FeeConfig      *FeeConfig `json:"feeConfig"`
 
 	// external assignment fields
-	FeeConfigs       []*FeeConfig `json:"feeConfigs"`
-	FeeConfigID      util.DataID  `json:"feeConfigID"`
-	NameServiceID    util.ModelID `json:"nameAppID"`
-	ProfileServiceID util.ModelID `json:"profileAppID"`
+	FeeConfigs    []*FeeConfig `json:"feeConfigs"`
+	FeeConfigID   util.DataID  `json:"feeConfigID"`
+	NameServiceID util.ModelID `json:"nameAppID"`
 }
 
 func (c *ChainConfig) IsNameService(id util.ModelID) bool {
@@ -295,7 +294,6 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	genesisNonce++
-	g.Chain.ProfileServiceID = util.ModelID(tx.ShortID())
 	txs = append(txs, tx)
 	return txs, nil
 }

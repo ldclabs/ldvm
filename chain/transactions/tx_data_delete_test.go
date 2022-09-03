@@ -174,7 +174,7 @@ func TestTxDeleteData(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer2.Address()},
 		Approver:  &approver,
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -207,7 +207,7 @@ func TestTxDeleteData(t *testing.T) {
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Approver:  &approver,
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -222,7 +222,7 @@ func TestTxDeleteData(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -245,7 +245,7 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2},"signatures":["8f7b8892853733c9d6eaf011012d077b99d792f8128077cce5b81d18a484701545cdeef97f178b4a7b2c3be6c85391438dc7379eb0bd67036d55dbe8e76bc62000"],"id":"9jWazPpZwhZ7YV5kp8eSKPrH6sXV1LefvqH2HQFf9AKEp4cD2"}`, string(jsondata))
+	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2},"signatures":["4efd89df9fd7468f998d4c594069ea19b9a03615c5337cb3f41411d88377b7bf16c334450b5b2df4ca8bb94f98542e4df7d94ea923d67d444cd44a8d850fdd0601"],"id":"roRY61cNBBWRPxtKTQLhk4L4avuZcUpEoEwyZtUGTAwefpdWx"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	txData = &ld.TxData{
@@ -270,7 +270,7 @@ func TestTxDeleteData(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Data:      []byte(`42`),
+		Payload:   []byte(`42`),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -295,7 +295,7 @@ func TestTxDeleteData(t *testing.T) {
 	di2, err = cs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di2.Version)
-	assert.Equal([]byte(`421`), []byte(di2.Data))
+	assert.Equal([]byte(`421`), []byte(di2.Payload))
 
 	assert.NoError(cs.VerifyState())
 }

@@ -38,7 +38,7 @@ type DataInfo struct {
 	Keepers     util.EthIDs  `cbor:"kp" json:"keepers"`
 	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
-	Data        util.RawData `cbor:"d" json:"data"`
+	Payload     util.RawData `cbor:"pl" json:"payload"`
 	// data signature claims
 	SigClaims *SigClaims `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
 	// data signature signing by a certificate authority
@@ -63,8 +63,8 @@ func (t *DataInfo) Clone() *DataInfo {
 		x.ApproveList = make(TxTypes, len(t.ApproveList))
 		copy(x.ApproveList, t.ApproveList)
 	}
-	x.Data = make([]byte, len(t.Data))
-	copy(x.Data, t.Data)
+	x.Payload = make([]byte, len(t.Payload))
+	copy(x.Payload, t.Payload)
 
 	if t.SigClaims != nil {
 		sc := *t.SigClaims
@@ -153,7 +153,7 @@ func (t *DataInfo) Signer() (signer util.EthID, err error) {
 		return signer, errp.Errorf("invalid audience, expected %s, got %s",
 			t.ModelID, t.SigClaims.Audience)
 
-	case t.SigClaims.CWTID != util.HashFromData(t.Data):
+	case t.SigClaims.CWTID != util.HashFromData(t.Payload):
 		return signer, errp.Errorf("invalid CWT id")
 	}
 
@@ -165,7 +165,7 @@ func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
 	t.SigClaims = nil
 	t.Sig = nil
-	t.Data = data
+	t.Payload = data
 	return t.SyntacticVerify()
 }
 
@@ -200,7 +200,7 @@ func (t *DataInfo) Patch(operations []byte) ([]byte, error) {
 		return nil, errp.Errorf("unsupport mid %s", t.ModelID)
 	}
 
-	return errp.ErrorMap(p.Apply(t.Data))
+	return errp.ErrorMap(p.Apply(t.Payload))
 }
 
 func (t *DataInfo) Bytes() []byte {
@@ -229,7 +229,7 @@ type SigClaims struct {
 	Expiration uint64       `cbor:"4,keyasint" json:"exp"`
 	NotBefore  uint64       `cbor:"5,keyasint" json:"nbf"`
 	IssuedAt   uint64       `cbor:"6,keyasint" json:"iat"`
-	CWTID      util.Hash    `cbor:"7,keyasint" json:"cti"` // the hash of DataInfo.Data
+	CWTID      util.Hash    `cbor:"7,keyasint" json:"cti"` // the hash of DataInfo.Payload
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
