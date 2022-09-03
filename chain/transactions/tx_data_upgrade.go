@@ -144,6 +144,12 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	case tx.di.ModelID == *tx.input.ModelID:
 		return errp.Errorf("invalid model id, should be different")
 
+	case ctx.ChainConfig().IsNameService(tx.di.ModelID):
+		return errp.Errorf("name service data can not upgrade")
+
+	case ctx.ChainConfig().IsNameService(*tx.input.ModelID):
+		return errp.Errorf("can not upgrade to name service data")
+
 	case tx.di.SigClaims != nil && tx.input.SigClaims == nil:
 		return errp.Errorf("invalid sigClaims, should not be nil")
 
@@ -194,7 +200,7 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if ctx.ChainConfig().IsNameService(tx.di.ModelID) { // todo: support upgrade?
+	if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
 		var n1, n2 string
 		if n1, err = service.GetName(tx.prevDI.Payload); err != nil {
 			return errp.Errorf("invalid NameService data, %v", err)

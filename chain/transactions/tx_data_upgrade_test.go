@@ -10,6 +10,7 @@ import (
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 
 	"github.com/stretchr/testify/assert"
@@ -693,4 +694,208 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.Equal(`{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","mid":"8RJhgDbbAGqriPr9HDapjAgobSiBsBXib","version":1,"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x81a3626f70636164646470617468622f766576616c75650299318ca7"},"signatures":["5c55de1b1a53671087e048a919a7a633822912f3e95484eff342351066ad79c2198e2589bcf1e1ddc722e1f6aece032ef2f7eda2edca73caf4ff68ed954ad6a100"],"exSignatures":["11a7cb9161523a87d65da0809113f35576027471c443c839a7407aeefcc6fe3a006b9f08838655a7d5dc16c523f1b5baf1a2ab04ed76b2ea9d38f8af00bd613d01"],"id":"VHUJbAjuJ9xgZibi3mfDCr6stj6xxnW4vbuFSSaRQxVqngTFz"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
+}
+
+func TestTxUpgradeNameServiceData(t *testing.T) {
+	t.Run("name service data can not upgrade", func(t *testing.T) {
+		assert := assert.New(t)
+
+		ctx := NewMockChainContext()
+		cs := ctx.MockChainState()
+
+		sender := util.Signer1.Address()
+		recipient := util.Signer2.Address()
+
+		nm, err := service.NameModel()
+		assert.NoError(err)
+		mi := &ld.ModelInfo{
+			Name:      nm.Name(),
+			Threshold: 1,
+			Keepers:   util.EthIDs{util.Signer2.Address()},
+			Schema:    nm.Schema(),
+			ID:        ctx.ChainConfig().NameServiceID,
+		}
+
+		name := &service.Name{
+			Name:       "ldc.to.",
+			Records:    []string{"ldc.to. IN A 10.0.0.1"},
+			Extensions: service.Extensions{},
+		}
+		assert.NoError(name.SyntacticVerify())
+
+		input := &ld.TxUpdater{
+			ModelID:   &mi.ID,
+			Version:   1,
+			Threshold: ld.Uint16Ptr(1),
+			Keepers:   &util.EthIDs{util.Signer1.Address()},
+			Data:      name.Bytes(),
+			To:        &recipient,
+			Expire:    100,
+			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+		}
+		assert.NoError(input.SyntacticVerify())
+		txData := &ld.TxData{
+			Type:      ld.TypeCreateData,
+			ChainID:   ctx.ChainConfig().ChainID,
+			Nonce:     0,
+			GasTip:    100,
+			GasFeeCap: ctx.Price,
+			From:      sender,
+			To:        &recipient,
+			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+			Data:      input.Bytes(),
+		}
+		assert.NoError(txData.SignWith(util.Signer1))
+		assert.NoError(txData.ExSignWith(util.Signer2))
+
+		senderAcc := cs.MustAccount(sender)
+		assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+		assert.NoError(cs.SaveModel(mi))
+
+		tt := txData.ToTransaction()
+		tt.Timestamp = 10
+		itx, err := NewTx2(tt)
+		assert.NoError(err)
+
+		_, err = cs.LoadDataByName("ldc.to.")
+		assert.ErrorContains(err, `"ldc.to." not found`)
+		assert.NoError(itx.Apply(ctx, cs))
+		di, err := cs.LoadDataByName("ldc.to.")
+		assert.NoError(err)
+		assert.Equal(mi.ID, di.ModelID)
+
+		modelID := util.ModelID{1, 2, 3}
+		patchDoc := cborpatch.Patch{
+			{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("ldc2.to.")},
+		}
+		input = &ld.TxUpdater{ID: &di.ID, ModelID: &modelID, Version: 1,
+			Data:   util.MustMarshalCBOR(patchDoc),
+			To:     &recipient,
+			Amount: new(big.Int).SetUint64(constants.MilliLDC),
+		}
+
+		txData = &ld.TxData{
+			Type:      ld.TypeUpgradeData,
+			ChainID:   ctx.ChainConfig().ChainID,
+			Nonce:     1,
+			GasTip:    100,
+			GasFeeCap: ctx.Price,
+			From:      sender,
+			To:        &recipient,
+			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+			Data:      input.Bytes(),
+		}
+		assert.NoError(txData.SignWith(util.Signer1))
+		assert.NoError(txData.ExSignWith(util.Signer2))
+		tt = txData.ToTransaction()
+		itx, err = NewTx2(tt)
+		assert.NoError(err)
+
+		cs.CommitAccounts()
+		assert.ErrorContains(itx.Apply(ctx, cs),
+			`TxUpgradeData.Apply error: name service data can not upgrade`)
+		cs.CheckoutAccounts()
+
+		assert.NoError(cs.VerifyState())
+	})
+
+	t.Run("can not upgrade to name service data", func(t *testing.T) {
+		assert := assert.New(t)
+
+		ctx := NewMockChainContext()
+		cs := ctx.MockChainState()
+
+		sender := util.Signer1.Address()
+		recipient := util.Signer2.Address()
+
+		nm, err := service.NameModel()
+		assert.NoError(err)
+		mi := &ld.ModelInfo{
+			Name:      nm.Name(),
+			Threshold: 1,
+			Keepers:   util.EthIDs{util.Signer2.Address()},
+			Schema:    nm.Schema(),
+			ID:        ctx.ChainConfig().NameServiceID,
+		}
+
+		name := &service.Name{
+			Name:       "ldc.to.",
+			Records:    []string{"ldc.to. IN A 10.0.0.1"},
+			Extensions: service.Extensions{},
+		}
+		assert.NoError(name.SyntacticVerify())
+
+		input := &ld.TxUpdater{
+			ModelID:   &ld.CBORModelID,
+			Version:   1,
+			Threshold: ld.Uint16Ptr(1),
+			Keepers:   &util.EthIDs{util.Signer1.Address()},
+			Data:      name.Bytes(),
+			Expire:    100,
+			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+		}
+		assert.NoError(input.SyntacticVerify())
+		txData := &ld.TxData{
+			Type:      ld.TypeCreateData,
+			ChainID:   ctx.ChainConfig().ChainID,
+			Nonce:     0,
+			GasTip:    100,
+			GasFeeCap: ctx.Price,
+			From:      sender,
+			Data:      input.Bytes(),
+		}
+		assert.NoError(txData.SignWith(util.Signer1))
+
+		senderAcc := cs.MustAccount(sender)
+		assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+		assert.NoError(cs.SaveModel(mi))
+
+		tt := txData.ToTransaction()
+		tt.Timestamp = 10
+		itx, err := NewTx2(tt)
+		assert.NoError(err)
+
+		_, err = cs.LoadDataByName("ldc.to.")
+		assert.ErrorContains(err, `"ldc.to." not found`)
+		assert.NoError(itx.Apply(ctx, cs))
+		_, err = cs.LoadDataByName("ldc.to.")
+		assert.ErrorContains(err, `"ldc.to." not found`)
+
+		di, err := cs.LoadData(util.DataID(tt.ID))
+		assert.NoError(err)
+		assert.Equal(name.Bytes(), []byte(di.Payload))
+
+		patchDoc := cborpatch.Patch{
+			{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("ldc2.to.")},
+		}
+		input = &ld.TxUpdater{ID: &di.ID, ModelID: &mi.ID, Version: 1,
+			Data:   util.MustMarshalCBOR(patchDoc),
+			To:     &recipient,
+			Amount: new(big.Int).SetUint64(constants.MilliLDC),
+		}
+
+		txData = &ld.TxData{
+			Type:      ld.TypeUpgradeData,
+			ChainID:   ctx.ChainConfig().ChainID,
+			Nonce:     1,
+			GasTip:    100,
+			GasFeeCap: ctx.Price,
+			From:      sender,
+			To:        &recipient,
+			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+			Data:      input.Bytes(),
+		}
+		assert.NoError(txData.SignWith(util.Signer1))
+		assert.NoError(txData.ExSignWith(util.Signer2))
+		tt = txData.ToTransaction()
+		itx, err = NewTx2(tt)
+		assert.NoError(err)
+
+		cs.CommitAccounts()
+		assert.ErrorContains(itx.Apply(ctx, cs),
+			`TxUpgradeData.Apply error: can not upgrade to name service data`)
+		cs.CheckoutAccounts()
+
+		assert.NoError(cs.VerifyState())
+	})
 }

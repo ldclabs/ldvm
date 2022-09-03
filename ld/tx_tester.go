@@ -33,7 +33,7 @@ func (t ObjectType) String() string {
 	case DataObject:
 		return "Data"
 	default:
-		return fmt.Sprintf("UnknownObjectType(%d)", t)
+		return fmt.Sprintf("UnknownObjectType(%d)", t) // TODO: support for external data sources
 	}
 }
 

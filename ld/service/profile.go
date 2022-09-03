@@ -32,25 +32,20 @@ func (pt ProfileType) MarshalJSON() ([]byte, error) {
 
 // https://schema.org/Thing
 type Profile struct {
-	Type       ProfileType  `cbor:"t" json:"type"`                         // Thing, Person, Organization...
-	Name       string       `cbor:"n" json:"name"`                         // Thing property
-	Desc       string       `cbor:"d" json:"description"`                  // Thing property
-	Image      string       `cbor:"i" json:"image"`                        // Thing property
-	URL        string       `cbor:"u" json:"url"`                          // Thing property
-	Follows    util.DataIDs `cbor:"fs" json:"follows"`                     // optional, other ProfileService data id
-	Members    util.DataIDs `cbor:"ms,omitempty" json:"members,omitempty"` // optional, other ProfileService data id
-	Extensions []*Extension `cbor:"ex" json:"extensions"`                  // optional, extra properties
+	Type  ProfileType `cbor:"t" json:"type"`        // Thing, Person, Organization...
+	Name  string      `cbor:"n" json:"name"`        // Thing property
+	Desc  string      `cbor:"d" json:"description"` // Thing property
+	Image string      `cbor:"i" json:"image"`       // Thing property
+	URL   string      `cbor:"u" json:"url"`         // Thing property
+	// follow other ProfileService data id
+	Follows util.DataIDs `cbor:"fs" json:"follows"`
+	// optional, other ProfileService data id
+	Members    util.DataIDs `cbor:"ms,omitempty" json:"members,omitempty"`
+	Extensions Extensions   `cbor:"es" json:"extensions"`
 
 	// external assignment fields
 	DataID util.DataID `cbor:"-" json:"did"`
 	raw    []byte      `cbor:"-" json:"-"`
-}
-
-type Extension struct {
-	DataID     util.DataID            `cbor:"id" json:"did"`  // data id
-	ModelID    util.ModelID           `cbor:"m" json:"mid"`   // model id
-	Title      string                 `cbor:"t" json:"title"` // extension title
-	Properties map[string]interface{} `cbor:"ps" json:"properties"`
 }
 
 func ProfileModel() (*ld.IPLDModel, error) {
@@ -64,7 +59,7 @@ func ProfileModel() (*ld.IPLDModel, error) {
 		url         String          (rename "u")
 		follows     [ID20]          (rename "fs")
 		members     optional [ID20] (rename "ms")
-		extensions  [Any]           (rename "ex")
+		extensions  [Any]           (rename "es")
 	}
 `
 	return ld.NewIPLDModel("ProfileService", strings.TrimSpace(schema))
@@ -111,32 +106,8 @@ func (p *Profile) SyntacticVerify() error {
 		return errp.Errorf("invalid members, %v", err)
 	}
 
-	if p.Extensions == nil {
+	if err = p.Extensions.SyntacticVerify(); err != nil {
 		return errp.Errorf("nil extensions")
-	}
-	set := make(map[string]struct{}, len(p.Extensions))
-	for i, ex := range p.Extensions {
-		if ex == nil {
-			return errp.Errorf("nil extension at %d", i)
-		}
-
-		if ex.DataID == util.DataIDEmpty {
-			return errp.Errorf("invalid data id at %d", i)
-		}
-
-		if ex.ModelID == util.ModelIDEmpty {
-			return errp.Errorf("invalid model id at %d", i)
-		}
-
-		if !util.ValidName(ex.Title) {
-			return errp.Errorf("invalid extension title %q at %d", ex.Title, i)
-		}
-
-		key := string(ex.ModelID[:]) + ex.Title
-		if _, ok := set[key]; ok {
-			return errp.Errorf("%q exists in extensions at %d", ex.Title, i)
-		}
-		set[key] = struct{}{}
 	}
 
 	if p.raw, err = p.Marshal(); err != nil {

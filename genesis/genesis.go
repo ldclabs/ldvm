@@ -35,7 +35,7 @@ type ChainConfig struct {
 	// external assignment fields
 	FeeConfigs    []*FeeConfig `json:"feeConfigs"`
 	FeeConfigID   util.DataID  `json:"feeConfigID"`
-	NameServiceID util.ModelID `json:"nameAppID"`
+	NameServiceID util.ModelID `json:"nameServiceID"`
 }
 
 func (c *ChainConfig) IsNameService(id util.ModelID) bool {
