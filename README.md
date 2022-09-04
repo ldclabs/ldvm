@@ -5,6 +5,10 @@ Linked Data Virtual Machine (LDVM) - WIP
 
 Linked Data Store runing on Avalanche Subnets.
 
+## Architecture
+
+![LDC Architecture](./docs/imgs/ldc-architecture.png)
+
 ## Features
 
 ![LDC Features](./docs/imgs/ldc-features.png)
