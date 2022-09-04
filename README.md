@@ -1,11 +1,13 @@
-Linked Data Virtual Machine (LDVM)
+Linked Data Virtual Machine (LDVM) - WIP
 
 [![CI](https://github.com/ldclabs/ldvm/actions/workflows/ci.yml/badge.svg)](https://github.com/ldclabs/ldvm/actions?query=workflow%3Aci)
 [![Codecov](https://codecov.io/gh/ldclabs/ldvm/branch/main/graph/badge.svg?token=H7FUKGVQIH)](https://codecov.io/gh/ldclabs/ldvm)
 
 Linked Data Store runing on Avalanche Subnets.
 
-## WIP
+## Features
+
+![LDC Features](./docs/imgs/ldc-features.png)
 
 ## License
 
