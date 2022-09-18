@@ -282,6 +282,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(txData.SignWith(util.Signer1))
 	tt = txData.ToTransaction()
 	itx, err = NewTx2(tt)
+	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply error: Account(0x0000000000000000000000000000002354455354).WithdrawStake error: invalid token, expected $TEST, got NativeLDC")
@@ -304,6 +305,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = cs.Timestamp()
 	itx, err = NewTx2(tt)
+	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply error: Account(0x0000000000000000000000000000002354455354).WithdrawStake error: stake in lock, please retry after lockTime")
@@ -325,6 +327,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	tt = txData.ToTransaction()
 	tt.Timestamp = cs.Timestamp()
 	itx, err = NewTx2(tt)
+	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply error: Account(0x0000000000000000000000000000002354455354).WithdrawStake error: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has no stake to withdraw")

@@ -35,8 +35,8 @@ type Profile struct {
 	Type  ProfileType `cbor:"t" json:"type"`        // Thing, Person, Organization...
 	Name  string      `cbor:"n" json:"name"`        // Thing property
 	Desc  string      `cbor:"d" json:"description"` // Thing property
-	Image string      `cbor:"i" json:"image"`       // Thing property
-	URL   string      `cbor:"u" json:"url"`         // Thing property
+	Image string      `cbor:"i" json:"image"`       // Thing property, relay url
+	URL   string      `cbor:"u" json:"url"`         // Thing property, relay url
 	// follow other ProfileService data id
 	Follows util.DataIDs `cbor:"fs" json:"follows"`
 	// optional, other ProfileService data id
@@ -90,12 +90,20 @@ func (p *Profile) SyntacticVerify() error {
 		return errp.Errorf("nil follows")
 	}
 
+	if len(p.Follows) > 1024 {
+		return errp.Errorf("too many follows, should not exceed 1024")
+	}
+
 	if err = p.Follows.CheckDuplicate(); err != nil {
 		return errp.Errorf("invalid follows, %v", err)
 	}
 
 	if err = p.Follows.CheckEmptyID(); err != nil {
 		return errp.Errorf("invalid follows, %v", err)
+	}
+
+	if len(p.Members) > 1024 {
+		return errp.Errorf("too many follows, should not exceed 1024")
 	}
 
 	if err = p.Members.CheckDuplicate(); err != nil {

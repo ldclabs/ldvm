@@ -584,7 +584,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 		Type:       1,
 		Name:       "tester",
 		Follows:    util.DataIDs{},
-		Extensions: []*service.Extension{},
+		Extensions: service.Extensions{},
 	}
 	assert.NoError(p.SyntacticVerify())
 
@@ -712,7 +712,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Type:       1,
 		Name:       "LDC",
 		Follows:    util.DataIDs{},
-		Extensions: []*service.Extension{},
+		Extensions: service.Extensions{},
 	}
 	assert.NoError(pf.SyntacticVerify())
 	data := pf.Bytes()

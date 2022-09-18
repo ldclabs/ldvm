@@ -3,8 +3,8 @@ module github.com/ldclabs/ldvm
 go 1.19
 
 require (
-	github.com/ava-labs/avalanchego v1.7.18
-	github.com/ethereum/go-ethereum v1.10.23
+	github.com/ava-labs/avalanchego v1.8.5
+	github.com/ethereum/go-ethereum v1.10.25
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/gorilla/rpc v1.2.0
 	github.com/hashicorp/go-plugin v1.4.5
@@ -12,13 +12,13 @@ require (
 	github.com/ldclabs/cbor-patch v1.1.3
 	github.com/ldclabs/json-patch v1.1.2
 	github.com/mailgun/holster/v4 v4.7.1
-	github.com/rivo/uniseg v0.3.4
+	github.com/rivo/uniseg v0.4.2
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.12.0
+	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
-	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
+	golang.org/x/net v0.0.0-20220909164309-bea034e7d591
 )
 
 require (
@@ -40,7 +40,7 @@ require (
 	github.com/hashicorp/go-hclog v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
-	github.com/ipfs/go-cid v0.3.0 // indirect
+	github.com/ipfs/go-cid v0.3.2 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
@@ -82,12 +82,12 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde // indirect
-	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
+	golang.org/x/sync v0.0.0-20220907140024-f12130a52804 // indirect
+	golang.org/x/sys v0.0.0-20220915200043-7b5979e65e41 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gonum.org/v1/gonum v0.11.0 // indirect
-	google.golang.org/genproto v0.0.0-20220902135211-223410557253 // indirect
+	gonum.org/v1/gonum v0.12.0 // indirect
+	google.golang.org/genproto v0.0.0-20220916172020-2692e8806bfa // indirect
 	google.golang.org/grpc v1.50.0-dev // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
