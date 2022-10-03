@@ -31,19 +31,19 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(err)
 	approver := util.Signer2.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -51,12 +51,13 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		To:        &constants.GenesisAccount,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -64,12 +65,13 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Token:     &token,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -77,24 +79,24 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Amount:    big.NewInt(1),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil to together with amount")
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -102,14 +104,15 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := ld.TxUpdater{}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -117,14 +120,15 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid mid")
 
 	input = ld.TxUpdater{ModelID: &util.ModelIDEmpty}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -132,9 +136,10 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid mid")
 
 	mid := util.ModelID{'1', '2', '3', '4', '5', '6'}
@@ -148,7 +153,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	mid = util.ModelID{'1', '2', '3', '4', '5', '6'}
 	input = ld.TxUpdater{ModelID: &mid}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -156,9 +161,10 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nothing to update")
 
 	mid = util.ModelID{'1', '2', '3', '4', '5', '6'}
@@ -167,7 +173,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		Approver: &approver,
 	}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -175,15 +181,15 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1316700, got 0")
+		"insufficient NativeLDC balance, expected 1339800, got 0")
 	cs.CheckoutAccounts()
 	ownerAcc := cs.MustAccount(owner)
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -205,11 +211,11 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(cs.SaveModel(mi))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	assert.Equal(tt.Gas()*ctx.Price,
+	assert.Equal(ltx.Gas()*ctx.Price,
 		itx.(*TxUpdateModelInfo).ldc.Balance().Uint64())
-	assert.Equal(tt.Gas()*100,
+	assert.Equal(ltx.Gas()*100,
 		itx.(*TxUpdateModelInfo).miner.Balance().Uint64())
-	assert.Equal(constants.LDC-tt.Gas()*(ctx.Price+100),
+	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100),
 		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
@@ -221,7 +227,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeUpdateModelInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB","approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"signatures":["454b957046a4413fe6b9c7cc06f9d6b2ce77b0a0a57b236b66d966917e8e2abb6f763e9ecf9255b12e0e9a7c13f82c5004733df0ac9d38266198d465b0145fa100"],"id":"uMUvxUX46YdPKvuUpqVtEBTFpxQeF5fP4x9Jb9zePaNHEVRh1"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateModelInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"mid":"5V8FMkzy77ibQauKnRxM6aGSLG4AaYTdB","approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"}},"sigs":["454b957046a4413fe6b9c7cc06f9d6b2ce77b0a0a57b236b66d966917e8e2abb6f763e9ecf9255b12e0e9a7c13f82c5004733df0ac9d38266198d465b0145fa100"],"id":"2DSaEU3ko474c4AkKKMroQpft1jAcuC4uaqrv6FKqrVQFpBB9i"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 
@@ -233,7 +239,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -241,16 +247,16 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for approver")
 	cs.CheckoutAccounts()
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -258,11 +264,10 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
@@ -278,7 +283,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		Keepers:   &util.EthIDs{util.Signer2.Address()},
 	}
 	assert.NoError(input.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -286,17 +291,17 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for keepers")
 	cs.CheckoutAccounts()
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -304,11 +309,10 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 

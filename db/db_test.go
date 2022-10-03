@@ -56,7 +56,7 @@ func TestPrefixDB(t *testing.T) {
 
 	cc := NewCacher(100, 1, func() Objecter { return new(ld.Transaction) })
 	to := util.Signer2.Address()
-	txData := &ld.TxData{
+	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   2357,
 		Nonce:     1,
@@ -65,11 +65,8 @@ func TestPrefixDB(t *testing.T) {
 		From:      util.Signer1.Address(),
 		To:        &to,
 		Amount:    big.NewInt(1_000_000),
-	}
-	sig1, err := util.Signer1.Sign(txData.UnsignedBytes())
-	assert.NoError(err)
-	txData.Signatures = append(txData.Signatures, sig1)
-	tx := txData.ToTransaction()
+	}}
+	assert.NoError(tx.SignWith(util.Signer1))
 	assert.NoError(tx.SyntacticVerify())
 
 	_, ok = cc.GetObject(tx.ID[:])

@@ -46,20 +46,19 @@ func TestBlock(t *testing.T) {
 	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify error: nil pointer")
 
 	to := util.Signer2.Address()
-	txData := &TxData{
-		Type:      TypeTransfer,
-		ChainID:   gChainID,
-		Nonce:     1,
-		GasTip:    0,
-		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
-		To:        &to,
-		Amount:    big.NewInt(1_000_000),
+	tx := &Transaction{
+		Tx: TxData{
+			Type:      TypeTransfer,
+			ChainID:   gChainID,
+			Nonce:     1,
+			GasTip:    0,
+			GasFeeCap: 1000,
+			From:      util.Signer1.Address(),
+			To:        &to,
+			Amount:    big.NewInt(1_000_000),
+		},
 	}
-	sig1, err := util.Signer1.Sign(txData.UnsignedBytes())
-	assert.NoError(err)
-	txData.Signatures = append(txData.Signatures, sig1)
-	tx := txData.ToTransaction()
+	assert.NoError(tx.SignWith(util.Signer1))
 	assert.NoError(tx.SyntacticVerify())
 
 	blk = &Block{
@@ -78,7 +77,12 @@ func TestBlock(t *testing.T) {
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":618,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"2oRVBzN9RomGyftcTrPZ4ZVuQ7NHC6Qg6ywc62CzvyGwkAwHo","txs":[{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"signatures":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"E7ML6WgNZowbGX63GfSA2u5niXSnLA61a1o8SgaumKz6n9qqH"}]}`, string(jsondata))
+	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":638,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"qGzUDBq64yjXf9hSdAhe3CsW1RrNhogRR7xGummZfyHnKQQHm","txs":[{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"sigs":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"o87bat4Z2dnH1NKyzD3yMQYaBJKBwQZTmnhQHn4qQFNwDNe5T"}]}`, string(jsondata))
+
+	blk.Gas++
+	assert.ErrorContains(blk.SyntacticVerify(),
+		"Block.SyntacticVerify error: invalid gas, expected 638, got 639")
+	blk.Gas--
 
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))
@@ -90,8 +94,4 @@ func TestBlock(t *testing.T) {
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(blk.ID, blk2.ID)
 	assert.Equal(cbordata, blk2.Bytes())
-
-	blk.Gas++
-	assert.ErrorContains(blk.SyntacticVerify(),
-		"Block.SyntacticVerify error: invalid gas, expected 618, got 619")
 }

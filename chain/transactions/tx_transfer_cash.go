@@ -13,7 +13,6 @@ import (
 
 type TxTransferCash struct {
 	TxBase
-	issuer    *Account
 	exSigners util.EthIDs
 	input     *ld.TxTransfer
 }
@@ -32,7 +31,7 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -44,18 +43,18 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("invalid to")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxTransfer{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -66,16 +65,16 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 	case tx.input.From == nil:
 		return errp.Errorf("nil issuer")
 
-	case *tx.input.From != *tx.ld.To:
+	case *tx.input.From != *tx.ld.Tx.To:
 		return errp.Errorf("invalid issuer, expected %s, got %s",
-			tx.input.From, tx.ld.To)
+			tx.input.From, tx.ld.Tx.To)
 
 	case tx.input.To == nil:
 		return errp.Errorf("nil recipient")
 
-	case *tx.input.To != tx.ld.From:
+	case *tx.input.To != tx.ld.Tx.From:
 		return errp.Errorf("invalid recipient, expected %s, got %s",
-			tx.input.To, tx.ld.From)
+			tx.input.To, tx.ld.Tx.From)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
 		return errp.Errorf("invalid token, expected %s, got %s",

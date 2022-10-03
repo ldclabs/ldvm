@@ -20,17 +20,17 @@ func (tx *TxDestroyToken) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as pledge recipient")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 	}
 
-	if token := util.TokenSymbol(tx.ld.From); !token.Valid() {
+	if token := util.TokenSymbol(tx.ld.Tx.From); !token.Valid() {
 		return errp.Errorf("invalid token %s", token.GoString())
 	}
 	return nil

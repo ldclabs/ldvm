@@ -23,10 +23,10 @@ func (tx *TxTransfer) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("invalid to")
 
-	case tx.ld.Amount == nil:
+	case tx.ld.Tx.Amount == nil:
 		return errp.Errorf("invalid amount")
 	}
 	return nil
@@ -37,7 +37,7 @@ func (tx *TxTransfer) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
 	errp := util.ErrPrefix("TxTransfer.ApplyGenesis error: ")
 
-	tx.amount = new(big.Int).Set(tx.ld.Amount)
+	tx.amount = new(big.Int).Set(tx.ld.Tx.Amount)
 	tx.tip = new(big.Int)
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
@@ -47,11 +47,11 @@ func (tx *TxTransfer) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.from, err = cs.LoadAccount(tx.ld.From); err != nil {
+	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.to, err = cs.LoadAccount(*tx.ld.To); err != nil {
+	if tx.to, err = cs.LoadAccount(*tx.ld.Tx.To); err != nil {
 		return errp.ErrorIf(err)
 	}
 

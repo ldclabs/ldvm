@@ -125,10 +125,10 @@ func Sign(data []byte, priv *ecdsa.PrivateKey) (Signature, error) {
 	return SignHash(dh[:], priv)
 }
 
-func SignHash(datahash []byte, priv *ecdsa.PrivateKey) (Signature, error) {
+func SignHash(digestHash []byte, priv *ecdsa.PrivateKey) (Signature, error) {
 	sig := Signature{}
 	errp := ErrPrefix("SignHash error: ")
-	data, err := crypto.Sign(datahash, priv)
+	data, err := crypto.Sign(digestHash, priv)
 	if err != nil {
 		return sig, errp.ErrorIf(err)
 	}

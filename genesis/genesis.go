@@ -145,14 +145,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Name:   "Linked Data Chain",
 		Data:   []byte(strconv.Quote(g.Chain.Message)),
 	}
-	tx := &ld.Transaction{
+	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateToken,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		To:      &constants.LDCAccount,
 		Data:    ld.MustMarshal(token),
-	}
+	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -169,14 +169,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	for _, id := range list {
 		v := g.Alloc[util.EthID(id)]
 		to := util.EthID(id)
-		tx := &ld.Transaction{
+		tx := &ld.Transaction{Tx: ld.TxData{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
 			Nonce:   ldcNonce,
 			From:    constants.LDCAccount,
 			To:      &to,
 			Amount:  v.Balance,
-		}
+		}}
 		if err = tx.SyntacticVerify(); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
@@ -190,16 +190,16 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 			}
 
 			nonce := uint64(0)
-			tx := &ld.Transaction{
+			tx := &ld.Transaction{Tx: ld.TxData{
 				Type:    ld.TypeUpdateAccountInfo,
 				ChainID: g.Chain.ChainID,
 				Nonce:   nonce,
 				From:    util.EthID(id),
 				Data:    ld.MustMarshal(update),
-			}
+			}}
 
-			if tx.From == constants.GenesisAccount {
-				tx.Nonce = genesisNonce
+			if tx.Tx.From == constants.GenesisAccount {
+				tx.Tx.Nonce = genesisNonce
 				genesisNonce++
 			}
 			if err = tx.SyntacticVerify(); err != nil {
@@ -225,13 +225,13 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 
-	tx = &ld.Transaction{
+	tx = &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(cfgData),
-	}
+	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -254,13 +254,13 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 
-	tx = &ld.Transaction{
+	tx = &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ns),
-	}
+	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -283,13 +283,13 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 
-	tx = &ld.Transaction{
+	tx = &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    constants.GenesisAccount,
 		Data:    ld.MustMarshal(ps),
-	}
+	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}

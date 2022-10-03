@@ -172,7 +172,7 @@ func TestDataInfo(t *testing.T) {
 	assert.NoError(di3.SyntacticVerify())
 	assert.Equal(cbordata, di2.Bytes())
 	assert.NotEqual(cbordata, di3.Bytes())
-	di3.TypedSig = util.Signer1.MustSign(di3.SigClaims.Bytes())[:]
+	di3.TypedSig = util.Signer1.MustSignData(di3.SigClaims.Bytes())[:]
 	jsondata, err = json.Marshal(di3)
 	// fmt.Println(string(jsondata))
 	assert.NoError(err)
@@ -289,7 +289,7 @@ func TestDataInfoValidSigClaims(t *testing.T) {
 		"DataInfo.Signer error: DeriveSigner error: recovery failed")
 	assert.Equal(util.EthIDEmpty, signer)
 
-	sig, err := util.Signer1.Sign(di.SigClaims.Bytes())
+	sig, err := util.Signer1.SignData(di.SigClaims.Bytes())
 	assert.NoError(err)
 	di.TypedSig = sig.Typed()
 	assert.NoError(di.SyntacticVerify())

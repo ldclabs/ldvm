@@ -16,10 +16,10 @@ func TestSign(t *testing.T) {
 	assert := assert.New(t)
 
 	data := []byte("Hello 👋")
-	sig1, err := Signer1.Sign(data)
+	sig1, err := Signer1.SignData(data)
 	assert.Nil(err)
 
-	sig2, err := Signer2.Sign(data)
+	sig2, err := Signer2.SignData(data)
 	assert.Nil(err)
 
 	assert.NotNil(sig1, sig2)
@@ -28,10 +28,10 @@ func TestSign(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(Signer1.Address(), addr1)
 
-	addrs, err := DeriveSigners(data, []Signature{sig1, sig1})
+	_, err = DeriveSigners(data, []Signature{sig1, sig1})
 	assert.Error(err)
 
-	addrs, err = DeriveSigners(data, []Signature{sig1, sig2})
+	addrs, err := DeriveSigners(data, []Signature{sig1, sig2})
 	assert.Nil(err)
 	assert.Equal(Signer1.Address(), addrs[0])
 	assert.Equal(Signer2.Address(), addrs[1])

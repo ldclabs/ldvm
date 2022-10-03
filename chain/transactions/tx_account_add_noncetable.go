@@ -28,7 +28,7 @@ func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -42,21 +42,21 @@ func (tx *TxAddNonceTable) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To != nil:
+	case tx.ld.Tx.To != nil:
 		return errp.Errorf("invalid to, should be nil")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
 	tx.input = make([]uint64, 0)
-	if err = util.UnmarshalCBOR(tx.ld.Data, &tx.input); err != nil {
+	if err = util.UnmarshalCBOR(tx.ld.Tx.Data, &tx.input); err != nil {
 		return errp.Errorf("invalid data, %v", err)
 	}
 	switch {

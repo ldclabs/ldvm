@@ -31,7 +31,7 @@ func (tx *TxCreateToken) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -44,28 +44,28 @@ func (tx *TxCreateToken) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as token account")
 
-	case *tx.ld.To == util.EthIDEmpty:
-		return errp.Errorf("invalid to as token account, expected not %s", tx.ld.To)
+	case *tx.ld.Tx.To == util.EthIDEmpty:
+		return errp.Errorf("invalid to as token account, expected not %s", tx.ld.Tx.To)
 
-	case tx.ld.Amount == nil:
+	case tx.ld.Tx.Amount == nil:
 		return errp.Errorf("nil amount")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
-	if token := util.TokenSymbol(*tx.ld.To); !token.Valid() {
+	if token := util.TokenSymbol(*tx.ld.Tx.To); !token.Valid() {
 		return errp.Errorf("invalid token %s", token.GoString())
 	}
 
 	tx.input = &ld.TxAccounter{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -94,7 +94,7 @@ func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	errp := util.ErrPrefix("TxCreateToken.ApplyGenesis error: ")
 
 	tx.input = &ld.TxAccounter{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -106,7 +106,7 @@ func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	tx.fee = new(big.Int)
 	tx.cost = new(big.Int)
 
-	tx.from, err = cs.LoadAccount(tx.ld.From)
+	tx.from, err = cs.LoadAccount(tx.ld.Tx.From)
 	if err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -116,7 +116,7 @@ func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.to, err = cs.LoadAccount(*tx.ld.To); err != nil {
+	if tx.to, err = cs.LoadAccount(*tx.ld.Tx.To); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -139,9 +139,9 @@ func (tx *TxCreateToken) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	feeCfg := ctx.FeeConfig()
-	if tx.ld.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
+	if tx.ld.Tx.Amount.Cmp(feeCfg.MinTokenPledge) < 0 {
 		return errp.Errorf("invalid amount, expected >= %v, got %v",
-			feeCfg.MinTokenPledge, tx.ld.Amount)
+			feeCfg.MinTokenPledge, tx.ld.Tx.Amount)
 	}
 
 	if err = tx.to.CreateToken(tx.input); err != nil {

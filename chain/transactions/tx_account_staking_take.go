@@ -32,7 +32,7 @@ func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -45,22 +45,22 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as stake account")
 
-	case tx.ld.Amount == nil:
+	case tx.ld.Tx.Amount == nil:
 		return errp.Errorf("nil amount")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
-	if stake := util.StakeSymbol(*tx.ld.To); !stake.Valid() {
+	if stake := util.StakeSymbol(*tx.ld.Tx.To); !stake.Valid() {
 		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 
 	tx.input = &ld.TxTransfer{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -68,23 +68,23 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.input.Nonce != tx.ld.Nonce:
+	case tx.input.Nonce != tx.ld.Tx.Nonce:
 		return errp.Errorf("invalid nonce, expected %d, got %d",
-			tx.input.Nonce, tx.ld.Nonce)
+			tx.input.Nonce, tx.ld.Tx.Nonce)
 
 	case tx.input.From == nil:
 		return errp.Errorf("nil from")
 
-	case *tx.input.From != tx.ld.From:
+	case *tx.input.From != tx.ld.Tx.From:
 		return errp.Errorf("invalid from, expected %s, got %s",
-			tx.input.From, tx.ld.From)
+			tx.input.From, tx.ld.Tx.From)
 
 	case tx.input.To == nil:
 		return errp.Errorf("nil to")
 
-	case *tx.input.To != *tx.ld.To:
+	case *tx.input.To != *tx.ld.Tx.To:
 		return errp.Errorf("invalid to, expected %s, got %s",
-			tx.input.To, tx.ld.To)
+			tx.input.To, tx.ld.Tx.To)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
 		return errp.Errorf("invalid token, expected %s, got %s",
@@ -97,9 +97,9 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 	case tx.input.Amount == nil:
 		return errp.Errorf("nil amount")
 
-	case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
+	case tx.input.Amount.Cmp(tx.ld.Tx.Amount) != 0:
 		return errp.Errorf("invalid amount, expected %v, got %v",
-			tx.input.Amount, tx.ld.Amount)
+			tx.input.Amount, tx.ld.Tx.Amount)
 
 	case tx.input.Expire < tx.ld.Timestamp:
 		return errp.Errorf("data expired, expected >= %d, got %v", tx.ld.Timestamp, tx.input.Expire)
@@ -132,7 +132,7 @@ func (tx *TxTakeStake) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	// must TakeStake and then Accept
-	if err = tx.to.TakeStake(tx.token, tx.ld.From, tx.ld.Amount, tx.lockTime); err != nil {
+	if err = tx.to.TakeStake(tx.token, tx.ld.Tx.From, tx.ld.Tx.Amount, tx.lockTime); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if !tx.to.SatisfySigning(tx.exSigners) {

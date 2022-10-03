@@ -11,6 +11,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/sha3"
 )
 
 var Signer1, Signer2 *Signer
@@ -39,12 +40,17 @@ type Signer struct {
 	nonce uint64
 }
 
-func (s *Signer) Sign(data []byte) (Signature, error) {
-	return Sign(data, s.PK)
+func (s *Signer) SignData(data []byte) (Signature, error) {
+	dh := sha3.Sum256(data)
+	return SignHash(dh[:], s.PK)
 }
 
-func (s *Signer) MustSign(data []byte) *Signature {
-	sig, err := Sign(data, s.PK)
+func (s *Signer) SignHash(digestHash []byte) (Signature, error) {
+	return SignHash(digestHash, s.PK)
+}
+
+func (s *Signer) MustSignData(data []byte) *Signature {
+	sig, err := s.SignData(data)
 	if err != nil {
 		panic(err)
 	}

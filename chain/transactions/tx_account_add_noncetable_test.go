@@ -26,19 +26,19 @@ func TestTxAddNonceTable(t *testing.T) {
 	cs := ctx.MockChainState()
 	sender := util.Signer1.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -46,12 +46,13 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		To:        &constants.GenesisAccount,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -59,12 +60,13 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Token:     &constants.NativeToken,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -72,24 +74,24 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Amount:    big.NewInt(1),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil to together with amount")
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -97,15 +99,16 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := []uint64{10}
 	inputData, err := util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -113,9 +116,10 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "no nonce")
 
 	input = make([]uint64, 1026)
@@ -124,7 +128,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -132,15 +136,16 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "too many nonces, expected <= 1024, got 1025")
 
 	input = []uint64{cs.Timestamp() - 1, 123}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -148,17 +153,17 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	_, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid expire time, expected > 1000, got 999")
 
 	input = []uint64{3600*24*30 + 2, 123}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -166,17 +171,17 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = 1
-	_, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = 1
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid expire time, expected <= 2592001, got 2592002")
 
 	input = []uint64{cs.Timestamp() + 1, 1, 3, 7, 5}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -184,22 +189,22 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance, expected 583000, got 0")
+	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance, expected 603900, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas := tt.Gas()
+	senderGas := ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
 		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
@@ -213,12 +218,12 @@ func TestTxAddNonceTable(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5],"signatures":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"id":"svYgQEJj8X7cydgowuZ3Dj4pZftQFA4fzVreLeVUbUbhGxkwS"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5]},"sigs":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"id":"BK1BDD5iwMuYKNYwyTgqwZuPDai3go2mmsFmUnvn5RCixEHHs"}`, string(jsondata))
 
 	input = []uint64{cs.Timestamp() + 1, 2, 4, 1}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -226,11 +231,11 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
@@ -240,7 +245,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	input = []uint64{cs.Timestamp() + 1, 2, 4, 6}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -248,15 +253,15 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
 		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
@@ -268,7 +273,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	input = []uint64{cs.Timestamp() + 2, 0}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -276,15 +281,15 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      inputData,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
 		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
@@ -304,7 +309,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Expire: cs.Timestamp() + 1,
 	}
 	assert.NoError(input2.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransferCash,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -313,14 +318,14 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      recipientAcc.id,
 		To:        &sender,
 		Data:      input2.Bytes(),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer2))
-	assert.NoError(txData.ExSignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
+	}}
+
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	itx, err = NewTx2(tt)
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
@@ -335,7 +340,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		Expire: cs.Timestamp() + 2,
 	}
 	assert.NoError(input2.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransferCash,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -344,17 +349,17 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      recipientAcc.id,
 		To:        &sender,
 		Data:      input2.Bytes(),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer2))
-	assert.NoError(txData.ExSignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
 		itx.(*TxTransferCash).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,

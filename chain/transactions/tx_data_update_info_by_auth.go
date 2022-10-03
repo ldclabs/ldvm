@@ -32,7 +32,7 @@ func (tx *TxUpdateDataInfoByAuth) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -45,14 +45,14 @@ func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to")
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxUpdater{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -81,9 +81,9 @@ func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	case tx.input.To == nil:
 		return errp.Errorf("nil to")
 
-	case *tx.input.To != *tx.ld.To:
+	case *tx.input.To != *tx.ld.Tx.To:
 		return errp.Errorf("invalid to, expected %s, got %s",
-			tx.input.To, tx.ld.To)
+			tx.input.To, tx.ld.Tx.To)
 
 	case tx.input.Amount == nil:
 		return errp.Errorf("nil amount")

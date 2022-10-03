@@ -27,7 +27,7 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 	}
 
 	var tt Transaction
-	switch tx.Type {
+	switch tx.Tx.Type {
 	case ld.TypeTest:
 		tt = &TxTest{TxBase: TxBase{ld: tx}}
 	case ld.TypeEth:
@@ -90,22 +90,13 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypePunish:
 		tt = &TxPunish{TxBase: TxBase{ld: tx}}
 	default:
-		return nil, fmt.Errorf("NewTx: unknown tx type %d", tx.Type)
+		return nil, fmt.Errorf("NewTx: unknown tx type %d", tx.Tx.Type)
 	}
 
 	if err := tt.SyntacticVerify(); err != nil {
 		return nil, err
 	}
 	return tt, nil
-}
-
-// NewTx2 is used for testing
-func NewTx2(tx *ld.Transaction) (Transaction, error) {
-	if err := tx.SyntacticVerify(); err != nil {
-		return nil, err
-	}
-
-	return NewTx(tx)
 }
 
 type GenesisTx interface {
@@ -118,7 +109,7 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	}
 
 	var tt Transaction
-	switch tx.Type {
+	switch tx.Tx.Type {
 	case ld.TypeTransfer:
 		tt = &TxTransfer{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountInfo:
@@ -130,7 +121,7 @@ func NewGenesisTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypeCreateData:
 		tt = &TxCreateData{TxBase: TxBase{ld: tx}}
 	default:
-		return nil, fmt.Errorf("NewGenesisTx: unsupport TxType: %s", tx.Type)
+		return nil, fmt.Errorf("NewGenesisTx: unsupport TxType: %s", tx.Tx.Type)
 	}
 	return tt, nil
 }

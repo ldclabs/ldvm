@@ -76,7 +76,7 @@ type TransactionArgs struct {
 
 func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *EncodeReply) error {
 	data := util.UnmarshalJSONData(args.Data)
-	tx := &ld.Transaction{
+	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TxType(args.Type),
 		ChainID:   args.ChainID,
 		Nonce:     args.Nonce,
@@ -87,6 +87,6 @@ func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *Encode
 		Token:     args.Token,
 		Amount:    args.Amount,
 		Data:      data,
-	}
+	}}
 	return reply.SetTxData(tx)
 }

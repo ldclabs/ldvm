@@ -28,23 +28,24 @@ func TestTxRepay(t *testing.T) {
 	borrower := util.Signer1.Address()
 	lender := util.Signer2.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      borrower,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as lender")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -53,12 +54,13 @@ func TestTxRepay(t *testing.T) {
 		From:      borrower,
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(0),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected > 0, got 0")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -67,15 +69,15 @@ func TestTxRepay(t *testing.T) {
 		From:      borrower,
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1001200100, got 0")
+		"insufficient NativeLDC balance, expected 1001222100, got 0")
 	cs.CheckoutAccounts()
 
 	borrowerAcc := cs.MustAccount(borrower)
@@ -95,7 +97,7 @@ func TestTxRepay(t *testing.T) {
 		MaxAmount:       new(big.Int).SetUint64(constants.LDC * 10),
 	}
 	assert.NoError(lcfg.SyntacticVerify())
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeOpenLending,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -103,18 +105,18 @@ func TestTxRepay(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      lender,
 		Data:      ld.MustMarshal(lcfg),
-	}
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	lenderAcc := cs.MustAccount(lender)
 	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	lenderGas := tt.Gas()
+	lenderGas := ltx.Gas()
 	tx2 := itx.(*TxOpenLending)
 	assert.Equal(lenderGas*ctx.Price, tx2.ldc.Balance().Uint64())
 	assert.Equal(lenderGas*100, tx2.miner.Balance().Uint64())
@@ -125,7 +127,7 @@ func TestTxRepay(t *testing.T) {
 	assert.Equal(0, len(lenderAcc.ledger.Lending))
 
 	// repay again
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -134,11 +136,11 @@ func TestTxRepay(t *testing.T) {
 		From:      borrower,
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
@@ -146,7 +148,7 @@ func TestTxRepay(t *testing.T) {
 		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: invalid token, expected $LDC, got NativeLDC")
 	cs.CheckoutAccounts()
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -156,11 +158,11 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
@@ -183,7 +185,7 @@ func TestTxRepay(t *testing.T) {
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: cs.Timestamp() + 1,
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -193,12 +195,12 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Token:     &token,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.ExSignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
@@ -210,7 +212,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(lenderAcc.AddNonceTable(cs.Timestamp()+1, []uint64{1}))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	borrowerGas := tt.Gas()
+	borrowerGas := ltx.Gas()
 	tx3 := itx.(*TxBorrow)
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price, tx3.ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100, tx3.miner.Balance().Uint64())
@@ -235,7 +237,7 @@ func TestTxRepay(t *testing.T) {
 	ctx.timestamp += 3600 * 24
 	cs.CheckoutAccounts()
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -245,15 +247,15 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	borrowerGas += tt.Gas()
+	borrowerGas += ltx.Gas()
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
 		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,
@@ -276,10 +278,10 @@ func TestTxRepay(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeRepay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000000,"signatures":["0c9a509724f0b2009160eb0680657178a6611b9762d1ed36f033cce1848657c64afb888b440c530c6550d68f3f0f382ccfe66c6346a36f8ca37ecfee22ce7fa700"],"id":"LkWrkmjvWd6HUMGEhdn7jXqxLS5feFTPVQE9uRuzrAx4nogQW"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeRepay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000000},"sigs":["0c9a509724f0b2009160eb0680657178a6611b9762d1ed36f033cce1848657c64afb888b440c530c6550d68f3f0f382ccfe66c6346a36f8ca37ecfee22ce7fa700"],"id":"ezepRmwXRU1emdPMkTqXEwpPckNjvXCecdnFy9HJmafUZJnzh"}`, string(jsondata))
 
 	// repay again
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -289,15 +291,15 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 20),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	borrowerGas += tt.Gas()
+	borrowerGas += ltx.Gas()
 	assert.Equal((lenderGas+borrowerGas)*ctx.Price,
 		itx.(*TxRepay).ldc.Balance().Uint64())
 	assert.Equal((lenderGas+borrowerGas)*100,

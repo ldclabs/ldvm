@@ -20,17 +20,17 @@ func (tx *TxDestroyStake) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as pledge recipient")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 	}
 
-	if stake := util.StakeSymbol(tx.ld.From); !stake.Valid() {
+	if stake := util.StakeSymbol(tx.ld.Tx.From); !stake.Valid() {
 		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 	return nil

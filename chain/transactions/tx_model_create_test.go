@@ -29,19 +29,19 @@ func TestTxCreateModel(t *testing.T) {
 
 	owner := util.Signer1.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -49,12 +49,13 @@ func TestTxCreateModel(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		To:        &constants.GenesisAccount,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -62,12 +63,13 @@ func TestTxCreateModel(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Token:     &token,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -75,24 +77,24 @@ func TestTxCreateModel(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Amount:    big.NewInt(1),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil to together with amount")
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -100,9 +102,10 @@ func TestTxCreateModel(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.ModelInfo{}
@@ -115,7 +118,7 @@ func TestTxCreateModel(t *testing.T) {
 		Keepers:   util.EthIDs{util.Signer1.Address()},
 		Schema:    ipldm.Schema(),
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateModel,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -123,22 +126,22 @@ func TestTxCreateModel(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 4079900, got 0")
+		"insufficient NativeLDC balance, expected 4111800, got 0")
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	fromGas := tt.Gas()
+	fromGas := ltx.Gas()
 	assert.Equal(fromGas*ctx.Price,
 		itx.(*TxCreateModel).ldc.Balance().Uint64())
 	assert.Equal(fromGas*100,
@@ -157,14 +160,14 @@ func TestTxCreateModel(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"FWLyyrjop29R2urXcaaaE46DTVdr9eube"},"signatures":["c9cea46c2c7fd90f19527247e058725bfae8239d2fd58fa8c0df638ca8f98fdf2e2110a9ed4fbb875727e7289edf1260c438a4b167a2b52c64fd4514fe0ad8e601"],"id":"2D5V9ctBiKfRmhSkncyBMpWuG9CU6tExmr85M5tHKteh1jANzE"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"JewthR6UUF3mcHa6doENAgM2fW9w5sjow"}},"sigs":["c9cea46c2c7fd90f19527247e058725bfae8239d2fd58fa8c0df638ca8f98fdf2e2110a9ed4fbb875727e7289edf1260c438a4b167a2b52c64fd4514fe0ad8e601"],"id":"2UHdCYvoS46iiGN3moBEEEngW6n9ipj9fMvXuSVaQoQ8pUhMLo"}`, string(jsondata))
 
 	modelAcc := cs.MustAccount(util.EthID(mi.ID))
 	assert.Equal(input.Threshold, modelAcc.Threshold())
 	assert.Equal(input.Keepers, modelAcc.Keepers())
 
 	// transfer token to model account
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -173,16 +176,15 @@ func TestTxCreateModel(t *testing.T) {
 		From:      owner,
 		To:        &modelAcc.id,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 500),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer1))
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
 
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	fromGas += tt.Gas()
+	fromGas += ltx.Gas()
 	assert.Equal(fromGas*ctx.Price,
 		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal(fromGas*100,
@@ -195,7 +197,7 @@ func TestTxCreateModel(t *testing.T) {
 	assert.False(modelAcc.IsEmpty())
 
 	// transfer token from model account
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   ctx.ChainConfig().ChainID,
 		GasTip:    100,
@@ -203,16 +205,15 @@ func TestTxCreateModel(t *testing.T) {
 		From:      modelAcc.ID(),
 		To:        &ownerAcc.id,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 100),
-	}
-	assert.NoError(txData.SyntacticVerify())
-	assert.NoError(txData.SignWith(util.Signer1))
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
 
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	modelGas := tt.Gas()
+	modelGas := ltx.Gas()
 	assert.Equal((fromGas+modelGas)*ctx.Price,
 		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal((fromGas+modelGas)*100,
@@ -242,15 +243,15 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	}
 	assert.NoError(mi.SyntacticVerify())
 
-	tt := &ld.Transaction{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateModel,
 		ChainID: ctx.ChainConfig().ChainID,
 		From:    owner,
 		Data:    ld.MustMarshal(mi),
-	}
-	assert.NoError(tt.SyntacticVerify())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
 
-	itx, err := NewGenesisTx(tt)
+	itx, err := NewGenesisTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
@@ -270,7 +271,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"NameService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype NameService struct {\n\t\tname       String        (rename \"n\")\n\t\tlinked     optional ID20 (rename \"l\")\n\t\trecords    [String]      (rename \"rs\")\n\t\textensions [Any]         (rename \"es\")\n\t}","id":"7MJdfcQqjZiMogaPToZX1yJFvQvaYZ6t4"},"id":"XgFmsDsxNX6ZL2VcggxtNSb74ovVBqT68FEXKTa4JY4as5L9p"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"NameService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype NameService struct {\n\t\tname       String        (rename \"n\")\n\t\tlinked     optional ID20 (rename \"l\")\n\t\trecords    [String]      (rename \"rs\")\n\t\textensions [Any]         (rename \"es\")\n\t}","id":"NfDtAxd3oZZQhppsWfUa395M5QVKpu2KW"}},"id":"2odjaxo9b4nnyiKpV6VPHBsQ6PGt7yqwrffFL5xSWgkCeYgig9"}`, string(jsondata))
 
 	pm, err := service.ProfileModel()
 	assert.NoError(err)
@@ -282,16 +283,16 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	}
 	assert.NoError(mi.SyntacticVerify())
 
-	tt = &ld.Transaction{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeCreateModel,
 		ChainID: ctx.ChainConfig().ChainID,
 		Nonce:   1,
 		From:    owner,
 		Data:    ld.MustMarshal(mi),
-	}
-	assert.NoError(tt.SyntacticVerify())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
 
-	itx, err = NewGenesisTx(tt)
+	itx, err = NewGenesisTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
@@ -311,7 +312,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeCreateModel","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"KRKV4ykzkaWBf5f1hJ7SfMQd1kbsmwNFP"},"id":"2Xyz5As3Gp5EFPyuRuek9nHEBASeSZ6Gz7KuLhLwuAvq9JixMg"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"name":"ProfileService","threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"9oL4AQPVfwUFvYGrGpTL8AD3caEHfaGSU"}},"id":"jWNGhS4urmaz4snYgPbppXSrczGLxz72TgyMyd6TZD3VSzR75"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
