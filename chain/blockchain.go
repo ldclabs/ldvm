@@ -622,7 +622,7 @@ func (bc *blockChain) AddRemoteTxs(txs ...*ld.Transaction) error {
 		}
 	}
 
-	if tx.Type == ld.TypeTest {
+	if tx.Tx.Type == ld.TypeTest {
 		return errp.Errorf("TestTx should be in a batch transactions")
 	}
 	bc.txPool.AddRemote(tx)

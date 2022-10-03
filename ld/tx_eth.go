@@ -88,28 +88,22 @@ func (t *TxEth) Marshal() ([]byte, error) {
 		ErrorMap(t.tx.MarshalBinary())
 }
 
-func (t *TxEth) TxData(tx *TxData) *TxData {
-	if tx == nil {
-		tx = new(TxData)
-	}
-	tx.Type = TypeEth
-	tx.ChainID = gChainID
-	tx.Nonce = t.tx.Nonce()
-	tx.GasTip = 0 // legacy transaction and EIP2718 typed transaction don't have GasTipCap
-	tx.GasFeeCap = FromEthBalance(t.tx.GasFeeCap()).Uint64()
-	tx.From = t.from
-	tx.To = &t.to
-	tx.Token = nil
-	tx.Amount = FromEthBalance(t.tx.Value())
-	tx.Data = t.Bytes()
+func (t *TxEth) ToTransaction() *Transaction {
+	tx := new(Transaction)
+	tx.Tx.Type = TypeEth
+	tx.Tx.ChainID = gChainID
+	tx.Tx.Nonce = t.tx.Nonce()
+	tx.Tx.GasTip = 0 // legacy transaction and EIP2718 typed transaction don't have GasTipCap
+	tx.Tx.GasFeeCap = FromEthBalance(t.tx.GasFeeCap()).Uint64()
+	tx.Tx.From = t.from
+	tx.Tx.To = &t.to
+	tx.Tx.Token = nil
+	tx.Tx.Amount = FromEthBalance(t.tx.Value())
+	tx.Tx.Data = t.Bytes()
 	tx.Signatures = t.sigs
 	tx.ExSignatures = nil
 	tx.eth = t
 	return tx
-}
-
-func (t *TxEth) ToTransaction() *Transaction {
-	return t.TxData(nil).ToTransaction()
 }
 
 func (t *TxEth) Signers() (util.EthIDs, error) {

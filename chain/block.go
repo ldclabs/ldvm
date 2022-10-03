@@ -213,9 +213,9 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		tx := txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		if tx.GasFeeCap < b.ld.GasPrice {
+		if tx.Tx.GasFeeCap < b.ld.GasPrice {
 			tx.Err = fmt.Errorf("invalid gasFeeCap, expected >= %d, got %d",
-				b.ld.GasPrice, tx.GasFeeCap)
+				b.ld.GasPrice, tx.Tx.GasFeeCap)
 			return choices.Unknown, tx.Err
 		}
 		if tx.Gas() > feeCfg.MaxTxGas {

@@ -28,19 +28,19 @@ func TestTxDeleteData(t *testing.T) {
 	sender := util.Signer1.Address()
 	approver := util.Signer2.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -48,12 +48,13 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		To:        &constants.GenesisAccount,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -61,12 +62,13 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Token:     &constants.NativeToken,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -74,24 +76,24 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Amount:    big.NewInt(1),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
-	assert.ErrorContains(err, "nil to together with amount")
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -99,13 +101,14 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.TxUpdater{}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -113,13 +116,14 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
 	input = &ld.TxUpdater{ID: &util.DataIDEmpty}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -127,14 +131,15 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
 	did := util.DataID{1, 2, 3, 4}
 	input = &ld.TxUpdater{ID: &did}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -142,13 +147,14 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data version")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -156,10 +162,10 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	senderAcc := cs.MustAccount(sender)
@@ -184,7 +190,7 @@ func TestTxDeleteData(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -192,10 +198,10 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
@@ -229,7 +235,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(cs.SaveData(di))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas := tt.Gas()
+	senderGas := ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
 		itx.(*TxDeleteData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
@@ -245,10 +251,10 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2},"signatures":["4efd89df9fd7468f998d4c594069ea19b9a03615c5337cb3f41411d88377b7bf16c334450b5b2df4ca8bb94f98542e4df7d94ea923d67d444cd44a8d850fdd0601"],"id":"roRY61cNBBWRPxtKTQLhk4L4avuZcUpEoEwyZtUGTAwefpdWx"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2}},"sigs":["4efd89df9fd7468f998d4c594069ea19b9a03615c5337cb3f41411d88377b7bf16c334450b5b2df4ca8bb94f98542e4df7d94ea923d67d444cd44a8d850fdd0601"],"id":"2cfPGtkyWPf5ubHz5Wo3zTCY2NL5EZyT2fdgxuEymSs4T8b4Um"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -256,10 +262,10 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid version, expected 0, got 2")
@@ -277,7 +283,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(cs.SaveData(di))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2, Data: []byte(`421`)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -285,10 +291,10 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 

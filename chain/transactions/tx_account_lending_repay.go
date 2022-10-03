@@ -20,11 +20,11 @@ func (tx *TxRepay) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as lender")
 
-	case tx.ld.Amount == nil || tx.ld.Amount.Sign() <= 0:
-		return errp.Errorf("invalid amount, expected > 0, got %v", tx.ld.Amount)
+	case tx.ld.Tx.Amount == nil || tx.ld.Tx.Amount.Sign() <= 0:
+		return errp.Errorf("invalid amount, expected > 0, got %v", tx.ld.Tx.Amount)
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func (tx *TxRepay) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	actual, err := tx.to.Repay(tx.token, tx.ld.From, tx.ld.Amount)
+	actual, err := tx.to.Repay(tx.token, tx.ld.Tx.From, tx.ld.Tx.Amount)
 	if err != nil {
 		return errp.ErrorIf(err)
 	}

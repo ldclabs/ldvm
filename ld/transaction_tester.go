@@ -25,26 +25,24 @@ func MustNewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) 
 
 func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Transaction, error) {
 	var err error
-	txData := &TxData{
-		Type:      ty,
-		ChainID:   gChainID,
-		Nonce:     signer.Nonce(),
-		GasTip:    0,
-		GasFeeCap: constants.LDC,
-		From:      signer.Address(),
-		To:        to,
-		Data:      data,
+	tx := &Transaction{
+		Tx: TxData{
+			Type:      ty,
+			ChainID:   gChainID,
+			Nonce:     signer.Nonce(),
+			GasTip:    0,
+			GasFeeCap: constants.LDC,
+			From:      signer.Address(),
+			To:        to,
+			Data:      data,
+		},
 	}
 	if to != nil {
-		txData.Amount = new(big.Int).SetUint64(constants.LDC)
+		tx.Tx.Amount = new(big.Int).SetUint64(constants.LDC)
 	}
-	if err = txData.SyntacticVerify(); err != nil {
+	if err := tx.SignWith(signer); err != nil {
 		return nil, err
 	}
-	if err := txData.SignWith(signer); err != nil {
-		return nil, err
-	}
-	tx := txData.ToTransaction()
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, err
 	}

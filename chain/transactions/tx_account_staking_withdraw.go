@@ -29,7 +29,7 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -42,25 +42,25 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as stake account")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
-	if stake := util.StakeSymbol(*tx.ld.To); !stake.Valid() {
+	if stake := util.StakeSymbol(*tx.ld.Tx.To); !stake.Valid() {
 		return errp.Errorf("invalid stake account %s", stake.GoString())
 	}
 
 	tx.input = &ld.TxTransfer{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -100,7 +100,7 @@ func (tx *TxWithdrawStake) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	// must WithdrawStake and then accept
-	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.From, tx.signers, tx.input.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.Tx.From, tx.signers, tx.input.Amount)
 	if err != nil {
 		return errp.ErrorIf(err)
 	}

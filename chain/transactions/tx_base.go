@@ -46,11 +46,11 @@ func (tx *TxBase) ID() ids.ID {
 }
 
 func (tx *TxBase) Type() ld.TxType {
-	return tx.ld.Type
+	return tx.ld.Tx.Type
 }
 
 func (tx *TxBase) Bytes() []byte {
-	return tx.ld.Bytes()
+	return tx.ld.Tx.Bytes()
 }
 
 func (tx *TxBase) SyntacticVerify() error {
@@ -61,10 +61,10 @@ func (tx *TxBase) SyntacticVerify() error {
 	case tx == nil || tx.ld == nil:
 		return errp.Errorf("nil pointer")
 
-	case tx.ld.From == util.EthIDEmpty:
+	case tx.ld.Tx.From == util.EthIDEmpty:
 		return errp.Errorf("invalid from")
 
-	case tx.ld.To != nil && tx.ld.From == *tx.ld.To:
+	case tx.ld.Tx.To != nil && tx.ld.Tx.From == *tx.ld.Tx.To:
 		return errp.Errorf("invalid to")
 	}
 
@@ -72,12 +72,12 @@ func (tx *TxBase) SyntacticVerify() error {
 	if err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.ld.Token != nil {
-		tx.token = *tx.ld.Token
+	if tx.ld.Tx.Token != nil {
+		tx.token = *tx.ld.Tx.Token
 	}
 	tx.amount = new(big.Int)
-	if tx.ld.Amount != nil {
-		tx.amount.Set(tx.ld.Amount)
+	if tx.ld.Tx.Amount != nil {
+		tx.amount.Set(tx.ld.Tx.Amount)
 	}
 	return nil
 }
@@ -86,9 +86,9 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 	var err error
 	feeCfg := ctx.FeeConfig()
 
-	if price := ctx.GasPrice().Uint64(); tx.ld.GasFeeCap < price {
+	if price := ctx.GasPrice().Uint64(); tx.ld.Tx.GasFeeCap < price {
 		return fmt.Errorf("invalid gasFeeCap, expected >= %d, got %d",
-			price, tx.ld.GasFeeCap)
+			price, tx.ld.Tx.GasFeeCap)
 	}
 
 	gas := tx.ld.Gas()
@@ -97,7 +97,7 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 			feeCfg.MaxTxGas, gas)
 	}
 	gb := new(big.Int).SetUint64(gas)
-	tx.tip = new(big.Int).Mul(gb, new(big.Int).SetUint64(tx.ld.GasTip))
+	tx.tip = new(big.Int).Mul(gb, new(big.Int).SetUint64(tx.ld.Tx.GasTip))
 	tx.fee = new(big.Int).Mul(gb, ctx.GasPrice())
 	tx.cost = new(big.Int).Add(tx.tip, tx.fee)
 
@@ -107,25 +107,25 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
 		return err
 	}
-	if tx.from, err = cs.LoadAccount(tx.ld.From); err != nil {
+	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {
 		return err
 	}
-	if err = tx.from.CheckAsFrom(tx.ld.Type); err != nil {
+	if err = tx.from.CheckAsFrom(tx.ld.Tx.Type); err != nil {
 		return err
 	}
-	if tx.ld.To != nil {
-		if tx.to, err = cs.LoadAccount(*tx.ld.To); err != nil {
+	if tx.ld.Tx.To != nil {
+		if tx.to, err = cs.LoadAccount(*tx.ld.Tx.To); err != nil {
 			return err
 		}
-		if err = tx.to.CheckAsTo(tx.ld.Type); err != nil {
+		if err = tx.to.CheckAsTo(tx.ld.Tx.Type); err != nil {
 			return err
 		}
 	}
 
 	switch {
-	case tx.ld.Nonce != tx.from.Nonce():
+	case tx.ld.Tx.Nonce != tx.from.Nonce():
 		return fmt.Errorf("invalid nonce for sender, expected %d, got %d",
-			tx.from.Nonce(), tx.ld.Nonce)
+			tx.from.Nonce(), tx.ld.Tx.Nonce)
 
 	case !tx.from.SatisfySigning(tx.signers):
 		return fmt.Errorf("invalid signatures for sender")
@@ -155,7 +155,7 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 
 func (tx *TxBase) accept(ctx ChainContext, cs ChainState) error {
 	var err error
-	if err = tx.from.SubByNonce(constants.NativeToken, tx.ld.Nonce, tx.cost); err != nil {
+	if err = tx.from.SubByNonce(constants.NativeToken, tx.ld.Tx.Nonce, tx.cost); err != nil {
 		return err
 	}
 

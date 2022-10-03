@@ -171,16 +171,18 @@ func (api *EthAPI) estimateGas(req *jsonrpc.Req) *jsonrpc.Res {
 	}
 
 	// mock tx to estimate gas cost
-	tx := &ld.TxData{
-		Type:       ld.TypeTransfer,
-		ChainID:    api.bc.Context().ChainConfig().ChainID,
-		Nonce:      10000,
-		GasTip:     1000,
-		GasFeeCap:  1000000,
-		From:       txs[0].From,
-		To:         &txs[0].To,
-		Amount:     ld.FromEthBalance(txs[0].GetValue()),
-		Data:       util.RawData(txs[0].Data),
+	tx := &ld.Transaction{
+		Tx: ld.TxData{
+			Type:      ld.TypeTransfer,
+			ChainID:   api.bc.Context().ChainConfig().ChainID,
+			Nonce:     10000,
+			GasTip:    1000,
+			GasFeeCap: 1000000,
+			From:      txs[0].From,
+			To:        &txs[0].To,
+			Amount:    ld.FromEthBalance(txs[0].GetValue()),
+			Data:      util.RawData(txs[0].Data),
+		},
 		Signatures: []util.Signature{util.SignatureEmpty},
 	}
 
@@ -548,15 +550,15 @@ func toEthTxs(blk *ld.Block, id ids.ID) []map[string]interface{} {
 		etx := map[string]interface{}{
 			"blockHash":        blkID,
 			"blockNumber":      blkNumber,
-			"from":             tx.From.String(),
+			"from":             tx.Tx.From.String(),
 			"gas":              formatUint64(tx.Gas()),
 			"gasPrice":         gasPrice,
 			"hash":             formatBytes(tx.ID[:]),
 			"input":            "0x",
-			"nonce":            formatUint64(tx.Nonce),
-			"to":               tx.To.String(),
+			"nonce":            formatUint64(tx.Tx.Nonce),
+			"to":               tx.Tx.To.String(),
 			"transactionIndex": formatUint64(uint64(i)),
-			"value":            formatEthBalance(tx.Amount),
+			"value":            formatEthBalance(tx.Tx.Amount),
 			"v":                "0x0",
 			"r":                "0x",
 			"s":                "0x",
@@ -593,8 +595,8 @@ func toEthReceipt(blk *ld.Block, id ids.ID) map[string]interface{} {
 			"transactionIndex":  formatUint64(uint64(i)),
 			"blockHash":         formatBytes(blk.ID[:]),
 			"blockNumber":       formatUint64(blk.Height),
-			"from":              tx.From.String(),
-			"to":                tx.To.String(),
+			"from":              tx.Tx.From.String(),
+			"to":                tx.Tx.To.String(),
 			"cumulativeGasUsed": formatUint64(blk.Gas),
 			"gasUsed":           formatUint64(tx.Gas()),
 			"contractAddress":   nil,

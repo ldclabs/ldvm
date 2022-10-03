@@ -158,7 +158,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 			switch {
 			case tx.IsBatched():
 				status = nblk.BuildTxs(nvbs, tx.Txs()...)
-			case tx.Type == ld.TypeTest:
+			case tx.Tx.Type == ld.TypeTest:
 				tx.Err = fmt.Errorf("TextTx should be in a batch txs")
 				status = choices.Rejected
 			default:

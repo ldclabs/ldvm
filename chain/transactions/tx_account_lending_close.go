@@ -20,13 +20,13 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To != nil:
+	case tx.ld.Tx.To != nil:
 		return errp.Errorf("invalid to, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 	}
 	return nil

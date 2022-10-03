@@ -31,7 +31,7 @@ func (tx *TxTransferPay) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -44,18 +44,18 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To == nil:
+	case tx.ld.Tx.To == nil:
 		return errp.Errorf("invalid to")
 
-	case tx.ld.Amount == nil:
+	case tx.ld.Tx.Amount == nil:
 		return errp.Errorf("invalid amount")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.TxTransfer{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 
@@ -64,16 +64,16 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.input.From != nil && *tx.input.From != tx.ld.From:
+	case tx.input.From != nil && *tx.input.From != tx.ld.Tx.From:
 		return errp.Errorf("invalid sender, expected %s, got %s",
-			*tx.input.From, tx.ld.From)
+			*tx.input.From, tx.ld.Tx.From)
 
 	case tx.input.To == nil:
 		return errp.Errorf("nil recipient")
 
-	case *tx.input.To != *tx.ld.To:
+	case *tx.input.To != *tx.ld.Tx.To:
 		return errp.Errorf("invalid recipient, expected %s, got %s",
-			tx.input.To, *tx.ld.To)
+			tx.input.To, *tx.ld.Tx.To)
 
 	case tx.input.Token == nil && tx.token != constants.NativeToken:
 		return errp.Errorf("invalid token, expected %s, got %s",
@@ -86,9 +86,9 @@ func (tx *TxTransferPay) SyntacticVerify() error {
 	case tx.input.Amount == nil:
 		return errp.Errorf("nil amount")
 
-	case tx.input.Amount.Cmp(tx.ld.Amount) != 0:
+	case tx.input.Amount.Cmp(tx.ld.Tx.Amount) != 0:
 		return errp.Errorf("invalid amount, expected %v, got %v",
-			tx.input.Amount, tx.ld.Amount)
+			tx.input.Amount, tx.ld.Tx.Amount)
 
 	case tx.input.Expire > 0 && tx.input.Expire < tx.ld.Timestamp:
 		return errp.Errorf("data expired")

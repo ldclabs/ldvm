@@ -31,7 +31,7 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
-	v.Data = d
+	v.Tx.Data = d
 	return errp.ErrorMap(json.Marshal(v))
 }
 
@@ -44,21 +44,21 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 	}
 
 	switch {
-	case tx.ld.To != nil:
+	case tx.ld.Tx.To != nil:
 		return errp.Errorf("invalid to, should be nil")
 
-	case tx.ld.Token != nil:
+	case tx.ld.Tx.Token != nil:
 		return errp.Errorf("invalid token, should be nil")
 
-	case tx.ld.Amount != nil:
+	case tx.ld.Tx.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case len(tx.ld.Data) == 0:
+	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
 	}
 
 	tx.input = &ld.ModelInfo{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -74,7 +74,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	errp := util.ErrPrefix("TxCreateModel.ApplyGenesis error: ")
 
 	tx.input = &ld.ModelInfo{}
-	if err = tx.input.Unmarshal(tx.ld.Data); err != nil {
+	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if err = tx.input.SyntacticVerify(); err != nil {
@@ -95,7 +95,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.from, err = cs.LoadAccount(tx.ld.From); err != nil {
+	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {
 		return errp.ErrorIf(err)
 	}
 

@@ -31,31 +31,33 @@ func TestTxWithdrawStake(t *testing.T) {
 	sender := util.Signer1.Address()
 	keeper := util.Signer2.Address()
 
-	txData := &ld.TxData{
+	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SyntacticVerify())
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SyntacticVerify())
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "DeriveSigners error: no signature")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as stake account")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -64,12 +66,13 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Token:     &token,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -78,12 +81,13 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Amount:    big.NewInt(1),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -91,12 +95,13 @@ func TestTxWithdrawStake(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		To:        &stakeid,
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -105,12 +110,13 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &constants.GenesisAccount,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid stake account 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
 
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -119,13 +125,14 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      []byte("你好👋"),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
 
 	input := &ld.TxTransfer{Nonce: 1}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -134,13 +141,14 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid nonce, expected 0, got 1")
 
 	input = &ld.TxTransfer{From: &sender}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -149,14 +157,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
 		"invalid from, expected nil, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 
 	input = &ld.TxTransfer{To: &keeper}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -165,14 +174,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
 		"invalid to, expected nil, got 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
 
 	input = &ld.TxTransfer{Amount: nil}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -181,13 +191,14 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	_, err = NewTx2(txData.ToTransaction())
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount, expected >= 0")
 
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -196,15 +207,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt := txData.ToTransaction()
-	itx, err := NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err := NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxWithdrawStake.Apply error: Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 1032900, got 0")
+		"TxWithdrawStake.Apply error: Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 1056000, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
@@ -227,7 +238,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		Keepers:   &util.EthIDs{util.Signer2.Address()},
 		Data:      ld.MustMarshal(scfg),
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -237,11 +248,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		To:        &stakeid,
 		Amount:    new(big.Int).Set(ctx.FeeConfig().MinStakePledge),
 		Data:      sinput.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	keeperAcc := cs.MustAccount(keeper)
@@ -249,7 +260,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	keeperGas := tt.Gas()
+	keeperGas := ltx.Gas()
 	stakeAcc := cs.MustAccount(stakeid)
 	assert.Equal(keeperGas*ctx.Price,
 		itx.(*TxCreateStake).ldc.Balance().Uint64())
@@ -269,7 +280,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Nil(stakeAcc.ledger.Stake[keeper.AsKey()])
 
 	input = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -278,10 +289,10 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -291,7 +302,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -300,11 +311,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -313,7 +324,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	ctx.timestamp += 1
 	cs.CheckoutAccounts()
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -322,11 +333,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -342,7 +353,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		Expire: cs.Timestamp(),
 		Data:   util.MustMarshalCBOR(cs.Timestamp()),
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
@@ -353,18 +364,18 @@ func TestTxWithdrawStake(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.ExSignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	senderAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas := tt.Gas()
+	senderGas := ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -383,7 +394,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	// add stake approver for testing
 	input2 := &ld.TxAccounter{Approver: &keeper}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -392,14 +403,14 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input2.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxUpdateStakeApprover).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -415,7 +426,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(keeper, *senderEntry.Approver)
 
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -424,11 +435,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -437,7 +448,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	ctx.timestamp += 1
 	cs.CheckoutAccounts()
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -446,11 +457,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -458,7 +469,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	cs.CheckoutAccounts()
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -467,12 +478,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -491,7 +501,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		Amount: new(big.Int).SetUint64(constants.LDC * 5),
 		Expire: cs.Timestamp(),
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
@@ -502,18 +512,18 @@ func TestTxWithdrawStake(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 5),
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer2))
-	assert.NoError(txData.ExSignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	keeperAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	keeperGas += tt.Gas()
+	keeperGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -530,7 +540,7 @@ func TestTxWithdrawStake(t *testing.T) {
 
 	stakeAcc.Sub(token, new(big.Int).SetUint64(constants.LDC*10))
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -539,12 +549,11 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -559,7 +568,7 @@ func TestTxWithdrawStake(t *testing.T) {
 		Amount: new(big.Int).SetUint64(constants.LDC * 5),
 		Expire: cs.Timestamp(),
 	}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -570,16 +579,16 @@ func TestTxWithdrawStake(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 5),
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer2))
-	assert.NoError(txData.ExSignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	keeperGas += tt.Gas()
+	keeperGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxTakeStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -595,7 +604,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
@@ -604,16 +613,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxWithdrawStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -634,12 +642,12 @@ func TestTxWithdrawStake(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeWithdrawStake","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"token":"$TEST","amount":20000000000},"signatures":["182a2ebf98042157bb3120f8be02b9cc231fb3d5777f0b919f07d022fb179da609e343e7e0e2491bd10f056bc4c1baf7f73b5790c37600cd8e6767761160e9a201","ce64723d37705370e54e86091fc30b59cf8ba8bacbd8358daa54eee8d57c25114b774c02b77fb292ad9b728f3ced3ce32db7ed35d7da5aa2fc819c6f80a79fe000"],"id":"2NcanD819AXwpLLkdWgr4otjbWWCcAGfFH7K4SferyRGYyNMhY"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeWithdrawStake","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"token":"$TEST","amount":20000000000}},"sigs":["182a2ebf98042157bb3120f8be02b9cc231fb3d5777f0b919f07d022fb179da609e343e7e0e2491bd10f056bc4c1baf7f73b5790c37600cd8e6767761160e9a201","ce64723d37705370e54e86091fc30b59cf8ba8bacbd8358daa54eee8d57c25114b774c02b77fb292ad9b728f3ced3ce32db7ed35d7da5aa2fc819c6f80a79fe000"],"id":"2LT85h4azRxJeLD2mGYBn8XvT33Pgr3W4rGGPPfW5PNPdP7n9f"}`, string(jsondata))
 
 	// clear up sender' stake entry when no stake and approver.
 	stakeAcc.ledger.Stake[sender.AsKey()].Approver = nil
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(0)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     3,
@@ -648,15 +656,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer1))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	senderGas += tt.Gas()
+	senderGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxWithdrawStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
@@ -674,7 +682,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*20-withdrawFee))
 	assert.Equal(constants.LDC*20, stakeAcc.balanceOf(token).Uint64())
 	input = &ld.TxTransfer{Token: &token, Amount: new(big.Int).SetUint64(constants.LDC * 20)}
-	txData = &ld.TxData{
+	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeWithdrawStake,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     3,
@@ -683,15 +691,15 @@ func TestTxWithdrawStake(t *testing.T) {
 		From:      keeper,
 		To:        &stakeid,
 		Data:      input.Bytes(),
-	}
-	assert.NoError(txData.SignWith(util.Signer2))
-	tt = txData.ToTransaction()
-	tt.Timestamp = cs.Timestamp()
-	itx, err = NewTx2(tt)
+	}}
+	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	ltx.Timestamp = cs.Timestamp()
+	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.NoError(itx.Apply(ctx, cs))
 
-	keeperGas += tt.Gas()
+	keeperGas += ltx.Gas()
 	assert.Equal((keeperGas+senderGas)*ctx.Price,
 		itx.(*TxWithdrawStake).ldc.Balance().Uint64())
 	assert.Equal((keeperGas+senderGas)*100,
