@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,8 +28,8 @@ func TestTxEth(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 
-	from := cs.MustAccount(util.Signer1.Address())
-	to := cs.MustAccount(util.Signer2.Address())
+	from := cs.MustAccount(signer.Signer1.Key().Address())
+	to := cs.MustAccount(signer.Signer2.Key().Address())
 
 	testTo := common.Address(to.id)
 
@@ -84,11 +84,11 @@ func TestTxEth(t *testing.T) {
 	tx.ld.Tx.Amount = big.NewInt(1_000_000)
 	sigs := tx.ld.Signatures
 	tx.ld.Signatures = nil
-	assert.ErrorContains(itx.SyntacticVerify(), "invalid signatures")
-	tx.ld.Signatures = []util.Signature{{}}
+	assert.ErrorContains(itx.SyntacticVerify(), "no signatures")
+	tx.ld.Signatures = signer.Sigs{{}}
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid signatures")
 	tx.ld.Signatures = sigs
-	tx.ld.ExSignatures = []util.Signature{}
+	tx.ld.ExSignatures = signer.Sigs{}
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid exSignatures")
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
@@ -115,7 +115,7 @@ func TestTxEth(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x01f86d8209358085e8d4a51000809444171c37ff5d7b7bb8dcad5c81f16284a229e64187038d7ea4c6800080c080a01da0480ceece3e7dc8cc88fe962b29decbabf7c64b1e4acb4e3317fe8953a0d3a01ba1253e2bccbb7ec2f4359111f2c29b3c8c69e6ed56fe66a3c10b658ba7efc4c3037b00"},"sigs":["1da0480ceece3e7dc8cc88fe962b29decbabf7c64b1e4acb4e3317fe8953a0d31ba1253e2bccbb7ec2f4359111f2c29b3c8c69e6ed56fe66a3c10b658ba7efc400"],"id":"2rSG3GB6X3cySkF2ZXuYLRBTWeoH81J9fgRwLqQpdxqugYszuE"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"Afhtggk1gIXo1KUQAICURBccN_9de3u43K1cgfFihKIp5kGHA41-pMaAAIDAgKAdoEgM7s4-fcjMiP6WKyney6v3xkseSstOMxf-iVOg06AboSU-K8y7fsL0NZER8sKbPIxp5u1W_majwQtli6fvxNKn68g"},"sigs":["HaBIDO7OPn3IzIj-lisp3sur98ZLHkrLTjMX_olToNMboSU-K8y7fsL0NZER8sKbPIxp5u1W_majwQtli6fvxAD1gFQV"],"id":"8_IJeoNODJbFU-y0c3MZhjUcTqTL8yUttza6-S8dRQ1S4v3t"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

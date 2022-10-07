@@ -16,7 +16,7 @@ type TxTransfer struct {
 
 func (tx *TxTransfer) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxTransfer.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxTransfer.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -35,7 +35,7 @@ func (tx *TxTransfer) SyntacticVerify() error {
 // ApplyGenesis skipping signature verification
 func (tx *TxTransfer) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransfer.ApplyGenesis error: ")
+	errp := util.ErrPrefix("transactions.TxTransfer.ApplyGenesis: ")
 
 	tx.amount = new(big.Int).Set(tx.ld.Tx.Amount)
 	tx.tip = new(big.Int)

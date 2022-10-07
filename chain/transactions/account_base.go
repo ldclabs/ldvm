@@ -11,25 +11,26 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
-type AccountCache map[util.EthID]*Account
+type AccountCache map[util.Address]*Account
 
 type Account struct {
 	ld         *ld.Account
 	ledger     *ld.AccountLedger
 	mu         sync.RWMutex
-	id         util.EthID // account address
-	pledge     *big.Int   // token account and stake account should have pledge
+	id         util.Address // account address
+	pledge     *big.Int     // token account and stake account should have pledge
 	ldHash     util.Hash
 	ledgerHash util.Hash
 }
 
-func NewAccount(id util.EthID) *Account {
+func NewAccount(id util.Address) *Account {
 	ld := &ld.Account{
 		ID:         id,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
@@ -45,8 +46,8 @@ func NewAccount(id util.EthID) *Account {
 	}
 }
 
-func ParseAccount(id util.EthID, data []byte) (*Account, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("ParseAccount(%s) error: ", id))
+func ParseAccount(id util.Address, data []byte) (*Account, error) {
+	errp := util.ErrPrefix(fmt.Sprintf("ParseAccount(%s): ", id))
 
 	a := NewAccount(id)
 	if err := a.ld.Unmarshal(data); err != nil {
@@ -75,7 +76,7 @@ func (a *Account) Ledger() *ld.AccountLedger {
 }
 
 func (a *Account) InitLedger(data []byte) error {
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).InitLedger error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).InitLedger: ", a.id))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -91,8 +92,12 @@ func (a *Account) InitLedger(data []byte) error {
 	return nil
 }
 
-func (a *Account) ID() util.EthID {
+func (a *Account) ID() util.Address {
 	return a.id
+}
+
+func (a *Account) IDKey() signer.Key {
+	return signer.Key(a.id.Bytes())
 }
 
 func (a *Account) LD() *ld.Account {
@@ -122,7 +127,7 @@ func (a *Account) valid(t ld.AccountType) bool {
 	case t == ld.NativeAccount && a.ld.Balance.Sign() >= 0:
 		return true
 
-	case (a.IsEmpty() && a.id != util.EthIDEmpty) || a.ld.Balance.Cmp(a.pledge) < 0:
+	case (a.IsEmpty() && a.id != util.AddressEmpty) || a.ld.Balance.Cmp(a.pledge) < 0:
 		return false
 
 	case t == ld.TokenAccount && (a.ld.MaxTotalSupply == nil || a.ld.MaxTotalSupply.Sign() <= 0):
@@ -134,6 +139,14 @@ func (a *Account) valid(t ld.AccountType) bool {
 	default:
 		return true
 	}
+}
+
+func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
+	return a.ld.Verify(digestHash, sigs, accountKey)
+}
+
+func (a *Account) VerifyPlus(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
+	return a.ld.VerifyPlus(digestHash, sigs, accountKey)
 }
 
 func (a *Account) Nonce() uint64 {
@@ -202,7 +215,7 @@ func (a *Account) CheckBalance(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckBalance error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckBalance: ", a.id))
 	return errp.ErrorIf(a.checkBalance(token, amount))
 }
 
@@ -220,7 +233,7 @@ func (a *Account) checkBalance(token util.TokenSymbol, amount *big.Int) error {
 }
 
 func (a *Account) CheckAsFrom(txType ld.TxType) error {
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckAsFrom error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckAsFrom: ", a.id))
 
 	switch a.ld.Type {
 	case ld.TokenAccount:
@@ -268,7 +281,7 @@ func (a *Account) CheckAsFrom(txType ld.TxType) error {
 }
 
 func (a *Account) CheckAsTo(txType ld.TxType) error {
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckAsTo error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CheckAsTo: ", a.id))
 
 	switch a.ld.Type {
 	case ld.TokenAccount:
@@ -297,46 +310,18 @@ func (a *Account) Threshold() uint16 {
 	return a.ld.Threshold
 }
 
-func (a *Account) Keepers() util.EthIDs {
+func (a *Account) Keepers() signer.Keys {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	return a.ld.Keepers
 }
 
-func (a *Account) SatisfySigning(signers util.EthIDs) bool {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	switch {
-	case a.id == constants.LDCAccount:
-		return false
-	case a.IsEmpty() && signers.Has(a.id):
-		return true
-	default:
-		return util.SatisfySigning(a.ld.Threshold, a.ld.Keepers, signers, false)
-	}
-}
-
-func (a *Account) SatisfySigningPlus(signers util.EthIDs) bool {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	switch {
-	case a.id == constants.LDCAccount:
-		return false
-	case a.IsEmpty() && signers.Has(a.id):
-		return true
-	default:
-		return util.SatisfySigningPlus(a.ld.Threshold, a.ld.Keepers, signers)
-	}
-}
-
 func (a *Account) Add(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Add error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Add: ", a.id))
 
 	switch {
 	case amount == nil || amount.Sign() < 0:
@@ -363,7 +348,7 @@ func (a *Account) Sub(token util.TokenSymbol, amount *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Sub error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Sub: ", a.id))
 	if err := a.checkBalance(token, amount); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -392,7 +377,7 @@ func (a *Account) SubByNonce(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).SubByNonce error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).SubByNonce: ", a.id))
 	if a.ld.Nonce != nonce {
 		return errp.Errorf("invalid nonce, expected %d, got %d", a.ld.Nonce, nonce)
 	}
@@ -413,7 +398,7 @@ func (a *Account) SubByNonceTable(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).SubByNonceTable error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).SubByNonceTable: ", a.id))
 	uu, ok := a.ld.NonceTable[expire]
 	i := -1
 	if ok {
@@ -447,7 +432,7 @@ func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).AddNonceTable error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).AddNonceTable: ", a.id))
 	if len(a.ld.NonceTable) >= 1024 {
 		return errp.Errorf("too many NonceTable groups, expected <= 1024")
 	}
@@ -475,23 +460,23 @@ func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
 
 func (a *Account) UpdateKeepers(
 	threshold *uint16,
-	keepers *util.EthIDs,
-	approver *util.EthID,
-	approveList ld.TxTypes,
+	keepers *signer.Keys,
+	approver *signer.Key,
+	approveList *ld.TxTypes,
 ) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	if approver != nil {
-		if *approver == util.EthIDEmpty {
+		if len(*approver) == 0 {
 			a.ld.Approver = nil
 			a.ld.ApproveList = nil
 		} else {
-			a.ld.Approver = approver
+			a.ld.Approver = *approver
 		}
 	}
 	if approveList != nil {
-		a.ld.ApproveList = approveList
+		a.ld.ApproveList = *approveList
 	}
 	if threshold != nil && keepers != nil {
 		a.ld.Threshold = *threshold
@@ -505,13 +490,13 @@ func (a *Account) Marshal() ([]byte, []byte, error) {
 	defer a.mu.Unlock()
 
 	if err := a.ld.SyntacticVerify(); err != nil {
-		return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal error: ", a.id)).ErrorIf(err)
+		return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal: ", a.id)).ErrorIf(err)
 	}
 
 	var ledger []byte
 	if a.ledger != nil {
 		if err := a.ledger.SyntacticVerify(); err != nil {
-			return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal error: ", a.id)).ErrorIf(err)
+			return nil, nil, util.ErrPrefix(fmt.Sprintf("Account(%s).Marshal: ", a.id)).ErrorIf(err)
 		}
 		ledger = a.ledger.Bytes()
 	}

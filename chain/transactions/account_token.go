@@ -16,7 +16,7 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateToken error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateToken: ", a.id))
 	token := util.TokenSymbol(a.id)
 	if !token.Valid() {
 		return errp.Errorf("invalid token %s", token.GoString())
@@ -34,8 +34,13 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 	default:
 		a.ld.Threshold = *data.Threshold
 		a.ld.Keepers = *data.Keepers
-		a.ld.Approver = data.Approver
-		a.ld.ApproveList = data.ApproveList
+
+		if data.Approver != nil && data.Approver.Valid() == nil {
+			a.ld.Approver = *data.Approver
+		}
+		if data.ApproveList != nil {
+			a.ld.ApproveList = *data.ApproveList
+		}
 		a.ld.Tokens[token.AsKey()] = new(big.Int).Set(data.Amount)
 	}
 	return nil
@@ -45,7 +50,7 @@ func (a *Account) DestroyToken(recipient *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyToken error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyToken: ", a.id))
 	token := util.TokenSymbol(a.id)
 	if !a.valid(ld.TokenAccount) {
 		return errp.Errorf("invalid token account %s", token.GoString())

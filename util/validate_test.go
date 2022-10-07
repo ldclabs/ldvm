@@ -4,9 +4,7 @@
 package util
 
 import (
-	"fmt"
 	"testing"
-	"unicode"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -39,7 +37,7 @@ func TestValidLink(t *testing.T) {
 
 	assert.True(ValidLink(""))
 	assert.True(ValidLink("0x0000000000000000000000000000000000000000"))
-	assert.True(ValidLink("LM1111111111111111111Ax1asG"))
+	assert.True(ValidLink("LMAAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah"))
 	assert.True(ValidLink("mail:to"))
 	assert.True(ValidLink("https://hello.com/abc"))
 
@@ -61,18 +59,18 @@ func TestValidMessage(t *testing.T) {
 	assert.False(ValidMessage("\nHello, world!"))
 }
 
-func printRune(r rune) {
-	fmt.Println(unicode.IsControl(r), "IsControl")
-	fmt.Println(unicode.IsDigit(r), "IsDigit")
-	fmt.Println(unicode.IsGraphic(r), "IsGraphic")
-	fmt.Println(unicode.IsLetter(r), "IsLetter")
-	fmt.Println(unicode.IsLower(r), "IsLower")
-	fmt.Println(unicode.IsMark(r), "IsMark")
-	fmt.Println(unicode.IsNumber(r), "IsNumber")
-	fmt.Println(unicode.IsPrint(r), "IsPrint")
-	fmt.Println(unicode.IsPunct(r), "IsPunct")
-	fmt.Println(unicode.IsSpace(r), "IsSpace")
-	fmt.Println(unicode.IsSymbol(r), "IsSymbol")
-	fmt.Println(unicode.IsTitle(r), "IsTitle")
-	fmt.Println(unicode.IsUpper(r), "IsUpper")
-}
+// func printRune(r rune) {
+// 	fmt.Println(unicode.IsControl(r), "IsControl")
+// 	fmt.Println(unicode.IsDigit(r), "IsDigit")
+// 	fmt.Println(unicode.IsGraphic(r), "IsGraphic")
+// 	fmt.Println(unicode.IsLetter(r), "IsLetter")
+// 	fmt.Println(unicode.IsLower(r), "IsLower")
+// 	fmt.Println(unicode.IsMark(r), "IsMark")
+// 	fmt.Println(unicode.IsNumber(r), "IsNumber")
+// 	fmt.Println(unicode.IsPrint(r), "IsPrint")
+// 	fmt.Println(unicode.IsPunct(r), "IsPunct")
+// 	fmt.Println(unicode.IsSpace(r), "IsSpace")
+// 	fmt.Println(unicode.IsSymbol(r), "IsSymbol")
+// 	fmt.Println(unicode.IsTitle(r), "IsTitle")
+// 	fmt.Println(unicode.IsUpper(r), "IsUpper")
+// }

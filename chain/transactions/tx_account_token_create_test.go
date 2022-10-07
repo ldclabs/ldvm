@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,10 +27,11 @@ func TestTxCreateToken(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	tokenid := util.EthID(token)
+	tokenid := util.Address(token)
 
-	sender := util.Signer1.Address()
-	approver := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
+	approverAddr := approver.Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -41,7 +43,7 @@ func TestTxCreateToken(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -51,7 +53,7 @@ func TestTxCreateToken(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as token account")
@@ -65,7 +67,7 @@ func TestTxCreateToken(t *testing.T) {
 		From:      sender,
 		To:        &tokenid,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -81,7 +83,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -96,7 +98,7 @@ func TestTxCreateToken(t *testing.T) {
 		To:        &tokenid,
 		Amount:    new(big.Int).SetUint64(100),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -112,7 +114,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -125,14 +127,14 @@ func TestTxCreateToken(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &approver,
+		To:        &approverAddr,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "invalid token 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+	assert.ErrorContains(err, "invalid token 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641")
 
 	input = &ld.TxAccounter{}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -146,14 +148,14 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(0),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -166,14 +168,14 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid threshold, expected >= 1")
 
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -186,37 +188,14 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
 
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
-		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
-		Approver:  &util.EthIDEmpty,
-	}
-	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeCreateToken,
-		ChainID:   ctx.ChainConfig().ChainID,
-		Nonce:     0,
-		GasTip:    100,
-		GasFeeCap: ctx.Price,
-		From:      sender,
-		To:        &tokenid,
-		Amount:    new(big.Int).SetUint64(100),
-		Data:      input.Bytes(),
-	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.SyntacticVerify())
-	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"invalid approver, expected not 0x0000000000000000000000000000000000000000")
-
-	input = &ld.TxAccounter{
-		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Name:      "LDC\nToken",
 	}
@@ -231,14 +210,14 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, `invalid name "LDC\nToken"`)
 
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Approver:  &approver,
 		Name:      "LD",
@@ -254,14 +233,38 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, `invalid name "LD", expected length >= 3`)
 
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
+		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
+		Approver:  &signer.Key{},
+		Name:      "LDC",
+	}
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeCreateToken,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		To:        &tokenid,
+		Amount:    new(big.Int).SetUint64(100),
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
+	assert.ErrorContains(err,
+		"invalid approver, signer.Key.Valid: empty key")
+
+	input = &ld.TxAccounter{
+		Threshold: ld.Uint16Ptr(1),
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Approver:  &approver,
 		Name:      "LDC",
@@ -277,7 +280,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -305,7 +308,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(10000000000000),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -326,15 +329,15 @@ func TestTxCreateToken(t *testing.T) {
 
 	assert.Equal(uint64(0), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
-	assert.Equal(approver, *tokenAcc.ld.Approver)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
+	assert.Equal(approver, tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x00000000000000000000000000000000244C4443","amount":10000000000000,"data":{"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":10000000000,"name":"LDC"}},"sigs":["f21b4c6de647dc55c9bf1d7ebc217f24d0f0d94e55633dcfc5697f36f77ae78b394ebd6d3389a66c644a6ff370ab67e065f8b23fe279d7bb773f736808c600dd00"],"id":"2M2yMrerj2vm7kaRitpY4VXTkvAg52ocTQwRpcfceWw3frJaNY"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x00000000000000000000000000000000244C4443","amount":10000000000000,"data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","amount":10000000000,"name":"LDC"}},"sigs":["8htMbeZH3FXJvx1-vCF_JNDw2U5VYz3PxWl_Nvd654s5Tr1tM4mmbGRKb_Nwq2fgZfiyP-J517t3P3NoCMYA3QC8upym"],"id":"sS-MItyigKpK8_aqbgoz9STjakL974USNZaCQdj1t1sZN1Xu"}`, string(jsondata))
 
 	// create again
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -348,7 +351,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(10000000000000),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -367,16 +370,16 @@ func TestTxCreateToken(t *testing.T) {
 		From:      tokenid,
 		To:        &sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyToken.Apply error: invalid signature for approver")
+		"TxDestroyToken.Apply: invalid signature for approver")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -394,7 +397,7 @@ func TestTxCreateToken(t *testing.T) {
 		itx.(*TxDestroyToken).miner.Balance().Uint64())
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
-	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
+	assert.Equal(signer.Keys{}, tokenAcc.Keepers())
 	assert.Equal(ld.NativeAccount, tokenAcc.ld.Type)
 	assert.Nil(tokenAcc.ld.Approver)
 	assert.Nil(tokenAcc.ld.MaxTotalSupply)
@@ -411,7 +414,7 @@ func TestTxCreateToken(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(10000000000000),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -425,8 +428,8 @@ func TestTxCreateToken(t *testing.T) {
 		itx.(*TxCreateToken).miner.Balance().Uint64())
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
-	assert.Equal(approver, *tokenAcc.ld.Approver)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
+	assert.Equal(approver, tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())
@@ -442,12 +445,12 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	sender := util.Signer1.Address()
+	sender := signer.Signer1.Key().Address()
 
 	// can not create the NativeToken
 	input := &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Name:      "NativeToken",
 	}
@@ -462,7 +465,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(10000000000000),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err := NewTx(ltx)
 	assert.ErrorContains(err,
@@ -498,7 +501,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 
 	assert.Equal(uint64(0), ldcAcc.Nonce())
 	assert.Equal(uint16(0), ldcAcc.Threshold())
-	assert.Equal(util.EthIDs{}, ldcAcc.Keepers())
+	assert.Equal(signer.Keys{}, ldcAcc.Keepers())
 	assert.Nil(ldcAcc.ld.Approver)
 	assert.Nil(ldcAcc.ld.ApproveList)
 	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(), ldcAcc.ld.MaxTotalSupply.Uint64())
@@ -507,7 +510,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","to":"0x0000000000000000000000000000000000000000","data":{"amount":1000000000000000000,"name":"Linked Data Chain","data":"Hello, LDVM!"}},"id":"2rGsZRNdiUHWVmPpsSEXzYA4wnr3YUdsTRLTMw2jSswtPdLky3"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","to":"0x0000000000000000000000000000000000000000","data":{"amount":1000000000000000000,"name":"Linked Data Chain","data":"Hello, LDVM!"}},"id":"85P0P5wJoPXpZF7BSALe1ronSxmtj0PkWzx5wlWYo52WX3ri"}`, string(jsondata))
 
 	// NativeToken cannot be destroy
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -519,10 +522,10 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		From:      constants.LDCAccount,
 		To:        &constants.GenesisAccount,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "TxBase.SyntacticVerify error: invalid from")
+	assert.ErrorContains(err, "TxBase.SyntacticVerify: invalid from")
 
 	assert.NoError(cs.VerifyState())
 }

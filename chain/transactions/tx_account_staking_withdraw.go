@@ -21,7 +21,7 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxWithdrawStake.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxWithdrawStake.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxWithdrawStake) MarshalJSON() ([]byte, error) {
 
 func (tx *TxWithdrawStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxWithdrawStake.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxWithdrawStake.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -89,7 +89,7 @@ func (tx *TxWithdrawStake) SyntacticVerify() error {
 
 func (tx *TxWithdrawStake) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxWithdrawStake.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxWithdrawStake.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -100,7 +100,7 @@ func (tx *TxWithdrawStake) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	// must WithdrawStake and then accept
-	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.Tx.From, tx.signers, tx.input.Amount)
+	withdraw, err := tx.to.WithdrawStake(tx.token, tx.ld.Tx.From, tx.input.Amount, tx.ld.IsApproved)
 	if err != nil {
 		return errp.ErrorIf(err)
 	}

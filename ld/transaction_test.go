@@ -10,6 +10,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,11 +41,11 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{ChainID: gChainID}
 	assert.NoError(tx.SyntacticVerify())
 
-	to := util.Signer2.Address()
+	to := signer.Signer2.Key().Address()
 	tx = &TxData{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
-		From:    util.Signer1.Address(),
+		From:    signer.Signer1.Key().Address(),
 		To:      &to,
 		Amount:  big.NewInt(1),
 	}
@@ -53,7 +54,7 @@ func TestTxData(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1}`, string(jsondata))
+	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1}`, string(jsondata))
 
 	tx2 := &TxData{}
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))
@@ -85,45 +86,45 @@ func TestTransaction(t *testing.T) {
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Data: util.RawData{}}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
 
-	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, Signatures: []util.Signature{}}
+	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, Signatures: signer.Sigs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty signatures")
 
-	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, ExSignatures: []util.Signature{}}
+	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, ExSignatures: signer.Sigs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty exSignatures")
 
-	to := util.Signer2.Address()
+	to := signer.Signer2.Key().Address()
 	tx = &Transaction{Tx: TxData{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
-		From:    util.Signer1.Address(),
+		From:    signer.Signer1.Key().Address(),
 		To:      &to,
 		Amount:  big.NewInt(1),
 		Data:    GenJSONData(1024 * 256),
 	}}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"Transaction.SyntacticVerify error: size too large, expected <= 262144, got 262228")
+		"Transaction.SyntacticVerify: size too large, expected <= 262144, got 262228")
 
 	tx = &Transaction{Tx: TxData{ChainID: gChainID}}
 	assert.NoError(tx.SyntacticVerify())
 
-	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
-	assert.Equal(44, len(tx.UnsignedBytes()))
+	assert.Equal(44, len(tx.Tx.Bytes()))
 	assert.Equal(119, len(tx.Bytes()))
 	assert.Equal(uint64(436), tx.Gas(), "a very small gas transaction")
 
 	tx = &Transaction{Tx: TxData{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
-		From:    util.Signer1.Address(),
+		From:    signer.Signer1.Key().Address(),
 		To:      &to,
 		Amount:  big.NewInt(1),
 		Data:    GenJSONData(1024 * 255),
 	}}
 
-	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
-	assert.Equal(261200, len(tx.UnsignedBytes()))
+	assert.Equal(261200, len(tx.Tx.Bytes()))
 	assert.Equal(261275, len(tx.Bytes()))
 	assert.Equal(uint64(7774227), tx.Gas(), "a very big gas transaction")
 
@@ -134,32 +135,28 @@ func TestTransaction(t *testing.T) {
 			Nonce:     1,
 			GasTip:    0,
 			GasFeeCap: 1000,
-			From:      util.Signer1.Address(),
+			From:      signer.Signer1.Key().Address(),
 			To:        &to,
 			Amount:    big.NewInt(1_000_000),
 		},
 	}
-	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
 	assert.Equal(len(tx.Bytes()), tx.BytesSize())
 	assert.Equal(uint64(638), tx.Gas())
 
-	signers, err := tx.Signers()
-	assert.NoError(err)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, signers)
-	_, err = tx.ExSigners()
-	assert.ErrorContains(err, `DeriveSigners error: empty data`)
-
+	approver := signer.Key(constants.GenesisAccount[:])
 	assert.False(tx.IsBatched())
-	assert.False(tx.NeedApprove(nil, nil))
-	assert.True(tx.NeedApprove(&constants.GenesisAccount, nil))
-	assert.True(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeTransfer}))
-	assert.False(tx.NeedApprove(&constants.GenesisAccount, TxTypes{TypeUpdateAccountInfo}))
+	assert.False(tx.needApprove(nil, nil))
+	assert.False(tx.needApprove(signer.Key{}, nil))
+	assert.True(tx.needApprove(approver, nil))
+	assert.True(tx.needApprove(approver, TxTypes{TypeTransfer}))
+	assert.False(tx.needApprove(approver, TxTypes{TypeUpdateAccountInfo}))
 
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"sigs":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"o87bat4Z2dnH1NKyzD3yMQYaBJKBwQZTmnhQHn4qQFNwDNe5T"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}`, string(jsondata))
 
 	tx1 := tx.Copy()
 	assert.NoError(tx1.SyntacticVerify())
@@ -176,7 +173,6 @@ func TestTransaction(t *testing.T) {
 	assert.NoError(tx2.SyntacticVerify())
 	assert.Equal(tx.ID, tx2.ID)
 	assert.Equal(tx.Bytes(), tx2.Bytes())
-	assert.Equal(tx.ShortID(), tx2.ShortID())
 
 	assert.Equal(uint64(638), tx2.Gas())
 
@@ -184,7 +180,6 @@ func TestTransaction(t *testing.T) {
 	assert.NoError(tx2.SyntacticVerify())
 	assert.NotEqual(tx.ID, tx2.ID)
 	assert.NotEqual(tx.Bytes(), tx2.Bytes())
-	assert.NotEqual(tx.ShortID(), tx2.ShortID())
 }
 
 func TestTxs(t *testing.T) {
@@ -199,20 +194,20 @@ func TestTxs(t *testing.T) {
 	assert.Equal(48, testTx.BytesSize())
 
 	_, err := NewBatchTx(testTx)
-	assert.ErrorContains(err, "NewBatchTx error: not batch transactions")
+	assert.ErrorContains(err, "NewBatchTx: not batch transactions")
 
-	to := util.Signer2.Address()
+	to := signer.Signer2.Key().Address()
 	tx1 := &Transaction{Tx: TxData{
 		Type:      TypeTransfer,
 		ChainID:   gChainID,
 		Nonce:     1,
 		GasTip:    0,
 		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
+		From:      signer.Signer1.Key().Address(),
 		To:        &to,
 		Amount:    big.NewInt(1_000_000),
 	}}
-	assert.NoError(tx1.SignWith(util.Signer1))
+	assert.NoError(tx1.SignWith(signer.Signer1))
 
 	tx2 := &Transaction{Tx: TxData{
 		Type:      TypeTransfer,
@@ -220,12 +215,12 @@ func TestTxs(t *testing.T) {
 		Nonce:     2,
 		GasTip:    0,
 		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
+		From:      signer.Signer1.Key().Address(),
 		To:        &to,
 		Amount:    big.NewInt(1_000_000),
 		Data:      []byte(`"👋"`),
 	}}
-	assert.NoError(tx2.SignWith(util.Signer1))
+	assert.NoError(tx2.SignWith(signer.Signer1))
 
 	txs, err := NewBatchTx(testTx, tx1, tx2)
 	assert.NoError(err)
@@ -248,11 +243,11 @@ func TestTxs(t *testing.T) {
 func TestTxsSort(t *testing.T) {
 	assert := assert.New(t)
 
-	to := util.Signer1.Address()
-	s0 := util.NewSigner()
-	s1 := util.NewSigner()
-	s2 := util.NewSigner()
-	s3 := util.NewSigner()
+	to := signer.Signer1.Key().Address()
+	s0 := signer.NewSigner()
+	s1 := signer.NewSigner()
+	s2 := signer.NewSigner()
+	s3 := signer.NewSigner()
 
 	stx0 := MustNewTestTx(s0, TypeTest, nil, nil)
 	stx1 := MustNewTestTx(s0, TypeTransfer, &to, GenJSONData(100))

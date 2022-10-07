@@ -22,7 +22,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxDeleteData.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxDeleteData.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -36,7 +36,7 @@ func (tx *TxDeleteData) MarshalJSON() ([]byte, error) {
 
 func (tx *TxDeleteData) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxDeleteData.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxDeleteData.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -79,7 +79,7 @@ func (tx *TxDeleteData) SyntacticVerify() error {
 
 func (tx *TxDeleteData) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxDeleteData.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxDeleteData.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -94,10 +94,10 @@ func (tx *TxDeleteData) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.Errorf("invalid version, expected %d, got %d",
 			tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigning(tx.di.Threshold, tx.di.Keepers, tx.signers, false):
+	case !tx.di.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures):
 		return errp.Errorf("invalid signatures for data keepers")
 
-	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.signers.Has(*tx.di.Approver):
+	case !tx.ld.IsApproved(tx.di.Approver, tx.di.ApproveList, false):
 		return errp.Errorf("invalid signature for data approver")
 	}
 

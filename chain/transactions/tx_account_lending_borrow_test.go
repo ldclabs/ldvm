@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,8 +26,8 @@ func TestTxBorrow(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	borrower := util.Signer1.Address()
-	lender := util.Signer2.Address()
+	borrower := signer.Signer1.Key().Address()
+	lender := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -38,9 +39,9 @@ func TestTxBorrow(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as lender")
@@ -55,7 +56,7 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
@@ -69,7 +70,7 @@ func TestTxBorrow(t *testing.T) {
 		From:      borrower,
 		To:        &lender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -84,7 +85,23 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
+	assert.ErrorContains(err, "no exSignatures")
+
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeBorrow,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      borrower,
+		To:        &lender,
+		Data:      []byte("你好👋"),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -100,7 +117,8 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil from as lender")
@@ -118,11 +136,12 @@ func TestTxBorrow(t *testing.T) {
 		To:        &constants.GenesisAccount,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to as borrower, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+		"invalid to as borrower, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	input = &ld.TxTransfer{
 		From: &lender,
@@ -137,7 +156,8 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as borrower")
@@ -156,11 +176,12 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid from as lender, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"invalid from as lender, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	input = &ld.TxTransfer{
 		From: &lender,
@@ -177,7 +198,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
@@ -199,7 +221,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &constants.NativeToken,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
@@ -221,7 +244,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
@@ -243,7 +267,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -271,7 +296,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -299,14 +325,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.SyntacticVerify())
-	ltx.Timestamp = cs.Timestamp()
-	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
-
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -320,7 +340,7 @@ func TestTxBorrow(t *testing.T) {
 	cs.MustAccount(borrower).Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: invalid lending")
+		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: invalid lending")
 	cs.CheckoutAccounts()
 
 	lcfg := &ld.LendingConfig{
@@ -339,7 +359,7 @@ func TestTxBorrow(t *testing.T) {
 		From:      lender,
 		Data:      ld.MustMarshal(lcfg),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -371,8 +391,8 @@ func TestTxBorrow(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -380,7 +400,7 @@ func TestTxBorrow(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxBorrow.Apply error: Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: invalid token, expected NativeLDC, got $LDC")
+		"TxBorrow.Apply: Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: invalid token, expected NativeLDC, got $LDC")
 	cs.CheckoutAccounts()
 
 	input = &ld.TxTransfer{
@@ -400,8 +420,8 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -409,13 +429,13 @@ func TestTxBorrow(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: insufficient NativeLDC balance, expected 1000000000, got 998155300")
+		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: insufficient NativeLDC balance, expected 1000000000, got 998155300")
 	cs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).SubByNonceTable error: nonce 0 not exists at 1000")
+		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).SubByNonceTable: nonce 0 not exists at 1000")
 	cs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.AddNonceTable(cs.Timestamp(), []uint64{0, 1}))
@@ -441,7 +461,7 @@ func TestTxBorrow(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000,"data":"0x1a00015568c54d609b"}},"sigs":["d23a9c587172465060d4fce7cf73770e3914a2d8f35622856083dab0fdd0bb4a1a8b65671392c6bd15d4eff1ae4cd79516ad5d5ea25571b6278571967c87458701"],"exSigs":["b82d77943d8761685f7ca432cf5059455a278bb34089cbb02d85b20cd87c430500002e111cb2f693c0c75ba2c96085fce89827c39d9c827b349fb873fac32eaa01"],"id":"yh6ajpWPzwMyFJAhyNho4vSezMtxyjNhxxDZY2X7o4hhoYyHE"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1000,"data":"GgABVWhrgiP-"}},"sigs":["0jqcWHFyRlBg1Pznz3N3DjkUotjzViKFYIPasP3Qu0oai2VnE5LGvRXU7_GuTNeVFq1dXqJVcbYnhXGWfIdFhwHpLsuu"],"exSigs":["uC13lD2HYWhffKQyz1BZRVoni7NAicuwLYWyDNh8QwUAAC4RHLL2k8DHW6LJYIX86Jgnw52cgns0n7hz-sMuqgF8HqBu"],"id":"gLl9ENMSKEWHE2c4oBUQE8xj3wiClPZoBleMChU0RkR6Ad7u"}`, string(jsondata))
 
 	// borrow again after a day
 	ctx.height++
@@ -466,8 +486,8 @@ func TestTxBorrow(t *testing.T) {
 		To:        &lender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)

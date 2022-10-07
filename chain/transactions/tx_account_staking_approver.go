@@ -21,7 +21,7 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateStakeApprover.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateStakeApprover.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxUpdateStakeApprover) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateStakeApprover.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateStakeApprover.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -80,7 +80,7 @@ func (tx *TxUpdateStakeApprover) SyntacticVerify() error {
 
 func (tx *TxUpdateStakeApprover) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateStakeApprover.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateStakeApprover.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -90,7 +90,7 @@ func (tx *TxUpdateStakeApprover) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if err = tx.to.UpdateStakeApprover(tx.ld.Tx.From, *tx.input.Approver, tx.signers); err != nil {
+	if err = tx.to.UpdateStakeApprover(tx.ld.Tx.From, *tx.input.Approver, tx.ld.IsApproved); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))

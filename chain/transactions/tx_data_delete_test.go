@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,8 +26,8 @@ func TestTxDeleteData(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	sender := util.Signer1.Address()
-	approver := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
@@ -38,7 +39,7 @@ func TestTxDeleteData(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
@@ -49,7 +50,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		To:        &constants.GenesisAccount,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -63,7 +64,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -77,7 +78,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -88,7 +89,7 @@ func TestTxDeleteData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -102,7 +103,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -117,7 +118,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -132,7 +133,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -148,7 +149,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data version")
@@ -163,7 +164,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -171,15 +172,15 @@ func TestTxDeleteData(t *testing.T) {
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
+	assert.ErrorContains(itx.Apply(ctx, cs), "AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer2.Address()},
-		Approver:  &approver,
+		Keepers:   signer.Keys{signer.Signer2.Key()},
+		Approver:  approver,
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -199,7 +200,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -211,8 +212,8 @@ func TestTxDeleteData(t *testing.T) {
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
-		Approver:  &approver,
+		Keepers:   signer.Keys{signer.Signer1.Key()},
+		Approver:  approver,
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -227,7 +228,7 @@ func TestTxDeleteData(t *testing.T) {
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -251,7 +252,7 @@ func TestTxDeleteData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2}},"sigs":["4efd89df9fd7468f998d4c594069ea19b9a03615c5337cb3f41411d88377b7bf16c334450b5b2df4ca8bb94f98542e4df7d94ea923d67d444cd44a8d850fdd0601"],"id":"2cfPGtkyWPf5ubHz5Wo3zTCY2NL5EZyT2fdgxuEymSs4T8b4Um"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2}},"sigs":["Tv2J35_XRo-ZjUxZQGnqGbmgNhXFM3yz9BQR2IN3t78WwzRFC1st9MqLuU-YVC5N99lOqSPWfURM1EqNhQ_dBgEtF85W"],"id":"1Kup2s__vTTwi_wFaUNkMbaonyXBKl0RgNyXWFVls8nxdK20"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 2}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -263,7 +264,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -275,7 +276,7 @@ func TestTxDeleteData(t *testing.T) {
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -292,7 +293,7 @@ func TestTxDeleteData(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)

@@ -10,10 +10,11 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 func (a *Account) CreateStake(
-	from util.EthID,
+	from util.Address,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
 	cfg *ld.StakeConfig,
@@ -21,7 +22,7 @@ func (a *Account) CreateStake(
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateStake error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateStake: ", a.id))
 	stake := util.StakeSymbol(a.id)
 	if !stake.Valid() {
 		return errp.Errorf("invalid stake account")
@@ -40,8 +41,13 @@ func (a *Account) CreateStake(
 	a.ld.Type = ld.StakeAccount
 	a.ld.Threshold = *acc.Threshold
 	a.ld.Keepers = *acc.Keepers
-	a.ld.Approver = acc.Approver
-	a.ld.ApproveList = acc.ApproveList
+
+	if acc.Approver != nil && acc.Approver.Valid() == nil {
+		a.ld.Approver = *acc.Approver
+	}
+	if acc.ApproveList != nil {
+		a.ld.ApproveList = *acc.ApproveList
+	}
 	a.ld.Stake = cfg
 	a.ld.MaxTotalSupply = nil
 	switch cfg.Token {
@@ -60,7 +66,7 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).ResetStake error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).ResetStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -109,7 +115,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyStake error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -166,13 +172,13 @@ func (a *Account) DestroyStake(recipient *Account) error {
 
 func (a *Account) TakeStake(
 	token util.TokenSymbol,
-	from util.EthID,
+	from util.Address,
 	amount *big.Int,
 	lockTime uint64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).TakeStake error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).TakeStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -221,13 +227,14 @@ func (a *Account) TakeStake(
 }
 
 func (a *Account) UpdateStakeApprover(
-	from, approver util.EthID,
-	signers util.EthIDs,
+	from util.Address,
+	approver signer.Key,
+	txIsApprovedFn ld.TxIsApprovedFn,
 ) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).UpdateStakeApprover error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).UpdateStakeApprover: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -237,13 +244,14 @@ func (a *Account) UpdateStakeApprover(
 
 	v := a.ledger.Stake[from.AsKey()]
 	if v == nil {
-		return errp.Errorf("%s has no stake ledger to update", util.EthID(from))
-	}
-	if v.Approver != nil && !signers.Has(*v.Approver) {
-		return errp.Errorf("%s need approver signing", util.EthID(from))
+		return errp.Errorf("%s has no stake ledger to update", util.Address(from))
 	}
 
-	if approver == util.EthIDEmpty {
+	if v.Approver != nil && !txIsApprovedFn(*v.Approver, nil, false) {
+		return errp.Errorf("%s need approver signing", util.Address(from))
+	}
+
+	if len(approver) == 0 {
 		v.Approver = nil
 	} else {
 		v.Approver = &approver
@@ -253,14 +261,14 @@ func (a *Account) UpdateStakeApprover(
 
 func (a *Account) WithdrawStake(
 	token util.TokenSymbol,
-	from util.EthID,
-	signers util.EthIDs,
+	from util.Address,
 	amount *big.Int,
+	txIsApprovedFn ld.TxIsApprovedFn,
 ) (*big.Int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).WithdrawStake error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).WithdrawStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return nil, errp.Errorf("invalid stake account")
 	}
@@ -284,7 +292,7 @@ func (a *Account) WithdrawStake(
 	if v.LockTime >= a.ld.Timestamp {
 		return nil, errp.Errorf("stake in lock, please retry after lockTime, Unix(%d)", v.LockTime)
 	}
-	if v.Approver != nil && !signers.Has(*v.Approver) {
+	if v.Approver != nil && !txIsApprovedFn(*v.Approver, nil, false) {
 		return nil, errp.Errorf("%s need approver signing", from)
 	}
 
@@ -311,7 +319,7 @@ func (a *Account) WithdrawStake(
 	return withdraw.Sub(amount, withdraw.Quo(withdraw, big.NewInt(1_000_000))), nil
 }
 
-func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.EthID) *big.Int {
+func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.Address) *big.Int {
 	total := new(big.Int)
 	stake := a.ld.Stake
 	if a.valid(ld.StakeAccount) && a.ledger != nil && token == stake.Token {

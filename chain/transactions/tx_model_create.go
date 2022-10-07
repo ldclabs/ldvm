@@ -23,7 +23,7 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxCreateModel.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxCreateModel.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +37,7 @@ func (tx *TxCreateModel) MarshalJSON() ([]byte, error) {
 
 func (tx *TxCreateModel) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCreateModel.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxCreateModel.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -64,14 +64,14 @@ func (tx *TxCreateModel) SyntacticVerify() error {
 	if err = tx.input.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.input.ID = util.ModelID(tx.ld.ShortID())
+	tx.input.ID = util.ModelIDFromHash(tx.ld.ID)
 	return nil
 }
 
 // ApplyGenesis skipping signature verification
 func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateModel.ApplyGenesis error: ")
+	errp := util.ErrPrefix("transactions.TxCreateModel.ApplyGenesis: ")
 
 	tx.input = &ld.ModelInfo{}
 	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
@@ -80,7 +80,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if err = tx.input.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
-	tx.input.ID = util.ModelID(tx.ld.ShortID())
+	tx.input.ID = util.ModelIDFromHash(tx.ld.ID)
 
 	tx.amount = new(big.Int)
 	tx.tip = new(big.Int)
@@ -105,7 +105,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 
 	// create model account
 	if len(tx.input.Keepers) > 0 {
-		modelAcc, err := cs.LoadAccount(util.EthID(tx.input.ID))
+		modelAcc, err := cs.LoadAccount(util.Address(tx.input.ID))
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
@@ -127,7 +127,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 
 func (tx *TxCreateModel) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateModel.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxCreateModel.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -138,7 +138,7 @@ func (tx *TxCreateModel) Apply(ctx ChainContext, cs ChainState) error {
 
 	// create model account
 	if len(tx.input.Keepers) > 0 {
-		modelAcc, err := cs.LoadAccount(util.EthID(tx.input.ID))
+		modelAcc, err := cs.LoadAccount(util.Address(tx.input.ID))
 		if err != nil {
 			return errp.ErrorIf(err)
 		}

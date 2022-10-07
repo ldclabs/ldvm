@@ -13,10 +13,9 @@ import (
 
 type TxUpgradeData struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxUpdater
-	di        *ld.DataInfo
-	prevDI    *ld.DataInfo
+	input  *ld.TxUpdater
+	di     *ld.DataInfo
+	prevDI *ld.DataInfo
 }
 
 func (tx *TxUpgradeData) MarshalJSON() ([]byte, error) {
@@ -25,7 +24,7 @@ func (tx *TxUpgradeData) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpgradeData.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpgradeData.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -39,7 +38,7 @@ func (tx *TxUpgradeData) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpgradeData) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpgradeData.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpgradeData.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -115,10 +114,9 @@ func (tx *TxUpgradeData) SyntacticVerify() error {
 
 		case tx.input.Expire < tx.ld.Timestamp:
 			return errp.Errorf("data expired")
-		}
 
-		if tx.exSigners, err = tx.ld.ExSigners(); err != nil {
-			return errp.Errorf("invalid exSignatures, %v", err)
+		case len(tx.ld.ExSignatures) == 0:
+			return errp.Errorf("no exSignatures")
 		}
 	}
 	return nil
@@ -126,7 +124,7 @@ func (tx *TxUpgradeData) SyntacticVerify() error {
 
 func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpgradeData.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpgradeData.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -153,10 +151,10 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	case tx.di.SigClaims != nil && tx.input.SigClaims == nil:
 		return errp.Errorf("invalid sigClaims, should not be nil")
 
-	case !util.SatisfySigning(tx.di.Threshold, tx.di.Keepers, tx.signers, false):
+	case !tx.di.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures):
 		return errp.Errorf("invalid signatures for data keepers")
 
-	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.signers.Has(*tx.di.Approver):
+	case !tx.ld.IsApproved(tx.di.Approver, tx.di.ApproveList, false):
 		return errp.Errorf("invalid signature for data approver")
 	}
 
@@ -180,7 +178,7 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 		if tx.input.To == nil {
 			return errp.Errorf("nil to")
 		}
-		if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
+		if !mi.Verify(tx.ld.ExHash(), tx.ld.ExSignatures) {
 			return errp.Errorf("invalid exSignature for model keepers")
 		}
 	}
@@ -189,7 +187,7 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 	tx.di.ModelID = mi.ID
 	if tx.input.SigClaims != nil {
 		tx.di.SigClaims = tx.input.SigClaims
-		tx.di.TypedSig = tx.input.TypedSig
+		tx.di.Sig = tx.input.Sig
 	}
 
 	if err = tx.di.SyntacticVerify(); err != nil {

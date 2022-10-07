@@ -31,7 +31,7 @@ type IPLDModel struct {
 func NewIPLDModel(name string, sc string) (*IPLDModel, error) {
 	b := &IPLDModel{name: name, schema: sc, buf: new(bytes.Buffer)}
 
-	errp := util.ErrPrefix(fmt.Sprintf("NewIPLDModel(%q) error: ", name))
+	errp := util.ErrPrefix(fmt.Sprintf("ld.NewIPLDModel(%q): ", name))
 	err := Recover(errp, func() error {
 		ts, err := ipld.LoadSchemaBytes([]byte(sc))
 		if err != nil {
@@ -71,7 +71,7 @@ func (l *IPLDModel) Type() schema.Type {
 }
 
 func (l *IPLDModel) Decode(doc []byte) (node datamodel.Node, err error) {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).Decode error: ", l.name))
+	errp := util.ErrPrefix(fmt.Sprintf("ld.IPLDModel(%q).Decode: ", l.name))
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -84,7 +84,7 @@ func (l *IPLDModel) Decode(doc []byte) (node datamodel.Node, err error) {
 }
 
 func (l *IPLDModel) ApplyPatch(doc, operations []byte) ([]byte, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).ApplyPatch error: ", l.name))
+	errp := util.ErrPrefix(fmt.Sprintf("ld.IPLDModel(%q).ApplyPatch: ", l.name))
 
 	p, err := cborpatch.NewPatch(operations)
 	if err != nil {
@@ -102,7 +102,7 @@ func (l *IPLDModel) ApplyPatch(doc, operations []byte) ([]byte, error) {
 }
 
 func (l *IPLDModel) Valid(data []byte) error {
-	errp := util.ErrPrefix(fmt.Sprintf("IPLDModel(%q).Valid error: ", l.name))
+	errp := util.ErrPrefix(fmt.Sprintf("ld.IPLDModel(%q).Valid: ", l.name))
 	if err := util.ValidCBOR(data); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -132,7 +132,7 @@ func (l *IPLDModel) valid(data []byte) error {
 
 func (l *IPLDModel) decode(doc []byte) (node datamodel.Node, err error) {
 	// defer l.builder.Reset() TODO: not supported yet
-	errp := util.ErrPrefix("decode error: ")
+	errp := util.ErrPrefix("decode: ")
 	err = Recover(errp, func() error {
 		builder := l.prototype.Representation().NewBuilder()
 		if er := dagcbor.Decode(builder, bytes.NewReader(doc)); er != nil {

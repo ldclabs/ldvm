@@ -13,17 +13,18 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type Genesis struct {
-	Chain ChainConfig                `json:"chain"`
-	Alloc map[util.EthID]*Allocation `json:"alloc"`
+	Chain ChainConfig                  `json:"chain"`
+	Alloc map[util.Address]*Allocation `json:"alloc"`
 }
 
 type Allocation struct {
 	Balance   *big.Int    `json:"balance"`
 	Threshold uint16      `json:"threshold"`
-	Keepers   util.EthIDs `json:"keepers"`
+	Keepers   signer.Keys `json:"keepers"`
 }
 
 type ChainConfig struct {
@@ -54,7 +55,7 @@ func (c *ChainConfig) Fee(height uint64) *FeeConfig {
 
 func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 	fee := new(FeeConfig)
-	errp := util.ErrPrefix("ChainConfig.AppendFeeConfig error: ")
+	errp := util.ErrPrefix("ChainConfig.AppendFeeConfig: ")
 
 	if err := util.UnmarshalCBOR(data, fee); err != nil {
 		return nil, errp.ErrorIf(err)
@@ -79,7 +80,7 @@ type FeeConfig struct {
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("FeeConfig.SyntacticVerify error: ")
+	errp := util.ErrPrefix("FeeConfig.SyntacticVerify: ")
 
 	switch {
 	case cfg == nil:
@@ -115,7 +116,7 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 
 func FromJSON(data []byte) (*Genesis, error) {
 	g := new(Genesis)
-	errp := util.ErrPrefix("FromJSON error: ")
+	errp := util.ErrPrefix("FromJSON: ")
 
 	if err := json.Unmarshal(data, g); err != nil {
 		return nil, errp.ErrorIf(err)
@@ -128,7 +129,7 @@ func FromJSON(data []byte) (*Genesis, error) {
 }
 
 func (g *Genesis) ToTxs() (ld.Txs, error) {
-	errp := util.ErrPrefix("Genesis.ToTxs error: ")
+	errp := util.ErrPrefix("Genesis.ToTxs: ")
 
 	genesisAccount, ok := g.Alloc[constants.GenesisAccount]
 	if !ok {
@@ -167,8 +168,8 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 	ids.SortShortIDs(list)
 	for _, id := range list {
-		v := g.Alloc[util.EthID(id)]
-		to := util.EthID(id)
+		v := g.Alloc[util.Address(id)]
+		to := util.Address(id)
 		tx := &ld.Transaction{Tx: ld.TxData{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
@@ -194,7 +195,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 				Type:    ld.TypeUpdateAccountInfo,
 				ChainID: g.Chain.ChainID,
 				Nonce:   nonce,
-				From:    util.EthID(id),
+				From:    util.Address(id),
 				Data:    ld.MustMarshal(update),
 			}}
 
@@ -265,7 +266,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		return nil, errp.ErrorIf(err)
 	}
 	genesisNonce++
-	g.Chain.NameServiceID = util.ModelID(tx.ShortID())
+	g.Chain.NameServiceID = util.ModelIDFromHash(tx.ID)
 	txs = append(txs, tx)
 
 	// Profile service tx

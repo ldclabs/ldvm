@@ -4,43 +4,20 @@
 package util
 
 import (
-	"encoding/json"
-	"fmt"
+	"errors"
 	"sort"
 
-	"github.com/ava-labs/avalanchego/utils/formatting"
 	"golang.org/x/crypto/sha3"
 )
 
-func MarshalJSONData(data []byte) json.RawMessage {
-	switch {
-	case len(data) == 0 || json.Valid(data):
-		return data
-	default:
-		s, err := formatting.Encode(formatting.Hex, data)
-		if err != nil {
-			return data
-		}
-		buf := make([]byte, len(s)+2)
-		buf[0] = '"'
-		copy(buf[1:], []byte(s))
-		buf[len(buf)-1] = '"'
-		return buf
-	}
+// Sum256 returns the SHA3-256 digest of the data.
+func Sum256(msg []byte) []byte {
+	d := sha3.Sum256(msg)
+	return d[:]
 }
 
-func UnmarshalJSONData(data json.RawMessage) []byte {
-	if last := len(data) - 1; last > 2 && data[0] == '"' && data[last] == '"' {
-		b := data[1:last]
-		if d, err := formatting.Decode(formatting.Hex, string(b)); err == nil {
-			return d
-		}
-	}
-	return data
-}
-
-func NodeIDToStakeAddress(nodeIDs ...EthID) EthIDs {
-	rt := make(EthIDs, len(nodeIDs))
+func NodeIDToStakeAddress(nodeIDs ...Address) Addresses {
+	rt := make(Addresses, len(nodeIDs))
 	for i, id := range nodeIDs {
 		rt[i] = id
 		rt[i][0] = '#'
@@ -52,10 +29,10 @@ func HashFromData(data []byte) Hash {
 	return Hash(sha3.Sum256(data))
 }
 
-type EthIDs []EthID
+type Addresses []Address
 
-func (s EthIDs) Has(id EthID) bool {
-	for _, v := range s {
+func (as Addresses) Has(id Address) bool {
+	for _, v := range as {
 		if v == id {
 			return true
 		}
@@ -63,22 +40,23 @@ func (s EthIDs) Has(id EthID) bool {
 	return false
 }
 
-func (s EthIDs) CheckEmptyID() error {
-	for _, v := range s {
-		if v == EthIDEmpty {
-			return fmt.Errorf("empty address exists")
+func (as Addresses) CheckEmptyID() error {
+	for _, v := range as {
+		if v == AddressEmpty {
+			return errors.New("util.Addresses.CheckEmptyID: empty address exists")
 		}
 	}
 	return nil
 }
 
-func (s EthIDs) CheckDuplicate() error {
-	set := make(map[EthID]struct{}, len(s))
-	for _, v := range s {
-		if _, ok := set[v]; ok {
-			return fmt.Errorf("duplicate address %s", v)
+func (as Addresses) CheckDuplicate() error {
+	set := make(map[string]struct{}, len(as))
+	for _, v := range as {
+		s := string(v[:])
+		if _, ok := set[s]; ok {
+			return errors.New("util.Addresses.CheckDuplicate: duplicate address " + v.String())
 		}
-		set[v] = struct{}{}
+		set[s] = struct{}{}
 	}
 	return nil
 }
@@ -97,7 +75,7 @@ func (s DataIDs) Has(id DataID) bool {
 func (s DataIDs) CheckEmptyID() error {
 	for _, v := range s {
 		if v == DataIDEmpty {
-			return fmt.Errorf("empty data id exists")
+			return errors.New("util.DataIDs.CheckEmptyID: empty dataID exists")
 		}
 	}
 	return nil
@@ -107,7 +85,7 @@ func (s DataIDs) CheckDuplicate() error {
 	set := make(map[DataID]struct{}, len(s))
 	for _, v := range s {
 		if _, ok := set[v]; ok {
-			return fmt.Errorf("duplicate data id %s", v)
+			return errors.New("util.Addresses.CheckDuplicate: duplicate dataID " + v.String())
 		}
 		set[v] = struct{}{}
 	}
@@ -134,4 +112,12 @@ func (us Uint64Set) List() []uint64 {
 	}
 	sort.SliceStable(list, func(i, j int) bool { return list[i] < list[j] })
 	return list
+}
+
+func AddressToStakeSymbol(ids ...Address) []StakeSymbol {
+	rt := make([]StakeSymbol, 0, len(ids))
+	for _, id := range ids {
+		rt = append(rt, id.ToStakeSymbol())
+	}
+	return rt
 }

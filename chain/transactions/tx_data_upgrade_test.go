@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,8 +30,8 @@ func TestTxUpgradeData(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 
-	owner := util.Signer1.Address()
-	modelKeeper := util.Signer2.Address()
+	owner := signer.Signer1.Key().Address()
+	modelKeeper := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -42,7 +43,7 @@ func TestTxUpgradeData(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -53,7 +54,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -66,7 +67,7 @@ func TestTxUpgradeData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -80,7 +81,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -95,7 +96,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -110,7 +111,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -126,7 +127,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid model id")
@@ -144,7 +145,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid model id")
@@ -162,7 +163,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid model id")
@@ -180,7 +181,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid model id")
@@ -196,7 +197,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data version")
@@ -212,14 +213,14 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "no keepers, threshold should be nil")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()}}
+		Keepers:   &signer.Keys{signer.Signer1.Key()}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -229,13 +230,13 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid threshold, should be nil")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
-		Approver: &util.EthIDEmpty}
+		Approver: &signer.Key{}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -245,13 +246,13 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid approver, should be nil")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID,
-		Version: 1, ApproveList: []ld.TxType{ld.TypeDeleteData}}
+		Version: 1, ApproveList: &ld.TxTypes{ld.TypeDeleteData}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -261,7 +262,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid approveList, should be nil")
@@ -276,7 +277,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -294,7 +295,7 @@ func TestTxUpgradeData(t *testing.T) {
 		Data:      input.Bytes(),
 		To:        &modelKeeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -309,7 +310,7 @@ func TestTxUpgradeData(t *testing.T) {
 		Data:      input.Bytes(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
@@ -325,11 +326,11 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got <nil>")
+		"invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got <nil>")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Data: []byte(`421`),
@@ -345,11 +346,11 @@ func TestTxUpgradeData(t *testing.T) {
 		To:        &constants.GenesisAccount,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+		"invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Data: []byte(`421`),
@@ -365,7 +366,7 @@ func TestTxUpgradeData(t *testing.T) {
 		To:        &modelKeeper,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -385,7 +386,7 @@ func TestTxUpgradeData(t *testing.T) {
 		To:        &modelKeeper,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -406,7 +407,7 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	_, err = NewTx(ltx)
@@ -429,14 +430,13 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no exSignatures")
 
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
@@ -451,14 +451,14 @@ func TestTxUpgradeData(t *testing.T) {
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
+		"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -473,7 +473,7 @@ func TestTxUpgradeData(t *testing.T) {
 		ModelID:   ld.CBORModelID,
 		Version:   1,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   util.MustMarshalCBOR(42),
 		ID:        did,
 	}
@@ -487,7 +487,7 @@ func TestTxUpgradeData(t *testing.T) {
 	modelInput := &ld.ModelInfo{
 		Name:      "Tester",
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer2.Address()},
+		Keepers:   signer.Keys{signer.Signer2.Key()},
 		Schema: `
 		type Tester struct {
 			name    String (rename "n")
@@ -505,7 +505,7 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      modelKeeper,
 		Data:      modelInput.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -515,7 +515,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 	modelKeeperGas := ltx.Gas()
 
-	modelID = util.ModelID(ltx.ShortID())
+	modelID = util.ModelIDFromHash(ltx.ID)
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Data: util.MustMarshalCBOR(421),
 	}
@@ -528,14 +528,14 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		`apply patch error, IPLDModel("Tester").ApplyPatch error: invalid CBOR patch`)
+		`apply patch error, ld.IPLDModel("Tester").ApplyPatch`)
 	cs.CheckoutAccounts()
 
 	patchDoc := cborpatch.Patch{
@@ -555,11 +555,11 @@ func TestTxUpgradeData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"TxUpgradeData.SyntacticVerify error: invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got <nil>")
+		"TxUpgradeData.SyntacticVerify: invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got <nil>")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -572,11 +572,11 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.NanoLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"TxUpgradeData.SyntacticVerify error: invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+		"TxUpgradeData.SyntacticVerify: invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -589,11 +589,11 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.NanoLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"TxUpgradeData.SyntacticVerify error: invalid amount, expected 1000000, got 1")
+		"TxUpgradeData.SyntacticVerify: invalid amount, expected 1000000, got 1")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -606,11 +606,10 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"TxUpgradeData.SyntacticVerify error: invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no exSignatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpgradeData,
@@ -623,22 +622,22 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		`apply patch error, IPLDModel("Tester").ApplyPatch error: unexpected node "42", invalid node detected`)
+		`invalid node detected`)
 	cs.CheckoutAccounts()
 
 	di = &ld.DataInfo{
 		ModelID:   ld.CBORModelID,
 		Version:   1,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   util.MustMarshalCBOR(map[string]interface{}{"n": "LDVM"}),
 		ID:        did,
 	}
@@ -656,15 +655,15 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		`TxUpgradeData.Apply error: invalid exSignature for model keepers`)
+		`TxUpgradeData.Apply: invalid exSignature for model keepers`)
 	cs.CheckoutAccounts()
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -678,8 +677,8 @@ func TestTxUpgradeData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -710,7 +709,7 @@ func TestTxUpgradeData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","mid":"BGC5DQCP5JQLhATeqAUfDy3BKELz4RsXS","version":1,"to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000,"data":"0x81a3626f70636164646470617468622f766576616c75650299318ca7"}},"sigs":["e41c97e27ec618e4f99f4f045571a93af88923242c8a899b9bcda3f6099a4fa268994e415b9b5f495ca6344a1f51d22d86dd25a32b59e2df9fa023e302ebd10601"],"exSigs":["6607151cc7c169a940aed88a580a516ec8fda7040c780831c645b99f8b3fa6a6693da512eb82c986d63f98147a4d88be9dbd5023839fc56530848cb0b1e01ba001"],"id":"juiZ3wi7F3SSqyD4y5vzGD1xpQV4bSGMShE1rarMyJDgijGFG"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","mid":"ePJIiccufhcsCSZxBGUt_rw_RArEjblf","version":1,"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"gaNib3BjYWRkZHBhdGhiL3ZldmFsdWUCNeW97w"}},"sigs":["zfl447E-aNXCXjzf9d31gdzr5F5jA1eOX2PN668ieBENojR4dLiMGnZNx8KYDs-hhQu96qtX8bIg90f3AF3_JwEhWqX4"],"exSigs":["Hru-bi1UK7t7Mci9nKLs0vTv7-m2c3WYy0rcbzXTcNEwCXplMZGeQ4XVfssiTq6QH2ykq9h-Fm-hNNUlDKtStAFEBRnD"],"id":"h-wQf-Ck4OvCdRdGFU04ZHuQEt3fD45IpXITXT2DAXzRXVE0"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -722,15 +721,15 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		ctx := NewMockChainContext()
 		cs := ctx.MockChainState()
 
-		sender := util.Signer1.Address()
-		recipient := util.Signer2.Address()
+		sender := signer.Signer1.Key().Address()
+		recipient := signer.Signer2.Key().Address()
 
 		nm, err := service.NameModel()
 		assert.NoError(err)
 		mi := &ld.ModelInfo{
 			Name:      nm.Name(),
 			Threshold: 1,
-			Keepers:   util.EthIDs{util.Signer2.Address()},
+			Keepers:   signer.Keys{signer.Signer2.Key()},
 			Schema:    nm.Schema(),
 			ID:        ctx.ChainConfig().NameServiceID,
 		}
@@ -746,7 +745,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			ModelID:   &mi.ID,
 			Version:   1,
 			Threshold: ld.Uint16Ptr(1),
-			Keepers:   &util.EthIDs{util.Signer1.Address()},
+			Keepers:   &signer.Keys{signer.Signer1.Key()},
 			Data:      name.Bytes(),
 			To:        &recipient,
 			Expire:    100,
@@ -764,8 +763,8 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}
-		assert.NoError(ltx.SignWith(util.Signer1))
-		assert.NoError(ltx.ExSignWith(util.Signer2))
+		assert.NoError(ltx.SignWith(signer.Signer1))
+		assert.NoError(ltx.ExSignWith(signer.Signer2))
 		assert.NoError(ltx.SyntacticVerify())
 
 		senderAcc := cs.MustAccount(sender)
@@ -804,15 +803,15 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}
-		assert.NoError(ltx.SignWith(util.Signer1))
-		assert.NoError(ltx.ExSignWith(util.Signer2))
+		assert.NoError(ltx.SignWith(signer.Signer1))
+		assert.NoError(ltx.ExSignWith(signer.Signer2))
 		assert.NoError(ltx.SyntacticVerify())
 		itx, err = NewTx(ltx)
 		assert.NoError(err)
 
 		cs.CommitAccounts()
 		assert.ErrorContains(itx.Apply(ctx, cs),
-			`TxUpgradeData.Apply error: name service data can not upgrade`)
+			`TxUpgradeData.Apply: name service data can not upgrade`)
 		cs.CheckoutAccounts()
 
 		assert.NoError(cs.VerifyState())
@@ -824,15 +823,15 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		ctx := NewMockChainContext()
 		cs := ctx.MockChainState()
 
-		sender := util.Signer1.Address()
-		recipient := util.Signer2.Address()
+		sender := signer.Signer1.Key().Address()
+		recipient := signer.Signer2.Key().Address()
 
 		nm, err := service.NameModel()
 		assert.NoError(err)
 		mi := &ld.ModelInfo{
 			Name:      nm.Name(),
 			Threshold: 1,
-			Keepers:   util.EthIDs{util.Signer2.Address()},
+			Keepers:   signer.Keys{signer.Signer2.Key()},
 			Schema:    nm.Schema(),
 			ID:        ctx.ChainConfig().NameServiceID,
 		}
@@ -848,7 +847,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			ModelID:   &ld.CBORModelID,
 			Version:   1,
 			Threshold: ld.Uint16Ptr(1),
-			Keepers:   &util.EthIDs{util.Signer1.Address()},
+			Keepers:   &signer.Keys{signer.Signer1.Key()},
 			Data:      name.Bytes(),
 			Expire:    100,
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
@@ -863,7 +862,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			From:      sender,
 			Data:      input.Bytes(),
 		}}
-		assert.NoError(ltx.SignWith(util.Signer1))
+		assert.NoError(ltx.SignWith(signer.Signer1))
 		assert.NoError(ltx.SyntacticVerify())
 
 		senderAcc := cs.MustAccount(sender)
@@ -904,15 +903,15 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}
-		assert.NoError(ltx.SignWith(util.Signer1))
-		assert.NoError(ltx.ExSignWith(util.Signer2))
+		assert.NoError(ltx.SignWith(signer.Signer1))
+		assert.NoError(ltx.ExSignWith(signer.Signer2))
 		assert.NoError(ltx.SyntacticVerify())
 		itx, err = NewTx(ltx)
 		assert.NoError(err)
 
 		cs.CommitAccounts()
 		assert.ErrorContains(itx.Apply(ctx, cs),
-			`TxUpgradeData.Apply error: can not upgrade to name service data`)
+			`TxUpgradeData.Apply: can not upgrade to name service data`)
 		cs.CheckoutAccounts()
 
 		assert.NoError(cs.VerifyState())

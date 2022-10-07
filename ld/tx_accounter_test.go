@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,33 +22,33 @@ func TestTxAccounter(t *testing.T) {
 	tx = &TxAccounter{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxAccounter{Keepers: &util.EthIDs{}}
+	tx = &TxAccounter{Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil threshold")
 	tx = &TxAccounter{Threshold: Uint16Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
-	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{}}
+	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
+	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	assert.ErrorContains(tx.SyntacticVerify(), "empty secp256k1 key")
 
-	tx = &TxAccounter{ApproveList: TxTypes{TxType(255)}}
+	tx = &TxAccounter{ApproveList: &TxTypes{TxType(255)}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")
 
-	tx = &TxAccounter{ApproveList: TxTypes{TypeTransfer, TypeTransfer}}
+	tx = &TxAccounter{ApproveList: &TxTypes{TypeTransfer, TypeTransfer}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approveList, duplicate TxType TypeTransfer")
 
 	tx = &TxAccounter{
 		Threshold: Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer1.Key()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"duplicate key jbl8fOziScK5i9wCJsxMKle_UvwKxwPH")
 
 	tx = &TxAccounter{
 		Threshold: Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
 		Amount:    big.NewInt(1000),
 		Data:      []byte(`42`),
 	}
@@ -56,9 +57,8 @@ func TestTxAccounter(t *testing.T) {
 	assert.NoError(err)
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-
-	assert.NotContains(string(jsondata), `"approver":`)
-	assert.Contains(string(jsondata), `"data":42`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH","RBccN_9de3u43K1cgfFihKIp5kE1lmGG"],"amount":1000,"data":42}`, string(jsondata))
 
 	tx2 := &TxAccounter{}
 	assert.NoError(tx2.Unmarshal(cbordata))

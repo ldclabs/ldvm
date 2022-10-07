@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ldclabs/ldvm/constants"
@@ -41,7 +40,7 @@ func TestState(t *testing.T) {
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil models")
 
-	s = NewState(ids.Empty)
+	s = NewState(util.HashEmpty)
 	assert.NoError(s.SyntacticVerify())
 	cbordata, err := s.Marshal()
 	assert.NoError(err)
@@ -49,7 +48,7 @@ func TestState(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","accounts":{},"ledgers":{},"datas":{},"models":{},"id":"LNNJn3JUTcSQMCY5HsFnZ3A75ZXDY5EtQyqc7XbMLaW8N4xLj"}`,
+	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","accounts":{},"ledgers":{},"datas":{},"models":{},"id":"K_pzrWr2Xqa8eiIkQyUCwO6b6Lh9LMvDRyFxGJVIYdvFo_Or"}`,
 		string(jsondata))
 
 	s2 := &State{}

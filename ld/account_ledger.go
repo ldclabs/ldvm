@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type AccountLedger struct {
@@ -20,7 +21,7 @@ type AccountLedger struct {
 // SyntacticVerify verifies that a *AccountLedger is well-formed.
 func (a *AccountLedger) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("AccountLedger.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.AccountLedger.SyntacticVerify: ")
 
 	if a == nil {
 		return errp.Errorf("nil pointer")
@@ -45,8 +46,11 @@ func (a *AccountLedger) SyntacticVerify() error {
 			(entry.Amount.Sign() == 0 && entry.Approver == nil) {
 			return errp.Errorf("invalid amount on StakeEntry")
 		}
-		if entry.Approver != nil && *entry.Approver == util.EthIDEmpty {
-			return errp.Errorf("invalid approver on StakeEntry")
+
+		if entry.Approver != nil {
+			if err := entry.Approver.Valid(); err != nil {
+				return errp.Errorf("invalid approver on StakeEntry, %v", err)
+			}
 		}
 	}
 
@@ -68,12 +72,12 @@ func (a *AccountLedger) Unmarshal(data []byte) error {
 		return nil
 	}
 
-	return util.ErrPrefix("AccountLedger.Unmarshal error: ").
+	return util.ErrPrefix("ld.AccountLedger.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, a))
 }
 
 func (a *AccountLedger) Marshal() ([]byte, error) {
-	return util.ErrPrefix("AccountLedger.Marshal error: ").
+	return util.ErrPrefix("ld.AccountLedger.Marshal: ").
 		ErrorMap(util.MarshalCBOR(a))
 }
 
@@ -90,5 +94,5 @@ type StakeEntry struct {
 
 	Amount   *big.Int    `json:"amount"`
 	LockTime uint64      `json:"lockTime"`
-	Approver *util.EthID `json:"approver"`
+	Approver *signer.Key `json:"approver"`
 }

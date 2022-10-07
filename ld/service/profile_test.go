@@ -60,7 +60,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"title":"test","properties":{"age":23},"did":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","mid":"1111111111111111111L17Xp3"}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"title":"test","properties":{"age":23},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
 
 	p2 := &Profile{}
 	assert.NoError(p2.Unmarshal(p.Bytes()))
@@ -88,7 +88,7 @@ func TestProfile(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","mid":"1111111111111111111L17Xp3"}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
 
 	ipldops := cborpatch.Patch{
 		{Op: "replace", Path: "/u", Value: util.MustMarshalCBOR("https://ldclabs.org")},
@@ -106,5 +106,5 @@ func TestProfile(t *testing.T) {
 	data, err = json.Marshal(p2)
 	assert.NoError(err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","mid":"1111111111111111111L17Xp3"}],"did":"11111111111111111111111111111111LpoYY"}`, string(data))
+	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
 }

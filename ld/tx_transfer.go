@@ -16,8 +16,8 @@ import (
 // TxTakeStake{Nonce, From, To, Amount, Expire[, Data]}
 type TxTransfer struct {
 	Nonce  uint64            `cbor:"n,omitempty" json:"nonce,omitempty"`  // sender's nonce
-	From   *util.EthID       `cbor:"fr,omitempty" json:"from,omitempty"`  // amount sender
-	To     *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // amount recipient
+	From   *util.Address     `cbor:"fr,omitempty" json:"from,omitempty"`  // amount sender
+	To     *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // amount recipient
 	Token  *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
 	Amount *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
 	Expire uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
@@ -29,7 +29,7 @@ type TxTransfer struct {
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
 func (t *TxTransfer) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxTransfer.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxTransfer.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -57,11 +57,11 @@ func (t *TxTransfer) Bytes() []byte {
 }
 
 func (t *TxTransfer) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxTransfer.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxTransfer.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTransfer) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxTransfer.Marshal error: ").
+	return util.ErrPrefix("ld.TxTransfer.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }

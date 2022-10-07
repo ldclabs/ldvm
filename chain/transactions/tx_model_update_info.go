@@ -8,6 +8,7 @@ import (
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type TxUpdateModelInfo struct {
@@ -22,7 +23,7 @@ func (tx *TxUpdateModelInfo) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateModelInfo.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateModelInfo.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -36,7 +37,7 @@ func (tx *TxUpdateModelInfo) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateModelInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateModelInfo.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateModelInfo.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -72,7 +73,7 @@ func (tx *TxUpdateModelInfo) SyntacticVerify() error {
 
 func (tx *TxUpdateModelInfo) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateModelInfo.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateModelInfo.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -83,20 +84,21 @@ func (tx *TxUpdateModelInfo) Apply(ctx ChainContext, cs ChainState) error {
 	case err != nil:
 		return errp.ErrorIf(err)
 
-	case !util.SatisfySigningPlus(tx.mi.Threshold, tx.mi.Keepers, tx.signers):
+	case !tx.mi.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures):
 		return errp.Errorf("invalid signatures for keepers")
 
-	case tx.ld.NeedApprove(tx.mi.Approver, nil) && !tx.signers.Has(*tx.mi.Approver):
+	case !tx.ld.IsApproved(tx.mi.Approver, nil, false):
 		return errp.Errorf("invalid signature for approver")
 	}
 
 	if tx.input.Approver != nil {
-		if *tx.input.Approver == util.EthIDEmpty {
+		if tx.input.Approver.Kind() == signer.Unknown {
 			tx.mi.Approver = nil
 		} else {
-			tx.mi.Approver = tx.input.Approver
+			tx.mi.Approver = *tx.input.Approver
 		}
 	}
+
 	if tx.input.Threshold != nil {
 		tx.mi.Threshold = *tx.input.Threshold
 		tx.mi.Keepers = *tx.input.Keepers

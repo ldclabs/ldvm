@@ -52,7 +52,7 @@ type Block struct {
 	status       choices.Status
 	txs          []transactions.Transaction // txs field will unfold batch tx
 	originTxs    []*ld.Transaction          // originTxs keep the original txs
-	txIDs        []ids.ID
+	txIDs        []util.Hash
 	verified     bool
 	nextGasPrice uint64
 }
@@ -62,7 +62,7 @@ func NewBlock(b *ld.Block, ctx *Context) *Block {
 }
 
 func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
-	errp := util.ErrPrefix("NewGenesisBlock error: ")
+	errp := util.ErrPrefix("chain.NewGenesisBlock: ")
 	blk := NewBlock(&ld.Block{
 		GasPrice:      ctx.ChainConfig().FeeConfig.MinGasPrice,
 		GasRebateRate: ctx.ChainConfig().FeeConfig.GasRebateRate,
@@ -97,7 +97,7 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	errp := util.ErrPrefix("Block.Unmarshal error: ")
+	errp := util.ErrPrefix("chain.Block.Unmarshal: ")
 	if b == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -130,7 +130,7 @@ func (b *Block) SetContext(ctx *Context) { b.ctx = ctx }
 func (b *Block) Context() *Context { return b.ctx }
 
 func (b *Block) MarshalJSON() ([]byte, error) {
-	errp := util.ErrPrefix("Block.MarshalJSON error: ")
+	errp := util.ErrPrefix("chain.Block.MarshalJSON: ")
 	txs := make([]json.RawMessage, len(b.txs))
 	for i := range b.txs {
 		d, err := b.txs[i].MarshalJSON()
@@ -153,11 +153,13 @@ func (b *Block) State() BlockState { return b.bs }
 
 // ID implements the snowman.Block choices.Decidable ID interface
 // ID returns a unique ID for this element.
-func (b *Block) ID() ids.ID { return b.ld.ID }
+func (b *Block) ID() ids.ID { return ids.ID(b.ld.ID) }
+
+func (b *Block) Hash() util.Hash { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
 
-func (b *Block) Tx(id ids.ID) transactions.Transaction {
+func (b *Block) Tx(id util.Hash) transactions.Transaction {
 	for _, tx := range b.txs {
 		if tx.ID() == id {
 			return tx
@@ -166,9 +168,9 @@ func (b *Block) Tx(id ids.ID) transactions.Transaction {
 	return nil
 }
 
-func (b *Block) TxIDs() []ids.ID {
+func (b *Block) TxIDs() []util.Hash {
 	if len(b.txIDs) != len(b.ld.Txs) {
-		b.txIDs = make([]ids.ID, len(b.ld.Txs))
+		b.txIDs = make([]util.Hash, len(b.ld.Txs))
 		for i, tx := range b.ld.Txs {
 			b.txIDs[i] = tx.ID
 		}
@@ -196,7 +198,7 @@ func (b *Block) BuildTxs(vbs BlockState, txs ...*ld.Transaction) choices.Status 
 }
 
 func (b *Block) TryBuildTxs(txs ...*ld.Transaction) error {
-	errp := util.ErrPrefix("Block.TryBuildTxs error: ")
+	errp := util.ErrPrefix("chain.Block.TryBuildTxs: ")
 	vbs, err := b.bs.DeriveState()
 	if err == nil {
 		_, err = b.tryBuildTxs(vbs, false, txs...)
@@ -253,14 +255,14 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 }
 
 func (b *Block) BuildMinerFee(vbs BlockState) error {
-	errp := util.ErrPrefix("Block.BuildMinerFee error: ")
+	errp := util.ErrPrefix("chain.Block.BuildMinerFee: ")
 	shares := make([]*transactions.Account, 0)
 	b.ld.Validators = []util.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
 		var err error
 		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight()
 		if err != nil {
-			return errp.Errorf("ValidatorState.GetCurrentHeight error: %v", err)
+			return errp.Errorf("ValidatorState.GetCurrentHeight: %v", err)
 		}
 		shares, err = b.getValidatorAccounts(b.ld.PCHeight, vbs)
 		if err != nil {
@@ -299,7 +301,7 @@ func (b *Block) verifyMinerFee() error {
 func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transactions.Account, error) {
 	vs, err := b.ctx.ValidatorState.GetValidatorSet(pcHeight, b.ctx.SubnetID)
 	if err != nil {
-		return nil, fmt.Errorf("ValidatorState.GetValidatorSet error: %v", err)
+		return nil, fmt.Errorf("ValidatorState.GetValidatorSet: %v", err)
 	}
 
 	vv := make([]ids.NodeID, 0, len(vs))
@@ -375,10 +377,10 @@ func (b *Block) BuildState(vbs BlockState) error {
 // Verify that the state transition this block would make if accepted is valid.
 // It is guaranteed that the Parent has been successfully verified.
 func (b *Block) Verify() error {
-	errp := util.ErrPrefix("Block.Verify error: ")
+	errp := util.ErrPrefix("chain.Block.Verify: ")
 	if err := b.verify(); err != nil {
 		logging.Log.Warn("Block.Verify",
-			zap.Stringer("id", b.ID()),
+			zap.Stringer("id", b.Hash()),
 			zap.Uint64("height", b.Height()),
 			zap.Error(err))
 		b.reject()
@@ -388,15 +390,15 @@ func (b *Block) Verify() error {
 	b.verified = true
 	b.ctx.Chain().AddVerifiedBlock(b)
 	logging.Log.Info("Block.Verify",
-		zap.Stringer("id", b.ID()),
+		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()))
 	return nil
 }
 
 func (b *Block) verify() error {
 	b.status = choices.Processing
-	id := b.ID()
-	if id == ids.Empty {
+	id := b.ld.ID
+	if id == util.HashEmpty {
 		return fmt.Errorf("invalid block id")
 	}
 
@@ -429,12 +431,12 @@ func (b *Block) verify() error {
 	}
 
 	if err := b.verifyMinerFee(); err != nil {
-		return fmt.Errorf("set mint fee error: %v", err)
+		return fmt.Errorf("set mint fee: %v", err)
 	}
 
 	// build state
 	if err := b.bs.SaveBlock(b.ld); err != nil {
-		return fmt.Errorf("save block error: %v", err)
+		return fmt.Errorf("save block: %v", err)
 	}
 
 	// verify block hash after saving block
@@ -449,25 +451,25 @@ func (b *Block) verify() error {
 // Accept sets this block's status to Accepted and sets lastAccepted to this
 // block's ID and saves this info to stateDB.
 func (b *Block) Accept() error {
-	errp := util.ErrPrefix("Block.Accept error: ")
+	errp := util.ErrPrefix("chain.Block.Accept: ")
 	logging.Log.Info("Block.Accept",
-		zap.Stringer("id", b.ID()),
+		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()),
 		zap.Stringer("parent", b.Parent()))
 
 	if !b.verified {
 		b.reject()
-		return errp.Errorf("%s not verified", b.ID())
+		return errp.Errorf("%s not verified", b.Hash())
 	}
 
 	if err := b.ctx.Chain().SetLastAccepted(b); err != nil {
 		b.reject()
-		return errp.Errorf("set last accepted error: %v", err)
+		return errp.Errorf("set last accepted: %v", err)
 	}
 
 	if err := b.bs.Commit(); err != nil {
 		logging.Log.Warn("Block.Accept",
-			zap.Stringer("id", b.ID()),
+			zap.Stringer("id", b.Hash()),
 			zap.Uint64("height", b.Height()),
 			zap.Error(err))
 		b.reject()
@@ -483,7 +485,7 @@ func (b *Block) Accept() error {
 // This element will not be accepted by any correct node in the network.
 func (b *Block) Reject() error {
 	logging.Log.Info("Block.Reject",
-		zap.Stringer("id", b.ID()),
+		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()))
 	b.reject()
 	return nil
@@ -520,12 +522,12 @@ func (b *Block) SetStatus(s choices.Status) {
 
 // Parent implements the snowman.Block Parent interface
 // Parent returns the ID of this block's parent.
-func (b *Block) Parent() ids.ID { return b.ld.Parent }
+func (b *Block) Parent() ids.ID { return ids.ID(b.ld.Parent) }
 
 // AncestorBlocks returns this block's ancestors, from ancestorHeight to block' height,
 // not including this block. The ancestorHeight must >= LastAcceptedBlock's height.
 func (b *Block) AncestorBlocks(ancestorHeight uint64) ([]*Block, error) {
-	errp := util.ErrPrefix("Block.AncestorBlocks error: ")
+	errp := util.ErrPrefix("chain.Block.AncestorBlocks: ")
 	if ancestorHeight >= b.ld.Height {
 		return nil, errp.Errorf("invalid height, should < %d", b.ld.Height)
 	}

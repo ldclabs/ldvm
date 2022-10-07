@@ -22,7 +22,7 @@ type ChainContext interface {
 type ChainState interface {
 	Height() uint64
 	Timestamp() uint64
-	LoadAccount(util.EthID) (*Account, error)
+	LoadAccount(util.Address) (*Account, error)
 	LoadLedger(*Account) error
 	LoadMiner(util.StakeSymbol) (*Account, error)
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)

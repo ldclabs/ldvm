@@ -68,7 +68,7 @@ func ProfileModel() (*ld.IPLDModel, error) {
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("Profile.SyntacticVerify error: ")
+	errp := util.ErrPrefix("service.Profile.SyntacticVerify: ")
 
 	switch {
 	case p == nil:
@@ -132,11 +132,11 @@ func (p *Profile) Bytes() []byte {
 }
 
 func (p *Profile) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Profile.Unmarshal error: ").
+	return util.ErrPrefix("service.Profile.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, p))
 }
 
 func (p *Profile) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Profile.Marshal error: ").
+	return util.ErrPrefix("service.Profile.Marshal: ").
 		ErrorMap(util.MarshalCBOR(p))
 }

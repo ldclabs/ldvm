@@ -9,11 +9,10 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
-	"golang.org/x/crypto/sha3"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 const (
@@ -33,10 +32,6 @@ func SetChainID(id uint64) {
 	EthSigner = types.NewLondonSigner(big.NewInt(int64(id)))
 }
 
-type Signer interface {
-	SignHash(digestHash []byte) (util.Signature, error)
-}
-
 // TxData represents a complete transaction issued from client
 type TxData struct {
 	Type      TxType            `cbor:"t" json:"type"`
@@ -44,8 +39,8 @@ type TxData struct {
 	Nonce     uint64            `cbor:"n" json:"nonce"`
 	GasTip    uint64            `cbor:"gt" json:"gasTip"`
 	GasFeeCap uint64            `cbor:"gf" json:"gasFeeCap"`
-	From      util.EthID        `cbor:"fr" json:"from"`
-	To        *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`
+	From      util.Address      `cbor:"fr" json:"from"`
+	To        *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`
 	Token     *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
 	Amount    *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
 	Data      util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
@@ -56,7 +51,7 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *TxData is well-formed.
 func (t *TxData) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxData.SyntacticVerify error: ")
+	errp := util.ErrPrefix("TxData.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -99,12 +94,12 @@ func (t *TxData) Bytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxData.Unmarshal error: ").
+	return util.ErrPrefix("TxData.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxData.Marshal error: ").
+	return util.ErrPrefix("TxData.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }
 
@@ -113,20 +108,22 @@ func (t *TxData) ToTransaction() *Transaction {
 }
 
 type Transaction struct {
-	Tx           TxData           `cbor:"tx" json:"tx"`
-	Signatures   []util.Signature `cbor:"ss,omitempty" json:"sigs,omitempty"`
-	ExSignatures []util.Signature `cbor:"es,omitempty" json:"exSigs,omitempty"`
+	Tx           TxData      `cbor:"tx" json:"tx"`
+	Signatures   signer.Sigs `cbor:"ss,omitempty" json:"sigs,omitempty"`
+	ExSignatures signer.Sigs `cbor:"es,omitempty" json:"exSigs,omitempty"`
 
 	// external assignment fields
-	ID        ids.ID `cbor:"-" json:"id"`
-	Err       error  `cbor:"-" json:"error,omitempty"`
-	Height    uint64 `cbor:"-" json:"-"` // block's timestamp
-	Timestamp uint64 `cbor:"-" json:"-"` // block's timestamp
-	priority  uint64 `cbor:"-" json:"-"`
-	dp        uint64 `cbor:"-" json:"-"` // dynamic priority for sorting
-	raw       []byte `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
-	gas       uint64 `cbor:"-" json:"-"`
-	eth       *TxEth `cbor:"-" json:"-"`
+	ID        util.Hash `cbor:"-" json:"id"`
+	Err       error     `cbor:"-" json:"error,omitempty"`
+	Height    uint64    `cbor:"-" json:"-"` // block's timestamp
+	Timestamp uint64    `cbor:"-" json:"-"` // block's timestamp
+	priority  uint64    `cbor:"-" json:"-"`
+	dp        uint64    `cbor:"-" json:"-"` // dynamic priority for sorting
+	raw       []byte    `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
+	gas       uint64    `cbor:"-" json:"-"`
+	eth       *TxEth    `cbor:"-" json:"-"`
+	txHash    []byte    `cbor:"-" json:"-"`
+	exHash    []byte    `cbor:"-" json:"-"`
 	// support for batch transactions
 	// they are processed in the same block, one fail all fail
 	batch Txs `cbor:"-" json:"-"`
@@ -134,7 +131,7 @@ type Transaction struct {
 
 // SyntacticVerify verifies that a *Transaction is well-formed.
 func (t *Transaction) SyntacticVerify() error {
-	errp := util.ErrPrefix("Transaction.SyntacticVerify error: ")
+	errp := util.ErrPrefix("Transaction.SyntacticVerify: ")
 	if t == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -154,6 +151,13 @@ func (t *Transaction) SyntacticVerify() error {
 	}
 
 	var err error
+	if err = t.Signatures.Valid(); err != nil {
+		return errp.ErrorIf(err)
+	}
+	if err = t.ExSignatures.Valid(); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	if t.Tx.Type == TypeEth && t.eth == nil {
 		eth := new(TxEth)
 
@@ -179,7 +183,8 @@ func (t *Transaction) SyntacticVerify() error {
 		return errp.Errorf("size too large, expected <= %d, got %d", maxTxDataSize, size)
 	}
 
-	t.ID = ids.ID(util.HashFromData(t.raw))
+	t.txHash = util.Sum256(t.Tx.Bytes())
+	t.ID = util.HashFromData(t.raw)
 	t.gas = t.Tx.Type.Gas() + uint64(math.Pow(float64(size), math.SqrtPhi))
 	t.priority = (t.Tx.GasTip + 1) * t.gas
 	return nil
@@ -196,8 +201,18 @@ func (t *Transaction) Bytes() []byte {
 	return t.raw
 }
 
-func (t *Transaction) UnsignedBytes() []byte {
-	return t.Tx.Bytes()
+func (t *Transaction) TxHash() []byte {
+	if len(t.txHash) == 0 {
+		t.txHash = util.Sum256(t.Tx.Bytes())
+	}
+	return t.txHash
+}
+
+func (t *Transaction) ExHash() []byte {
+	if len(t.exHash) == 0 {
+		t.exHash = util.Sum256(t.Tx.Data)
+	}
+	return t.exHash
 }
 
 func (t *Transaction) BytesSize() int {
@@ -213,79 +228,60 @@ func (t *Transaction) BytesSize() int {
 	return total
 }
 
-// func (t *Transaction) UnmarshalTx(data []byte) error {
-// 	return util.ErrPrefix("Transaction.UnmarshalTx error: ").
-// 		ErrorIf(t.Tx.Unmarshal(data))
-// }
-
 func (t *Transaction) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Transaction.Unmarshal error: ").
+	return util.ErrPrefix("Transaction.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Transaction.Marshal error: ").
+	return util.ErrPrefix("Transaction.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }
 
-func (t *Transaction) SignWith(signers ...Signer) error {
-	datahash := sha3.Sum256(t.Tx.Bytes())
-	t.Signatures = make([]util.Signature, 0, len(signers))
-	for _, signer := range signers {
-		sig, err := signer.SignHash(datahash[:])
+func (t *Transaction) SignWith(signers ...signer.Signer) error {
+	datahash := t.TxHash()
+	t.Signatures = make([]signer.Sig, 0, len(signers))
+	for _, s := range signers {
+		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("TxData.SignWith error: ").ErrorIf(err)
+			return util.ErrPrefix("Transaction.SignWith: ").ErrorIf(err)
 		}
 		t.Signatures = append(t.Signatures, sig)
 	}
 	return nil
 }
 
-func (t *Transaction) ExSignWith(signers ...Signer) error {
-	datahash := sha3.Sum256(t.Tx.Data)
-	t.ExSignatures = make([]util.Signature, 0, len(signers))
-	for _, signer := range signers {
-		sig, err := signer.SignHash(datahash[:])
+func (t *Transaction) ExSignWith(signers ...signer.Signer) error {
+	datahash := t.ExHash()
+	t.ExSignatures = make([]signer.Sig, 0, len(signers))
+	for _, s := range signers {
+		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("TxData.ExSignWith error: ").ErrorIf(err)
+			return util.ErrPrefix("Transaction.ExSignWith: ").ErrorIf(err)
 		}
 		t.ExSignatures = append(t.ExSignatures, sig)
 	}
 	return nil
 }
 
-func (t *Transaction) Signers() (signers util.EthIDs, err error) {
-	errp := util.ErrPrefix("Transaction.Signers error: ")
+type TxIsApprovedFn func(signer.Key, TxTypes, bool) bool
 
-	switch t.Tx.Type {
-	case TypeEth:
-		if t.eth == nil {
-			return nil, errp.Errorf("invalid TypeEth tx")
+func (t *Transaction) IsApproved(
+	approver signer.Key, approveList TxTypes, byEx bool) bool {
+	if t.needApprove(approver, approveList) {
+		if byEx {
+			return approver.Verify(t.exHash, t.ExSignatures)
 		}
-		signers, err = t.eth.Signers()
-	default:
-		signers, err = util.DeriveSigners(t.Tx.Bytes(), t.Signatures)
+
+		return approver.Verify(t.txHash, t.Signatures)
 	}
 
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	return signers, nil
+	return true
 }
 
-func (t *Transaction) ExSigners() (util.EthIDs, error) {
-	errp := util.ErrPrefix("Transaction.ExSigners error: ")
-
-	signers, err := util.DeriveSigners(t.Tx.Data, t.ExSignatures)
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	return signers, nil
-}
-
-func (t *Transaction) NeedApprove(approver *util.EthID, approveList TxTypes) bool {
+func (t *Transaction) needApprove(approver signer.Key, approveList TxTypes) bool {
 	switch {
-	case approver == nil:
+	case len(approver) == 0:
 		return false
 	case len(approveList) == 0:
 		return true
@@ -308,12 +304,6 @@ func (t *Transaction) Txs() Txs {
 	return t.batch
 }
 
-func (t *Transaction) ShortID() ids.ShortID {
-	sid := ids.ShortID{}
-	copy(sid[:], t.ID[:])
-	return sid
-}
-
 // Copy is not a deep copy, used for json.Marshaling
 func (t *Transaction) Copy() *Transaction {
 	x := new(Transaction)
@@ -326,7 +316,7 @@ func (t *Transaction) Eth() *TxEth {
 }
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
-	errp := util.ErrPrefix("NewBatchTx error: ")
+	errp := util.ErrPrefix("NewBatchTx: ")
 
 	if len(txs) <= 1 {
 		return nil, errp.Errorf("not batch transactions")
@@ -362,12 +352,12 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Txs.Unmarshal error: ").
+	return util.ErrPrefix("Txs.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, txs))
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Txs.Marshal error: ").
+	return util.ErrPrefix("Txs.Marshal: ").
 		ErrorMap(util.MarshalCBOR(txs))
 }
 
@@ -401,7 +391,7 @@ type group struct {
 	dp uint64 // dynamic priority for sorting
 }
 
-type groupSet map[util.EthID]*group
+type groupSet map[util.Address]*group
 
 func (set groupSet) Add(txs ...*Transaction) {
 	for i := range txs {

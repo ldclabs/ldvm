@@ -9,49 +9,39 @@ import (
 
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
-// {tx} or {unsignedTx, signatures[, exSignatures]}
 type IssueTxArgs struct {
-	Tx           string   `json:"tx"`
-	UnsignedTx   string   `json:"unsignedTx"`
-	Signatures   []string `json:"signatures"`
-	ExSignatures []string `json:"exSignatures"`
+	Tx           string       `json:"tx"`
+	Signatures   []signer.Sig `json:"sigs"`
+	ExSignatures []signer.Sig `json:"exSigs"`
 }
 
 // IssueTx
 func (api *BlockChainAPI) IssueTx(_ *http.Request, args *IssueTxArgs, reply *GetReply) error {
 	tx := &ld.Transaction{}
-	if len(args.Tx) > 0 {
-		data, err := decodeBytes(args.Tx)
-		if err != nil {
-			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
-		}
-		if err = tx.Unmarshal(data); err != nil {
-			return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
-		}
-	} else {
-		data, err := decodeBytes(args.UnsignedTx)
-		if err != nil {
-			return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
-		}
-		if err = tx.Unmarshal(data); err != nil {
-			return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
-		}
-		tx.Signatures, err = util.SignaturesFromStrings(args.Signatures)
-		if err != nil {
-			return fmt.Errorf("invalid tx signatures: %v", err)
-		}
-		tx.ExSignatures, err = util.SignaturesFromStrings(args.ExSignatures)
-		if err != nil {
-			return fmt.Errorf("invalid tx signatures: %v", err)
-		}
+
+	data, err := decodeBytes(args.Tx)
+	if err != nil {
+		return fmt.Errorf("invalid tx, Hex decode failed: %v", err)
+	}
+	if err = tx.Unmarshal(data); err != nil {
+		return fmt.Errorf("invalid tx, unmarshal failed: %v", err)
+	}
+
+	if len(args.Signatures) > 0 {
+		tx.Signatures = args.Signatures
+	}
+
+	if len(args.ExSignatures) > 0 {
+		tx.ExSignatures = args.ExSignatures
 	}
 
 	if err := api.bc.SubmitTx(tx); err != nil {
 		return err
 	}
+
 	reply.ID = tx.ID.String()
 	reply.Status = choices.Unknown.String()
 	return nil

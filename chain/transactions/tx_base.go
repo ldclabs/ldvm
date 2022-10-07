@@ -8,24 +8,24 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type TxBase struct {
-	ld      *ld.Transaction
-	ldc     *Account // native token account
-	miner   *Account
-	from    *Account
-	to      *Account
-	amount  *big.Int
-	fee     *big.Int
-	tip     *big.Int
-	cost    *big.Int // fee + tip
-	token   util.TokenSymbol
-	signers util.EthIDs
+	ld        *ld.Transaction
+	ldc       *Account // native token account
+	miner     *Account
+	from      *Account
+	to        *Account
+	amount    *big.Int
+	fee       *big.Int
+	tip       *big.Int
+	cost      *big.Int // fee + tip
+	token     util.TokenSymbol
+	senderKey signer.Key
 }
 
 func (tx *TxBase) MarshalJSON() ([]byte, error) {
@@ -33,7 +33,7 @@ func (tx *TxBase) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	return util.ErrPrefix("TxBase.MarshalJSON error: ").
+	return util.ErrPrefix("transactions.TxBase.MarshalJSON: ").
 		ErrorMap(json.Marshal(tx.ld))
 }
 
@@ -41,7 +41,7 @@ func (tx *TxBase) LD() *ld.Transaction {
 	return tx.ld
 }
 
-func (tx *TxBase) ID() ids.ID {
+func (tx *TxBase) ID() util.Hash {
 	return tx.ld.ID
 }
 
@@ -54,24 +54,23 @@ func (tx *TxBase) Bytes() []byte {
 }
 
 func (tx *TxBase) SyntacticVerify() error {
-	var err error
-	errp := util.ErrPrefix("TxBase.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxBase.SyntacticVerify: ")
 
 	switch {
 	case tx == nil || tx.ld == nil:
 		return errp.Errorf("nil pointer")
 
-	case tx.ld.Tx.From == util.EthIDEmpty:
+	case tx.ld.Tx.From == util.AddressEmpty:
 		return errp.Errorf("invalid from")
 
 	case tx.ld.Tx.To != nil && tx.ld.Tx.From == *tx.ld.Tx.To:
 		return errp.Errorf("invalid to")
+
+	case len(tx.ld.Signatures) == 0:
+		return errp.Errorf("no signatures")
 	}
 
-	tx.signers, err = tx.ld.Signers()
-	if err != nil {
-		return errp.ErrorIf(err)
-	}
+	tx.senderKey = signer.Key(tx.ld.Tx.From.Bytes())
 	if tx.ld.Tx.Token != nil {
 		tx.token = *tx.ld.Tx.Token
 	}
@@ -127,11 +126,11 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 		return fmt.Errorf("invalid nonce for sender, expected %d, got %d",
 			tx.from.Nonce(), tx.ld.Tx.Nonce)
 
-	case !tx.from.SatisfySigning(tx.signers):
+	case tx.ld.Tx.Type != ld.TypeEth &&
+		!tx.from.Verify(tx.ld.TxHash(), tx.ld.Signatures, tx.senderKey):
 		return fmt.Errorf("invalid signatures for sender")
 
-	case tx.ld.NeedApprove(tx.from.ld.Approver, tx.from.ld.ApproveList) &&
-		!tx.signers.Has(*tx.from.ld.Approver):
+	case !tx.ld.IsApproved(tx.from.ld.Approver, tx.from.ld.ApproveList, false):
 		return fmt.Errorf("invalid signature for approver")
 	}
 
@@ -179,7 +178,7 @@ func (tx *TxBase) accept(ctx ChainContext, cs ChainState) error {
 
 // call after SyntacticVerify
 func (tx *TxBase) Apply(ctx ChainContext, cs ChainState) error {
-	errp := util.ErrPrefix("TxBase.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxBase.Apply: ")
 	if err := tx.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}

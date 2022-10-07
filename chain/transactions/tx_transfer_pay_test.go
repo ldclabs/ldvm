@@ -9,7 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,11 +26,11 @@ func TestTxTransferPay(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	from := cs.MustAccount(util.Signer1.Address())
+	from := cs.MustAccount(signer.Signer1.Key().Address())
 	from.ld.Nonce = 1
-	singer2 := util.Signer2.Address()
+
 	to := cs.MustAccount(constants.GenesisAccount)
-	assert.NoError(to.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer2}, nil, nil))
+	assert.NoError(to.UpdateKeepers(ld.Uint16Ptr(1), &signer.Keys{signer.Signer2.Key()}, nil, nil))
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransferPay,
@@ -43,9 +43,9 @@ func TestTxTransferPay(t *testing.T) {
 
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to")
@@ -60,7 +60,7 @@ func TestTxTransferPay(t *testing.T) {
 		To:        &to.id,
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount")
@@ -76,7 +76,7 @@ func TestTxTransferPay(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -93,13 +93,31 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      []byte("0"),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
+	assert.ErrorContains(err, "no exSignatures")
+
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeTransferPay,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      from.id,
+		To:        &to.id,
+		Amount:    new(big.Int).SetUint64(constants.LDC),
+		Data:      []byte("0"),
+	}}
+
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: cannot unmarshal")
 
 	input := ld.TxTransfer{
-		From: &singer2,
+		From: signer.Signer2.Key().Address().Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -114,11 +132,12 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid sender, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"invalid sender, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	input = ld.TxTransfer{
 		From: &from.id,
@@ -136,7 +155,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil recipient")
@@ -152,16 +172,17 @@ func TestTxTransferPay(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      from.id,
-		To:        &singer2,
+		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid recipient, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+		"invalid recipient, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641")
 
 	input = ld.TxTransfer{
 		To: &constants.GenesisAccount,
@@ -180,7 +201,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, expected NativeLDC, got $LDC")
@@ -202,7 +224,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, expected $LDC, got NativeLDC")
@@ -225,7 +248,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -249,7 +273,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected 1000000000, got 1000000")
@@ -274,7 +299,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -299,33 +325,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.SyntacticVerify())
-	ltx.Timestamp = cs.Timestamp()
-	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
-
-	input = ld.TxTransfer{
-		To:     &constants.GenesisAccount,
-		Token:  &token,
-		Amount: new(big.Int).SetUint64(constants.LDC),
-	}
-	assert.NoError(input.SyntacticVerify())
-	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeTransferPay,
-		ChainID:   ctx.ChainConfig().ChainID,
-		Nonce:     1,
-		GasTip:    100,
-		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
-		Amount:    new(big.Int).SetUint64(constants.LDC),
-		Data:      input.Bytes(),
-	}}
-
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -358,8 +359,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -378,7 +379,7 @@ func TestTxTransferPay(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000000000}},"sigs":["a1fdfe1053216c95e4dabbf0f6bf0ba602672d35097ce907d7ac156f3474f6853f99c5f7507039b3b8d4bf9d54b8b24a93ca10208b5808dcb91441035bef249f00"],"exSigs":["c5613bb2ac47e7d5a8be0f58584791158838ef5dbfd11031b41c0576560e9af373175c38018c19d7b1d4f5d5ebabc3d82cc61d6a1e914727141ccb2cdc9a7dfb00"],"id":"2tc9qr8gWAuxefaB5T343zN8N6MCKCCPpv2c1mLCSYKq1rhYaq"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000000000}},"sigs":["of3-EFMhbJXk2rvw9r8LpgJnLTUJfOkH16wVbzR09oU_mcX3UHA5s7jUv51UuLJKk8oQIItYCNy5FEEDW-8knwBSwhwe"],"exSigs":["xWE7sqxH59Wovg9YWEeRFYg4712_0RAxtBwFdlYOmvNzF1w4AYwZ17HU9dXrq8PYLMYdah6RRycUHMss3Jp9-wBdFAO5"],"id":"-N--1o5JQ9I9KISuKdPTdN8CnWuJDgc3XzAB8OY039oquAY_"}`, string(jsondata))
 
 	// should support 0 amount
 	input = ld.TxTransfer{
@@ -399,8 +400,8 @@ func TestTxTransferPay(t *testing.T) {
 		Data:      input.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)

@@ -60,7 +60,7 @@ func TestName(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"name":"公信.com.","linked":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","records":["xn--vuq70b.com. IN A 10.0.0.1"],"extensions":[],"did":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE"}`, string(data))
+	assert.Equal(`{"name":"公信.com.","linked":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","records":["xn--vuq70b.com. IN A 10.0.0.1"],"extensions":[],"did":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM"}`, string(data))
 
 	nm, err := NameModel()
 	assert.NoError(err)
@@ -81,5 +81,5 @@ func TestName(t *testing.T) {
 	assert.NoError(err)
 
 	// fmt.Println(string(data))
-	assert.Equal(`{"name":"公信.com.","linked":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"],"extensions":[],"did":"3DKYW87Qch2qWuSYnU7qRViZ4NJfwPd46XCW2jf3XiiQfKCoE"}`, string(data))
+	assert.Equal(`{"name":"公信.com.","linked":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"],"extensions":[],"did":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM"}`, string(data))
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
@@ -37,7 +36,7 @@ func TestTxTransfer(t *testing.T) {
 		Token:  &util.NativeToken,
 		To:     &constants.GenesisAccount,
 		Amount: big.NewInt(1000),
-		Expire: uint64(time.Now().Unix()),
+		Expire: uint64(1000),
 		Data:   []byte(`"👋"`),
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -45,11 +44,8 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(err)
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-
-	assert.Contains(string(jsondata), `"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF"`)
-	assert.Contains(string(jsondata), `"token":""`)
-	assert.Contains(string(jsondata), `"data":"👋"`)
-	assert.NotContains(string(jsondata), `"from":`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"nonce":1,"to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"","amount":1000,"expire":1000,"data":"👋"}`, string(jsondata))
 
 	tx2 := &TxTransfer{}
 	assert.NoError(tx2.Unmarshal(cbordata))

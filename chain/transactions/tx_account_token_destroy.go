@@ -13,7 +13,7 @@ type TxDestroyToken struct {
 
 func (tx *TxDestroyToken) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyToken.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxDestroyToken.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -38,12 +38,12 @@ func (tx *TxDestroyToken) SyntacticVerify() error {
 
 func (tx *TxDestroyToken) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyToken.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxDestroyToken.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.from.SatisfySigningPlus(tx.signers) {
+	if !tx.from.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures, nil) {
 		return errp.Errorf("invalid signature for keepers")
 	}
 

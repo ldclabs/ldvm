@@ -9,7 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,8 +25,8 @@ func TestTxRepay(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	borrower := util.Signer1.Address()
-	lender := util.Signer2.Address()
+	borrower := signer.Signer1.Key().Address()
+	lender := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeRepay,
@@ -38,9 +38,9 @@ func TestTxRepay(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as lender")
@@ -55,7 +55,7 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(0),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected > 0, got 0")
@@ -70,7 +70,7 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -85,7 +85,7 @@ func TestTxRepay(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: invalid lending")
+		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Repay: invalid lending")
 	cs.CheckoutAccounts()
 
 	// open lending
@@ -106,7 +106,7 @@ func TestTxRepay(t *testing.T) {
 		From:      lender,
 		Data:      ld.MustMarshal(lcfg),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -137,7 +137,7 @@ func TestTxRepay(t *testing.T) {
 		To:        &lender,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -145,7 +145,7 @@ func TestTxRepay(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: invalid token, expected $LDC, got NativeLDC")
+		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Repay: invalid token, expected $LDC, got NativeLDC")
 	cs.CheckoutAccounts()
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -159,7 +159,7 @@ func TestTxRepay(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -173,7 +173,7 @@ func TestTxRepay(t *testing.T) {
 	borrowerAcc.Add(token, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxRepay.Apply error: Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Repay error: don't need to repay")
+		"TxRepay.Apply: Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Repay: don't need to repay")
 	cs.CheckoutAccounts()
 
 	// borrow
@@ -196,8 +196,8 @@ func TestTxRepay(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -205,7 +205,7 @@ func TestTxRepay(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxBorrow.Apply error: Account(0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641).Borrow error: insufficient $LDC balance, expected 1000000000, got 0")
+		"TxBorrow.Apply: Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: insufficient $LDC balance, expected 1000000000, got 0")
 	cs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.Add(token, new(big.Int).SetUint64(constants.LDC)))
@@ -248,7 +248,7 @@ func TestTxRepay(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -278,7 +278,7 @@ func TestTxRepay(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeRepay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","token":"$LDC","amount":1000000000},"sigs":["0c9a509724f0b2009160eb0680657178a6611b9762d1ed36f033cce1848657c64afb888b440c530c6550d68f3f0f382ccfe66c6346a36f8ca37ecfee22ce7fa700"],"id":"ezepRmwXRU1emdPMkTqXEwpPckNjvXCecdnFy9HJmafUZJnzh"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeRepay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","token":"$LDC","amount":1000000000},"sigs":["DJpQlyTwsgCRYOsGgGVxeKZhG5di0e028DPM4YSGV8ZK-4iLRAxTDGVQ1o8_Dzgsz-ZsY0ajb4yjfs_uIs5_pwBYjYXp"],"id":"VkUgbcrSqCsYIjk14O90UqOr95Jy0tfVFaZzJg5wH-R29AwO"}`, string(jsondata))
 
 	// repay again
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -292,7 +292,7 @@ func TestTxRepay(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 20),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)

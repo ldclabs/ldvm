@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 // TxUpdater is a hybrid data model for:
@@ -15,11 +16,11 @@ import (
 // TxCreateData{ModelID, Version, To, Amount, Threshold, Keepers, Data, Expire[, Approver, ApproveList]} with model keepers
 //
 // TxUpdateData{ID, Version, Data} no model keepers
-// TxUpdateData{ID, Version, SigClaims, TypedSig, Data} no model keepers
+// TxUpdateData{ID, Version, SigClaims, Sig, Data} no model keepers
 // TxUpdateData{ID, Version, To, Amount, Data, Expire} with model keepers
-// TxUpdateData{ID, Version, SigClaims, TypedSig, To, Amount, Data, Expire} with model keepers
+// TxUpdateData{ID, Version, SigClaims, Sig, To, Amount, Data, Expire} with model keepers
 // TxUpgradeData{ID, Version, To, Amount, Data, Expire} with model keepers
-// TxUpgradeData{ID, Version, SigClaims, TypedSig, To, Amount, Data, Expire} with model keepers
+// TxUpgradeData{ID, Version, SigClaims, Sig, To, Amount, Data, Expire} with model keepers
 //
 // TxDeleteData{ID, Version[, Data]}
 //
@@ -32,14 +33,14 @@ type TxUpdater struct {
 	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
 	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
 	Threshold   *uint16           `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers     *util.EthIDs      `cbor:"kp,omitempty" json:"keepers,omitempty"`
-	Approver    *util.EthID       `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes           `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Keepers     *signer.Keys      `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Approver    *signer.Key       `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList *TxTypes          `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
-	To          *util.EthID       `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
+	To          *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
 	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
 	SigClaims   *SigClaims        `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
-	TypedSig    util.RawData      `cbor:"ts,omitempty" json:"typedSig,omitempty"`
+	Sig         *signer.Sig       `cbor:"s,omitempty" json:"sig,omitempty"`
 	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
 	Data        util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
 
@@ -50,7 +51,7 @@ type TxUpdater struct {
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdater.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxUpdater.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -68,10 +69,10 @@ func (t *TxUpdater) SyntacticVerify() error {
 	case t.Keepers != nil && t.Threshold == nil:
 		return errp.Errorf("invalid threshold")
 
-	case t.SigClaims == nil && t.TypedSig != nil:
+	case t.SigClaims == nil && t.Sig != nil:
 		return errp.Errorf("no sigClaims, typed signature should be nil")
 
-	case t.SigClaims != nil && (len(t.TypedSig) < 65 || len(t.TypedSig) > 160):
+	case t.SigClaims != nil && t.Sig == nil:
 		return errp.Errorf("invalid typed signature")
 	}
 
@@ -86,12 +87,14 @@ func (t *TxUpdater) SyntacticVerify() error {
 				MaxKeepers, len(*t.Keepers))
 		}
 
-		if err = t.Keepers.CheckDuplicate(); err != nil {
+		if err = t.Keepers.Valid(); err != nil {
 			return errp.Errorf("invalid keepers, %v", err)
 		}
+	}
 
-		if err = t.Keepers.CheckEmptyID(); err != nil {
-			return errp.Errorf("invalid keepers, %v", err)
+	if t.Approver != nil {
+		if err = t.Approver.ValidOrEmpty(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
 		}
 	}
 
@@ -100,7 +103,7 @@ func (t *TxUpdater) SyntacticVerify() error {
 			return errp.Errorf("invalid approveList, %v", err)
 		}
 
-		for _, ty := range t.ApproveList {
+		for _, ty := range *t.ApproveList {
 			if !DataTxTypes.Has(ty) {
 				return errp.Errorf("invalid TxType %s in approveList", ty)
 			}
@@ -110,6 +113,9 @@ func (t *TxUpdater) SyntacticVerify() error {
 	if t.SigClaims != nil {
 		if err = t.SigClaims.SyntacticVerify(); err != nil {
 			return errp.Errorf("invalid sigClaims, %v", err)
+		}
+		if err = t.Sig.Valid(); err != nil {
+			return errp.Errorf("invalid sig, %v", err)
 		}
 	}
 
@@ -127,11 +133,11 @@ func (t *TxUpdater) Bytes() []byte {
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxUpdater.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxUpdater.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxUpdater.Marshal error: ").
+	return util.ErrPrefix("ld.TxUpdater.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }

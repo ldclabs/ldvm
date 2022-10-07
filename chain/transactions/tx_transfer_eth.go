@@ -15,7 +15,7 @@ type TxEth struct {
 
 func (tx *TxEth) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxEth.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxEth.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -64,13 +64,12 @@ func (tx *TxEth) SyntacticVerify() error {
 	case tx.ld.Tx.Amount.Cmp(etx.Tx.Amount) != 0:
 		return errp.Errorf("invalid amount")
 
-	case len(tx.ld.Signatures) != 1 || len(etx.Signatures) != 1 || tx.ld.Signatures[0] != etx.Signatures[0]:
+	case len(tx.ld.Signatures) != 1 || len(etx.Signatures) != 1 || !tx.ld.Signatures[0].Equal(etx.Signatures[0]):
 		return errp.Errorf("invalid signatures")
 
 	case tx.ld.ExSignatures != nil:
 		return errp.Errorf("invalid exSignatures")
 	}
 
-	tx.signers = util.EthIDs{tx.ld.Tx.From}
 	return nil
 }

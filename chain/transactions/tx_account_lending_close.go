@@ -13,7 +13,7 @@ type TxCloseLending struct {
 
 func (tx *TxCloseLending) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCloseLending.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxCloseLending.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -34,7 +34,7 @@ func (tx *TxCloseLending) SyntacticVerify() error {
 
 func (tx *TxCloseLending) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCloseLending.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxCloseLending.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,9 +26,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	owner := util.Signer1.Address()
-	assert.NoError(err)
-	approver := util.Signer2.Address()
+	owner := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
+	approverAddr := approver.Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -39,7 +40,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -48,9 +49,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &approver,
+		To:        &approverAddr,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -64,7 +65,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -77,7 +78,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -91,7 +92,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -106,7 +107,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -121,7 +122,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -137,7 +138,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data version")
@@ -152,7 +153,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "no thing to update")
@@ -161,7 +162,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer2.Address()},
+		Keepers:   signer.Keys{signer.Signer2.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -169,9 +170,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Approver:    &approver,
-		ApproveList: []ld.TxType{ld.TypeDeleteData},
+		ApproveList: &ld.TxTypes{ld.TypeDeleteData},
 		Threshold:   ld.Uint16Ptr(1),
-		Keepers:     &util.EthIDs{util.Signer1.Address()},
+		Keepers:     &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -182,7 +183,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
@@ -197,7 +198,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
+		"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t not found")
 	cs.CheckoutAccounts()
 
 	assert.NoError(cs.SaveData(di))
@@ -208,9 +209,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 2,
 		Approver:    &approver,
-		ApproveList: []ld.TxType{ld.TypeDeleteData},
+		ApproveList: &ld.TxTypes{ld.TypeDeleteData},
 		Threshold:   ld.Uint16Ptr(1),
-		Keepers:     &util.EthIDs{util.Signer1.Address()},
+		Keepers:     &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -221,7 +222,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -232,12 +233,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	input = &ld.TxUpdater{ID: &did, Version: 2,
 		Approver: &approver,
-		ApproveList: []ld.TxType{
+		ApproveList: &ld.TxTypes{
 			ld.TypeUpdateDataInfo,
 			ld.TypeUpdateDataInfoByAuth,
 			ld.TypeDeleteData},
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		SigClaims: &ld.SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    di.ID,
@@ -247,9 +248,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 			CWTID:      util.HashFromData(di.Payload),
 		},
 	}
-	sig, err := util.Signer2.SignData(input.SigClaims.Bytes())
+	sig, err := signer.Signer2.SignData(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.TypedSig = sig.Typed()
+	input.Sig = &sig
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -260,7 +261,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -280,12 +281,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(di.Version+1, di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer2.Address()}, di.Keepers)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
+	assert.Equal(signer.Keys{signer.Signer2.Key()}, di.Keepers)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
 	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di.Approver)
 	assert.NotNil(di2.Approver)
-	assert.Equal(util.Signer2.Address(), *di2.Approver)
+	assert.True(signer.Signer2.Key().Equal(di2.Approver))
 	assert.Nil(di.ApproveList)
 	assert.Equal(ld.TxTypes{
 		ld.TypeUpdateDataInfo,
@@ -295,10 +296,10 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"],"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"111111111111111111116DBWJs","exp":100,"nbf":0,"iat":1,"cti":"bPfPyx1epFu5ges4t55fJYpS4HrQFr5zCPfT3mzNmL8XCDAZP"},"typedSig":"0x001a0e1ef089eb22bf43b895deec225feb3960ef5538f20bf44780e11e2d773a2329445f5de46c42fa72176401a8d73c7e134bfeb9c8e3cef124bf6896e5da695200de1abfe8"}},"sigs":["3777101d23c2dcce66521e501325fca5921e8d390f62dc9a087c85ccc3c8fe792f637431610cba647236b0cf6c2652fec66e3dc988533000aa5d530ea13edbbf00","2e3a5a2c70753bd5cf217669816fa77c06a530d5f59742939b59886f23048a840f29d12b5b2782ed36cfef70c0e507ca29822fa63692efa34e39dc9c0ffa36b300"],"id":"GF1jp69xJTKiAbhrxgzJvpzdgVmR5EjsDBr8g4mh8ftCnJsVr"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","exp":100,"nbf":0,"iat":1,"cti":"Thad30ecjNm0xF4ChBgXMMtC3zqL6JKn83m9aQ2x6vrOudt9"},"sig":"Gg4e8InrIr9DuJXe7CJf6zlg71U48gv0R4DhHi13OiMpRF9d5GxC-nIXZAGo1zx-E0v-ucjjzvEkv2iW5dppUgCF1by8"}},"sigs":["Xjq0_tGT4AnE6nKpag-FqB2eJHlBwXpWsjYhudnW-gQ1OGgFKQCTrWliZK1T2qPZVb_pTUF3aEtltc197dGdnwDDe55m","t5cwBzgvxm-2hAUV4lioaQ0APvacyHe-ARDbppivWV4UKk0nQL5r-O1-KBYpRIq6YZsO41uqe3mT0PQYU2QPXwA2Kbnj"],"id":"_SOjtobO5nph-igJ9dITxbRrjeCCX75mNmJo8gkYE2vuBKGB"}`, string(jsondata))
 
 	input = &ld.TxUpdater{ID: &did, Version: 3,
-		Approver: &util.EthIDEmpty,
+		Approver: &signer.Key{},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -309,7 +310,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -318,7 +319,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for data approver")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -330,7 +331,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(uint64(4), di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
 	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di2.Approver)
 	assert.Nil(di2.ApproveList)
@@ -338,7 +339,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	// clear threshold
 	input = &ld.TxUpdater{ID: &did, Version: 4,
 		Threshold: ld.Uint16Ptr(0),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -349,7 +350,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -361,12 +362,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(uint64(5), di2.Version)
 	assert.Equal(uint16(0), di2.Threshold)
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, di2.Keepers)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
 
 	// clear keepers
 	input = &ld.TxUpdater{ID: &did, Version: 5,
 		Threshold: ld.Uint16Ptr(0),
-		Keepers:   &util.EthIDs{},
+		Keepers:   &signer.Keys{},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -377,7 +378,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -389,12 +390,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(uint64(6), di2.Version)
 	assert.Equal(uint16(0), di2.Threshold)
-	assert.Equal(util.EthIDs{}, di2.Keepers)
+	assert.Equal(signer.Keys{}, di2.Keepers)
 
 	// can't update keepers
 	input = &ld.TxUpdater{ID: &did, Version: 6,
 		Threshold: ld.Uint16Ptr(0),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -405,7 +406,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -429,9 +430,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -452,9 +453,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 			CWTID:      util.HashFromData([]byte(`421`)),
 		},
 	}
-	sig, err = util.Signer2.SignData(input.SigClaims.Bytes())
+	sig, err = signer.Signer2.SignData(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.TypedSig = sig.Typed()
+	input.Sig = &sig
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -467,9 +468,9 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -488,7 +489,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)

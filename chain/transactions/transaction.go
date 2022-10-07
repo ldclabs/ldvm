@@ -6,13 +6,13 @@ package transactions
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 type Transaction interface {
 	LD() *ld.Transaction
-	ID() ids.ID
+	ID() util.Hash
 	Type() ld.TxType
 	Bytes() []byte
 	SyntacticVerify() error
@@ -22,7 +22,7 @@ type Transaction interface {
 
 // NewTx returns a stateful transaction from a ld.Transaction.
 func NewTx(tx *ld.Transaction) (Transaction, error) {
-	if tx.ID == ids.Empty {
+	if tx.ID == util.HashEmpty {
 		return nil, fmt.Errorf("NewTx: transaction should be syntactic verified")
 	}
 

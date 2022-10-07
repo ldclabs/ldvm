@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 
 	"github.com/ldclabs/ldvm/chain"
@@ -45,7 +44,7 @@ func (api *BlockChainAPI) GetTotalSupply(_ *http.Request, _ *NoArgs, reply *GetB
 }
 
 type GetAccountArgs struct {
-	ID util.EthID `json:"address"`
+	ID util.Address `json:"address"`
 }
 
 type GetBalanceReply struct {
@@ -79,8 +78,8 @@ func (api *BlockChainAPI) GetAccount(_ *http.Request, args *GetAccountArgs, repl
 }
 
 type GetBlockArgs struct {
-	ID     ids.ID  `json:"id"`
-	Height *uint64 `json:"height"`
+	ID     util.Hash `json:"id"`
+	Height *uint64   `json:"height"`
 }
 
 // GetBlock
@@ -93,7 +92,7 @@ func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *G
 		args.ID = id
 	}
 
-	if args.ID == ids.Empty {
+	if args.ID == util.HashEmpty {
 		return fmt.Errorf("invalid block id: %v", args.ID)
 	}
 	blk, err := api.bc.GetBlock(args.ID)
@@ -107,7 +106,7 @@ func (api *BlockChainAPI) GetBlock(_ *http.Request, args *GetBlockArgs, reply *G
 
 // GetTxStatus
 func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
-	if args.ID == ids.Empty {
+	if args.ID == util.HashEmpty {
 		return fmt.Errorf("invalid transaction id: %v", args.ID)
 	}
 
@@ -128,7 +127,7 @@ func (api *BlockChainAPI) GetTxStatus(_ *http.Request, args *GetBlockArgs, reply
 
 // GetTx
 func (api *BlockChainAPI) GetTx(_ *http.Request, args *GetBlockArgs, reply *GetReply) error {
-	if args.ID == ids.Empty {
+	if args.ID == util.HashEmpty {
 		return fmt.Errorf("invalid transaction id: %v", args.ID)
 	}
 

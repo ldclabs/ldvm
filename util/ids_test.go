@@ -10,120 +10,114 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/sha3"
 )
 
-// DvNUrvtQgPynDZN7kFckpjZgmTvW8FX5i
-const address1 = "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"
+const address1 = "0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"
 
-// 7D2dmjrr9Fzg7D6tUQAbPKVdhho4uTmo6
-const address2 = "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
+const address2 = "0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"
 
-func TestEthID(t *testing.T) {
+func TestAddressID(t *testing.T) {
 	assert := assert.New(t)
 
-	id1, err := EthIDFromString(address1)
+	addr1, err := AddressFrom(address1)
 	assert.Nil(err)
-	assert.Equal(Signer1.Address(), id1)
+	assert.Equal(address1, addr1.String())
 
-	id2, err := EthIDFromString("8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+	addr1b, err := AddressFrom("8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
 	assert.Nil(err)
-	assert.Equal(id1, id2)
+	assert.Equal(addr1, addr1b)
 
-	id3, err := EthIDFromString("DvNUrvtQgPynDZN7kFckpjZgmTvW8FX5i")
+	addr2, err := AddressFrom(address2)
 	assert.Nil(err)
-	assert.Equal(id1, id3)
-
-	id, err := EthIDFromString(address2)
-	assert.Nil(err)
-	assert.Equal(Signer2.Address(), id)
+	assert.Equal(address2, addr2.String())
 
 	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
 	assert.Nil(err)
-	var id4 EthID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id4), "invalid bytes length")
+	var addr2b Address
+	assert.ErrorContains(cbor.Unmarshal(cbordata, &addr2b), "invalid bytes length")
 
-	cbordata, err = cbor.Marshal(id)
+	cbordata, err = cbor.Marshal(addr2)
 	assert.Nil(err)
-	assert.Nil(cbor.Unmarshal(cbordata, &id4))
-	assert.Equal(id, id4)
+	assert.Nil(cbor.Unmarshal(cbordata, &addr2b))
+	assert.Equal(addr2, addr2b)
 
-	data, err := json.Marshal(id)
+	data, err := json.Marshal(addr2)
 	assert.Nil(err)
-	assert.Equal(`"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"`, string(data))
+	assert.Equal(`"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"`, string(data))
 
-	eids := make(EthIDs, 0)
+	eids := make(Addresses, 0)
 	err = json.Unmarshal([]byte(`[
-		"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
+		"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641",
 	  "44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
-	  "7D2dmjrr9Fzg7D6tUQAbPKVdhho4uTmo6",
 		"",
 		null
 	]`), &eids)
 	assert.Nil(err)
 
-	assert.Equal(5, len(eids))
-	assert.Equal(id, eids[0])
-	assert.Equal(id, eids[1])
-	assert.Equal(id, eids[2])
-	assert.Equal(EthIDEmpty, eids[3])
-	assert.Equal(EthIDEmpty, eids[4])
+	assert.Equal(4, len(eids))
+	assert.Equal(addr2, eids[0])
+	assert.Equal(addr2, eids[1])
+	assert.Equal(AddressEmpty, eids[2])
+	assert.Equal(AddressEmpty, eids[3])
 
-	ptrIDs := make([]*EthID, 0)
+	ptrIDs := make([]*Address, 0)
 	err = json.Unmarshal([]byte(`[
-		"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
+		"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641",
 	  "44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
-	  "7D2dmjrr9Fzg7D6tUQAbPKVdhho4uTmo6",
 		"",
 		null
 	]`), &ptrIDs)
 	assert.Nil(err)
 
-	assert.Equal(5, len(eids))
-	assert.Equal(id, *ptrIDs[0])
-	assert.Equal(id, *ptrIDs[1])
-	assert.Equal(id, *ptrIDs[2])
-	assert.Equal(EthIDEmpty, *ptrIDs[3])
-	assert.Nil(ptrIDs[4])
+	assert.Equal(4, len(eids))
+	assert.Equal(addr2, *ptrIDs[0])
+	assert.Equal(addr2, *ptrIDs[1])
+	assert.Equal(AddressEmpty, *ptrIDs[2])
+	assert.Nil(ptrIDs[3])
 
-	id, err = EthIDFromString("")
+	addr2, err = AddressFrom("")
 	assert.Nil(err)
-	assert.Equal(EthIDEmpty, id)
+	assert.Equal(AddressEmpty, addr2)
 }
 
 func TestModelID(t *testing.T) {
 	assert := assert.New(t)
 
-	assert.Equal("111111111111111111116DBWJs", ModelIDEmpty.String())
-	assert.Equal("1111111111111111111Ax1asG", ModelID{
+	assert.Equal("AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye", ModelIDEmpty.String())
+	assert.Equal("AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah", ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 	}.String())
-	assert.Equal("1111111111111111111L17Xp3", ModelID{
+	assert.Equal("AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw", ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
 	}.String())
 
-	mid := "7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"
-	id, err := ModelIDFromString(mid)
+	mid := "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"
+	addr, err := AddressFrom(address1)
 	assert.Nil(err)
+	assert.Equal(mid, ModelID(addr).String())
 
-	cbordata, err := cbor.Marshal(ids.ID{1, 2, 3})
+	id, err := ModelIDFrom(mid)
 	assert.Nil(err)
+	assert.Equal(ModelID(addr), id)
+
+	cbordata := MustMarshalCBOR(ids.ID{1, 2, 3})
 	var id2 ModelID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
+	assert.ErrorContains(UnmarshalCBOR(cbordata, &id2), "invalid bytes length")
 
-	cbordata, err = cbor.Marshal(id)
-	assert.Nil(err)
-	assert.Nil(cbor.Unmarshal(cbordata, &id2))
+	cbordata = MustMarshalCBOR(id)
+	assert.Nil(UnmarshalCBOR(cbordata, &id2))
 	assert.Equal(id, id2)
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov"`, string(data))
+	assert.Equal(`"jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"`, string(data))
 
 	mids := make([]ModelID, 0)
 	err = json.Unmarshal([]byte(`[
-		"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
 		"",
 		null
 	]`), &mids)
@@ -136,7 +130,7 @@ func TestModelID(t *testing.T) {
 
 	ptrMIDs := make([]*ModelID, 0)
 	err = json.Unmarshal([]byte(`[
-		"7tTg8ExJDoq8cgufYnU7EbisEdSbkiEov",
+		"jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
 		"",
 		null
 	]`), &ptrMIDs)
@@ -147,7 +141,7 @@ func TestModelID(t *testing.T) {
 	assert.Equal(ModelIDEmpty, *ptrMIDs[1])
 	assert.Nil(ptrMIDs[2])
 
-	id, err = ModelIDFromString("")
+	id, err = ModelIDFrom("")
 	assert.Nil(err)
 	assert.Equal(ModelIDEmpty, id)
 }
@@ -155,28 +149,27 @@ func TestModelID(t *testing.T) {
 func TestDataID(t *testing.T) {
 	assert := assert.New(t)
 
-	did := "2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM"
-	id, err := DataIDFromString(did)
+	did := "CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ"
+	addr, err := AddressFrom(address1)
 	assert.Nil(err)
+	id := DataID(sha3.Sum256(addr[:]))
 	assert.Equal(did, id.String())
 
-	cbordata, err := cbor.Marshal(ids.ShortID{1, 2, 3})
-	assert.Nil(err)
+	cbordata := MustMarshalCBOR(ids.ShortID{1, 2, 3})
 	var id2 DataID
-	assert.ErrorContains(cbor.Unmarshal(cbordata, &id2), "invalid bytes length")
+	assert.ErrorContains(UnmarshalCBOR(cbordata, &id2), "invalid bytes length")
 
-	cbordata, err = cbor.Marshal(id)
-	assert.Nil(err)
-	assert.Nil(cbor.Unmarshal(cbordata, &id2))
+	cbordata = MustMarshalCBOR(id)
+	assert.Nil(UnmarshalCBOR(cbordata, &id2))
 	assert.Equal(id, id2)
 
 	data, err := json.Marshal(id)
 	assert.Nil(err)
-	assert.Equal(`"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM"`, string(data))
+	assert.Equal(`"CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ"`, string(data))
 
 	mids := make(DataIDs, 0)
 	err = json.Unmarshal([]byte(`[
-		"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM",
+		"CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ",
 		"",
 		null
 	]`), &mids)
@@ -189,7 +182,7 @@ func TestDataID(t *testing.T) {
 
 	ptrMIDs := make([]*DataID, 0)
 	err = json.Unmarshal([]byte(`[
-		"2VWaBfoiXGuvfxp9mcie7VuKB7HGw3TyM195eKF33cPvSybcvM",
+		"CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ",
 		"",
 		null
 	]`), &ptrMIDs)
@@ -200,7 +193,7 @@ func TestDataID(t *testing.T) {
 	assert.Equal(DataIDEmpty, *ptrMIDs[1])
 	assert.Nil(ptrMIDs[2])
 
-	id, err = DataIDFromString("")
+	id, err = DataIDFrom("")
 	assert.Nil(err)
 	assert.Equal(DataIDEmpty, id)
 }
@@ -209,7 +202,7 @@ func TestTokenSymbol(t *testing.T) {
 	assert := assert.New(t)
 
 	token := "$LDC"
-	id, err := NewToken(token)
+	id, err := TokenFrom(token)
 	assert.Nil(err)
 
 	assert.Equal(
@@ -230,7 +223,7 @@ func TestTokenSymbol(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"$LDC"`, string(data))
 
-	id, err = NewToken("")
+	id, err = TokenFrom("")
 	assert.Nil(err)
 	assert.Equal(NativeToken, id)
 
@@ -344,13 +337,13 @@ func TestTokenSymbol(t *testing.T) {
 				assert.False(c.token.Valid())
 			}
 			if c.symbol != "" {
-				_, err := NewToken(c.symbol)
+				_, err := TokenFrom(c.symbol)
 				assert.NotNil(err)
 			}
 		default:
 			assert.Equal(c.symbol, c.token.String())
 			assert.True(c.token.Valid())
-			id, err := NewToken(c.symbol)
+			id, err := TokenFrom(c.symbol)
 			assert.Nil(err)
 			assert.Equal(c.token, id)
 		}
@@ -369,7 +362,7 @@ func FuzzTokenSymbol(f *testing.F) {
 	}
 	counter := 0
 	f.Fuzz(func(t *testing.T, in string) {
-		id, err := NewToken(in)
+		id, err := TokenFrom(in)
 		switch {
 		case err == nil:
 			counter++
@@ -384,7 +377,7 @@ func TestStakeSymbol(t *testing.T) {
 	assert := assert.New(t)
 
 	token := "#LDC"
-	id, err := NewStake(token)
+	id, err := StakeFrom(token)
 	assert.Nil(err)
 
 	assert.Equal(
@@ -405,7 +398,7 @@ func TestStakeSymbol(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"#LDC"`, string(data))
 
-	id, err = NewStake("")
+	id, err = StakeFrom("")
 	assert.Nil(err)
 	assert.Equal(StakeEmpty, id)
 
@@ -506,37 +499,15 @@ func TestStakeSymbol(t *testing.T) {
 		case c.shouldErr:
 			assert.Equal("", c.token.String())
 			if c.symbol != "" {
-				_, err := NewStake(c.symbol)
+				_, err := StakeFrom(c.symbol)
 				assert.NotNil(err)
 			}
 		default:
 			assert.Equal(c.symbol, c.token.String())
 			assert.True(c.token.Valid())
-			id, err := NewStake(c.symbol)
+			id, err := StakeFrom(c.symbol)
 			assert.Nil(err)
 			assert.Equal(c.token, id)
 		}
 	}
-}
-
-func TestEthIDToStakeSymbol(t *testing.T) {
-	assert := assert.New(t)
-
-	ldc, err := NewStake("#LDC")
-	assert.Nil(err)
-	ids := EthIDs{
-		EthID(ldc),
-		EthIDEmpty,
-		Signer1.Address(),
-		Signer2.Address(),
-	}
-	ss := EthIDToStakeSymbol(ids...)
-	assert.Equal(ldc, ss[0])
-	assert.Equal("#LDC", ss[0].String())
-	assert.Equal("", ss[1].String())
-	assert.Equal(string(EthIDEmpty[:]), string(ss[1][:]))
-	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", ss[2].String())
-	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", string(ss[2][:]))
-	assert.Equal("#GWLGDBWNPCOAN55PCUX", ss[3].String())
-	assert.Equal("#GWLGDBWNPCOAN55PCUX", string(ss[3][:]))
 }

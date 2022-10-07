@@ -7,14 +7,15 @@ import (
 	"math/big"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 // TxAccounter
 type TxAccounter struct {
 	Threshold   *uint16      `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers     *util.EthIDs `cbor:"kp,omitempty" json:"keepers,omitempty"`
-	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Keepers     *signer.Keys `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Approver    *signer.Key  `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList *TxTypes     `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	Amount      *big.Int     `cbor:"a,omitempty" json:"amount,omitempty"`
 	Name        string       `cbor:"n,omitempty" json:"name,omitempty"`
 	Data        util.RawData `cbor:"d,omitempty" json:"data,omitempty"`
@@ -26,7 +27,7 @@ type TxAccounter struct {
 // SyntacticVerify verifies that a *TxAccounter is well-formed.
 func (t *TxAccounter) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxAccounter.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxAccounter.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -56,12 +57,14 @@ func (t *TxAccounter) SyntacticVerify() error {
 				MaxKeepers, len(*t.Keepers))
 		}
 
-		if err = t.Keepers.CheckDuplicate(); err != nil {
+		if err = t.Keepers.Valid(); err != nil {
 			return errp.Errorf("invalid keepers, %v", err)
 		}
+	}
 
-		if err = t.Keepers.CheckEmptyID(); err != nil {
-			return errp.Errorf("invalid keepers, %v", err)
+	if t.Approver != nil {
+		if err = t.Approver.ValidOrEmpty(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
 		}
 	}
 
@@ -69,7 +72,7 @@ func (t *TxAccounter) SyntacticVerify() error {
 		if err = t.ApproveList.CheckDuplicate(); err != nil {
 			return errp.Errorf("invalid approveList, %v", err)
 		}
-		for _, ty := range t.ApproveList {
+		for _, ty := range *t.ApproveList {
 			if !AllTxTypes.Has(ty) {
 				return errp.Errorf("invalid TxType %s in approveList", ty)
 			}
@@ -90,11 +93,11 @@ func (t *TxAccounter) Bytes() []byte {
 }
 
 func (t *TxAccounter) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxAccounter.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxAccounter.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxAccounter) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxAccounter.Marshal error: ").
+	return util.ErrPrefix("ld.TxAccounter.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }

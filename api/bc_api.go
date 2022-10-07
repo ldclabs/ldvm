@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -116,7 +115,7 @@ func (api *API) getTxStatus(req *cborrpc.Req) *cborrpc.Res {
 		return req.Error(err)
 	}
 
-	return req.Result(api.bc.GetTxHeight(id.ToID()))
+	return req.Result(api.bc.GetTxHeight(id))
 }
 
 func (api *API) getTx(req *cborrpc.Req) *cborrpc.Res {
@@ -124,7 +123,7 @@ func (api *API) getTx(req *cborrpc.Req) *cborrpc.Res {
 	if err := req.DecodeParams(&data); err != nil {
 		return req.Error(err)
 	}
-	id, err := ids.ToID(data)
+	id, err := util.HashFromBytes(data)
 	if err != nil {
 		return req.Error(&cborrpc.Err{
 			Code:    cborrpc.CodeInvalidRequest,
@@ -201,7 +200,7 @@ func (api *API) getState(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
-	var id util.EthID
+	var id util.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -216,7 +215,7 @@ func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getLedger(req *cborrpc.Req) *cborrpc.Res {
-	var id util.EthID
+	var id util.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}

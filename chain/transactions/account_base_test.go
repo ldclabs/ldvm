@@ -11,14 +11,14 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 func TestNativeAccount(t *testing.T) {
 	assert := assert.New(t)
 
 	token := ld.MustNewToken("$TEST")
-	acc := NewAccount(util.Signer1.Address())
+	acc := NewAccount(signer.Signer1.Key().Address())
 	acc.Init(big.NewInt(0), 2, 2)
 
 	assert.Equal(ld.NativeAccount, acc.Type())
@@ -47,21 +47,10 @@ func TestNativeAccount(t *testing.T) {
 		assert.NoError(acc.CheckAsTo(ty))
 	}
 
-	// UpdateKeepers, SatisfySigning, SatisfySigningPlus
+	// UpdateKeepers
 	assert.Equal(uint16(0), acc.Threshold())
-	assert.Equal(util.EthIDs{}, acc.Keepers())
-	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address()}))
-	assert.True(acc.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}))
-	assert.False(NewAccount(constants.LDCAccount).SatisfySigning(util.EthIDs{constants.LDCAccount}))
-	assert.False(NewAccount(constants.LDCAccount).SatisfySigningPlus(util.EthIDs{constants.LDCAccount}))
-
-	assert.NoError(acc.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}, nil, nil))
-	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address()}))
-	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer2.Address()}))
-	assert.True(acc.SatisfySigning(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
-	assert.False(acc.SatisfySigningPlus(util.EthIDs{util.Signer1.Address()}))
-	assert.False(acc.SatisfySigningPlus(util.EthIDs{util.Signer2.Address()}))
-	assert.True(acc.SatisfySigningPlus(util.EthIDs{util.Signer1.Address(), util.Signer2.Address()}))
+	assert.Equal(signer.Keys{}, acc.Keepers())
+	assert.NoError(acc.UpdateKeepers(ld.Uint16Ptr(1), &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()}, nil, nil))
 
 	// Add
 	assert.ErrorContains(acc.Add(constants.NativeToken, nil), "invalid amount <nil>")
@@ -99,35 +88,35 @@ func TestNativeAccount(t *testing.T) {
 	assert.Equal(uint64(90), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(90), acc.balanceOfAll(token).Uint64())
 	assert.ErrorContains(acc.Sub(constants.NativeToken, big.NewInt(100)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Sub error: insufficient NativeLDC balance, expected 100, got 90")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Sub: insufficient NativeLDC balance, expected 100, got 90")
 	assert.ErrorContains(acc.Sub(token, big.NewInt(100)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Sub error: insufficient $TEST balance, expected 100, got 90")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Sub: insufficient $TEST balance, expected 100, got 90")
 
 	// SubByNonce
 	assert.ErrorContains(acc.SubByNonce(token, 1, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonce error: invalid nonce, expected 0, got 1")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: invalid nonce, expected 0, got 1")
 	assert.NoError(acc.SubByNonce(constants.NativeToken, 0, big.NewInt(10)))
 	assert.NoError(acc.SubByNonce(token, 1, big.NewInt(10)))
 	assert.Equal(uint64(80), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(80), acc.balanceOfAll(token).Uint64())
 	assert.ErrorContains(acc.SubByNonce(constants.NativeToken, 2, big.NewInt(100)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonce error: insufficient NativeLDC balance, expected 100, got 80")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: insufficient NativeLDC balance, expected 100, got 80")
 	assert.ErrorContains(acc.SubByNonce(token, 2, big.NewInt(100)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonce error: insufficient $TEST balance, expected 100, got 80")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: insufficient $TEST balance, expected 100, got 80")
 
 	// NonceTable
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 1000, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 1000 not exists at 12345")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 1000 not exists at 12345")
 
 	assert.NoError(acc.AddNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
 	assert.ErrorContains(acc.AddNonceTable(12345, []uint64{2, 10}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: nonce 2 exists at 12345")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).AddNonceTable: nonce 2 exists at 12345")
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 0, big.NewInt(10)))
 
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 0, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 0 not exists at 12345")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 0 not exists at 12345")
 	assert.ErrorContains(acc.SubByNonceTable(token, 123456, 2, big.NewInt(10)),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).SubByNonceTable error: nonce 2 not exists at 123456")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 2 not exists at 123456")
 	assert.NoError(acc.SubByNonceTable(token, 12345, 2, big.NewInt(10)))
 	assert.Equal(uint64(70), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(70), acc.balanceOfAll(token).Uint64())
@@ -149,7 +138,7 @@ func TestNativeAccount(t *testing.T) {
 	assert.Nil(acc.ld.NonceTable[1])
 	assert.Equal(1024, len(acc.ld.NonceTable))
 	assert.ErrorContains(acc.AddNonceTable(100, []uint64{100}),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).AddNonceTable error: too many NonceTable groups, expected <= 1024")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).AddNonceTable: too many NonceTable groups, expected <= 1024")
 
 	// Marshal
 	data, _, err := acc.Marshal()

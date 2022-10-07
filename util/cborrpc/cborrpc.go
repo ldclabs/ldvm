@@ -68,7 +68,7 @@ func DecodeReq(data []byte) (*Req, error) {
 	if req.Method == "" {
 		return nil, &Err{
 			Code:    CodeInvalidRequest,
-			Message: fmt.Sprintf("invalid request, method required")}
+			Message: "invalid request, method required"}
 	}
 	return req, nil
 }

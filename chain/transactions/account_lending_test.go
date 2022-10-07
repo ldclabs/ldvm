@@ -10,15 +10,15 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLending(t *testing.T) {
 	assert := assert.New(t)
 
-	addr0 := util.NewSigner().Address()
-	na := NewAccount(util.Signer1.Address()).Init(big.NewInt(0), 10, 100)
+	addr0 := signer.NewSigner().Key().Address()
+	na := NewAccount(signer.Signer1.Key().Address()).Init(big.NewInt(0), 10, 100)
 
 	// Lending
 	ldc := new(big.Int).SetUint64(constants.LDC)
@@ -30,36 +30,36 @@ func TestLending(t *testing.T) {
 		MaxAmount:       new(big.Int).SetUint64(constants.LDC * 10),
 	}
 	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid lending")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid lending")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid lending")
 
 	_, err := na.Repay(constants.NativeToken, addr0, ldc)
 	assert.ErrorContains(err,
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: invalid lending")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: invalid lending")
 	assert.ErrorContains(na.OpenLending(lcfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).OpenLending error: invalid ledger")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: invalid ledger")
 
 	assert.NoError(na.InitLedger(nil))
 	assert.NoError(na.OpenLending(lcfg))
 	assert.ErrorContains(na.OpenLending(lcfg),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).OpenLending error: lending exists")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: lending exists")
 
 	assert.ErrorContains(na.Borrow(token, addr0, ldc, 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid token, expected NativeLDC, got $LDC")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid token, expected NativeLDC, got $LDC")
 	_, err = na.Repay(token, addr0, ldc)
 	assert.ErrorContains(err,
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: invalid token, expected NativeLDC, got $LDC")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: invalid token, expected NativeLDC, got $LDC")
 	_, err = na.Repay(constants.NativeToken, addr0, ldc)
 	assert.ErrorContains(err,
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: don't need to repay")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: don't need to repay")
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 100),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid dueTime, expected > 100, got 100")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid dueTime, expected > 100, got 100")
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, new(big.Int).SetUint64(constants.LDC-1), 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid amount, expected >= 1000000000, got 999999999")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected >= 1000000000, got 999999999")
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: insufficient NativeLDC balance, expected 1000000000, got 0")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: insufficient NativeLDC balance, expected 1000000000, got 0")
 
 	na.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*10))
 	assert.Nil(na.ledger.Lending[addr0.AsKey()])
@@ -71,7 +71,7 @@ func TestLending(t *testing.T) {
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0,
 		new(big.Int).SetUint64(constants.LDC*10), 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid amount, expected <= 10000000000, got 11000000000")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected <= 10000000000, got 11000000000")
 	na.ld.Timestamp = uint64(daysecs + 100)
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, daysecs*2+100))
 	total := constants.LDC*2 + uint64(float64(constants.LDC*10_000/1_000_000))
@@ -89,7 +89,7 @@ func TestLending(t *testing.T) {
 	assert.Equal(uint64(0), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: please repay all before close")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: please repay all before close")
 
 	// Marshal
 	data, ledger, err := na.Marshal()
@@ -119,7 +119,7 @@ func TestLending(t *testing.T) {
 
 	_, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
 	assert.ErrorContains(err,
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Repay error: don't need to repay")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: don't need to repay")
 
 	// Close and Marshal again
 	data, ledger, err = na.Marshal()
@@ -135,7 +135,7 @@ func TestLending(t *testing.T) {
 
 	na.ledger = nil
 	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid ledger")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid ledger")
 
 	na.ledger = lg
 	assert.NoError(na.CloseLending())
@@ -160,11 +160,11 @@ func TestLending(t *testing.T) {
 	}))
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid token, expected $LDC, got NativeLDC")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid token, expected $LDC, got NativeLDC")
 	assert.ErrorContains(na.Borrow(token, addr0, new(big.Int).SetUint64(constants.LDC-1), 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: invalid amount, expected >= 1000000000, got 999999999")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected >= 1000000000, got 999999999")
 	assert.ErrorContains(na.Borrow(token, addr0, ldc, 0),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).Borrow error: insufficient $LDC balance, expected 1000000000, got 0")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: insufficient $LDC balance, expected 1000000000, got 0")
 
 	na.ld.Timestamp = uint64(daysecs * 5)
 	na.Add(token, new(big.Int).SetUint64(constants.LDC*10))
@@ -221,7 +221,7 @@ func TestLending(t *testing.T) {
 	assert.NoError(na.Borrow(token, addr0, ldc, uint64(daysecs*10)))
 	entry := na.ledger.Lending[addr0.AsKey()]
 	total = constants.LDC
-	assert.Equal(uint64(0), na.calcBorrowTotal(util.Signer2.Address()).Uint64())
+	assert.Equal(uint64(0), na.calcBorrowTotal(signer.Signer2.Key().Address()).Uint64())
 	assert.Equal(total, na.calcBorrowTotal(addr0).Uint64())
 
 	na.ld.Timestamp = uint64(daysecs * 1)

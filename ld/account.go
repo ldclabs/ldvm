@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 const (
@@ -36,7 +38,7 @@ func (t AccountType) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + t.String() + "\""), nil
 }
 
-const MaxKeepers = 1024
+const MaxKeepers = 64
 
 type Account struct {
 	Type AccountType `cbor:"t" json:"type"`
@@ -47,12 +49,12 @@ type Account struct {
 	// M of N threshold signatures, aka MultiSig: threshold is m, keepers length is n.
 	// The minimum value is 1, the maximum value is len(keepers)
 	Threshold uint16 `cbor:"th" json:"threshold"`
-	// keepers who can use this account, no more than 1024
+	// keepers who can use this account, no more than 64
 	// the account id must be one of them.
-	Keepers     util.EthIDs         `cbor:"kp" json:"keepers"`
+	Keepers     signer.Keys         `cbor:"kp" json:"keepers"`
 	Tokens      map[string]*big.Int `cbor:"tk" json:"tokens"`
 	NonceTable  map[uint64][]uint64 `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
-	Approver    *util.EthID         `cbor:"ap,omitempty" json:"approver,omitempty"`
+	Approver    signer.Key          `cbor:"ap,omitempty" json:"approver,omitempty"`
 	ApproveList TxTypes             `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	// MaxTotalSupply only used with TokenAccount
 	MaxTotalSupply *big.Int       `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
@@ -60,16 +62,16 @@ type Account struct {
 	Lending        *LendingConfig `cbor:"le,omitempty" json:"lending,omitempty"`
 
 	// external assignment fields
-	Height    uint64     `cbor:"-" json:"height"`    // block's timestamp
-	Timestamp uint64     `cbor:"-" json:"timestamp"` // block's timestamp
-	ID        util.EthID `cbor:"-" json:"address"`
-	raw       []byte     `cbor:"-" json:"-"`
+	Height    uint64       `cbor:"-" json:"height"`    // block's timestamp
+	Timestamp uint64       `cbor:"-" json:"timestamp"` // block's timestamp
+	ID        util.Address `cbor:"-" json:"address"`
+	raw       []byte       `cbor:"-" json:"-"`
 }
 
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("Account.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.Account.SyntacticVerify: ")
 
 	switch {
 	case a == nil:
@@ -92,17 +94,16 @@ func (a *Account) SyntacticVerify() error {
 
 	case a.NonceTable == nil:
 		return errp.Errorf("invalid nonceTable")
-
-	case a.Approver != nil && *a.Approver == util.EthIDEmpty:
-		return errp.Errorf("invalid approver")
 	}
 
-	if err = a.Keepers.CheckDuplicate(); err != nil {
+	if err = a.Keepers.Valid(); err != nil {
 		return errp.Errorf("invalid keepers, %v", err)
 	}
 
-	if err = a.Keepers.CheckEmptyID(); err != nil {
-		return errp.Errorf("invalid keepers, %v", err)
+	if a.Approver != nil {
+		if err = a.Approver.Valid(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
+		}
 	}
 
 	if a.ApproveList != nil {
@@ -162,6 +163,32 @@ func (a *Account) SyntacticVerify() error {
 	return nil
 }
 
+func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
+	switch {
+	case a.ID == constants.LDCAccount:
+		return false
+
+	case len(a.Keepers) == 0 && accountKey.IsAddress(a.ID):
+		return accountKey.Verify(digestHash, sigs)
+
+	default:
+		return a.Keepers.Verify(digestHash, sigs, a.Threshold)
+	}
+}
+
+func (a *Account) VerifyPlus(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
+	switch {
+	case a.ID == constants.LDCAccount:
+		return false
+
+	case len(a.Keepers) == 0 && accountKey.IsAddress(a.ID):
+		return accountKey.Verify(digestHash, sigs)
+
+	default:
+		return a.Keepers.VerifyPlus(digestHash, sigs, a.Threshold)
+	}
+}
+
 func (a *Account) Bytes() []byte {
 	if len(a.raw) == 0 {
 		a.raw = MustMarshal(a)
@@ -170,12 +197,12 @@ func (a *Account) Bytes() []byte {
 }
 
 func (a *Account) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Account.Unmarshal error: ").
+	return util.ErrPrefix("ld.Account.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, a))
 }
 
 func (a *Account) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Account.Marshal error: ").
+	return util.ErrPrefix("ld.Account.Marshal: ").
 		ErrorMap(util.MarshalCBOR(a))
 }
 
@@ -194,7 +221,7 @@ type StakeConfig struct {
 
 // SyntacticVerify verifies that a *StakeConfig is well-formed.
 func (c *StakeConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("StakeConfig.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.StakeConfig.SyntacticVerify: ")
 
 	switch {
 	case c == nil:
@@ -219,12 +246,12 @@ func (c *StakeConfig) SyntacticVerify() error {
 }
 
 func (c *StakeConfig) Unmarshal(data []byte) error {
-	return util.ErrPrefix("StakeConfig.Unmarshal error: ").
+	return util.ErrPrefix("ld.StakeConfig.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, c))
 }
 
 func (c *StakeConfig) Marshal() ([]byte, error) {
-	return util.ErrPrefix("StakeConfig.Marshal error: ").
+	return util.ErrPrefix("ld.StakeConfig.Marshal: ").
 		ErrorMap(util.MarshalCBOR(c))
 }
 
@@ -240,7 +267,7 @@ type LendingConfig struct {
 
 // SyntacticVerify verifies that a *LendingConfig is well-formed.
 func (c *LendingConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("LendingConfig.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.LendingConfig.SyntacticVerify: ")
 
 	switch {
 	case c == nil:
@@ -265,11 +292,11 @@ func (c *LendingConfig) SyntacticVerify() error {
 }
 
 func (c *LendingConfig) Unmarshal(data []byte) error {
-	return util.ErrPrefix("LendingConfig.Unmarshal error: ").
+	return util.ErrPrefix("ld.LendingConfig.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, c))
 }
 
 func (c *LendingConfig) Marshal() ([]byte, error) {
-	return util.ErrPrefix("LendingConfig.Marshal error: ").
+	return util.ErrPrefix("ld.LendingConfig.Marshal: ").
 		ErrorMap(util.MarshalCBOR(c))
 }

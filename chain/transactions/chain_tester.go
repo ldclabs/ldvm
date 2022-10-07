@@ -67,8 +67,8 @@ func (m *MockChainContext) MockChainState() *MockChainState {
 		MC:  make(map[util.ModelID][]byte),
 		DC:  make(map[util.DataID][]byte),
 		PDC: make(map[util.DataID][]byte),
-		ac:  make(map[util.EthID][]byte),
-		al:  make(map[util.EthID][]byte),
+		ac:  make(map[util.Address][]byte),
+		al:  make(map[util.Address][]byte),
 	}
 }
 
@@ -80,8 +80,8 @@ type MockChainState struct {
 	MC  map[util.ModelID][]byte
 	DC  map[util.DataID][]byte
 	PDC map[util.DataID][]byte
-	ac  map[util.EthID][]byte
-	al  map[util.EthID][]byte
+	ac  map[util.Address][]byte
+	al  map[util.Address][]byte
 }
 
 func (m *MockChainState) Height() uint64 {
@@ -92,7 +92,7 @@ func (m *MockChainState) Timestamp() uint64 {
 	return m.ctx.timestamp
 }
 
-func (m *MockChainState) LoadAccount(id util.EthID) (*Account, error) {
+func (m *MockChainState) LoadAccount(id util.Address) (*Account, error) {
 	acc := m.AC[id]
 	if acc == nil {
 		acc = NewAccount(id)
@@ -117,7 +117,7 @@ func (m *MockChainState) LoadLedger(acc *Account) error {
 	return nil
 }
 
-func (m *MockChainState) MustAccount(id util.EthID) *Account {
+func (m *MockChainState) MustAccount(id util.Address) *Account {
 	acc, err := m.LoadAccount(id)
 	if err != nil {
 		panic(err)
@@ -169,7 +169,7 @@ func (m *MockChainState) CheckoutAccounts() {
 func (m *MockChainState) LoadMiner(id util.StakeSymbol) (*Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
-		miner = util.EthID(id)
+		miner = util.Address(id)
 	}
 	return m.LoadAccount(miner)
 }

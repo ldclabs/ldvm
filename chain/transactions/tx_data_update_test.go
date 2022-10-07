@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/stretchr/testify/assert"
@@ -28,8 +29,8 @@ func TestTxUpdateData(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 
-	owner := util.Signer1.Address()
-	modelKeeper := util.Signer2.Address()
+	owner := signer.Signer1.Key().Address()
+	modelKeeper := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -41,7 +42,7 @@ func TestTxUpdateData(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -52,7 +53,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -65,7 +66,7 @@ func TestTxUpdateData(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      owner,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -79,7 +80,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -94,7 +95,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -109,7 +110,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -125,7 +126,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data version")
@@ -140,13 +141,13 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "no keepers, threshold should be nil")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1, Threshold: ld.Uint16Ptr(1),
-		Keepers: &util.EthIDs{util.Signer1.Address()}}
+		Keepers: &signer.Keys{signer.Signer1.Key()}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -156,12 +157,12 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid threshold, should be nil")
 
-	input = &ld.TxUpdater{ID: &did, Version: 1, Approver: &util.EthIDEmpty}
+	input = &ld.TxUpdater{ID: &did, Version: 1, Approver: &signer.Key{}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -171,12 +172,12 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid approver, should be nil")
 
-	input = &ld.TxUpdater{ID: &did, Version: 1, ApproveList: []ld.TxType{ld.TypeDeleteData}}
+	input = &ld.TxUpdater{ID: &did, Version: 1, ApproveList: &ld.TxTypes{ld.TypeDeleteData}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -186,7 +187,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid approveList, should be nil")
@@ -201,7 +202,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -219,7 +220,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 		To:        &modelKeeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -234,7 +235,7 @@ func TestTxUpdateData(t *testing.T) {
 		Data:      input.Bytes(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
@@ -250,11 +251,11 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got <nil>")
+		"invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got <nil>")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
@@ -270,11 +271,11 @@ func TestTxUpdateData(t *testing.T) {
 		To:        &constants.GenesisAccount,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to, expected 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641, got 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+		"invalid to, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
 		Data: []byte(`421`),
@@ -290,7 +291,7 @@ func TestTxUpdateData(t *testing.T) {
 		To:        &modelKeeper,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -310,7 +311,7 @@ func TestTxUpdateData(t *testing.T) {
 		To:        &modelKeeper,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -331,7 +332,7 @@ func TestTxUpdateData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	ltx.Timestamp = 10
@@ -355,15 +356,14 @@ func TestTxUpdateData(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	ltx.Timestamp = 10
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no exSignatures")
 
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	ltx.Timestamp = 10
@@ -379,14 +379,14 @@ func TestTxUpdateData(t *testing.T) {
 	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy not found")
+		"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		ModelID:   ld.RawModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -401,7 +401,7 @@ func TestTxUpdateData(t *testing.T) {
 		ModelID:   ld.RawModelID,
 		Version:   1,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -424,7 +424,7 @@ func TestTxUpdateData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -450,7 +450,7 @@ func TestTxUpdateData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":1,"data":421}},"sigs":["05c1688f1aa64e7c9acaa365a1c60449a782cf9946acaed98f65e1881db9471141d448a3402978c325608e34ecd2ca0d1f13e34aea7e493d1059381131d0ddc501"],"id":"hmY7xRuRh6qBvHLSsDVkrJvU1yr86eaJ85UX1LGQRsH43CNQT"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":1,"data":421}},"sigs":["BcFojxqmTnyayqNlocYESaeCz5lGrK7Zj2XhiB25RxFB1EijQCl4wyVgjjTs0soNHxPjSup-ST0QWTgRMdDdxQGM1L5d"],"id":"XJGFQoGdpV3rjeWl_1uwaMDim_Sw2uyQiGnrvWmDk40828u1"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -467,7 +467,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	owner := util.Signer1.Address()
+	owner := signer.Signer1.Key().Address()
 	ownerAcc := cs.MustAccount(owner)
 	assert.NoError(ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
 
@@ -483,7 +483,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		ModelID:   ld.CBORModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
@@ -502,7 +502,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
@@ -530,7 +530,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
@@ -560,7 +560,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"data":"0x81a3626f70636164646470617468652f6e6f2f2d6576616c7565040f9dc5ca"}},"sigs":["7f10eae5b8aed7fa2610e9a26300b9c6a735a551cf5f4b36be8304a9604eaa58773dcb0893ecdb440fd91e0e39ff1c0c3eea36ff4cc91b5630d1f3e1239938fb00"],"id":"QcWdJpjufJXjopU8XctmFeivLuwdHXvYqTkVSSEoPuLG2PVbp"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"data":"gaNib3BjYWRkZHBhdGhlL25vLy1ldmFsdWUEaHzLug"}},"sigs":["fxDq5biu1_omEOmiYwC5xqc1pVHPX0s2voMEqWBOqlh3PcsIk-zbRA_ZHg45_xwMPuo2_0zJG1Yw0fPhI5k4-wAcJyJU"],"id":"NZ1QxDxvX2MQXCPUqW-bHCWVzqDzjK-1WhnZKlsgiPcS91sa"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -577,7 +577,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	owner := util.Signer1.Address()
+	owner := signer.Signer1.Key().Address()
 	ownerAcc := cs.MustAccount(owner)
 	assert.NoError(ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
 
@@ -586,7 +586,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 		ModelID:   ld.JSONModelID,
 		Version:   2,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   data,
 		ID:        util.DataID{1, 2, 3, 4},
 	}
@@ -605,7 +605,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
@@ -625,9 +625,9 @@ func TestTxUpdateJSONData(t *testing.T) {
 			CWTID:      util.HashFromData([]byte(`{"name":"Tester","nonces":[1,2,3]}`)),
 		},
 	}
-	sig, err := util.Signer2.SignData(input.SigClaims.Bytes())
+	sig, err := signer.Signer2.SignData(input.SigClaims.Bytes())
 	assert.NoError(err)
-	input.TypedSig = sig.Typed()
+	input.Sig = &sig
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -638,7 +638,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 		From:      owner,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -661,19 +661,12 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.Equal(cs.PDC[di.ID], di.Bytes())
 
 	assert.NoError(di.ValidSigClaims())
-	signer, err := di.Signer()
-	assert.ErrorContains(err, "invalid typed signature length, expected 66, got 0")
-	assert.Equal(util.EthIDEmpty, signer)
-
 	assert.NoError(di2.ValidSigClaims())
-	signer, err = di2.Signer()
-	assert.NoError(err)
-	assert.Equal(util.Signer2.Address(), signer)
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"id":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","version":2,"sigClaims":{"iss":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","sub":"SkB92DD9M2yeCadw22VbnxfV6b7W5YEnnLRs6fKivk6wh2Zy","aud":"1111111111111111111L17Xp3","exp":100,"nbf":0,"iat":1,"cti":"Do6oUfVMCkZKbUZ4FgNmjFQfNVjBYWUDJNuq1GVpgcuBFmibS"},"typedSig":"0x00e64cc098eaa126aeee90a85936baf2e5e7ea4ae2b6eb9f5fa537939097c08ff7286b246640c92a4473ac30ce8fb02e175134abf5c16415c279e901743ccf519a00a71dcdb3","data":[{"op":"replace","path":"/name","value":"Tester"}]}},"sigs":["790f55433ee2f2e7938bf3edcac127ab035778f3f7aa8bfe13a8578479324fa130060b4bebf88c461f294f335559e12f6938c6f3189ff8c531f5d5026784d9ca01"],"id":"2p6NntLukzLcpCaTrSPE6Xj7gVf3KZPtVPA3H9H5jwc4n49Ecy"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","exp":100,"nbf":0,"iat":1,"cti":"HQ1ebnZXNJoRQij56bSc5UqffxMktgk7X0sc4fsuAo3laabe"},"sig":"5kzAmOqhJq7ukKhZNrry5efqSuK2659fpTeTkJfAj_coayRmQMkqRHOsMM6PsC4XUTSr9cFkFcJ56QF0PM9RmgAIdq69","data":[{"op":"replace","path":"/name","value":"Tester"}]}},"sigs":["WFThCMEtoY-jGj-foQPFlmnWmwwcKxLmPD-DO_9fNqltJMTcc_Nx5aTAUIDg2GF58t5FdPhDLKA9RzjbEp-lMgGcRJWF"],"id":"kXLbTFWpwFVlCEOCjcNBREwx0pwJDhF6MM-lgHOsUp3HVkRD"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

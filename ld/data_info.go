@@ -8,17 +8,18 @@ import (
 	jsonpatch "github.com/ldclabs/json-patch"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 var (
-	// 111111111111111111116DBWJs
+	// AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye
 	RawModelID = util.ModelIDEmpty
-	// 1111111111111111111Ax1asG
+	// AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah
 	CBORModelID = util.ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 	}
-	// 1111111111111111111L17Xp3
+	// AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw
 	JSONModelID = util.ModelID{
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
@@ -34,16 +35,15 @@ type DataInfo struct {
 	// The minimum value is 0, means no one can update the data.
 	// the maximum value is len(keepers)
 	Threshold uint16 `cbor:"th" json:"threshold"`
-	// keepers who owned this data, no more than 1024
-	Keepers     util.EthIDs  `cbor:"kp" json:"keepers"`
-	Approver    *util.EthID  `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes      `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	// keepers who owned this data, no more than 64
+	Keepers     signer.Keys  `cbor:"kp" json:"keepers"`
+	Approver    signer.Key   `cbor:"ap" json:"approver,omitempty"`
+	ApproveList TxTypes      `cbor:"apl" json:"approveList,omitempty"`
 	Payload     util.RawData `cbor:"pl" json:"payload"`
 	// data signature claims
 	SigClaims *SigClaims `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
 	// data signature signing by a certificate authority
-	// <a byte type><signature>, 0: secp256k1, 1: Ed25519
-	TypedSig util.RawData `cbor:"ts,omitempty" json:"typedSig,omitempty"`
+	Sig *signer.Sig `cbor:"s,omitempty" json:"sig,omitempty"`
 
 	// external assignment fields
 	ID  util.DataID `cbor:"-" json:"id"`
@@ -54,11 +54,9 @@ func (t *DataInfo) Clone() *DataInfo {
 	x := new(DataInfo)
 	*x = *t
 
-	x.Keepers = make(util.EthIDs, len(t.Keepers))
-	copy(x.Keepers, t.Keepers)
+	x.Keepers = t.Keepers.Clone()
 	if t.Approver != nil {
-		id := *t.Approver
-		x.Approver = &id
+		x.Approver = t.Approver.Clone()
 	}
 	if t.ApproveList != nil {
 		x.ApproveList = make(TxTypes, len(t.ApproveList))
@@ -71,9 +69,9 @@ func (t *DataInfo) Clone() *DataInfo {
 		sc := *t.SigClaims
 		x.SigClaims = &sc
 	}
-	if t.TypedSig != nil {
-		x.TypedSig = make([]byte, len(t.TypedSig))
-		copy(x.TypedSig, t.TypedSig)
+	if t.Sig != nil {
+		sig := t.Sig.Clone()
+		x.Sig = &sig
 	}
 	x.raw = nil
 	return x
@@ -82,7 +80,7 @@ func (t *DataInfo) Clone() *DataInfo {
 // SyntacticVerify verifies that a *DataInfo is well-formed.
 func (t *DataInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("DataInfo.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.DataInfo.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -94,22 +92,21 @@ func (t *DataInfo) SyntacticVerify() error {
 	case int(t.Threshold) > len(t.Keepers):
 		return errp.Errorf("invalid threshold")
 
-	case t.Approver != nil && *t.Approver == util.EthIDEmpty:
-		return errp.Errorf("invalid approver")
+	case t.SigClaims == nil && t.Sig != nil:
+		return errp.Errorf("no sigClaims, signature should be nil")
 
-	case t.SigClaims == nil && t.TypedSig != nil:
-		return errp.Errorf("no sigClaims, typed signature should be nil")
-
-	case t.SigClaims != nil && (len(t.TypedSig) < 65 || len(t.TypedSig) > 160):
-		return errp.Errorf("invalid typed signature")
+	case t.SigClaims != nil && t.Sig == nil:
+		return errp.Errorf("invalid signature")
 	}
 
-	if err = t.Keepers.CheckDuplicate(); err != nil {
+	if err = t.Keepers.Valid(); err != nil {
 		return errp.Errorf("invalid keepers, %v", err)
 	}
 
-	if err = t.Keepers.CheckEmptyID(); err != nil {
-		return errp.Errorf("invalid keepers, %v", err)
+	if t.Approver != nil {
+		if err = t.Approver.Valid(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
+		}
 	}
 
 	if t.ApproveList != nil {
@@ -128,12 +125,23 @@ func (t *DataInfo) SyntacticVerify() error {
 		if err = t.SigClaims.SyntacticVerify(); err != nil {
 			return errp.ErrorIf(err)
 		}
+		if err = t.Sig.Valid(); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return nil
+}
+
+func (t *DataInfo) Verify(digestHash []byte, sigs signer.Sigs) bool {
+	return t.Keepers.Verify(digestHash, sigs, t.Threshold)
+}
+
+func (t *DataInfo) VerifyPlus(digestHash []byte, sigs signer.Sigs) bool {
+	return t.Keepers.VerifyPlus(digestHash, sigs, t.Threshold)
 }
 
 // ValidSigClaims should be called after DataInfo.SyntacticVerify.
@@ -143,13 +151,13 @@ func (t *DataInfo) ValidSigClaims() error {
 		return nil
 	}
 
-	errp := util.ErrPrefix("DataInfo.ValidSigClaims error: ")
+	errp := util.ErrPrefix("ld.DataInfo.ValidSigClaims: ")
 	switch {
 	case t.ID == util.DataIDEmpty:
 		return errp.Errorf("invalid data id")
 
-	case len(t.TypedSig) < 65 || len(t.TypedSig) > 160:
-		return errp.Errorf("invalid typed signature")
+	case t.Sig.Kind() == signer.Unknown:
+		return errp.Errorf("invalid signature")
 
 	case t.SigClaims.Subject != t.ID:
 		return errp.Errorf("invalid subject, expected %s, got %s",
@@ -166,28 +174,11 @@ func (t *DataInfo) ValidSigClaims() error {
 	return nil
 }
 
-// Signer should be called after DataInfo.SyntacticVerify and DataInfo.ValidSigClaims.
-// It only support secp256k1 signature
-func (t *DataInfo) Signer() (signer util.EthID, err error) {
-	errp := util.ErrPrefix("DataInfo.Signer error: ")
-
-	if s := len(t.TypedSig); s != 66 {
-		return signer, errp.Errorf("invalid typed signature length, expected 66, got %d", s)
-	}
-
-	if u := t.TypedSig[0]; u != 0 {
-		return signer, errp.Errorf("unknown signature type, expected 0, got %d", u)
-	}
-
-	signer, err = util.DeriveSigner(t.SigClaims.Bytes(), t.TypedSig[1:])
-	return signer, errp.ErrorIf(err)
-}
-
 func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
 	t.ModelID = RawModelID
 	t.SigClaims = nil
-	t.TypedSig = nil
+	t.Sig = nil
 	t.Payload = data
 	return t.SyntacticVerify()
 }
@@ -201,7 +192,7 @@ type patcher interface {
 func (t *DataInfo) Patch(operations []byte) ([]byte, error) {
 	var err error
 	var p patcher
-	errp := util.ErrPrefix("DataInfo.Patch error: ")
+	errp := util.ErrPrefix("ld.DataInfo.Patch: ")
 
 	switch t.ModelID {
 	case RawModelID:
@@ -234,12 +225,12 @@ func (t *DataInfo) Bytes() []byte {
 }
 
 func (t *DataInfo) Unmarshal(data []byte) error {
-	return util.ErrPrefix("DataInfo.Unmarshal error: ").
+	return util.ErrPrefix("ld.DataInfo.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *DataInfo) Marshal() ([]byte, error) {
-	return util.ErrPrefix("DataInfo.Marshal error: ").
+	return util.ErrPrefix("ld.DataInfo.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }
 
@@ -260,7 +251,7 @@ type SigClaims struct {
 
 func (s *SigClaims) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("SigClaims.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.SigClaims.SyntacticVerify: ")
 
 	switch {
 	case s == nil:
@@ -297,11 +288,11 @@ func (s *SigClaims) Bytes() []byte {
 }
 
 func (s *SigClaims) Unmarshal(data []byte) error {
-	return util.ErrPrefix("SigClaims.Unmarshal error: ").
+	return util.ErrPrefix("ld.SigClaims.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, s))
 }
 
 func (s *SigClaims) Marshal() ([]byte, error) {
-	return util.ErrPrefix("SigClaims.Marshal error: ").
+	return util.ErrPrefix("ld.SigClaims.Marshal: ").
 		ErrorMap(util.MarshalCBOR(s))
 }
