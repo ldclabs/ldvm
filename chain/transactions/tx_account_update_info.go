@@ -23,7 +23,7 @@ func (tx *TxUpdateAccountInfo) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateAccountInfo.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateAccountInfo.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +37,7 @@ func (tx *TxUpdateAccountInfo) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateAccountInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountInfo.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateAccountInfo.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -71,13 +71,17 @@ func (tx *TxUpdateAccountInfo) SyntacticVerify() error {
 	if tx.input.Threshold != nil && *tx.input.Threshold == 0 {
 		return errp.Errorf("invalid threshold, expected >= 1")
 	}
+
+	if tx.input.Keepers != nil {
+		tx.senderKey = tx.input.Keepers.FindKeyOrAddr(tx.ld.Tx.From)
+	}
 	return nil
 }
 
 // ApplyGenesis skipping signature verification
 func (tx *TxUpdateAccountInfo) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountInfo.ApplyGenesis error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateAccountInfo.ApplyGenesis: ")
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
@@ -112,12 +116,13 @@ func (tx *TxUpdateAccountInfo) ApplyGenesis(ctx ChainContext, cs ChainState) err
 
 func (tx *TxUpdateAccountInfo) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateAccountInfo.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateAccountInfo.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.from.SatisfySigningPlus(tx.signers) {
+
+	if !tx.from.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures, tx.senderKey) {
 		return errp.Errorf("invalid signatures for keepers")
 	}
 

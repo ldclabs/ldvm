@@ -13,9 +13,8 @@ import (
 
 type TxUpdateDataInfoByAuth struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxUpdater
-	di        *ld.DataInfo
+	input *ld.TxUpdater
+	di    *ld.DataInfo
 }
 
 func (tx *TxUpdateDataInfoByAuth) MarshalJSON() ([]byte, error) {
@@ -24,7 +23,7 @@ func (tx *TxUpdateDataInfoByAuth) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfoByAuth.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -38,7 +37,7 @@ func (tx *TxUpdateDataInfoByAuth) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfoByAuth.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -47,8 +46,12 @@ func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	switch {
 	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to")
+
 	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
+
+	case len(tx.ld.ExSignatures) == 0:
+		return errp.Errorf("no exSignatures")
 	}
 
 	tx.input = &ld.TxUpdater{}
@@ -99,20 +102,24 @@ func (tx *TxUpdateDataInfoByAuth) SyntacticVerify() error {
 	case tx.input.Token != nil && tx.token != *tx.input.Token:
 		return errp.Errorf("invalid token, expected %s, got %s",
 			tx.input.Token.GoString(), tx.token.GoString())
+
+	case tx.input.Expire < tx.ld.Timestamp:
+		return errp.Errorf("input data expired")
 	}
 
-	if tx.exSigners, err = tx.ld.ExSigners(); err != nil {
-		return errp.Errorf("invalid exSignatures, %v", err)
-	}
 	return nil
 }
 
 func (tx *TxUpdateDataInfoByAuth) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataInfoByAuth.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfoByAuth.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
+	}
+
+	if len(tx.from.Keepers()) == 0 {
+		return errp.Errorf("no keepers on sender account")
 	}
 
 	tx.di, err = cs.LoadData(*tx.input.ID)
@@ -124,20 +131,16 @@ func (tx *TxUpdateDataInfoByAuth) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.Errorf("invalid version, expected %d, got %d",
 			tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigningPlus(tx.di.Threshold, tx.di.Keepers, tx.exSigners):
+	case !tx.di.VerifyPlus(tx.ld.ExHash(), tx.ld.ExSignatures):
 		return errp.Errorf("invalid exSignatures for data keepers")
 
-	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) && !tx.exSigners.Has(*tx.di.Approver):
-		return errp.Errorf("invalid signature for data approver")
+	case !tx.ld.IsApproved(tx.di.Approver, tx.di.ApproveList, true):
+		return errp.Errorf("invalid exSignature for data approver")
 	}
 
 	tx.di.Version++
 	tx.di.Threshold = tx.from.Threshold()
 	tx.di.Keepers = tx.from.Keepers()
-	if len(tx.di.Keepers) == 0 {
-		tx.di.Threshold = 1
-		tx.di.Keepers = util.EthIDs{tx.from.id}
-	}
 	tx.di.Approver = nil
 	tx.di.ApproveList = nil
 

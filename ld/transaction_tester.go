@@ -13,26 +13,27 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
-func MustNewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) *Transaction {
-	tx, err := NewTestTx(signer, ty, to, data)
+func MustNewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, data []byte) *Transaction {
+	tx, err := NewTestTx(signer1, ty, to, data)
 	if err != nil {
 		panic(err)
 	}
 	return tx
 }
 
-func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Transaction, error) {
+func NewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, data []byte) (*Transaction, error) {
 	var err error
 	tx := &Transaction{
 		Tx: TxData{
 			Type:      ty,
 			ChainID:   gChainID,
-			Nonce:     signer.Nonce(),
+			Nonce:     signer1.Nonce(),
 			GasTip:    0,
 			GasFeeCap: constants.LDC,
-			From:      signer.Address(),
+			From:      signer1.Key().Address(),
 			To:        to,
 			Data:      data,
 		},
@@ -40,7 +41,7 @@ func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Tr
 	if to != nil {
 		tx.Tx.Amount = new(big.Int).SetUint64(constants.LDC)
 	}
-	if err := tx.SignWith(signer); err != nil {
+	if err := tx.SignWith(signer1); err != nil {
 		return nil, err
 	}
 	if err = tx.SyntacticVerify(); err != nil {
@@ -51,7 +52,7 @@ func NewTestTx(signer *util.Signer, ty TxType, to *util.EthID, data []byte) (*Tr
 
 func NewEthTx(innerTx *types.AccessListTx) (*TxEth, error) {
 	eip2718Tx := types.NewTx(innerTx)
-	signedEip2718Tx, err := types.SignTx(eip2718Tx, EthSigner, util.Signer1.PK)
+	signedEip2718Tx, err := types.SignTx(eip2718Tx, EthSigner, signer.Signer1.PK)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func GenJSONData(n int) []byte {
 }
 
 func MustNewToken(str string) util.TokenSymbol {
-	s, err := util.NewToken(str)
+	s, err := util.TokenFrom(str)
 	if err != nil {
 		panic(err)
 	}
@@ -98,7 +99,7 @@ func MustNewToken(str string) util.TokenSymbol {
 }
 
 func MustNewStake(str string) util.StakeSymbol {
-	s, err := util.NewStake(str)
+	s, err := util.StakeFrom(str)
 	if err != nil {
 		panic(err)
 	}

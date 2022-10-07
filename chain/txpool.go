@@ -10,6 +10,7 @@ import (
 	"github.com/mailgun/holster/v4/collections"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util"
 )
 
 const (
@@ -22,11 +23,11 @@ const (
 // locally. They exit the pool when they are included in the blockchain.
 type TxPool interface {
 	Len() int
-	SetTxsHeight(height uint64, txIDs ...ids.ID)
-	ClearTxs(txIDs ...ids.ID)
+	SetTxsHeight(height uint64, txIDs ...util.Hash)
+	ClearTxs(txIDs ...util.Hash)
 	AddRemote(txs ...*ld.Transaction)
 	AddLocal(txs ...*ld.Transaction)
-	GetHeight(txID ids.ID) int64
+	GetHeight(txID util.Hash) int64
 	PopTxsBySize(askSize int) ld.Txs
 	Reject(tx *ld.Transaction)
 	Clear()
@@ -56,14 +57,14 @@ type knownTxs struct {
 	cache *collections.TTLMap
 }
 
-func (k *knownTxs) getHeight(txID ids.ID) int64 {
+func (k *knownTxs) getHeight(txID util.Hash) int64 {
 	if s, ok := k.cache.Get(string(txID[:])); ok {
 		return s.(int64)
 	}
 	return -3
 }
 
-func (k *knownTxs) setHeight(txID ids.ID, height int64) {
+func (k *knownTxs) setHeight(txID util.Hash, height int64) {
 	k.cache.Set(string(txID[:]), height, knownTxsTTL)
 }
 
@@ -96,7 +97,7 @@ func (p *txPool) Len() int {
 // -2: the transaction is rejected
 // -1: the transaction is in the pool, but not yet included in a block
 // >= 0: the transaction is included in a block with the given height
-func (p *txPool) GetHeight(txID ids.ID) int64 {
+func (p *txPool) GetHeight(txID util.Hash) int64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -105,7 +106,7 @@ func (p *txPool) GetHeight(txID ids.ID) int64 {
 
 // SetTxsHeight sets the height of block that transactions included in.
 // It should be called only when block accepted.
-func (p *txPool) SetTxsHeight(height uint64, txIDs ...ids.ID) {
+func (p *txPool) SetTxsHeight(height uint64, txIDs ...util.Hash) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -116,7 +117,7 @@ func (p *txPool) SetTxsHeight(height uint64, txIDs ...ids.ID) {
 
 // ClearTxs removes transaction entities from the pool.
 // but their ids and status can be retrieved.
-func (p *txPool) ClearTxs(txIDs ...ids.ID) {
+func (p *txPool) ClearTxs(txIDs ...util.Hash) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -125,14 +126,14 @@ func (p *txPool) ClearTxs(txIDs ...ids.ID) {
 	}
 }
 
-func (p *txPool) clear(txID ids.ID) {
-	if !p.txQueueSet.Contains(txID) {
+func (p *txPool) clear(txID util.Hash) {
+	if !p.txQueueSet.Contains(ids.ID(txID)) {
 		return
 	}
 
 	for i, tx := range p.txQueue {
 		if tx.ID == txID {
-			p.txQueueSet.Remove(txID)
+			p.txQueueSet.Remove(ids.ID(txID))
 			n := copy(p.txQueue[i:], p.txQueue[i+1:])
 			p.txQueue = p.txQueue[:i+n]
 			return
@@ -140,8 +141,8 @@ func (p *txPool) clear(txID ids.ID) {
 	}
 }
 
-func (p *txPool) knownTx(txID ids.ID) bool {
-	if p.txQueueSet.Contains(txID) {
+func (p *txPool) knownTx(txID util.Hash) bool {
+	if p.txQueueSet.Contains(ids.ID(txID)) {
 		return true
 	}
 
@@ -161,7 +162,7 @@ func (p *txPool) AddRemote(txs ...*ld.Transaction) {
 		if !p.knownTx(tx.ID) {
 			added++
 			p.knownTxs.setHeight(tx.ID, int64(-1))
-			p.txQueueSet.Add(tx.ID)
+			p.txQueueSet.Add(ids.ID(tx.ID))
 			p.txQueue = append(p.txQueue, txs[i])
 
 			go p.gossipTx(txs[i])
@@ -185,8 +186,8 @@ func (p *txPool) AddLocal(txs ...*ld.Transaction) {
 			continue
 		}
 
-		if !p.txQueueSet.Contains(tx.ID) {
-			p.txQueueSet.Add(tx.ID)
+		if !p.txQueueSet.Contains(ids.ID(tx.ID)) {
+			p.txQueueSet.Add(ids.ID(tx.ID))
 			p.txQueue = append(p.txQueue, txs[i])
 		}
 	}
@@ -222,7 +223,7 @@ func (p *txPool) PopTxsBySize(askSize int) ld.Txs {
 			break
 		}
 		n++
-		p.txQueueSet.Remove(tx.ID)
+		p.txQueueSet.Remove(ids.ID(tx.ID))
 		rt = append(rt, p.txQueue[i])
 	}
 	if n > 0 {

@@ -21,7 +21,7 @@ func (tx *TxTest) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxTest.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxTest.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxTest) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTest) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxTest.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxTest.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -69,7 +69,7 @@ func (tx *TxTest) SyntacticVerify() error {
 // call after SyntacticVerify
 func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxTest.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxTest.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -78,7 +78,7 @@ func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 	var data []byte
 	switch tx.input.ObjectType {
 	case ld.AddressObject:
-		acc, err := cs.LoadAccount(util.EthID(tx.input.ShortID))
+		acc, err := cs.LoadAccount(util.Address(tx.input.ShortID))
 		if err == nil {
 			data, _, err = acc.Marshal()
 		}
@@ -87,7 +87,7 @@ func (tx *TxTest) Apply(ctx ChainContext, cs ChainState) error {
 		}
 
 	case ld.LedgerObject:
-		acc, err := cs.LoadAccount(util.EthID(tx.input.ShortID))
+		acc, err := cs.LoadAccount(util.Address(tx.input.ShortID))
 		if err == nil {
 			_, data, err = acc.Marshal()
 		}

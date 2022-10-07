@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,31 +21,31 @@ func TestBlock(t *testing.T) {
 	assert.ErrorContains(blk.SyntacticVerify(), "nil pointer")
 
 	blk = &Block{}
-	assert.ErrorContains(blk.SyntacticVerify(), "invalid state 11111111111111111111111111111111LpoYY")
+	assert.ErrorContains(blk.SyntacticVerify(), "invalid state AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, Timestamp: uint64(time.Now().Unix() + 20)}
+	blk = &Block{State: util.Hash{1, 2, 3}, Timestamp: uint64(time.Now().Unix() + 20)}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid timestamp")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 1}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 1}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid gasPrice")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 100, GasRebateRate: 1001}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, GasRebateRate: 1001}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid gasRebateRate")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 100, Miner: util.StakeSymbol{1, 2, 3}}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Miner: util.StakeSymbol{1, 2, 3}}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid miner address")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 100}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100}
 	assert.ErrorContains(blk.SyntacticVerify(), "no txs")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1),
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1),
 		Validators: []util.StakeSymbol{{1, 2, 3}}}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
 
-	blk = &Block{State: ids.ID{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1)}
-	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify error: nil pointer")
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1)}
+	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify: nil pointer")
 
-	to := util.Signer2.Address()
+	to := signer.Signer2.Key().Address()
 	tx := &Transaction{
 		Tx: TxData{
 			Type:      TypeTransfer,
@@ -53,16 +53,16 @@ func TestBlock(t *testing.T) {
 			Nonce:     1,
 			GasTip:    0,
 			GasFeeCap: 1000,
-			From:      util.Signer1.Address(),
+			From:      signer.Signer1.Key().Address(),
 			To:        &to,
 			Amount:    big.NewInt(1_000_000),
 		},
 	}
-	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
 
 	blk = &Block{
-		State:         ids.ID{1, 2, 3},
+		State:         util.Hash{1, 2, 3},
 		Gas:           tx.Gas(),
 		GasPrice:      1000,
 		GasRebateRate: 200,
@@ -77,11 +77,11 @@ func TestBlock(t *testing.T) {
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"11111111111111111111111111111111LpoYY","height":0,"timestamp":0,"state":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","gas":638,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"qGzUDBq64yjXf9hSdAhe3CsW1RrNhogRR7xGummZfyHnKQQHm","txs":[{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","amount":1000000},"sigs":["7db3ec16b7970728f2d20d32d1640b5034f62aaca20480b645b32cd87594f5536b238186d4624c8fef63fcd7f442e31756f51710883792c38e952065df45c0dd00"],"id":"o87bat4Z2dnH1NKyzD3yMQYaBJKBwQZTmnhQHn4qQFNwDNe5T"}]}`, string(jsondata))
+	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","height":0,"timestamp":0,"state":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","gas":638,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"bZ2rHS4yOz7W6lbLwmLKGqE6w3wRPlNzt5u4kEbdVdJGfv_d","txs":[{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}]}`, string(jsondata))
 
 	blk.Gas++
 	assert.ErrorContains(blk.SyntacticVerify(),
-		"Block.SyntacticVerify error: invalid gas, expected 638, got 639")
+		"Block.SyntacticVerify: invalid gas, expected 638, got 639")
 	blk.Gas--
 
 	blk2 := &Block{}

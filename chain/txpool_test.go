@@ -8,9 +8,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,14 +20,14 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tp := NewTxPool()
 
-	tx := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
+	tx := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 	assert.Equal(0, tp.Len())
-	assert.False(tp.txQueueSet.Contains(tx.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx.ID)))
 	assert.False(tp.knownTx(tx.ID))
 
 	tp.AddRemote(tx)
 	assert.Equal(1, tp.Len())
-	assert.True(tp.txQueueSet.Contains(tx.ID))
+	assert.True(tp.txQueueSet.Contains(ids.ID(tx.ID)))
 	assert.True(tp.knownTx(tx.ID))
 	assert.Equal(int64(-1), tp.GetHeight(tx.ID))
 
@@ -35,12 +36,12 @@ func TestTxPoolBasic(t *testing.T) {
 
 	tp.Reject(tx)
 	assert.Equal(0, tp.Len())
-	assert.False(tp.txQueueSet.Contains(tx.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx.ID)))
 	assert.True(tp.knownTx(tx.ID))
 	assert.Equal(int64(-2), tp.GetHeight(tx.ID))
 
 	tp.AddRemote(tx)
-	assert.False(tp.txQueueSet.Contains(tx.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx.ID)))
 	assert.Equal(0, tp.Len(), "should not be added after rejected")
 
 	txs := tp.PopTxsBySize(1000000)
@@ -51,10 +52,10 @@ func TestTxPoolRemove(t *testing.T) {
 	assert := assert.New(t)
 
 	tp := NewTxPool()
-	tx0 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
-	tx1 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
-	tx2 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
-	tx3 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
+	tx0 := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
+	tx1 := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
+	tx2 := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
+	tx3 := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &constants.GenesisAccount, nil)
 
 	tp.AddRemote(tx0, tx1, tx2, tx3)
 	assert.Equal(4, tp.Len())
@@ -65,7 +66,7 @@ func TestTxPoolRemove(t *testing.T) {
 	quePtr := fmt.Sprintf("%p", tp.txQueue)
 
 	tp.ClearTxs(tx1.ID)
-	assert.False(tp.txQueueSet.Contains(tx1.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx1.ID)))
 	assert.True(tp.knownTx(tx1.ID))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx0.ID, tp.txQueue[0].ID)
@@ -74,7 +75,7 @@ func TestTxPoolRemove(t *testing.T) {
 	assert.Equal(quePtr, fmt.Sprintf("%p", tp.txQueue), "should not change the underlying array")
 
 	tp.ClearTxs(tx0.ID)
-	assert.False(tp.txQueueSet.Contains(tx0.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx0.ID)))
 	assert.True(tp.knownTx(tx0.ID))
 	assert.Equal(2, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
@@ -98,7 +99,7 @@ func TestTxPoolRemove(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	assert.False(tp.txQueueSet.Contains(tx1.ID))
+	assert.False(tp.txQueueSet.Contains(ids.ID(tx1.ID)))
 	assert.Equal(3, tp.Len())
 	assert.Equal(tx2.ID, tp.txQueue[0].ID)
 	assert.Equal(tx3.ID, tp.txQueue[1].ID)
@@ -110,11 +111,11 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	assert := assert.New(t)
 
 	tp := NewTxPool()
-	to := util.Signer2.Address()
-	s0 := util.NewSigner()
-	s1 := util.NewSigner()
-	s2 := util.NewSigner()
-	s3 := util.NewSigner()
+	to := signer.Signer2.Key().Address()
+	s0 := signer.NewSigner()
+	s1 := signer.NewSigner()
+	s2 := signer.NewSigner()
+	s3 := signer.NewSigner()
 
 	stx0 := ld.MustNewTestTx(s0, ld.TypeTest, nil, nil)
 	stx1 := ld.MustNewTestTx(s0, ld.TypeTransfer, &to, nil)
@@ -152,7 +153,7 @@ func TestTxPoolPopTxsBySize(t *testing.T) {
 	assert.Equal(tx2.ID, txs[0].ID)
 	assert.Equal(btx.ID, txs[1].ID)
 
-	tx4 := ld.MustNewTestTx(util.Signer1, ld.TypeTransfer, &to, ld.GenJSONData(4000))
+	tx4 := ld.MustNewTestTx(signer.Signer1, ld.TypeTransfer, &to, ld.GenJSONData(4000))
 	tp.AddRemote(tx4)
 	assert.Equal(4, tp.Len())
 	assert.Equal(4, len(tp.txQueue))

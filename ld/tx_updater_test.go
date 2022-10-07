@@ -10,6 +10,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +27,7 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Amount: big.NewInt(-1)}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid amount")
 
-	tx = &TxUpdater{Keepers: &util.EthIDs{}}
+	tx = &TxUpdater{Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 	tx2 := &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))
@@ -35,22 +36,21 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Threshold: Uint16Ptr(1)}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"no keepers, threshold should be nil")
-	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{}}
+	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid threshold, expected <= 0, got 1")
-	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid keepers, empty address exists")
+	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	assert.ErrorContains(tx.SyntacticVerify(), "empty secp256k1 key")
 
-	tx = &TxUpdater{ApproveList: TxTypes{TypeCreateData}}
+	tx = &TxUpdater{ApproveList: &TxTypes{TypeCreateData}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid TxType TypeCreateData in approveList")
 
-	tx = &TxUpdater{ApproveList: TxTypes{TypeDeleteData + 1}}
+	tx = &TxUpdater{ApproveList: &TxTypes{TypeDeleteData + 1}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid TxType TypeUnknown(25) in approveList")
 
-	tx = &TxUpdater{ApproveList: TxTypes{
+	tx = &TxUpdater{ApproveList: &TxTypes{
 		TypeUpdateDataInfo, TypeDeleteData, TypeUpdateDataInfo}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid approveList, duplicate TxType TypeUpdateDataInfo")
@@ -59,12 +59,13 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid typed signature")
 
-	tx = &TxUpdater{TypedSig: []byte{}}
+	tx = &TxUpdater{Sig: &signer.Sig{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"no sigClaims, typed signature should be nil")
 
+	sig := make(signer.Sig, 65)
 	tx = &TxUpdater{
-		TypedSig: util.Signature{1, 2, 3}.Typed(),
+		Sig: &sig,
 		SigClaims: &SigClaims{
 			Issuer:     util.DataID{1, 2, 3, 4},
 			Subject:    util.DataID{5, 6, 7, 8},
@@ -72,7 +73,7 @@ func TestTxUpdater(t *testing.T) {
 		},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid sigClaims, SigClaims.SyntacticVerify error: invalid issued time")
+		"invalid issued time")
 
 	tx = &TxUpdater{Token: &util.NativeToken}
 	assert.NoError(tx.SyntacticVerify())
@@ -81,8 +82,8 @@ func TestTxUpdater(t *testing.T) {
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
 		Threshold: Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
-		Approver:  &util.EthIDEmpty,
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer1.Key()},
+		Approver:  &signer.Key{},
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,
 		Amount:    big.NewInt(1000),
@@ -90,14 +91,14 @@ func TestTxUpdater(t *testing.T) {
 		Data:      []byte(`"Hello, world!"`),
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"duplicate key jbl8fOziScK5i9wCJsxMKle_UvwKxwPH")
 
 	tx = &TxUpdater{
 		ID:        &util.DataID{1, 2, 3},
 		Version:   1,
 		Threshold: Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
-		Approver:  &util.EthIDEmpty,
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
+		Approver:  &signer.Key{},
 		Token:     &util.NativeToken,
 		To:        &constants.GenesisAccount,
 		Amount:    big.NewInt(1000),
@@ -110,7 +111,7 @@ func TestTxUpdater(t *testing.T) {
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"id":"SkB7qHwfMsyF2PgrjhMvtFxJKhuR5ZfVoW9VATWRV4P9jV7J","version":1,"threshold":1,"keepers":["0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"],"approver":"0x0000000000000000000000000000000000000000","token":"","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000,"expire":1000,"data":"Hello, world!"}`, string(jsondata))
+	assert.Equal(`{"id":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH","RBccN_9de3u43K1cgfFihKIp5kE1lmGG"],"approver":"p__G-A","token":"","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000,"expire":1000,"data":"Hello, world!"}`, string(jsondata))
 
 	tx2 = &TxUpdater{}
 	assert.NoError(tx2.Unmarshal(cbordata))
@@ -118,4 +119,6 @@ func TestTxUpdater(t *testing.T) {
 	jsondata2, _ := json.Marshal(tx2)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, tx2.Bytes())
+	assert.NoError(tx2.Approver.ValidOrEmpty())
+	assert.ErrorContains(tx2.Approver.Valid(), "empty key")
 }

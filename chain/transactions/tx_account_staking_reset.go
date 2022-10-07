@@ -21,7 +21,7 @@ func (tx *TxResetStake) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxResetStake.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxResetStake.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxResetStake) MarshalJSON() ([]byte, error) {
 
 func (tx *TxResetStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxResetStake.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxResetStake.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -76,12 +76,13 @@ func (tx *TxResetStake) SyntacticVerify() error {
 
 func (tx *TxResetStake) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxResetStake.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxResetStake.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.from.SatisfySigningPlus(tx.signers) {
+
+	if !tx.from.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures, nil) {
 		return errp.Errorf("invalid signatures for stake keepers")
 	}
 

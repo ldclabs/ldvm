@@ -9,7 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,9 +26,9 @@ func TestTxTransferCash(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	from := cs.MustAccount(util.Signer1.Address())
+	from := cs.MustAccount(signer.Signer1.Key().Address())
 	from.ld.Nonce = 2
-	to := cs.MustAccount(util.Signer2.Address())
+	to := cs.MustAccount(signer.Signer2.Key().Address())
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransferCash,
@@ -40,9 +40,9 @@ func TestTxTransferCash(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to")
@@ -58,7 +58,7 @@ func TestTxTransferCash(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(1),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
@@ -72,7 +72,7 @@ func TestTxTransferCash(t *testing.T) {
 		From:      from.id,
 		To:        &to.id,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -87,7 +87,23 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      []byte("ABC"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
+	assert.ErrorContains(err, "no exSignatures")
+
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeTransferCash,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     2,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      from.id,
+		To:        &to.id,
+		Data:      []byte("ABC"),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -108,7 +124,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil issuer")
@@ -130,11 +147,12 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid issuer, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+		"invalid issuer, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641")
 
 	input = ld.TxTransfer{
 		From:   &to.id,
@@ -152,7 +170,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil recipient")
@@ -174,11 +193,12 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid recipient, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"invalid recipient, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	input = ld.TxTransfer{
 		From:   &to.id,
@@ -197,7 +217,8 @@ func TestTxTransferCash(t *testing.T) {
 		Token:     &token,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, expected NativeLDC, got $LDC")
@@ -219,7 +240,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, expected $LDC, got NativeLDC")
@@ -239,7 +261,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected >= 1")
@@ -260,7 +283,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	_, err = NewTx(ltx)
@@ -283,24 +307,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.SyntacticVerify())
-	ltx.Timestamp = 10
-	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
-
-	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeTransferCash,
-		ChainID:   ctx.ChainConfig().ChainID,
-		Nonce:     2,
-		GasTip:    100,
-		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Data:      input.Bytes(),
-	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
@@ -325,8 +333,8 @@ func TestTxTransferCash(t *testing.T) {
 		To:        &to.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -356,7 +364,7 @@ func TestTxTransferCash(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","data":{"from":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","amount":1000000000,"expire":1000}},"sigs":["65503bbaf2a1368b056e862adb9af46097c1a4cf38a47be223210b54969c936631d12376399a537c221a49829ce566731ff55dd9d00e23e10710dde949afbcdc00"],"exSigs":["2315ac412bbf6573fa1accd7e45ce16101fb8221c1ebc76a8d1567d5c367a4fd0cd70406a11a3c4b2bde2ccec261e803ec8da7a8d18d6ffe47aeb9749219725001"],"id":"cpUAmajN9E4HEZWBaA1GdmNSyNPhme6s5h3Lka8eUxJapWtTj"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1000}},"sigs":["ZVA7uvKhNosFboYq25r0YJfBpM84pHviIyELVJack2Yx0SN2OZpTfCIaSYKc5WZzH_Vd2dAOI-EHEN3pSa-83ACqYAJF"],"exSigs":["IxWsQSu_ZXP6GszX5FzhYQH7giHB68dqjRVn1cNnpP0M1wQGoRo8SyveLM7CYegD7I2nqNGNb_5Hrrl0khlyUAHhsHUg"],"id":"UVSB4LvAXrTCpUky2_bcm-OQ5mGFO-4VJTreaodk66qr5PmS"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

@@ -18,7 +18,7 @@ type Extensions []*Extension
 
 // SyntacticVerify verifies that Extensions is well-formed.
 func (es Extensions) SyntacticVerify() error {
-	errp := util.ErrPrefix("Extensions.SyntacticVerify error: ")
+	errp := util.ErrPrefix("service.Extensions.SyntacticVerify: ")
 	if es == nil {
 		return errp.Errorf("nil pointer")
 	}

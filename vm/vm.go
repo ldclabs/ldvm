@@ -338,7 +338,7 @@ func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
-	blk, err = v.bc.GetBlock(id)
+	blk, err = v.bc.GetBlock(util.Hash(id))
 	if err != nil {
 		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id), zap.Error(err))
 	} else {
@@ -400,7 +400,7 @@ func (v *VM) SetPreference(id ids.ID) error {
 	defer v.mu.Unlock()
 
 	v.Log.Info("LDVM.SetPreference %s", zap.Stringer("id", id))
-	err := v.bc.SetPreference(id)
+	err := v.bc.SetPreference(util.Hash(id))
 	if err != nil {
 		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id), zap.Error(err))
 	}
@@ -444,5 +444,5 @@ func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 			zap.Stringer("id", id),
 			zap.Uint64("height", height))
 	}
-	return id, err
+	return ids.ID(id), err
 }

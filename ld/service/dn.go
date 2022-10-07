@@ -19,7 +19,7 @@ type DN struct {
 }
 
 func NewDN(name string) (*DN, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("NewDN(%q) error: ", name))
+	errp := util.ErrPrefix(fmt.Sprintf("service.NewDN(%q): ", name))
 	if !utf8.ValidString(name) || name == "" {
 		return nil, errp.Errorf("invalid utf8 name")
 	}

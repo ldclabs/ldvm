@@ -20,7 +20,7 @@ func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxAddNonceTable.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxAddNonceTable.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
 // ApplyGenesis skipping signature verification
 func (tx *TxAddNonceTable) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxAddNonceTable.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxAddNonceTable.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -79,7 +79,7 @@ func (tx *TxAddNonceTable) SyntacticVerify() error {
 
 func (tx *TxAddNonceTable) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxAddNonceTable.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxAddNonceTable.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-	sender := util.Signer1.Address()
+	sender := signer.Signer1.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -36,7 +37,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeAddNonceTable,
@@ -47,7 +48,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		To:        &constants.GenesisAccount,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -61,7 +62,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -75,7 +76,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -86,7 +87,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -100,7 +101,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -117,7 +118,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "no nonce")
@@ -137,7 +138,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "too many nonces, expected <= 1024, got 1025")
@@ -154,7 +155,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -172,7 +173,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 1
 	_, err = NewTx(ltx)
@@ -190,7 +191,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -218,7 +219,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":[1001,1,3,7,5]},"sigs":["ef07cf7075394c343ee99f34d2c76efaa3789ecc4b9c48f896aecd01e343f30c0d3e8c67958bf10a33979cdcf1fbcf9c3b6df7c6f7583ec795a3dace2f75b4c200"],"id":"BK1BDD5iwMuYKNYwyTgqwZuPDai3go2mmsFmUnvn5RCixEHHs"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":[1001,1,3,7,5]},"sigs":["7wfPcHU5TDQ-6Z800sdu-qN4nsxLnEj4lq7NAeND8wwNPoxnlYvxCjOXnNzx-8-cO233xvdYPseVo9rOL3W0wgB3TO2Z"],"id":"F2k4eqJNBj7gdy3y-hrebplVMYQx7IBe4PzAU5dWNq04XpCx"}`, string(jsondata))
 
 	input = []uint64{cs.Timestamp() + 1, 2, 4, 1}
 	inputData, err = util.MarshalCBOR(input)
@@ -232,7 +233,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -254,7 +255,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -282,7 +283,7 @@ func TestTxAddNonceTable(t *testing.T) {
 		From:      sender,
 		Data:      inputData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -300,7 +301,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.Equal([]uint64{0}, senderAcc.ld.NonceTable[cs.Timestamp()+2])
 
 	// consume nonce table
-	recipientAcc := cs.MustAccount(util.Signer2.Address())
+	recipientAcc := cs.MustAccount(signer.Signer2.Key().Address())
 	input2 := ld.TxTransfer{
 		Nonce:  0,
 		From:   &sender,
@@ -320,8 +321,8 @@ func TestTxAddNonceTable(t *testing.T) {
 		Data:      input2.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer2))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer2))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -351,8 +352,8 @@ func TestTxAddNonceTable(t *testing.T) {
 		Data:      input2.Bytes(),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer2))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer2))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)

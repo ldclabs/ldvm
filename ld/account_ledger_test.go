@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/util/signer"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,18 +78,20 @@ func TestAccountLedger(t *testing.T) {
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
+	key := signer.Key(constants.LDCAccount[:])
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
 			constants.GenesisAccount.AsKey(): {
-				Amount: big.NewInt(1), Approver: &constants.LDCAccount},
+				Amount: big.NewInt(1), Approver: &key},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid approver on StakeEntry")
 
+	key = signer.Key(constants.GenesisAccount[:])
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
 			constants.GenesisAccount.AsKey(): {
-				Amount: big.NewInt(0), Approver: &constants.GenesisAccount},
+				Amount: big.NewInt(0), Approver: &key},
 		},
 	}
 	assert.NoError(al.SyntacticVerify())
@@ -97,7 +101,7 @@ func TestAccountLedger(t *testing.T) {
 			constants.GenesisAccount.AsKey(): {
 				LockTime: 999,
 				Amount:   new(big.Int).SetUint64(100),
-				Approver: &constants.GenesisAccount,
+				Approver: &key,
 			},
 		},
 		Lending: map[string]*LendingEntry{

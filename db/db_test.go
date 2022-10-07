@@ -9,7 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/database/memdb"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,18 +55,18 @@ func TestPrefixDB(t *testing.T) {
 	assert.False(ok)
 
 	cc := NewCacher(100, 1, func() Objecter { return new(ld.Transaction) })
-	to := util.Signer2.Address()
+	to := signer.Signer2.Key().Address()
 	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   2357,
 		Nonce:     1,
 		GasTip:    0,
 		GasFeeCap: 1000,
-		From:      util.Signer1.Address(),
+		From:      signer.Signer1.Key().Address(),
 		To:        &to,
 		Amount:    big.NewInt(1_000_000),
 	}}
-	assert.NoError(tx.SignWith(util.Signer1))
+	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
 
 	_, ok = cc.GetObject(tx.ID[:])

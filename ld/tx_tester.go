@@ -63,7 +63,7 @@ type TestOp struct {
 type TestOps []TestOp
 
 func (ts TestOps) SyntacticVerify() error {
-	errp := util.ErrPrefix("TestOps.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TestOps.SyntacticVerify: ")
 	for _, t := range ts {
 		switch {
 		case t.Path == "":
@@ -89,7 +89,7 @@ func (ts TestOps) ToPatch() cborpatch.Patch {
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
 func (t *TxTester) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxTester.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxTester.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -101,21 +101,21 @@ func (t *TxTester) SyntacticVerify() error {
 
 	switch t.ObjectType {
 	case AddressObject, LedgerObject:
-		id, err := util.EthIDFromString(t.ObjectID)
+		id, err := util.AddressFrom(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
 		t.ShortID = ids.ShortID(id)
 
 	case ModelObject:
-		id, err := util.ModelIDFromString(t.ObjectID)
+		id, err := util.ModelIDFrom(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
 		t.ShortID = ids.ShortID(id)
 
 	case DataObject:
-		id, err := util.DataIDFromString(t.ObjectID)
+		id, err := util.DataIDFrom(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
@@ -153,7 +153,7 @@ var rawJSONModelID = string(util.MustMarshalCBOR(JSONModelID))
 func (t *TxTester) Test(doc []byte) error {
 	var err error
 
-	errp := util.ErrPrefix("TxTester.Test error: ")
+	errp := util.ErrPrefix("ld.TxTester.Test: ")
 	node := cborpatch.NewNode(doc)
 	opts := cborpatch.NewOptions()
 
@@ -195,11 +195,11 @@ func (t *TxTester) Bytes() []byte {
 }
 
 func (t *TxTester) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxTester.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxTester.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTester) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxTester.Marshal error: ").
+	return util.ErrPrefix("ld.TxTester.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }

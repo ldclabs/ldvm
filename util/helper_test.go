@@ -10,54 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestJSON(t *testing.T) {
-	assert := assert.New(t)
-
-	type testCase struct {
-		input, output []byte
-	}
-	addr1 := Signer1.Address()
-	tcs := []testCase{
-		{
-			input:  []byte(``),
-			output: []byte(``),
-		},
-		{
-			input:  []byte(`null`),
-			output: []byte(`null`),
-		},
-		{
-			input:  []byte(`0`),
-			output: []byte(`0`),
-		},
-		{
-			input:  []byte(`Hello`),
-			output: []byte(`"0x48656c6c6f26381969"`),
-		},
-		{
-			input:  addr1[:],
-			output: []byte(`"0x8db97c7cece249c2b98bdc0226cc4c2a57bf52fcb2822649"`),
-		},
-		{
-			input:  []byte(`{}`),
-			output: []byte(`{}`),
-		},
-		{
-			input:  []byte(`[1,2,3]`),
-			output: []byte(`[1,2,3]`),
-		},
-		{
-			input:  []byte(`"Hello 👋"`),
-			output: []byte(`"Hello 👋"`),
-		},
-	}
-	for _, c := range tcs {
-		o := MarshalJSONData(c.input)
-		assert.Equal(c.output, []byte(o))
-		assert.Equal(c.input, UnmarshalJSONData(o))
-	}
-}
-
 func TestHashFromData(t *testing.T) {
 	assert := assert.New(t)
 
@@ -65,28 +17,31 @@ func TestHashFromData(t *testing.T) {
 	assert.NotEqual(HashFromData([]byte{'a', 'b', 'c'}), HashFromData([]byte{'a', 'b', 'c', 'd'}))
 }
 
-func TestEthIDs(t *testing.T) {
+func TestAddresses(t *testing.T) {
 	assert := assert.New(t)
 
-	var ids EthIDs
+	var ids Addresses
 	assert.NoError(ids.CheckDuplicate())
 	assert.NoError(ids.CheckEmptyID())
 
-	ids = EthIDs{
-		EthIDEmpty,
+	addr1, _ := AddressFrom(address1)
+	addr2, _ := AddressFrom(address2)
+
+	ids = Addresses{
+		AddressEmpty,
 		{1, 2, 3},
-		Signer1.Address(),
-		Signer2.Address(),
+		addr1,
+		addr2,
 	}
-	assert.True(ids.Has(EthIDEmpty))
-	assert.True(ids.Has(EthID{1, 2, 3}))
-	assert.True(ids.Has(Signer2.Address()))
+	assert.True(ids.Has(AddressEmpty))
+	assert.True(ids.Has(Address{1, 2, 3}))
+	assert.True(ids.Has(addr2))
 
-	assert.False(ids.Has(EthID{1, 2, 4}))
+	assert.False(ids.Has(Address{1, 2, 4}))
 	assert.Nil(ids.CheckDuplicate())
-	ids = append(ids, EthID{1, 2, 3})
+	ids = append(ids, Address{1, 2, 3})
 
-	assert.ErrorContains(ids.CheckDuplicate(), EthID{1, 2, 3}.String())
+	assert.ErrorContains(ids.CheckDuplicate(), Address{1, 2, 3}.String())
 	assert.ErrorContains(ids.CheckEmptyID(), "empty address exists")
 }
 
@@ -117,7 +72,7 @@ func TestDataIDs(t *testing.T) {
 	ids = append(ids, DataID{1, 2, 3})
 
 	assert.ErrorContains(ids.CheckDuplicate(), DataID{1, 2, 3}.String())
-	assert.ErrorContains(ids.CheckEmptyID(), "empty data id exists")
+	assert.ErrorContains(ids.CheckEmptyID(), "empty dataID exists")
 }
 
 func TestUint64Set(t *testing.T) {
@@ -130,4 +85,28 @@ func TestUint64Set(t *testing.T) {
 	assert.True(set.Has(0))
 	assert.True(set.Has(888))
 	assert.Equal([]uint64{0, 1, 2, 5, 9, 888}, set.List())
+}
+
+func TestAddressToStakeSymbol(t *testing.T) {
+	assert := assert.New(t)
+
+	ldc, err := StakeFrom("#LDC")
+	addr1, _ := AddressFrom(address1)
+	addr2, _ := AddressFrom(address2)
+	assert.Nil(err)
+	ids := Addresses{
+		Address(ldc),
+		AddressEmpty,
+		addr1,
+		addr2,
+	}
+	ss := AddressToStakeSymbol(ids...)
+	assert.Equal(ldc, ss[0])
+	assert.Equal("#LDC", ss[0].String())
+	assert.Equal("", ss[1].String())
+	assert.Equal(string(AddressEmpty[:]), string(ss[1][:]))
+	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", ss[2].String())
+	assert.Equal("#BLDQHR4QOJZMNIC5Q5U", string(ss[2][:]))
+	assert.Equal("#GWLGDBWNPCOAN55PCUX", ss[3].String())
+	assert.Equal("#GWLGDBWNPCOAN55PCUX", string(ss[3][:]))
 }

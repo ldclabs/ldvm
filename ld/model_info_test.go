@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,31 +43,34 @@ func TestModelInfo(t *testing.T) {
 	tx = &ModelInfo{Name: "Name", Threshold: 1}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold")
 
-	tx = &ModelInfo{Name: "Name", Approver: &util.EthIDEmpty}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
-
 	tx = &ModelInfo{Name: "Name", Schema: "abc"}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid schema string")
 
-	tx = &ModelInfo{Name: "Name", Schema: sc, Threshold: 1, Keepers: util.EthIDs{util.EthIDEmpty}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid keepers, empty address exists")
+	tx = &ModelInfo{Name: "Name", Schema: sc, Approver: signer.Key(util.AddressEmpty[:])}
+	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
+
+	tx = &ModelInfo{Name: "Name", Schema: sc, Threshold: 1, Keepers: signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	assert.ErrorContains(tx.SyntacticVerify(), "empty secp256k1 key")
+
+	tx = &ModelInfo{Name: "Name", Schema: sc, Approver: signer.Key{}}
+	assert.ErrorContains(tx.SyntacticVerify(), `empty key`)
 
 	tx = &ModelInfo{Name: "Name", Schema: sc}
-	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel("Name") error`)
+	assert.ErrorContains(tx.SyntacticVerify(), `NewIPLDModel("Name")`)
 
 	tx = &ModelInfo{
 		Name:      "NameService",
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address(), util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key(), signer.Signer1.Key()},
 		Schema:    sc,
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
-		"invalid keepers, duplicate address 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"duplicate key jbl8fOziScK5i9wCJsxMKle_UvwKxwPH")
 
 	tx = &ModelInfo{
 		Name:      "NameService",
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer1.Address()},
+		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Schema:    sc,
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -74,9 +78,8 @@ func TestModelInfo(t *testing.T) {
 	assert.NoError(err)
 	jsondata, err := json.Marshal(tx)
 	assert.NoError(err)
-
-	assert.NotContains(string(jsondata), `"approver":`)
-	assert.Contains(string(jsondata), `"name":"NameService"`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"name":"NameService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"schema":"\n\ttype ID20 bytes\n\ttype NameService struct {\n\t\tname    String        (rename \"n\")\n\t\tlinked  nullable ID20 (rename \"l\")\n\t\trecords [String]      (rename \"rs\")\n\t}\n","id":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye"}`, string(jsondata))
 
 	tx2 := &ModelInfo{}
 	assert.NoError(tx2.Unmarshal(cbordata))
@@ -86,4 +89,17 @@ func TestModelInfo(t *testing.T) {
 	jsondata2, _ := json.Marshal(tx2)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
+
+	tx2.Approver = signer.Signer3.Key()
+	assert.NoError(tx2.SyntacticVerify())
+	jsondata, err = json.Marshal(tx2)
+	assert.NoError(err)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"name":"NameService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"OVlX-75gy0DuaRuz2k5QnlFVSuKOJezRd4CQdkIjkn5pYt0F","schema":"\n\ttype ID20 bytes\n\ttype NameService struct {\n\t\tname    String        (rename \"n\")\n\t\tlinked  nullable ID20 (rename \"l\")\n\t\trecords [String]      (rename \"rs\")\n\t}\n","id":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye"}`, string(jsondata))
+
+	assert.NotEqual(cbordata, tx2.Bytes())
+	tx3 := &ModelInfo{}
+	assert.NoError(tx3.Unmarshal(tx2.Bytes()))
+	assert.NoError(tx3.SyntacticVerify())
+	assert.Equal(tx2.Bytes(), tx3.Bytes())
 }

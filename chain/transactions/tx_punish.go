@@ -23,7 +23,7 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxPunish.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxPunish.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +37,7 @@ func (tx *TxPunish) MarshalJSON() ([]byte, error) {
 
 func (tx *TxPunish) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxPunish.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxPunish.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -81,7 +81,7 @@ func (tx *TxPunish) SyntacticVerify() error {
 
 func (tx *TxPunish) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxPunish.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxPunish.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

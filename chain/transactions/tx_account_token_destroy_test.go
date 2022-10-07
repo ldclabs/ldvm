@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,9 +26,9 @@ func TestTxDestroyToken(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	tokenid := token.EthID()
-	sender := util.Signer1.Address()
-	recipient := util.Signer2.Address()
+	tokenid := token.Address()
+	sender := signer.Signer1.Key().Address()
+	recipient := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyToken,
@@ -39,7 +40,7 @@ func TestTxDestroyToken(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyToken,
@@ -49,7 +50,7 @@ func TestTxDestroyToken(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      tokenid,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as pledge recipient")
@@ -64,7 +65,7 @@ func TestTxDestroyToken(t *testing.T) {
 		To:        &recipient,
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -79,7 +80,7 @@ func TestTxDestroyToken(t *testing.T) {
 		To:        &recipient,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
@@ -93,17 +94,17 @@ func TestTxDestroyToken(t *testing.T) {
 		From:      sender,
 		To:        &recipient,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "invalid token 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+	assert.ErrorContains(err, "invalid token 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	cfg := &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 	}
-	testToken := NewAccount(util.EthID(token))
+	testToken := NewAccount(util.Address(token))
 	testToken.Init(ctx.FeeConfig().MinTokenPledge, 0, 0)
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
@@ -122,7 +123,7 @@ func TestTxDestroyToken(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -160,7 +161,7 @@ func TestTxDestroyToken(t *testing.T) {
 		From:      testToken.id,
 		To:        &recipient,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -169,7 +170,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for keepers")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -190,7 +191,7 @@ func TestTxDestroyToken(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -218,7 +219,7 @@ func TestTxDestroyToken(t *testing.T) {
 		From:      testToken.id,
 		To:        &recipient,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -241,12 +242,12 @@ func TestTxDestroyToken(t *testing.T) {
 
 	assert.Equal(uint64(2), testToken.Nonce())
 	assert.Equal(uint16(0), testToken.Threshold())
-	assert.Equal(util.EthIDs{}, testToken.Keepers())
+	assert.Equal(signer.Keys{}, testToken.Keepers())
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"sigs":["947812955cc5ca47cec02f6843acd0cbf6c1600d8cf79e8ff3d499d4a6e87fbf69db6cc62b65b8d42bd7de90abbf19d342530f1feaad9123dfa6727ce7b102e301","d3d4a5facb761d38b3b40677c00a66bcdfec751141157ac5e35f69fc5024c70460d085872d8cec8a227084890126d9785e62db834656a25e1b3ea707ddebfb6401"],"id":"26Qv7yAJ6KCiJCdJE6G9nAr3ct32FxExnZZigc6N6Ja9WRwWsA"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"},"sigs":["lHgSlVzFykfOwC9oQ6zQy_bBYA2M956P89SZ1Kbof79p22zGK2W41CvX3pCrvxnTQlMPH-qtkSPfpnJ857EC4wG6gsN8","09Sl-st2HTiztAZ3wApmvN_sdRFBFXrF419p_FAkxwRg0IWHLYzsiiJwhIkBJtl4XmLbg0ZWol4bPqcH3ev7ZAFMSGV0"],"id":"j_xIfHsXX7FqTRExLzyENfU4hqK4YpKl1EGHvdx_7_d-tz7e"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -257,17 +258,17 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	tokenid := util.EthID(token)
+	tokenid := util.Address(token)
 
-	sender := util.Signer1.Address()
-	approver := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
 
 	// CreateToken
 	input := &ld.TxAccounter{
 		Threshold:   ld.Uint16Ptr(1),
-		Keepers:     &util.EthIDs{util.Signer1.Address()},
+		Keepers:     &signer.Keys{signer.Signer1.Key()},
 		Approver:    &approver,
-		ApproveList: ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken},
+		ApproveList: &ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken},
 		Amount:      new(big.Int).SetUint64(constants.LDC * 10),
 		Name:        "LDC Token",
 	}
@@ -283,7 +284,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		Amount:    ctx.FeeConfig().MinTokenPledge,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -309,8 +310,8 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		senderAcc.Balance().Uint64())
 
 	assert.Equal(uint16(1), tokenAcc.Threshold())
-	assert.Equal(util.EthIDs{util.Signer1.Address()}, tokenAcc.Keepers())
-	assert.Equal(approver, *tokenAcc.ld.Approver)
+	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
+	assert.Equal(approver, tokenAcc.ld.Approver)
 	assert.Equal(ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken}, tokenAcc.ld.ApproveList)
 
 	// OpenLending
@@ -331,7 +332,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		From:      tokenid,
 		Data:      ld.MustMarshal(lcfg),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -339,10 +340,10 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxOpenLending.Apply error: invalid signature for approver")
+		"TxOpenLending.Apply: invalid signature for approver")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -376,7 +377,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		From:      tokenid,
 		Data:      ndData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -412,8 +413,8 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		Token:     &token,
 		Data:      tf.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -439,23 +440,23 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		From:      tokenid,
 		To:        &sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyToken.Apply error: invalid signature for approver")
+		"TxDestroyToken.Apply: invalid signature for approver")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyToken.Apply error: Account(0x00000000000000000000000000000000244C4443).DestroyToken error: some token in the use, maxTotalSupply expected 10000000000, got 9000000000")
+		"TxDestroyToken.Apply: Account(0x00000000000000000000000000000000244C4443).DestroyToken: some token in the use, maxTotalSupply expected 10000000000, got 9000000000")
 	cs.CheckoutAccounts()
 
 	// TypeRepay
@@ -470,7 +471,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -494,7 +495,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		From:      tokenid,
 		To:        &sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -507,7 +508,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		itx.(*TxDestroyToken).miner.Balance().Uint64())
 	assert.Equal(uint64(3), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
-	assert.Equal(util.EthIDs{}, tokenAcc.Keepers())
+	assert.Equal(signer.Keys{}, tokenAcc.Keepers())
 	assert.Equal(make(map[uint64][]uint64), tokenAcc.ld.NonceTable)
 	assert.Equal(ld.NativeAccount, tokenAcc.ld.Type)
 	assert.Nil(tokenAcc.ld.Approver)
@@ -521,7 +522,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"},"sigs":["421ff11ef9716a8e3a39e1540901e60c5afc5f9264cb67e8a560e307643ddc024d7b268017924304a372817581d68a2a3b21a874c390825cd7197326f5e8971601","ca327eff261fb9383025cb5763cba84acf70b11c004610aef4d7ff89bc6fa3307e95964358708cf4f96d7ee77eb6fdbd3012d1b696cbf6514b1fdb4d29ce88aa00"],"id":"wTp3jSM6C8cQphswA4PdGXP8S93XmGYoG3WKhYuxnZWZsVYgA"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"},"sigs":["Qh_xHvlxao46OeFUCQHmDFr8X5Jky2fopWDjB2Q93AJNeyaAF5JDBKNygXWB1ooqOyGodMOQglzXGXMm9eiXFgHzyXKX","yjJ-_yYfuTgwJctXY8uoSs9wsRwARhCu9Nf_ibxvozB-lZZDWHCM9Pltfud-tv29MBLRtpbL9lFLH9tNKc6IqgDFCL71"],"id":"e6nJPIAV6ym0S60lk37AfOlzhYtHqp1hGt9trGBdoUYGYXJN"}`, string(jsondata))
 
 	// DestroyToken again
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -533,12 +534,12 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 		From:      tokenid,
 		To:        &sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyToken.Apply error: invalid signatures for sender")
+		"TxDestroyToken.Apply: invalid signatures for sender")
 
 	assert.NoError(cs.VerifyState())
 }

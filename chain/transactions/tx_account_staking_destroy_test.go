@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,10 +26,11 @@ func TestTxDestroyStake(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	stake := ld.MustNewStake("#TEST")
-	stakeid := util.EthID(stake)
+	stakeid := util.Address(stake)
 	token := ld.MustNewToken("$TEST")
-	sender := util.Signer1.Address()
-	keeper := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
+	keeper := approver.Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyStake,
@@ -40,7 +42,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyStake,
@@ -50,7 +52,7 @@ func TestTxDestroyStake(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as pledge recipient")
@@ -65,7 +67,7 @@ func TestTxDestroyStake(t *testing.T) {
 		To:        &keeper,
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -80,7 +82,7 @@ func TestTxDestroyStake(t *testing.T) {
 		To:        &keeper,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
@@ -94,11 +96,11 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      sender,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"TxDestroyStake.SyntacticVerify error: invalid stake account 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"TxDestroyStake.SyntacticVerify: invalid stake account 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyStake,
@@ -109,7 +111,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -117,7 +119,7 @@ func TestTxDestroyStake(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyStake.Apply error: invalid signatures for sender")
+		"TxDestroyStake.Apply: invalid signatures for sender")
 	cs.CheckoutAccounts()
 
 	// create a stake account for testing
@@ -129,7 +131,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	sinput := &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address(), util.Signer2.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
 		Data:      ld.MustMarshal(scfg),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -143,7 +145,7 @@ func TestTxDestroyStake(t *testing.T) {
 		Amount:    new(big.Int).Set(ctx.FeeConfig().MinStakePledge),
 		Data:      sinput.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -180,7 +182,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -194,17 +196,17 @@ func TestTxDestroyStake(t *testing.T) {
 	stakeAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyStake.Apply error: invalid signatures for stake keepers")
+		"TxDestroyStake.Apply: invalid signatures for stake keepers")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyStake.Apply error: Account(0x0000000000000000000000000000002354455354).DestroyStake error: stake in lock, please retry after lockTime, Unix(1100)")
+		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: stake in lock, please retry after lockTime, Unix(1100)")
 	cs.CheckoutAccounts()
 
 	ctx.timestamp += 101
@@ -218,7 +220,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -246,8 +248,8 @@ func TestTxDestroyStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input2.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -273,7 +275,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Nil(senderEntry.Approver)
 
 	// add stake approver for testing
-	input3 := &ld.TxAccounter{Approver: &keeper}
+	input3 := &ld.TxAccounter{Approver: &approver}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -284,7 +286,7 @@ func TestTxDestroyStake(t *testing.T) {
 		To:        &stakeid,
 		Data:      input3.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -300,7 +302,7 @@ func TestTxDestroyStake(t *testing.T) {
 	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
 	assert.NotNil(senderEntry)
 	assert.NotNil(senderEntry.Approver)
-	assert.Equal(keeper, *senderEntry.Approver)
+	assert.Equal(keeper, senderEntry.Approver.Address())
 
 	// destroy again
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -312,14 +314,14 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyStake.Apply error: Account(0x0000000000000000000000000000002354455354).DestroyStake error: stake ledger not empty, please withdraw all except recipient")
+		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: stake ledger not empty, please withdraw all except recipient")
 	cs.CheckoutAccounts()
 
 	input2 = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC * 10)}
@@ -333,7 +335,7 @@ func TestTxDestroyStake(t *testing.T) {
 		To:        &stakeid,
 		Data:      input2.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -362,7 +364,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -380,7 +382,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Equal(ld.AccountType(0), stakeAcc.ld.Type)
 	assert.Equal(uint16(0), stakeAcc.ld.Threshold)
 	assert.Equal(uint64(1), stakeAcc.ld.Nonce)
-	assert.Equal(util.EthIDs{}, stakeAcc.ld.Keepers)
+	assert.Equal(signer.Keys{}, stakeAcc.ld.Keepers)
 	assert.Equal(make(map[uint64][]uint64), stakeAcc.ld.NonceTable)
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)
@@ -390,7 +392,7 @@ func TestTxDestroyStake(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeDestroyStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x0000000000000000000000000000002354455354","to":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"},"sigs":["e3c39546e69ffd01efc5d50d3a76435e750030a2810dcc478aa1dacea7e9d0c00246612fef17b7338ba4b5ad7b6a567fb757b6bd8733688656e1a461b582778101","6e12513eddbd732d027451e5f169f6c2023294258e8191fbd058b593d645892e6fe3e1450a5d80c27be6329d4d1de5dfe20409b1c12447262cfbe9f17cedb65901"],"id":"BXD5hNWxDA2YgTc9kVnkWW7ZDSYsgbut99RxLSGdXW8SN21xm"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeDestroyStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x0000000000000000000000000000002354455354","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"},"sigs":["48OVRuaf_QHvxdUNOnZDXnUAMKKBDcxHiqHazqfp0MACRmEv7xe3M4ukta17alZ_t1e2vYczaIZW4aRhtYJ3gQHUm7Pu","bhJRPt29cy0CdFHl8Wn2wgIylCWOgZH70Fi1k9ZFiS5v4-FFCl2AwnvmMp1NHeXf4gQJscEkRyYs--nxfO22WQFWhz36"],"id":"F-OK20ASGhw1N823p7O5ajH15gHb2vFUi4Ow0GVsbkBWNnAw"}`, string(jsondata))
 
 	// create stake account again
 	scfg = &ld.StakeConfig{
@@ -402,7 +404,7 @@ func TestTxDestroyStake(t *testing.T) {
 	}
 	sinput = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer2.Address()},
+		Keepers:   &signer.Keys{signer.Signer2.Key()},
 		Data:      ld.MustMarshal(scfg),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -416,7 +418,7 @@ func TestTxDestroyStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64() + constants.LDC),
 		Data:      sinput.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -447,7 +449,7 @@ func TestTxDestroyStake(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -467,7 +469,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Equal(ld.AccountType(0), stakeAcc.ld.Type)
 	assert.Equal(uint16(0), stakeAcc.ld.Threshold)
 	assert.Equal(uint64(2), stakeAcc.ld.Nonce)
-	assert.Equal(util.EthIDs{}, stakeAcc.ld.Keepers)
+	assert.Equal(signer.Keys{}, stakeAcc.ld.Keepers)
 	assert.Equal(make(map[uint64][]uint64), stakeAcc.ld.NonceTable)
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)
@@ -483,10 +485,10 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	stake := ld.MustNewStake("#TEST")
-	stakeid := util.EthID(stake)
+	stakeid := util.Address(stake)
 	token := ld.MustNewToken("$TEST")
-	approver := util.Signer1.Address()
-	keeper := util.Signer2.Address()
+	approver := signer.Signer1.Key()
+	keeper := signer.Signer2.Key().Address()
 
 	scfg := &ld.StakeConfig{
 		Token:       token,
@@ -497,9 +499,9 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	}
 	input := &ld.TxAccounter{
 		Threshold:   ld.Uint16Ptr(1),
-		Keepers:     &util.EthIDs{util.Signer2.Address()},
+		Keepers:     &signer.Keys{signer.Signer2.Key()},
 		Approver:    &approver,
-		ApproveList: ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyStake},
+		ApproveList: &ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyStake},
 		Data:        ld.MustMarshal(scfg),
 	}
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -513,7 +515,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64() + constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -539,7 +541,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NotNil(stakeAcc.ledger.Stake)
 	assert.Equal(0, len(stakeAcc.ledger.Stake))
 	assert.NotNil(stakeAcc.ld.Approver)
-	assert.Equal(approver, *stakeAcc.ld.Approver)
+	assert.Equal(approver.Address(), stakeAcc.ld.Approver.Address())
 	assert.Equal(ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyStake}, stakeAcc.ld.ApproveList)
 	stakeAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 
@@ -561,7 +563,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		From:      stakeid,
 		Data:      ld.MustMarshal(lcfg),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -569,10 +571,10 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxOpenLending.Apply error: invalid signature for approver")
+		"TxOpenLending.Apply: invalid signature for approver")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -600,7 +602,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		From:      stakeid,
 		Data:      ndData,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -616,10 +618,11 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.Equal(uint64(2), stakeAcc.Nonce())
 
 	// Borrow
+	approverAddr := approver.Address()
 	tf := &ld.TxTransfer{
 		Nonce:  3,
 		From:   &stakeid,
-		To:     &approver,
+		To:     &approverAddr,
 		Token:  &token,
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: cs.Timestamp() + 1,
@@ -631,18 +634,18 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      approver,
+		From:      approverAddr,
 		To:        &stakeid,
 		Token:     &token,
 		Data:      tf.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
-	approverAcc := cs.MustAccount(approver)
+	approverAcc := cs.MustAccount(approverAddr)
 	approverAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
@@ -666,14 +669,14 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxDestroyStake.Apply error: Account(0x0000000000000000000000000000002354455354).DestroyStake error: please repay all before close")
+		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: please repay all before close")
 	cs.CheckoutAccounts()
 
 	// TypeRepay
@@ -683,12 +686,12 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      approver,
+		From:      approverAddr,
 		To:        &stakeid,
 		Token:     &token,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -712,7 +715,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 		From:      stakeid,
 		To:        &keeper,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -732,7 +735,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.Equal(ld.AccountType(0), stakeAcc.ld.Type)
 	assert.Equal(uint16(0), stakeAcc.ld.Threshold)
 	assert.Equal(uint64(3), stakeAcc.ld.Nonce)
-	assert.Equal(util.EthIDs{}, stakeAcc.ld.Keepers)
+	assert.Equal(signer.Keys{}, stakeAcc.ld.Keepers)
 	assert.Equal(make(map[uint64][]uint64), stakeAcc.ld.NonceTable)
 	assert.Nil(stakeAcc.ld.Approver)
 	assert.Nil(stakeAcc.ld.ApproveList)

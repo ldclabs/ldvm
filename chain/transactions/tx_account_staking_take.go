@@ -13,9 +13,8 @@ import (
 
 type TxTakeStake struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxTransfer
-	lockTime  uint64
+	input    *ld.TxTransfer
+	lockTime uint64
 }
 
 func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
@@ -24,7 +23,7 @@ func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxTakeStake.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxTakeStake.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -38,7 +37,7 @@ func (tx *TxTakeStake) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTakeStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxTakeStake.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxTakeStake.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -53,6 +52,9 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 
 	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
+
+	case len(tx.ld.ExSignatures) == 0:
+		return errp.Errorf("no exSignatures")
 	}
 
 	if stake := util.StakeSymbol(*tx.ld.Tx.To); !stake.Valid() {
@@ -112,16 +114,13 @@ func (tx *TxTakeStake) SyntacticVerify() error {
 		}
 		tx.lockTime = u
 	}
-	tx.exSigners, err = tx.ld.ExSigners()
-	if err != nil {
-		return errp.Errorf("invalid exSignatures, %v", err)
-	}
+
 	return nil
 }
 
 func (tx *TxTakeStake) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxTakeStake.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxTakeStake.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -135,7 +134,7 @@ func (tx *TxTakeStake) Apply(ctx ChainContext, cs ChainState) error {
 	if err = tx.to.TakeStake(tx.token, tx.ld.Tx.From, tx.ld.Tx.Amount, tx.lockTime); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.to.SatisfySigning(tx.exSigners) {
+	if !tx.to.Verify(tx.ld.ExHash(), tx.ld.ExSignatures, tx.to.IDKey()) {
 		return errp.Errorf("invalid exSignatures for stake keepers")
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))

@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,8 +25,8 @@ func TestTxTest(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-	sender := util.Signer1.Address()
-	to := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	to := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTest,
@@ -37,7 +38,7 @@ func TestTxTest(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTest,
@@ -48,7 +49,7 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		To:        &constants.GenesisAccount,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -62,7 +63,7 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -76,7 +77,7 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -87,7 +88,7 @@ func TestTxTest(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -101,7 +102,7 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -119,11 +120,10 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"TxTest.SyntacticVerify error: TxTester.SyntacticVerify error: empty tests")
+	assert.ErrorContains(err, "empty tests")
 
 	input = ld.TxTester{
 		ObjectType: ld.AddressObject,
@@ -142,7 +142,7 @@ func TestTxTest(t *testing.T) {
 		From:      sender,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -169,5 +169,5 @@ func TestTxTest(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","data":{"objectType":"Address","objectID":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","tests":[{"path":"/b","value":"0xc2443b9aca00dfb73dae"}]}},"sigs":["e7061b592e31d4a5e2d37eba4fb6fce8e188d3ed02f68bec9493a2e5df616bc94cfb3e8e567c4cf464d1f169bff7903f9a2ed5fd3e1bc8076d474f71d71e8e7b01"],"id":"2qunswz6UYk17woCMCiXfSU8akHKZpL4NRBSXMgizpNQuVUFTW"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"objectType":"Address","objectID":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","tests":[{"path":"/b","value":"wkQ7msoAEtHq1g"}]}},"sigs":["XigOrlGbvrRgUUfQaJoyRsP5hWt1MJO3oxoQTHJ9e7Ikhm9od505BbdA1XUT-iejZIDbMSWZL7PpT6Xqk-fuvAHllKNp"],"id":"8N34No8u-JnJ4hkgzl_UIJ4UVgcc32OASKfnCxhw9EzQC_Kt"}`, string(jsondata))
 }

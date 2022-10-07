@@ -9,7 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,11 +25,11 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	stake := ld.MustNewStake("#TEST")
-	stakeid := stake.EthID()
+	stakeid := stake.Address()
 	token := ld.MustNewToken("$TEST")
 
-	sender := util.Signer1.Address()
-	approver := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
@@ -41,7 +41,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
@@ -51,7 +51,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as stake account")
@@ -66,7 +66,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, should be nil")
@@ -81,7 +81,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Token:     &token,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -96,8 +96,8 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      []byte{},
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.ErrorContains(ltx.SyntacticVerify(), "TxData.SyntacticVerify error: empty data")
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.ErrorContains(ltx.SyntacticVerify(), "TxData.SyntacticVerify: empty data")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
@@ -109,10 +109,10 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &constants.GenesisAccount,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "invalid stake account 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+	assert.ErrorContains(err, "invalid stake account 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
@@ -124,7 +124,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -140,12 +140,12 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil approver")
 
-	input = &ld.TxAccounter{Approver: &approver, ApproveList: ld.AccountTxTypes}
+	input = &ld.TxAccounter{Approver: &approver, ApproveList: &ld.AccountTxTypes}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -156,7 +156,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid approveList, should be nil")
@@ -172,7 +172,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -187,7 +187,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover error: invalid stake account")
+		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: invalid stake account")
 	cs.CheckoutAccounts()
 
 	scfg := &ld.StakeConfig{
@@ -199,7 +199,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	}
 	input = &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer1.Address()},
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      ld.MustMarshal(scfg),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -213,7 +213,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 1000),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -251,14 +251,14 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover error: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC has no stake ledger to update")
+		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc has no stake ledger to update")
 	cs.CheckoutAccounts()
 
 	stakeAcc.ledger.Stake[sender.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
@@ -280,10 +280,10 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"}},"sigs":["a605b8679f7413b8e1b8a1f637e3a0febf1856edebca5b037d67f4d83554014162d9979a664eacfef2be97a5bcabe1b73b16265eb09faf4ba619cc5f1fa4e1bf00"],"id":"23jMp2KMKD2brbZFUTkaWrQLRus1h7ph6uLKnRVYePgZaie8of"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","data":{"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG"}},"sigs":["pgW4Z590E7jhuKH2N-Og_r8YVu3rylsDfWf02DVUAUFi2ZeaZk6s_vK-l6W8q-G3OxYmXrCfr0umGcxfH6ThvwDeg2W1"],"id":"ieVICnmp0R08Pl5mgJD0dNYeC4Xh64YI_IER0ZNxSgJLFQBN"}`, string(jsondata))
 
 	// clear Approver but need approver signing
-	input = &ld.TxAccounter{Approver: &util.EthIDEmpty}
+	input = &ld.TxAccounter{Approver: &signer.Key{}}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -294,17 +294,17 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		To:        &stakeid,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover error: 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC need approver signing")
+		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc need approver signing")
 	cs.CheckoutAccounts()
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -326,7 +326,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","data":{"approver":"0x0000000000000000000000000000000000000000"}},"sigs":["b4f9e8762a9290f7c36d86a7f187086017b397ad21497bc2ec3137be8eede9616bedc5fc0bc79eda0cbfa532bf484247b2850c018ec1dde0acb8e43c07b3bbfb01","070ddb6c1e5ced0031343f0e9940de31fc34b973252d445638717c3c7ec909a87a94215c0dc6640a414b759433219b0dca972baf168d0b37a78510418337d04801"],"id":"NdmNjaTjCdK8ugJzXNzPLCMUCqV1zH8beLsEYuKz5bscWwUfW"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","data":{"approver":"p__G-A"}},"sigs":["OER5mnDmbqgBFckuLwU2nU_GeETVpWlvGQN7yxBw4DQpDoCNGBOm2-6ERLMJzqaSqOsKnNazHYSrU6GKfyGoEQF1874F","dQBSBvPAn3uOCjsSsQDJmXNcvWmHvBtaqzf7WmR9Ggo19R0NFqbMtRwYATl-QuaP4EfZ2toec_N9u30JuQ1msABZ2ZH1"],"id":"q6jDVcY7UKEkThILjGqSBAbmGfJyVDq90e2VS4XWjG2XzoZu"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

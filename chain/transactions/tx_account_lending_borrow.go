@@ -13,9 +13,8 @@ import (
 
 type TxBorrow struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxTransfer
-	dueTime   uint64
+	input   *ld.TxTransfer
+	dueTime uint64
 }
 
 func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
@@ -24,7 +23,7 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxBorrow.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxBorrow.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -38,7 +37,7 @@ func (tx *TxBorrow) MarshalJSON() ([]byte, error) {
 
 func (tx *TxBorrow) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxBorrow.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxBorrow.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -53,6 +52,9 @@ func (tx *TxBorrow) SyntacticVerify() error {
 
 	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
+
+	case len(tx.ld.ExSignatures) == 0:
+		return errp.Errorf("no exSignatures")
 	}
 
 	tx.input = &ld.TxTransfer{}
@@ -103,23 +105,19 @@ func (tx *TxBorrow) SyntacticVerify() error {
 		tx.dueTime = u
 	}
 
-	tx.exSigners, err = tx.ld.ExSigners()
-	if err != nil {
-		return errp.Errorf("invalid exSignatures, %v", err)
-	}
 	return nil
 }
 
 func (tx *TxBorrow) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxBorrow.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxBorrow.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
 	// verify lender's signatures
-	if !tx.to.SatisfySigning(tx.exSigners) {
+	if !tx.to.Verify(tx.ld.ExHash(), tx.ld.ExSignatures, tx.to.IDKey()) {
 		return errp.Errorf("invalid exSignatures for lending keepers")
 	}
 

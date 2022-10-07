@@ -34,7 +34,7 @@ const (
 
 type BlockBuilder struct {
 	mu              sync.RWMutex
-	nodeID          util.EthID
+	nodeID          util.Address
 	txPool          txPoolForBuilder
 	lastBuildHeight uint64
 	status          builderStatus
@@ -51,7 +51,7 @@ type txPoolForBuilder interface {
 
 func NewBlockBuilder(nodeID ids.NodeID, txPool txPoolForBuilder, toEngine chan<- common.Message) *BlockBuilder {
 	return &BlockBuilder{
-		nodeID:   util.EthID(nodeID),
+		nodeID:   util.Address(nodeID),
 		txPool:   txPool,
 		toEngine: toEngine,
 	}
@@ -98,7 +98,7 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 
 	if err != nil {
 		b.status = dontBuild
-		return nil, util.ErrPrefix("BlockBuilder.Build error: ").ErrorIf(err)
+		return nil, util.ErrPrefix("chain.BlockBuilder.Build: ").ErrorIf(err)
 	}
 
 	b.status = building
@@ -126,7 +126,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 
 	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
 	blk := &ld.Block{
-		Parent:        preferred.ID(),
+		Parent:        util.Hash(preferred.ID()),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasPrice:      preferred.NextGasPrice(),

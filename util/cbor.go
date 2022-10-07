@@ -5,6 +5,7 @@ package util
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/fxamacker/cbor/v2"
 	cborpatch "github.com/ldclabs/cbor-patch"
@@ -49,21 +50,19 @@ func UnmarshalCBOR(data []byte, v interface{}) error {
 	return DecMode.Unmarshal(data, v)
 }
 
+func UnmarshalCBORWithLen(data []byte, expectedLen int) ([]byte, error) {
+	var buf []byte
+	if err := DecMode.Unmarshal(data, &buf); err != nil {
+		return nil, errors.New("util.UnmarshalCBORWithLen: " + err.Error())
+	}
+
+	if bytesLen := len(buf); bytesLen != expectedLen {
+		return nil, errors.New("util.UnmarshalCBORWithLen: invalid bytes length, expected " +
+			strconv.Itoa(expectedLen) + ", got " + strconv.Itoa(bytesLen))
+	}
+	return buf, nil
+}
+
 func ValidCBOR(data []byte) error {
 	return DecMode.Valid(data)
-}
-
-type RawData []byte
-
-func (r RawData) MarshalJSON() ([]byte, error) {
-	return MarshalJSONData(r), nil
-}
-
-func (r *RawData) UnmarshalJSON(b []byte) error {
-	if r == nil {
-		return errors.New("RawData: UnmarshalJSON on nil pointer")
-	}
-	data := UnmarshalJSONData(b)
-	*r = append((*r)[0:0], data...)
-	return nil
 }

@@ -22,20 +22,20 @@ var LocalGenesisConfigJSON = `
     }
   },
   "alloc": {
-    "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF": {
+    "0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff": {
       "balance": 400000000000000000,
       "threshold": 2,
       "keepers": [
-        "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
-        "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
+        "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
+        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG"
       ]
     },
-    "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC": {
+    "0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc": {
       "balance": 100000000000000000,
       "threshold": 1,
       "keepers": [
-        "0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC",
-        "0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641"
+        "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
+        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG"
       ]
     }
   }

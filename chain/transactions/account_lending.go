@@ -16,7 +16,7 @@ func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).OpenLending error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).OpenLending: ", a.id))
 	if a.ld.Lending != nil {
 		return errp.Errorf("lending exists")
 	}
@@ -37,7 +37,7 @@ func (a *Account) CloseLending() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CloseLending error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CloseLending: ", a.id))
 	return errp.ErrorIf(a.closeLending(false))
 }
 
@@ -62,14 +62,14 @@ func (a *Account) closeLending(ignoreNone bool) error {
 
 func (a *Account) Borrow(
 	token util.TokenSymbol,
-	from util.EthID,
+	from util.Address,
 	amount *big.Int,
 	dueTime uint64,
 ) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Borrow error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Borrow: ", a.id))
 	switch {
 	case a.ld.Lending == nil:
 		return errp.Errorf("invalid lending")
@@ -116,13 +116,13 @@ func (a *Account) Borrow(
 
 func (a *Account) Repay(
 	token util.TokenSymbol,
-	from util.EthID,
+	from util.Address,
 	amount *big.Int,
 ) (*big.Int, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Repay error: ", a.id))
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Repay: ", a.id))
 
 	switch {
 	case a.ld.Lending == nil:
@@ -156,7 +156,7 @@ func (a *Account) Repay(
 
 const daysecs = 3600 * 24
 
-func (a *Account) calcBorrowTotal(from util.EthID) *big.Int {
+func (a *Account) calcBorrowTotal(from util.Address) *big.Int {
 	cfg := a.ld.Lending
 	amount := new(big.Int)
 

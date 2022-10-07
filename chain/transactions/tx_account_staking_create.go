@@ -23,7 +23,7 @@ func (tx *TxCreateStake) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxCreateStake.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxCreateStake.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +37,7 @@ func (tx *TxCreateStake) MarshalJSON() ([]byte, error) {
 
 func (tx *TxCreateStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCreateStake.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxCreateStake.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -76,11 +76,14 @@ func (tx *TxCreateStake) SyntacticVerify() error {
 	case tx.input.Amount != nil:
 		return errp.Errorf("invalid amount, should be nil")
 
-	case tx.input.Approver != nil && *tx.input.Approver == util.EthIDEmpty:
-		return errp.Errorf("invalid approver, expected not %s", tx.input.Approver)
-
 	case len(tx.input.Data) == 0:
 		return errp.Errorf("invalid input data")
+	}
+
+	if tx.input.Approver != nil {
+		if err = tx.input.Approver.Valid(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
+		}
 	}
 
 	tx.stake = &ld.StakeConfig{}
@@ -100,7 +103,7 @@ func (tx *TxCreateStake) SyntacticVerify() error {
 
 func (tx *TxCreateStake) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateStake.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxCreateStake.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

@@ -18,8 +18,8 @@ type TxExchanger struct {
 	Minimum   *big.Int         `cbor:"m" json:"minimum"`  // minimum amount to buy
 	Price     *big.Int         `cbor:"p" json:"price"`    // receive token amount = Quota * Price
 	Expire    uint64           `cbor:"e" json:"expire"`
-	Payee     util.EthID       `cbor:"py" json:"payee"`
-	Purchaser *util.EthID      `cbor:"to,omitempty" json:"purchaser,omitempty"` // optional designated purchaser
+	Payee     util.Address     `cbor:"py" json:"payee"`
+	Purchaser *util.Address    `cbor:"to,omitempty" json:"purchaser,omitempty"` // optional designated purchaser
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -27,7 +27,7 @@ type TxExchanger struct {
 
 // SyntacticVerify verifies that a *TxExchanger is well-formed.
 func (t *TxExchanger) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxExchanger.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxExchanger.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -54,7 +54,7 @@ func (t *TxExchanger) SyntacticVerify() error {
 	case t.Price == nil || t.Price.Sign() < 1:
 		return errp.Errorf("invalid price")
 
-	case t.Payee == util.EthIDEmpty:
+	case t.Payee == util.AddressEmpty:
 		return errp.Errorf("invalid payee")
 	}
 
@@ -73,11 +73,11 @@ func (t *TxExchanger) Bytes() []byte {
 }
 
 func (t *TxExchanger) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxExchanger.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxExchanger.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxExchanger) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxExchanger.Marshal error: ").
+	return util.ErrPrefix("ld.TxExchanger.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }

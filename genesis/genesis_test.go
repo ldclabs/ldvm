@@ -15,13 +15,14 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 func TestGenesis(t *testing.T) {
 	assert := assert.New(t)
 
-	address1 := util.Signer1.Address()
-	address2 := util.Signer2.Address()
+	address1 := signer.Signer1.Key().Address()
+	address2 := signer.Signer2.Key().Address()
 
 	file, err := os.ReadFile("./genesis_sample.json")
 	assert.NoError(err)
@@ -47,17 +48,17 @@ func TestGenesis(t *testing.T) {
 	alloc1 := gs.Alloc[constants.GenesisAccount]
 	assert.Equal(0, alloc1.Balance.Cmp(big.NewInt(400000000000000000)))
 	assert.Equal(uint16(2), alloc1.Threshold)
-	assert.True(alloc1.Keepers.Has(address1))
-	assert.True(alloc1.Keepers.Has(address2))
+	assert.True(alloc1.Keepers.HasAddress(address1))
+	assert.True(alloc1.Keepers.HasAddress(address2))
 
 	alloc2 := gs.Alloc[address1]
 	assert.Equal(0, alloc2.Balance.Cmp(big.NewInt(100000000000000000)))
 	assert.Equal(uint16(1), alloc2.Threshold)
-	assert.True(alloc2.Keepers.Has(address1))
-	assert.True(alloc2.Keepers.Has(address2))
+	assert.True(alloc2.Keepers.HasAddress(address1))
+	assert.True(alloc2.Keepers.HasAddress(address2))
 
 	_, err = gs.Chain.AppendFeeConfig([]byte{})
-	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig error")
+	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig: EOF")
 
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{}))
 	assert.ErrorContains(err, "invalid thresholdGas")
@@ -107,8 +108,8 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	assert.NoError(err)
-	assert.Equal("Uu9stNBBfFRRcNfa6Q6Bkr1AkQUyZ7k1dXW3Vqk12aYZo3Gg3", gs.Chain.FeeConfigID.String())
-	assert.Equal("G61B2NvDV1bG57M1skG1ZAbu5g1uVBQHX", gs.Chain.NameServiceID.String())
+	assert.Equal("P1k49TWm5REp3JV7DJADPoEKKoJN8TKU6wTp1ghDuRtzhco5", gs.Chain.FeeConfigID.String())
+	assert.Equal("WSCLBn7ynhrF0Idg7gWOr0BevyNdd7kv", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
 	jsondata, err := json.Marshal(txs)

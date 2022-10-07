@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,11 +26,11 @@ func TestTxTakeStake(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	stake := ld.MustNewStake("#TEST")
-	stakeid := util.EthID(stake)
+	stakeid := util.Address(stake)
 	token := ld.MustNewToken("$TEST")
 
-	sender := util.Signer1.Address()
-	keeper := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	keeper := signer.Signer2.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -41,7 +42,7 @@ func TestTxTakeStake(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -51,7 +52,7 @@ func TestTxTakeStake(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to as stake account")
@@ -65,7 +66,7 @@ func TestTxTakeStake(t *testing.T) {
 		From:      sender,
 		To:        &stakeid,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -80,7 +81,7 @@ func TestTxTakeStake(t *testing.T) {
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -96,10 +97,27 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "invalid stake account 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF")
+	assert.ErrorContains(err, "no exSignatures")
+
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeTakeStake,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		To:        &constants.GenesisAccount,
+		Amount:    new(big.Int).SetUint64(constants.LDC),
+		Data:      []byte("你好👋"),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	_, err = NewTx(ltx)
+	assert.ErrorContains(err, "invalid stake account 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -112,7 +130,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -129,7 +148,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid nonce, expected 1, got 0")
@@ -148,7 +168,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil from")
@@ -168,11 +189,12 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid from, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC")
+		"invalid from, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
@@ -189,7 +211,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil to")
@@ -210,11 +233,12 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid to, expected 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF, got 0x0000000000000000000000000000002354455354")
+		"invalid to, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x0000000000000000000000000000002354455354")
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
@@ -233,7 +257,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
@@ -256,7 +281,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
@@ -278,7 +304,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "nil amount")
@@ -300,7 +327,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount, expected 10000000000, got 1000000000")
@@ -322,7 +350,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -347,7 +376,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	_, err = NewTx(ltx)
@@ -373,14 +403,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.SyntacticVerify())
-	ltx.Timestamp = cs.Timestamp()
-	_, err = NewTx(ltx)
-	assert.ErrorContains(err,
-		"invalid exSignatures, Transaction.ExSigners error: DeriveSigners error: no signature")
-
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -388,14 +412,14 @@ func TestTxTakeStake(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CheckBalance error: insufficient NativeLDC balance, expected 10001776500, got 0")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CheckBalance: insufficient NativeLDC balance, expected 10001776500, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*11))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).TakeStake error: invalid stake account")
+		"Account(0x0000000000000000000000000000002354455354).TakeStake: invalid stake account")
 	cs.CheckoutAccounts()
 
 	scfg := &ld.StakeConfig{
@@ -406,7 +430,7 @@ func TestTxTakeStake(t *testing.T) {
 	}
 	sinput := &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
-		Keepers:   &util.EthIDs{util.Signer2.Address()},
+		Keepers:   &signer.Keys{signer.Signer2.Key()},
 		Data:      ld.MustMarshal(scfg),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -420,7 +444,7 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).Set(ctx.FeeConfig().MinStakePledge),
 		Data:      sinput.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -474,8 +498,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -503,7 +527,7 @@ func TestTxTakeStake(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"0x1903e91a5af090"}},"sigs":["230f5220839b3cf7f92fe6ea65c0c8cfdbeaa992f519ea583adbfff51725eb03721f5d6cdff64aafe7e1fada8391c8e017bf4ada63dc0bf0cf5954b45e64e63b00"],"exSigs":["54b5fa755a0bd4e82c9f561f4a7493a647d1b114f4b48c62a4b95a5e82bb16dc65b5179a81109c14180b5c457b5fae91d1126ae935bf903ec1c03b68eb8b048300"],"id":"EE7DFkNMi4hnZHya7N8sAkVQCN4wQHmqnWjCU4XZ1FSZBwq8a"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"GQPpCCqE-A"}},"sigs":["Iw9SIIObPPf5L-bqZcDIz9vqqZL1GepYOtv_9Rcl6wNyH11s3_ZKr-fh-tqDkcjgF79K2mPcC_DPWVS0XmTmOwA7rS1Z"],"exSigs":["VLX6dVoL1Ogsn1YfSnSTpkfRsRT0tIxipLlaXoK7FtxltReagRCcFBgLXEV7X66R0RJq6TW_kD7BwDto64sEgwDwVkKW"],"id":"Hgf9u2FN3QNfCpN9n4U0suPfKsGCGr2daSDRUuDPAfhe28uh"}`, string(jsondata))
 
 	// take more stake
 	stakeAcc.Add(constants.NativeToken, ctx.FeeConfig().MinStakePledge)
@@ -531,15 +555,15 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 100),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxTakeStake.Apply error: Account(0x0000000000000000000000000000002354455354).TakeStake error: invalid total amount for 0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC, expected <= 100000000000, got 120000000000")
+		"TxTakeStake.Apply: Account(0x0000000000000000000000000000002354455354).TakeStake: invalid total amount for 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc, expected <= 100000000000, got 120000000000")
 	cs.CheckoutAccounts()
 
 	input = &ld.TxTransfer{
@@ -560,8 +584,8 @@ func TestTxTakeStake(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(constants.LDC * 80),
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
-	assert.NoError(ltx.ExSignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)

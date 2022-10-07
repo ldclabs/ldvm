@@ -9,7 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ func TestTxCloseLending(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-	sender := util.Signer1.Address()
+	sender := signer.Signer1.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -37,7 +37,7 @@ func TestTxCloseLending(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -48,7 +48,7 @@ func TestTxCloseLending(t *testing.T) {
 		From:      sender,
 		To:        &constants.GenesisAccount,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -62,7 +62,7 @@ func TestTxCloseLending(t *testing.T) {
 		From:      sender,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -76,7 +76,7 @@ func TestTxCloseLending(t *testing.T) {
 		From:      sender,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -87,7 +87,7 @@ func TestTxCloseLending(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
@@ -102,7 +102,7 @@ func TestTxCloseLending(t *testing.T) {
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid lending")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
 	cs.CheckoutAccounts()
 
 	input := &ld.LendingConfig{
@@ -122,7 +122,7 @@ func TestTxCloseLending(t *testing.T) {
 		From:      sender,
 		Data:      ld.MustMarshal(input),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -143,7 +143,7 @@ func TestTxCloseLending(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
@@ -163,7 +163,7 @@ func TestTxCloseLending(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCloseLending","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC"},"sigs":["ceb99eaf8a7825a8c9d26eeeea7fe3672eede4e0a4d0c18cb50638c00fca73831d50efafc6533b29258b3938811d5fe02a15688911f9958b121c7e14f6e01e8500"],"id":"248nHsDfN92qmdAK8EpNiFTAsMiRsoC1uqnfXjhGmLrQPJNPzR"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCloseLending","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"},"sigs":["zrmer4p4JajJ0m7u6n_jZy7t5OCk0MGMtQY4wA_Kc4MdUO-vxlM7KSWLOTiBHV_gKhVoiRH5lYsSHH4U9uAehQCAi2Ra"],"id":"itAEy7-z-oloqFRTapwFuD75fsXP8R8hHXAJevvkv1WK8OE6"}`, string(jsondata))
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -173,13 +173,13 @@ func TestTxCloseLending(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC).CloseLending error: invalid lending")
+		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
 
 	assert.NoError(cs.VerifyState())
 }

@@ -15,10 +15,9 @@ import (
 
 type TxCreateData struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxUpdater
-	di        *ld.DataInfo
-	ns        *service.Name
+	input *ld.TxUpdater
+	di    *ld.DataInfo
+	ns    *service.Name
 }
 
 func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
@@ -27,7 +26,7 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxCreateData.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxCreateData.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -43,7 +42,7 @@ func (tx *TxCreateData) MarshalJSON() ([]byte, error) {
 // TxCreateData{ID, Version, To, Amount, Threshold, Keepers, Data, Expire} with model keepers
 func (tx *TxCreateData) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCreateData.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxCreateData.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -86,14 +85,19 @@ func (tx *TxCreateData) SyntacticVerify() error {
 	}
 
 	tx.di = &ld.DataInfo{
-		ModelID:     *tx.input.ModelID,
-		Version:     1,
-		Threshold:   *tx.input.Threshold,
-		Keepers:     *tx.input.Keepers,
-		Approver:    tx.input.Approver,
-		ApproveList: tx.input.ApproveList,
-		Payload:     tx.input.Data,
-		ID:          util.DataID(tx.ld.ID),
+		ModelID:   *tx.input.ModelID,
+		Version:   1,
+		Threshold: *tx.input.Threshold,
+		Keepers:   *tx.input.Keepers,
+		Payload:   tx.input.Data,
+		ID:        util.DataID(tx.ld.ID),
+	}
+
+	if tx.input.Approver != nil {
+		tx.di.Approver = *tx.input.Approver
+	}
+	if tx.input.ApproveList != nil {
+		tx.di.ApproveList = *tx.input.ApproveList
 	}
 
 	if tx.input.To == nil {
@@ -123,11 +127,9 @@ func (tx *TxCreateData) SyntacticVerify() error {
 		case tx.input.Amount.Cmp(tx.ld.Tx.Amount) != 0:
 			return errp.Errorf("invalid amount, expected %s, got %s",
 				tx.input.Amount, tx.ld.Tx.Amount)
-		}
 
-		tx.exSigners, err = tx.ld.ExSigners()
-		if err != nil {
-			return errp.Errorf("invalid exSignatures, %v", err)
+		case len(tx.ld.ExSignatures) == 0:
+			return errp.Errorf("no exSignatures")
 		}
 	}
 
@@ -140,7 +142,7 @@ func (tx *TxCreateData) SyntacticVerify() error {
 // ApplyGenesis skipping signature verification
 func (tx *TxCreateData) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateData.ApplyGenesis error: ")
+	errp := util.ErrPrefix("transactions.TxCreateData.ApplyGenesis: ")
 
 	tx.input = &ld.TxUpdater{}
 	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
@@ -203,7 +205,7 @@ func (tx *TxCreateData) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 
 func (tx *TxCreateData) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateData.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxCreateData.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -248,7 +250,7 @@ func (tx *TxCreateData) Apply(ctx ChainContext, cs ChainState) error {
 				return errp.Errorf("nil to")
 			}
 
-			if !util.SatisfySigning(mi.Threshold, mi.Keepers, tx.exSigners, true) {
+			if !mi.Verify(tx.ld.ExHash(), tx.ld.ExSignatures) {
 				return errp.Errorf("invalid exSignatures for model keepers")
 			}
 		}

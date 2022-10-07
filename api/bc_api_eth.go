@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/jsonrpc"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type EthAPI struct {
@@ -171,6 +171,7 @@ func (api *EthAPI) estimateGas(req *jsonrpc.Req) *jsonrpc.Res {
 	}
 
 	// mock tx to estimate gas cost
+	var sig [65]byte
 	tx := &ld.Transaction{
 		Tx: ld.TxData{
 			Type:      ld.TypeTransfer,
@@ -183,7 +184,7 @@ func (api *EthAPI) estimateGas(req *jsonrpc.Req) *jsonrpc.Res {
 			Amount:    ld.FromEthBalance(txs[0].GetValue()),
 			Data:      util.RawData(txs[0].Data),
 		},
-		Signatures: []util.Signature{util.SignatureEmpty},
+		Signatures: signer.Sigs{signer.Sig(sig[:])},
 	}
 
 	if err := tx.SyntacticVerify(); err != nil {
@@ -385,7 +386,7 @@ func (api *EthAPI) call(req *jsonrpc.Req) *jsonrpc.Res {
 			return req.Result("0x")
 
 		case "70a08231": // balanceOf(address)
-			id := util.EthID{}
+			id := util.Address{}
 			copy(id[:], data[4:])
 			acc, err := api.bc.LastAcceptedBlock().State().LoadAccount(id)
 			if err != nil {
@@ -503,8 +504,8 @@ func writeJSONRes(w http.ResponseWriter, code int, val interface{}) {
 }
 
 type ethTx struct {
-	From     util.EthID      `json:"from,omitempty"`
-	To       util.EthID      `json:"to,omitempty"`
+	From     util.Address    `json:"from,omitempty"`
+	To       util.Address    `json:"to,omitempty"`
 	Nonce    string          `json:"nonce,omitempty"`
 	Gas      string          `json:"gas,omitempty"`
 	GasPrice string          `json:"gasPrice,omitempty"`
@@ -537,13 +538,13 @@ func toEthTxIDs(blk *ld.Block) []string {
 	return ids
 }
 
-func toEthTxs(blk *ld.Block, id ids.ID) []map[string]interface{} {
+func toEthTxs(blk *ld.Block, id util.Hash) []map[string]interface{} {
 	txs := make([]map[string]interface{}, 0, len(blk.Txs))
 	blkID := formatBytes(blk.ID[:])
 	blkNumber := formatUint64(blk.Height)
 	gasPrice := formatEthBalance(new(big.Int).SetUint64(blk.GasPrice))
 	for i, tx := range blk.Txs {
-		if id != ids.Empty && tx.ID != id {
+		if id != util.HashEmpty && tx.ID != id {
 			continue
 		}
 
@@ -584,7 +585,7 @@ const logsBloom = "0x00000000000000000000000000000000000000000000000010000000000
 
 const emptyHash = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-func toEthReceipt(blk *ld.Block, id ids.ID) map[string]interface{} {
+func toEthReceipt(blk *ld.Block, id util.Hash) map[string]interface{} {
 	for i, tx := range blk.Txs {
 		if tx.ID != id {
 			continue
@@ -625,7 +626,7 @@ func toEthBlock(blk *ld.Block, fullTxs bool) map[string]interface{} {
 		"transactionsRoot": emptyHash,
 		"stateRoot":        formatBytes(blk.State[:]),
 		"receiptsRoot":     emptyHash,
-		"miner":            util.EthID(blk.Miner).String(),
+		"miner":            util.Address(blk.Miner).String(),
 		"difficulty":       "0x1",
 		"totalDifficulty":  height,
 		"extraData":        "0x",
@@ -638,7 +639,7 @@ func toEthBlock(blk *ld.Block, fullTxs bool) map[string]interface{} {
 	}
 
 	if fullTxs {
-		res["transactions"] = toEthTxs(blk, ids.Empty)
+		res["transactions"] = toEthTxs(blk, util.HashEmpty)
 	} else {
 		res["transactions"] = toEthTxIDs(blk)
 	}

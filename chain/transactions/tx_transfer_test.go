@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +26,7 @@ func TestTxTransfer(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	from := cs.MustAccount(util.Signer1.Address())
+	from := cs.MustAccount(signer.Signer1.Key().Address())
 	from.ld.Nonce = 1
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -38,9 +39,9 @@ func TestTxTransfer(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to")
@@ -55,7 +56,7 @@ func TestTxTransfer(t *testing.T) {
 		To:        &constants.GenesisAccount,
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid amount")
@@ -71,7 +72,7 @@ func TestTxTransfer(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -96,7 +97,7 @@ func TestTxTransfer(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000},"sigs":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01"],"id":"2hd1qLmkBJMyMdAoonML7Anp7gq9dRehunS3trLkxKdYgeA9Cv"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000},"sigs":["IX83ghjdiu09Zg4-ZjXIMAlZItoyOJ9ZxTSeAX63gV549EM4gtDf_fMeefUWzH4pT6YKYchkhL6a9pYdVRZCegGBPL0O"],"id":"3-5PqLJQpKdAtM7MDHuIuH5gopri-5McUcBu9b-stOW9Uimp"}`, string(jsondata))
 
 	token := ld.MustNewToken("$LDC")
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -111,7 +112,7 @@ func TestTxTransfer(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -136,7 +137,7 @@ func TestTxTransfer(t *testing.T) {
 	jsondata, err = itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000},"sigs":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"id":"24SVjNa9K9Jio4KXfsXFTZtAGqZoMztNcaRHADW9DivjvhvzJV"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000},"sigs":["uGG3X1KnhErX6M4bba6hRK5p8LQv3JypqXNQ1ypaUNN2-JSGCOkV9zQ4YLdSIJqOcfLe--EnUT5pKLNincmqIgBsXXMx"],"id":"i4GN43OdfBiEOseH1fP8u0sg7LoUQ4TF2yLgIteaOKxhHz1v"}`, string(jsondata))
 
 	// support 0 amount
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -150,7 +151,7 @@ func TestTxTransfer(t *testing.T) {
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      []byte(`"some message"`),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
@@ -195,7 +196,7 @@ func TestTxTransferGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x0000000000000000000000000000000000000000","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000000000000000000},"id":"cbUdLXs4Mjww56sMZaYSWMNbwmaYMvYDbrhs2AqrV4r3sZx7P"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x0000000000000000000000000000000000000000","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000000000000000000},"id":"UNJMvAMIzdXEqMoJF7eVHAg1l42bkP3ceNXdTR7vs8qbbhhI"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -206,10 +207,10 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	signer1 := util.NewSigner()
-	from := cs.MustAccount(signer1.Address())
+	signer1 := signer.NewSigner()
+	from := cs.MustAccount(signer1.Key().Address())
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
-	to := cs.MustAccount(util.EthID{1, 2, 3})
+	to := cs.MustAccount(util.Address{1, 2, 3})
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -251,7 +252,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
 	assert.NoError(err)
-	assert.ErrorContains(itx.Apply(ctx, cs), "TxBase.Apply error: invalid signatures for sender")
+	assert.ErrorContains(itx.Apply(ctx, cs), "TxBase.Apply: invalid signatures for sender")
 
 	assert.NoError(cs.VerifyState())
 }

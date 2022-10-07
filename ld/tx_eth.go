@@ -11,13 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type TxEth struct {
 	tx   *types.Transaction
-	from util.EthID
-	to   util.EthID
-	sigs []util.Signature
+	from util.Address
+	to   util.Address
+	sig  signer.Sig
 	raw  []byte
 }
 
@@ -30,7 +31,7 @@ func (t *TxEth) MarshalJSON() ([]byte, error) {
 
 // SyntacticVerify verifies that a *TxEth is well-formed.
 func (t *TxEth) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxEth.SyntacticVerify error: ")
+	errp := util.ErrPrefix("ld.TxEth.SyntacticVerify: ")
 
 	if t == nil || t.tx == nil {
 		return errp.Errorf("nil pointer")
@@ -48,18 +49,18 @@ func (t *TxEth) SyntacticVerify() error {
 	if err != nil {
 		return errp.ErrorIf(err)
 	}
-	t.from = util.EthID(from)
+	t.from = util.Address(from)
 
 	to := t.tx.To()
 	if to == nil {
 		return errp.Errorf("invalid to")
 	}
-	t.to = util.EthID(*to)
-	if t.to == util.EthIDEmpty {
+	t.to = util.Address(*to)
+	if t.to == util.AddressEmpty {
 		return errp.Errorf("invalid recipient")
 	}
 
-	t.sigs = []util.Signature{encodeSignature(t.tx.RawSignatureValues())}
+	t.sig = encodeSignature(t.tx.RawSignatureValues())
 	if t.raw, err = t.Marshal(); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -79,12 +80,12 @@ func (t *TxEth) RawSignatureValues() (v, r, s *big.Int) {
 
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
-	return util.ErrPrefix("TxEth.Unmarshal error: ").
+	return util.ErrPrefix("ld.TxEth.Unmarshal: ").
 		ErrorIf(t.tx.UnmarshalBinary(data))
 }
 
 func (t *TxEth) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxEth.Marshal error: ").
+	return util.ErrPrefix("ld.TxEth.Marshal: ").
 		ErrorMap(t.tx.MarshalBinary())
 }
 
@@ -100,25 +101,25 @@ func (t *TxEth) ToTransaction() *Transaction {
 	tx.Tx.Token = nil
 	tx.Tx.Amount = FromEthBalance(t.tx.Value())
 	tx.Tx.Data = t.Bytes()
-	tx.Signatures = t.sigs
+	tx.Signatures = signer.Sigs{t.sig}
 	tx.ExSignatures = nil
 	tx.eth = t
 	return tx
 }
 
-func (t *TxEth) Signers() (util.EthIDs, error) {
-	if t.from == util.EthIDEmpty {
-		return nil, fmt.Errorf("TxEth.Signers error: invalid signature")
+func (t *TxEth) Signers() (signer.Keys, error) {
+	if t.from == util.AddressEmpty {
+		return nil, fmt.Errorf("ld.TxEth.Signers: invalid signature")
 	}
-	return util.EthIDs{t.from}, nil
+	return signer.Keys{signer.Key(t.from[:])}, nil
 }
 
 func (t *TxEth) Data() []byte {
 	return t.tx.Data()
 }
 
-func encodeSignature(v, r, s *big.Int) util.Signature {
-	sig := util.Signature{}
+func encodeSignature(v, r, s *big.Int) signer.Sig {
+	sig := make([]byte, 65)
 	if v != nil && r != nil && s != nil {
 		copy(sig[:32], r.Bytes())
 		copy(sig[32:64], s.Bytes())

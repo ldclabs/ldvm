@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,10 +28,10 @@ func TestTxPunish(t *testing.T) {
 
 	from := cs.MustAccount(constants.GenesisAccount)
 	assert.NoError(err)
-	singer1 := util.Signer1.Address()
-	assert.NoError(from.UpdateKeepers(ld.Uint16Ptr(1), &util.EthIDs{singer1}, nil, nil))
+	singer1 := signer.Signer1.Key()
+	assert.NoError(from.UpdateKeepers(ld.Uint16Ptr(1), &signer.Keys{singer1}, nil, nil))
 
-	to, err := cs.LoadAccount(util.Signer2.Address())
+	to, err := cs.LoadAccount(signer.Signer2.Key().Address())
 	assert.NoError(err)
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -43,7 +44,7 @@ func TestTxPunish(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "DeriveSigners error: no signature")
+	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypePunish,
@@ -53,11 +54,11 @@ func TestTxPunish(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      to.id,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err,
-		"invalid from, expected GenesisAccount, got 0x44171C37Ff5D7B7bb8dcad5C81f16284A229e641")
+		"invalid from, expected GenesisAccount, got 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypePunish,
@@ -68,7 +69,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		To:        &to.id,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid to, should be nil")
@@ -82,7 +83,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Token:     &constants.NativeToken,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid token, should be nil")
@@ -96,7 +97,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Amount:    big.NewInt(1),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -107,7 +108,7 @@ func TestTxPunish(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      from.id,
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data")
@@ -121,7 +122,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Data:      []byte("你好👋"),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
@@ -137,7 +138,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -153,7 +154,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
@@ -170,7 +171,7 @@ func TestTxPunish(t *testing.T) {
 		From:      from.id,
 		Data:      input.Bytes(),
 	}}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
 	assert.NoError(err)
@@ -183,13 +184,13 @@ func TestTxPunish(t *testing.T) {
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"jtZ1sadmr49B1MauiwmwEtuMte25vqm9kq1eHnccb3X1QRDAk not found")
+		"YWJjZGVmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACuCNU1 not found")
 	cs.CheckoutAccounts()
 
 	di := &ld.DataInfo{
 		Version:   1,
 		Threshold: 1,
-		Keepers:   util.EthIDs{util.Signer2.Address()},
+		Keepers:   signer.Keys{signer.Signer2.Key()},
 		Payload:   []byte(`"test...."`),
 		ID:        did,
 	}
@@ -215,7 +216,7 @@ func TestTxPunish(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","data":{"id":"jtZ1sadmr49B1MauiwmwEtuMte25vqm9kq1eHnccb3X1QRDAk","data":"Illegal content"}},"sigs":["50f50d9a0d0ded4c5da43c11e1cc279cb1afb912d4049e71ea5b613dec4a52354627b327e9af0a27c46af3175550539e5b1afa5bca004aa64c79b11358fcac1801"],"id":"2YZD34h4uf4fLGobKryT89FdYw7bRN5A4uPWgNBiV5wF3NMBer"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","data":{"id":"YWJjZGVmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACuCNU1","data":"Illegal content"}},"sigs":["UPUNmg0N7UxdpDwR4cwnnLGvuRLUBJ5x6lthPexKUjVGJ7Mn6a8KJ8Rq8xdVUFOeWxr6W8oASqZMebETWPysGAHDgCjD"],"id":"y1ilDeTEerfrXkeEwjUmP02og4hw8u3mDsnMFNr_wsP2sKNu"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

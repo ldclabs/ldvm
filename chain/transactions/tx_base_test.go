@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,10 +26,10 @@ func TestTxBase(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 
-	sender := util.Signer1.Address()
-	approver := util.Signer2.Address()
+	sender := signer.Signer1.Key().Address()
+	approver := signer.Signer2.Key()
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.ld.Approver = &approver
+	senderAcc.ld.Approver = approver
 	senderAcc.ld.Nonce = 1
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -36,7 +37,7 @@ func TestTxBase(t *testing.T) {
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasFeeCap: 0,
-		From:      util.EthIDEmpty,
+		From:      util.AddressEmpty,
 	}}
 	tx = &TxBase{ld: ltx}
 	assert.NoError(ltx.SyntacticVerify())
@@ -65,7 +66,7 @@ func TestTxBase(t *testing.T) {
 	}}
 	tx = &TxBase{ld: ltx}
 	assert.NoError(ltx.SyntacticVerify())
-	assert.ErrorContains(tx.SyntacticVerify(), "DeriveSigners error: no signature")
+	assert.ErrorContains(tx.SyntacticVerify(), "no signatures")
 
 	// Verify
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -91,7 +92,7 @@ func TestTxBase(t *testing.T) {
 	}}
 
 	tx = &TxBase{ld: ltx}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
 	assert.ErrorContains(tx.verify(ctx, cs), "invalid nonce for sender")
@@ -108,7 +109,7 @@ func TestTxBase(t *testing.T) {
 	}}
 
 	tx = &TxBase{ld: ltx}
-	assert.NoError(ltx.SignWith(util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
 	assert.ErrorContains(tx.verify(ctx, cs), "invalid signatures for sender")
@@ -126,13 +127,13 @@ func TestTxBase(t *testing.T) {
 	}}
 
 	tx = &TxBase{ld: ltx}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
 	assert.ErrorContains(tx.verify(ctx, cs), "invalid signature for approver")
 	assert.ErrorContains(tx.Apply(ctx, cs), "invalid signature for approver")
 
-	assert.NoError(ltx.SignWith(util.Signer1, util.Signer2))
+	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	tx = &TxBase{ld: ltx}
 
 	assert.NoError(ltx.SyntacticVerify())
@@ -158,7 +159,7 @@ func TestTxBase(t *testing.T) {
 	jsondata, err := tx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","amount":1000},"sigs":["217f378218dd8aed3d660e3e6635c830095922da32389f59c5349e017eb7815e78f4433882d0dffdf31e79f516cc7e294fa60a61c86484be9af6961d5516427a01","70c90b4dee8b2442d8974a568bc0640c858fcaa100d4888daf582e33be5510622e5de01281cc2bc7c4a9269caf959dbca03f7fce68032dd03121d375721c2fbb00"],"id":"m2E9KQYgowM2Koa2GofHQMCepW5HHdsDrbpTRh8nRBGiRWnE5"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000},"sigs":["IX83ghjdiu09Zg4-ZjXIMAlZItoyOJ9ZxTSeAX63gV549EM4gtDf_fMeefUWzH4pT6YKYchkhL6a9pYdVRZCegGBPL0O","cMkLTe6LJELYl0pWi8BkDIWPyqEA1IiNr1guM75VEGIuXeASgcwrx8SpJpyvlZ28oD9_zmgDLdAxIdN1chwvuwBGm81i"],"id":"Y_SVR0ZOS38KfuTP6Eqrhe_JvXNusA4tTlyjwWNqIFGcaSHX"}`, string(jsondata))
 
 	senderAcc.ld.Approver = nil
 	token := ld.MustNewToken("$LDC")
@@ -175,7 +176,7 @@ func TestTxBase(t *testing.T) {
 	}}
 
 	tx = &TxBase{ld: ltx}
-	assert.NoError(ltx.SignWith(util.Signer1))
+	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	assert.NoError(tx.SyntacticVerify())
 	cs.CommitAccounts()
@@ -200,7 +201,7 @@ func TestTxBase(t *testing.T) {
 	jsondata, err = tx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97C7cEcE249c2b98bDC0226Cc4C2A57BF52FC","to":"0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF","token":"$LDC","amount":1000},"sigs":["b861b75f52a7844ad7e8ce1b6daea144ae69f0b42fdc9ca9a97350d72a5a50d376f8948608e915f7343860b752209a8e71f2defbe127513e6928b3629dc9aa2200"],"id":"24SVjNa9K9Jio4KXfsXFTZtAGqZoMztNcaRHADW9DivjvhvzJV"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000},"sigs":["uGG3X1KnhErX6M4bba6hRK5p8LQv3JypqXNQ1ypaUNN2-JSGCOkV9zQ4YLdSIJqOcfLe--EnUT5pKLNincmqIgBsXXMx"],"id":"i4GN43OdfBiEOseH1fP8u0sg7LoUQ4TF2yLgIteaOKxhHz1v"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

@@ -18,13 +18,13 @@ func TestIPLDModel(t *testing.T) {
 	type SomeModel string
 	`
 	_, err := NewIPLDModel("SomeModel", sc)
-	assert.ErrorContains(err, `NewIPLDModel("SomeModel") error: should be a map, list or struct`)
+	assert.ErrorContains(err, `NewIPLDModel("SomeModel"): should be a map, list or struct`)
 
 	sc = `
 	type SomeModel {String:Any}
 	`
 	_, err = NewIPLDModel("SomeModel2", sc)
-	assert.ErrorContains(err, `NewIPLDModel("SomeModel2") error: type not found`)
+	assert.ErrorContains(err, `NewIPLDModel("SomeModel2"): type not found`)
 
 	sc = `
 	abc
@@ -47,7 +47,7 @@ func TestIPLDModel(t *testing.T) {
 
 	data, err = util.MarshalCBOR([]interface{}{"a", "b", 1})
 	assert.NoError(err)
-	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid error: decode error`)
+	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid: decode:`)
 
 	sc = `
 	type NameService struct {
@@ -128,7 +128,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 
 	_, err = mo.ApplyPatch(data, util.MustMarshalCBOR(ipldops))
 	assert.ErrorContains(err,
-		`IPLDModel("ProfileService").ApplyPatch error: test operation for path "/n" failed, expected "Test", got "John"`)
+		`IPLDModel("ProfileService").ApplyPatch: test operation for path "/n" failed, expected "Test", got "John"`)
 
 	ipldops = cborpatch.Patch{
 		{Op: "add", Path: "/x", Value: util.MustMarshalCBOR("Test")},

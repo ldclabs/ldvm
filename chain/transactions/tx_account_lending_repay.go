@@ -13,7 +13,7 @@ type TxRepay struct {
 
 func (tx *TxRepay) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxRepay.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxRepay.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -31,7 +31,7 @@ func (tx *TxRepay) SyntacticVerify() error {
 
 func (tx *TxRepay) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxRepay.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxRepay.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

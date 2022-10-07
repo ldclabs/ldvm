@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -42,7 +41,7 @@ func decodeBytes(s string) ([]byte, error) {
 	return hex.DecodeString(s)
 }
 
-func decodeAddress(s string) (id util.EthID, err error) {
+func decodeAddress(s string) (id util.Address, err error) {
 	data, e := decodeBytes(s)
 	if e != nil {
 		err = e
@@ -57,7 +56,7 @@ func decodeAddress(s string) (id util.EthID, err error) {
 	return
 }
 
-func decodeHash(s string) (id ids.ID, err error) {
+func decodeHash(s string) (id util.Hash, err error) {
 	data, e := decodeBytes(s)
 	if e != nil {
 		err = e
@@ -72,7 +71,7 @@ func decodeHash(s string) (id ids.ID, err error) {
 	return
 }
 
-func decodeHashByRaw(data json.RawMessage) (id ids.ID, err error) {
+func decodeHashByRaw(data json.RawMessage) (id util.Hash, err error) {
 	var s string
 	if err = json.Unmarshal(data, &s); err != nil {
 		return

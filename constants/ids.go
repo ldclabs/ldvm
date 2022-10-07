@@ -11,12 +11,10 @@ import (
 var (
 	// pjjsfTNAgQnP7zdpKfRcmicXGbk87xXznJmJZtqDAyRaNEhEL
 	LDVMID = ids.ID{'l', 'd', 'v', 'm'}
-	// 111111111111111111116DBWJs
 	// 0x0000000000000000000000000000000000000000
-	LDCAccount = util.EthIDEmpty
-	// QLbz7JHiBTspS962RLKV8GndWFwdYhk6V
-	// 0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF
-	GenesisAccount = util.EthID{
+	LDCAccount = util.AddressEmpty
+	// 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff
+	GenesisAccount = util.Address{
 		255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 		255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 	}

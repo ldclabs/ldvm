@@ -49,14 +49,14 @@ type lazyName struct {
 func GetName(data []byte) (string, error) {
 	n := &lazyName{}
 	if err := util.UnmarshalCBOR(data, n); err != nil {
-		return "", util.ErrPrefix("GetName error: ").ErrorIf(err)
+		return "", util.ErrPrefix("service.GetName: ").ErrorIf(err)
 	}
 	return n.Name, nil
 }
 
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
-	errp := util.ErrPrefix("Name.SyntacticVerify error: ")
+	errp := util.ErrPrefix("service.Name.SyntacticVerify: ")
 	if n == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -107,11 +107,11 @@ func (n *Name) Bytes() []byte {
 }
 
 func (n *Name) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Name.Unmarshal error: ").
+	return util.ErrPrefix("service.Name.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, n))
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Name.Marshal error: ").
+	return util.ErrPrefix("service.Name.Marshal: ").
 		ErrorMap(util.MarshalCBOR(n))
 }

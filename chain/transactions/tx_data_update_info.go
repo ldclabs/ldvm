@@ -8,6 +8,7 @@ import (
 
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type TxUpdateDataInfo struct {
@@ -22,7 +23,7 @@ func (tx *TxUpdateDataInfo) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxUpdateDataInfo.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfo.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -36,7 +37,7 @@ func (tx *TxUpdateDataInfo) MarshalJSON() ([]byte, error) {
 
 func (tx *TxUpdateDataInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataInfo.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfo.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -78,7 +79,7 @@ func (tx *TxUpdateDataInfo) SyntacticVerify() error {
 
 func (tx *TxUpdateDataInfo) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxUpdateDataInfo.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxUpdateDataInfo.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
@@ -93,26 +94,25 @@ func (tx *TxUpdateDataInfo) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.Errorf("invalid version, expected %d, got %d",
 			tx.di.Version, tx.input.Version)
 
-	case !util.SatisfySigningPlus(tx.di.Threshold, tx.di.Keepers, tx.signers):
+	case !tx.di.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures):
 		return errp.Errorf("invalid signatures for data keepers")
 
-	case tx.ld.NeedApprove(tx.di.Approver, tx.di.ApproveList) &&
-		!tx.signers.Has(*tx.di.Approver):
+	case !tx.ld.IsApproved(tx.di.Approver, tx.di.ApproveList, false):
 		return errp.Errorf("invalid signature for data approver")
 	}
 
 	tx.di.Version++
 	if tx.input.Approver != nil {
-		if *tx.input.Approver == util.EthIDEmpty {
+		if tx.input.Approver.Kind() == signer.Unknown {
 			tx.di.Approver = nil
 			tx.di.ApproveList = nil
 		} else {
-			tx.di.Approver = tx.input.Approver
+			tx.di.Approver = *tx.input.Approver
 		}
 	}
 
 	if tx.input.ApproveList != nil {
-		tx.di.ApproveList = tx.input.ApproveList
+		tx.di.ApproveList = *tx.input.ApproveList
 	}
 
 	if tx.input.Threshold != nil {
@@ -122,7 +122,7 @@ func (tx *TxUpdateDataInfo) Apply(ctx ChainContext, cs ChainState) error {
 
 	if tx.input.SigClaims != nil {
 		tx.di.SigClaims = tx.input.SigClaims
-		tx.di.TypedSig = tx.input.TypedSig
+		tx.di.Sig = tx.input.Sig
 	}
 
 	if err = tx.di.SyntacticVerify(); err != nil {

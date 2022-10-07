@@ -8,7 +8,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -85,7 +87,7 @@ func TestLendingConfig(t *testing.T) {
 		MinAmount: new(big.Int).SetUint64(100), MaxAmount: new(big.Int).SetUint64(99)}
 	assert.ErrorContains(cfg.SyntacticVerify(), "invalid maxAmount")
 
-	token, _ := util.NewToken("$LDC")
+	token, _ := util.TokenFrom("$LDC")
 	cfg = &LendingConfig{
 		Token:           token,
 		DailyInterest:   10,
@@ -129,15 +131,15 @@ func TestAccount(t *testing.T) {
 	acc = &Account{Balance: big.NewInt(0), Threshold: 0}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid keepers")
 
-	acc = &Account{Balance: big.NewInt(0), Threshold: 1, Keepers: util.EthIDs{}}
+	acc = &Account{Balance: big.NewInt(0), Threshold: 1, Keepers: signer.Keys{}}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid threshold")
 
-	acc = &Account{Balance: big.NewInt(0), Keepers: util.EthIDs{}}
+	acc = &Account{Balance: big.NewInt(0), Keepers: signer.Keys{}}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid tokens")
 
 	acc = &Account{
 		Balance: big.NewInt(0),
-		Keepers: util.EthIDs{},
+		Keepers: signer.Keys{},
 		Tokens:  make(map[string]*big.Int),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid nonceTable")
@@ -145,7 +147,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       3,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
@@ -154,7 +156,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:           NativeAccount,
 		Balance:        big.NewInt(0),
-		Keepers:        util.EthIDs{},
+		Keepers:        signer.Keys{},
 		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
@@ -164,17 +166,37 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
-		Approver:   &util.EthIDEmpty,
+		Approver:   signer.Key{},
+	}
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
+
+	acc = &Account{
+		Type:       NativeAccount,
+		Balance:    big.NewInt(0),
+		Keepers:    signer.Keys{},
+		Tokens:     make(map[string]*big.Int),
+		NonceTable: make(map[uint64][]uint64),
+		Approver:   signer.Key(ids.ShortEmpty[:]),
+	}
+	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
+
+	acc = &Account{
+		Type:       NativeAccount,
+		Balance:    big.NewInt(0),
+		Keepers:    signer.Keys{},
+		Tokens:     make(map[string]*big.Int),
+		NonceTable: make(map[uint64][]uint64),
+		Approver:   signer.Key(ids.Empty[:]),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
 
 	acc = &Account{
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
-		Keepers:     util.EthIDs{},
+		Keepers:     signer.Keys{},
 		Tokens:      make(map[string]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TxType(255)},
@@ -184,7 +206,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
-		Keepers:     util.EthIDs{},
+		Keepers:     signer.Keys{},
 		Tokens:      make(map[string]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TypeTransfer, TypeTransfer},
@@ -194,7 +216,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
@@ -204,7 +226,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
@@ -214,7 +236,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
@@ -223,7 +245,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:           TokenAccount,
 		Balance:        big.NewInt(0),
-		Keepers:        util.EthIDs{},
+		Keepers:        signer.Keys{},
 		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(-1),
@@ -233,7 +255,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:           StakeAccount,
 		Balance:        big.NewInt(0),
-		Keepers:        util.EthIDs{},
+		Keepers:        signer.Keys{},
 		Tokens:         make(map[string]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
@@ -243,7 +265,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
@@ -253,7 +275,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
@@ -262,7 +284,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{
@@ -282,7 +304,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
-		Keepers:    util.EthIDs{},
+		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{

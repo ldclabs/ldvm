@@ -6,32 +6,166 @@ package util
 import (
 	"encoding/base32"
 	"encoding/hex"
+	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ethereum/go-ethereum/common"
-	"golang.org/x/crypto/sha3"
 )
+
+// Address ==========
+type Address [20]byte
+
+var AddressEmpty = Address{}
+
+func AddressFrom(str string) (Address, error) {
+	var id Address
+
+	str = strings.TrimPrefix(str, "0x")
+	if str == "" {
+		return id, nil
+	}
+
+	b, err := hex.DecodeString(str)
+	if err != nil {
+		return id, errors.New("util.AddressFrom: " + err.Error())
+	}
+	if len(b) != 20 {
+		return id, errors.New("util.AddressFrom: invalid bytes length, expected 20, got %d" +
+			strconv.Itoa(len(b)))
+	}
+
+	copy(id[:], b)
+	return id, nil
+}
+
+func (id Address) Bytes() []byte {
+	return id[:]
+}
+
+func (id Address) Ptr() *Address {
+	return &id
+}
+
+func (id Address) String() string {
+	return CheckSumHex(id[:])
+}
+
+func (id Address) GoString() string {
+	return id.String()
+}
+
+func (id Address) AsKey() string {
+	return string(id[:])
+}
+
+func (id Address) MarshalText() ([]byte, error) {
+	return []byte(id.String()), nil
+}
+
+func (id *Address) UnmarshalText(b []byte) error {
+	if id == nil {
+		return errors.New("util.Address.UnmarshalText: nil pointer")
+	}
+
+	str := string(b)
+	if str == "" { // If "null", do nothing
+		return nil
+	}
+
+	addr, err := AddressFrom(str)
+	if err != nil {
+		return errors.New("util.Address.UnmarshalText: " + err.Error())
+	}
+
+	*id = addr
+	return nil
+}
+
+func (id Address) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + id.String() + "\""), nil
+}
+
+func (id *Address) UnmarshalJSON(b []byte) error {
+	if id == nil {
+		return errors.New("util.Address.UnmarshalJSON: nil pointer")
+	}
+
+	str := string(b)
+	if str == "null" || str == `""` { // If "null", do nothing
+		return nil
+	}
+
+	strLen := len(str)
+	if strLen < 2 || str[0] != '"' || str[strLen-1] != '"' {
+		return errors.New("util.Address.UnmarshalJSON: invalid input")
+	}
+
+	return id.UnmarshalText([]byte(str[1 : strLen-1]))
+}
+
+func (id Address) MarshalCBOR() ([]byte, error) {
+	data, err := MarshalCBOR(id[:])
+	if err != nil {
+		return nil, errors.New("util.Address.MarshalCBOR: " + err.Error())
+	}
+	return data, nil
+}
+
+func (id *Address) UnmarshalCBOR(data []byte) error {
+	if id == nil {
+		return errors.New("util.Address.UnmarshalCBOR: nil pointer")
+	}
+
+	b, err := UnmarshalCBORWithLen(data, 20)
+	if err != nil {
+		return errors.New("util.Address.UnmarshalCBOR: " + err.Error())
+	}
+
+	copy((*id)[:], b)
+	return nil
+}
+
+func (id Address) ToStakeSymbol() (s StakeSymbol) {
+	switch {
+	case id == AddressEmpty:
+		// Empty
+	case StakeSymbol(id).Valid():
+		copy(s[:], id[:])
+	default:
+		s[0] = '#'
+		h := Sum256(id[:])
+		copy(s[1:], []byte(base32.StdEncoding.EncodeToString(h[:])))
+	}
+	return
+}
 
 // DataID ==========
 type DataID [32]byte
 
 var DataIDEmpty = DataID{}
 
-func DataIDFromString(str string) (DataID, error) {
+func DataIDFrom(str string) (DataID, error) {
+	var id DataID
 	if str == "" {
-		return DataIDEmpty, nil
+		return id, nil
 	}
-	id, err := ids.FromString(str)
+
+	b, err := DecodeStringWithLen(str, 32)
 	if err != nil {
-		return DataIDEmpty, ErrPrefix("DataIDFromString error: ").ErrorIf(err)
+		return id, errors.New("util.DataIDFrom: " + err.Error())
 	}
-	return DataID(id), nil
+
+	copy(id[:], b)
+	return id, nil
+}
+
+func (id DataID) Bytes() []byte {
+	return id[:]
 }
 
 func (id DataID) String() string {
-	return ids.ID(id).String()
+	return EncodeToString(id[:])
 }
 
 func (id DataID) GoString() string {
@@ -51,9 +185,8 @@ func (id DataID) MarshalText() ([]byte, error) {
 }
 
 func (id *DataID) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalText error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.DataID.UnmarshalText: nil pointer")
 	}
 
 	str := string(b)
@@ -61,56 +194,56 @@ func (id *DataID) UnmarshalText(b []byte) error {
 		return nil
 	}
 
-	sid, err := DataIDFromString(str)
-	if err == nil {
-		*id = sid
+	b, err := DecodeStringWithLen(str, 32)
+	if err != nil {
+		return errors.New("util.DataID.UnmarshalText: " + err.Error())
 	}
-	return errp.ErrorIf(err)
+
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id DataID) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + id.String() + "\""), nil
+	return []byte(EncodeToQuoteString(id[:])), nil
 }
 
 func (id *DataID) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalJSON error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.DataID.UnmarshalJSON: nil pointer")
 	}
 
 	str := string(b)
 	if str == "null" || str == `""` { // If "null", do nothing
 		return nil
 	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
+
+	b, err := DecodeQuoteStringWithLen(str, 32)
+	if err != nil {
+		return errors.New("util.DataID.UnmarshalJSON: " + err.Error())
 	}
 
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id DataID) MarshalCBOR() ([]byte, error) {
 	data, err := MarshalCBOR(id[:])
 	if err != nil {
-		return nil, ErrPrefix("DataID.MarshalCBOR error: ").ErrorIf(err)
+		return nil, errors.New("util.DataID.MarshalCBOR: " + err.Error())
 	}
 	return data, nil
 }
 
 func (id *DataID) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("DataID.UnmarshalCBOR error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.DataID.UnmarshalCBOR: nil pointer")
 	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
+
+	b, err := UnmarshalCBORWithLen(data, 32)
+	if err != nil {
+		return errors.New("util.DataID.UnmarshalCBOR: " + err.Error())
 	}
-	if len(b) != 32 {
-		return errp.Errorf("invalid bytes length, expected 32, got %d", len(b))
-	}
+
 	copy((*id)[:], b)
 	return nil
 }
@@ -120,23 +253,38 @@ type Hash [32]byte
 
 var HashEmpty = Hash{}
 
-func HashFromString(str string) (Hash, error) {
+func HashFrom(str string) (Hash, error) {
+	var id Hash
 	if str == "" {
-		return HashEmpty, nil
+		return id, nil
 	}
-	id, err := ids.FromString(str)
+
+	b, err := DecodeStringWithLen(str, 32)
 	if err != nil {
-		return HashEmpty, ErrPrefix("HashFromString error: ").ErrorIf(err)
+		return id, errors.New("util.HashFrom: " + err.Error())
 	}
-	return Hash(id), nil
+
+	copy(id[:], b)
+	return id, nil
 }
 
-func (id Hash) ToID() ids.ID {
-	return ids.ID(id)
+func HashFromBytes(data []byte) (Hash, error) {
+	var id Hash
+	if bytesLen := len(data); bytesLen != 32 {
+		return id, errors.New("util.HashFromBytes: invalid bytes length, expected 32, got " +
+			strconv.Itoa(bytesLen))
+	}
+
+	copy(id[:], data)
+	return id, nil
+}
+
+func (id Hash) Bytes() []byte {
+	return id[:]
 }
 
 func (id Hash) String() string {
-	return ids.ID(id).String()
+	return EncodeToString(id[:])
 }
 
 func (id Hash) GoString() string {
@@ -148,9 +296,8 @@ func (id Hash) MarshalText() ([]byte, error) {
 }
 
 func (id *Hash) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("Hash.UnmarshalText error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.Hash.UnmarshalText: nil pointer")
 	}
 
 	str := string(b)
@@ -158,178 +305,58 @@ func (id *Hash) UnmarshalText(b []byte) error {
 		return nil
 	}
 
-	hash, err := HashFromString(str)
-	if err == nil {
-		*id = hash
+	b, err := DecodeStringWithLen(str, 32)
+	if err != nil {
+		return errors.New("util.Hash.UnmarshalText: " + err.Error())
 	}
-	return errp.ErrorIf(err)
+
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id Hash) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + id.String() + "\""), nil
+	return []byte(EncodeToQuoteString(id[:])), nil
 }
 
 func (id *Hash) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("Hash.UnmarshalJSON error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.Hash.UnmarshalJSON: nil pointer")
 	}
 
 	str := string(b)
 	if str == "null" || str == `""` { // If "null", do nothing
 		return nil
 	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
+
+	b, err := DecodeQuoteStringWithLen(str, 32)
+	if err != nil {
+		return errors.New("util.Hash.UnmarshalJSON: " + err.Error())
 	}
 
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id Hash) MarshalCBOR() ([]byte, error) {
 	data, err := MarshalCBOR(id[:])
 	if err != nil {
-		return nil, ErrPrefix("Hash.MarshalCBOR error: ").ErrorIf(err)
+		return nil, errors.New("util.Hash.MarshalCBOR: " + err.Error())
 	}
 	return data, nil
 }
 
 func (id *Hash) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("Hash.UnmarshalCBOR error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
-	}
-	if len(b) != 32 {
-		return errp.Errorf("invalid bytes length, expected 32, got %d", len(b))
-	}
-	copy((*id)[:], b)
-	return nil
-}
-
-// EthID ==========
-type EthID [20]byte
-
-var EthIDEmpty = EthID{}
-
-func EthIDFromString(str string) (EthID, error) {
-	id := new(EthID)
-	err := id.UnmarshalText([]byte(str))
-	return *id, err
-}
-
-func (id EthID) String() string {
-	return common.Address(id).Hex()
-}
-
-func (id EthID) GoString() string {
-	return id.String()
-}
-
-func (id EthID) AsKey() string {
-	return string(id[:])
-}
-
-func (id EthID) MarshalText() ([]byte, error) {
-	return []byte(common.Address(id).Hex()), nil
-}
-
-func (id *EthID) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("EthID.UnmarshalText error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.Hash.UnmarshalCBOR: nil pointer")
 	}
 
-	str := string(b)
-	if str == "" {
-		return nil
-	}
-	if strings.HasPrefix(str, "0x") {
-		str = str[2:]
-	}
-
-	var err error
-	var sid ids.ShortID
-	switch {
-	case len(str) == 40:
-		if b, err = hex.DecodeString(str); err == nil {
-			sid, err = ids.ToShortID(b)
-		}
-	default:
-		sid, err = ids.ShortFromString(str)
-	}
-
-	if err == nil {
-		*id = EthID(sid)
-	}
-	return errp.ErrorIf(err)
-}
-
-func (id EthID) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + common.Address(id).Hex() + "\""), nil
-}
-
-func (id *EthID) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("EthID.UnmarshalJSON error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-
-	str := string(b)
-	if str == "null" || str == `""` { // If "null", do nothing
-		return nil
-	}
-
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
-	}
-
-	str = str[1:lastIndex]
-	return errp.ErrorIf(id.UnmarshalText([]byte(str)))
-}
-
-func (id EthID) MarshalCBOR() ([]byte, error) {
-	data, err := MarshalCBOR(id[:])
+	b, err := UnmarshalCBORWithLen(data, 32)
 	if err != nil {
-		return nil, ErrPrefix("EthID.MarshalCBOR error: ").ErrorIf(err)
+		return errors.New("util.Hash.UnmarshalCBOR: " + err.Error())
 	}
-	return data, nil
-}
 
-func (id *EthID) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("EthID.UnmarshalCBOR error: ")
-	if id == nil {
-		return errp.Errorf("nil pointer")
-	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
-	}
-	if len(b) != 20 {
-		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
-	}
 	copy((*id)[:], b)
 	return nil
-}
-
-func (id EthID) ToStakeSymbol() (s StakeSymbol) {
-	switch {
-	case id == EthIDEmpty:
-		// Empty
-	case StakeSymbol(id).Valid():
-		copy(s[:], id[:])
-	default:
-		s[0] = '#'
-		h := sha3.Sum256(id[:])
-		copy(s[1:], []byte(base32.StdEncoding.EncodeToString(h[:])))
-	}
-	return
 }
 
 // ModelID ==========
@@ -337,19 +364,33 @@ type ModelID [20]byte
 
 var ModelIDEmpty = ModelID{}
 
-func ModelIDFromString(str string) (ModelID, error) {
+func ModelIDFrom(str string) (ModelID, error) {
+	var id ModelID
 	if str == "" {
-		return ModelIDEmpty, nil
+		return id, nil
 	}
-	id, err := ids.ShortFromString(str)
+
+	b, err := DecodeStringWithLen(str, 20)
 	if err != nil {
-		return ModelIDEmpty, ErrPrefix("ModelIDFromString error: ").ErrorIf(err)
+		return id, errors.New("util.ModelIDFrom: " + err.Error())
 	}
-	return ModelID(id), nil
+
+	copy(id[:], b)
+	return id, nil
+}
+
+func ModelIDFromHash(id Hash) ModelID {
+	var modelID ModelID
+	copy(modelID[:], id[:])
+	return modelID
+}
+
+func (id ModelID) Bytes() []byte {
+	return id[:]
 }
 
 func (id ModelID) String() string {
-	return ids.ShortID(id).String()
+	return EncodeToString(id[:])
 }
 
 func (id ModelID) GoString() string {
@@ -361,9 +402,8 @@ func (id ModelID) MarshalText() ([]byte, error) {
 }
 
 func (id *ModelID) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("ModelID.UnmarshalText error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.ModelID.UnmarshalText: nil pointer")
 	}
 
 	str := string(b)
@@ -371,56 +411,56 @@ func (id *ModelID) UnmarshalText(b []byte) error {
 		return nil
 	}
 
-	sid, err := ModelIDFromString(str)
-	if err == nil {
-		*id = sid
+	b, err := DecodeStringWithLen(str, 20)
+	if err != nil {
+		return errors.New("util.ModelID.UnmarshalText: " + err.Error())
 	}
-	return errp.ErrorIf(err)
+
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id ModelID) MarshalJSON() ([]byte, error) {
-	return []byte("\"" + id.String() + "\""), nil
+	return []byte(EncodeToQuoteString(id[:])), nil
 }
 
 func (id *ModelID) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("ModelID.UnmarshalJSON error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.ModelID.UnmarshalJSON: nil pointer")
 	}
 
 	str := string(b)
 	if str == "null" || str == `""` { // If "null", do nothing
 		return nil
 	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
+
+	b, err := DecodeQuoteStringWithLen(str, 20)
+	if err != nil {
+		return errors.New("util.ModelID.UnmarshalJSON: " + err.Error())
 	}
 
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	copy((*id)[:], b)
+	return nil
 }
 
 func (id ModelID) MarshalCBOR() ([]byte, error) {
 	data, err := MarshalCBOR(id[:])
 	if err != nil {
-		return nil, ErrPrefix("ModelID.MarshalCBOR error: ").ErrorIf(err)
+		return nil, errors.New("util.ModelID.MarshalCBOR: " + err.Error())
 	}
 	return data, nil
 }
 
 func (id *ModelID) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("ModelID.UnmarshalCBOR error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.ModelID.UnmarshalCBOR: nil pointer")
 	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
+
+	b, err := UnmarshalCBORWithLen(data, 20)
+	if err != nil {
+		return errors.New("util.ModelID.UnmarshalCBOR: " + err.Error())
 	}
-	if len(b) != 20 {
-		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
-	}
+
 	copy((*id)[:], b)
 	return nil
 }
@@ -430,7 +470,7 @@ type TokenSymbol [20]byte
 
 var NativeToken = TokenSymbol{}
 
-func NewToken(s string) (TokenSymbol, error) {
+func TokenFrom(s string) (TokenSymbol, error) {
 	symbol := TokenSymbol{}
 	l := len(s)
 	switch {
@@ -443,7 +483,15 @@ func NewToken(s string) (TokenSymbol, error) {
 		}
 	}
 
-	return symbol, ErrPrefix("NewToken error: ").Errorf("invalid token symbol %q", s)
+	return symbol, errors.New("util.TokenFrom: invalid token symbol %q" + strconv.Quote(s))
+}
+
+func (id TokenSymbol) Bytes() []byte {
+	return id[:]
+}
+
+func (id TokenSymbol) Ptr() *TokenSymbol {
+	return &id
 }
 
 func (id TokenSymbol) String() string {
@@ -482,7 +530,7 @@ func (id TokenSymbol) GoString() string {
 	if str := id.String(); str != "" {
 		return str
 	}
-	return EthID(id).GoString()
+	return Address(id).GoString()
 }
 
 func (id TokenSymbol) AsKey() string {
@@ -492,11 +540,11 @@ func (id TokenSymbol) AsKey() string {
 	if str := id.String(); str != "" {
 		return str
 	}
-	return EthID(id).AsKey()
+	return Address(id).AsKey()
 }
 
-func (id TokenSymbol) EthID() EthID {
-	return EthID(id)
+func (id TokenSymbol) Address() Address {
+	return Address(id)
 }
 
 func (id TokenSymbol) MarshalText() ([]byte, error) {
@@ -504,21 +552,17 @@ func (id TokenSymbol) MarshalText() ([]byte, error) {
 }
 
 func (id *TokenSymbol) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("TokenSymbol.UnmarshalText error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("uitl.TokenSymbol.UnmarshalText: nil pointer")
 	}
 
-	str := string(b)
-	if str == "" {
-		return nil
+	sid, err := TokenFrom(string(b))
+	if err != nil {
+		return errors.New("uitl.TokenSymbol.UnmarshalText: " + err.Error())
 	}
 
-	sid, err := NewToken(str)
-	if err == nil {
-		*id = sid
-	}
-	return errp.ErrorIf(err)
+	*id = sid
+	return nil
 }
 
 func (id TokenSymbol) MarshalJSON() ([]byte, error) {
@@ -526,47 +570,44 @@ func (id TokenSymbol) MarshalJSON() ([]byte, error) {
 }
 
 func (id *TokenSymbol) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("TokenSymbol.UnmarshalJSON error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.TokenSymbol.UnmarshalJSON: nil pointer")
 	}
 
 	str := string(b)
 	if str == "null" || str == `""` { // If "null", do nothing
 		return nil
 	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
+
+	strLen := len(str)
+	if strLen < 2 || str[0] != '"' || str[strLen-1] != '"' {
+		return errors.New("util.TokenSymbol.UnmarshalJSON: invalid input")
 	}
 
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	return id.UnmarshalText([]byte(str[1 : strLen-1]))
 }
 
 func (id TokenSymbol) MarshalCBOR() ([]byte, error) {
 	data, err := MarshalCBOR(id[:])
 	if err != nil {
-		return nil, ErrPrefix("TokenSymbol.MarshalCBOR error: ").ErrorIf(err)
+		return nil, errors.New("util.TokenSymbol.MarshalCBOR: " + err.Error())
 	}
 	return data, nil
 }
 
 func (id *TokenSymbol) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("TokenSymbol.UnmarshalCBOR error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.TokenSymbol.UnmarshalCBOR: nil pointer")
 	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return err
+
+	b, err := UnmarshalCBORWithLen(data, 20)
+	if err != nil {
+		return errors.New("util.TokenSymbol.UnmarshalCBOR: " + err.Error())
 	}
-	if len(b) != 20 {
-		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
-	}
+
 	copy((*id)[:], b)
 	if !id.Valid() {
-		return errp.Errorf("invalid TokenSymbol: %s", id.GoString())
+		return errors.New("util.TokenSymbol.UnmarshalCBOR: invalid TokenSymbol " + id.GoString())
 	}
 	return nil
 }
@@ -576,7 +617,7 @@ type StakeSymbol [20]byte
 
 var StakeEmpty = StakeSymbol{}
 
-func NewStake(s string) (StakeSymbol, error) {
+func StakeFrom(s string) (StakeSymbol, error) {
 	symbol := StakeSymbol{}
 	l := len(s)
 	switch {
@@ -589,7 +630,15 @@ func NewStake(s string) (StakeSymbol, error) {
 		}
 	}
 
-	return symbol, ErrPrefix("NewStake error: ").Errorf("invalid stake symbol")
+	return symbol, errors.New("util.StakeFrom: invalid stake symbol " + strconv.Quote(s))
+}
+
+func (id StakeSymbol) Bytes() []byte {
+	return id[:]
+}
+
+func (id StakeSymbol) Ptr() *StakeSymbol {
+	return &id
 }
 
 func (id StakeSymbol) String() string {
@@ -625,11 +674,11 @@ func (id StakeSymbol) GoString() string {
 	if str := id.String(); str != "" {
 		return str
 	}
-	return EthID(id).String()
+	return Address(id).String()
 }
 
-func (id StakeSymbol) EthID() EthID {
-	return EthID(id)
+func (id StakeSymbol) Address() Address {
+	return Address(id)
 }
 
 func (id StakeSymbol) MarshalText() ([]byte, error) {
@@ -637,21 +686,17 @@ func (id StakeSymbol) MarshalText() ([]byte, error) {
 }
 
 func (id *StakeSymbol) UnmarshalText(b []byte) error {
-	errp := ErrPrefix("StakeSymbol.UnmarshalText error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("uitl.StakeSymbol.UnmarshalText: nil pointer")
 	}
 
-	str := string(b)
-	if str == "" {
-		return nil
+	sid, err := StakeFrom(string(b))
+	if err != nil {
+		return errors.New("uitl.StakeSymbol.UnmarshalText: " + err.Error())
 	}
 
-	sid, err := NewStake(str)
-	if err == nil {
-		*id = sid
-	}
-	return errp.ErrorIf(err)
+	*id = sid
+	return nil
 }
 
 func (id StakeSymbol) MarshalJSON() ([]byte, error) {
@@ -659,55 +704,44 @@ func (id StakeSymbol) MarshalJSON() ([]byte, error) {
 }
 
 func (id *StakeSymbol) UnmarshalJSON(b []byte) error {
-	errp := ErrPrefix("StakeSymbol.UnmarshalJSON error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.StakeSymbol.UnmarshalJSON: nil pointer")
 	}
 
 	str := string(b)
 	if str == "null" || str == `""` { // If "null", do nothing
 		return nil
 	}
-	lastIndex := len(str) - 1
-	if str[0] != '"' || str[lastIndex] != '"' {
-		return errp.Errorf("invalid string %q", str)
+
+	strLen := len(str)
+	if strLen < 2 || str[0] != '"' || str[strLen-1] != '"' {
+		return errors.New("util.StakeSymbol.UnmarshalJSON: invalid input")
 	}
 
-	str = str[1:lastIndex]
-	return id.UnmarshalText([]byte(str))
+	return id.UnmarshalText([]byte(str[1 : strLen-1]))
 }
 
 func (id StakeSymbol) MarshalCBOR() ([]byte, error) {
 	data, err := MarshalCBOR(id[:])
 	if err != nil {
-		return nil, ErrPrefix("StakeSymbol.MarshalCBOR error: ").ErrorIf(err)
+		return nil, errors.New("util.StakeSymbol.MarshalCBOR: " + err.Error())
 	}
 	return data, nil
 }
 
 func (id *StakeSymbol) UnmarshalCBOR(data []byte) error {
-	errp := ErrPrefix("StakeSymbol.UnmarshalCBOR error: ")
 	if id == nil {
-		return errp.Errorf("nil pointer")
+		return errors.New("util.StakeSymbol.UnmarshalCBOR: nil pointer")
 	}
-	var b []byte
-	if err := UnmarshalCBOR(data, &b); err != nil {
-		return errp.ErrorIf(err)
+
+	b, err := UnmarshalCBORWithLen(data, 20)
+	if err != nil {
+		return errors.New("util.StakeSymbol.UnmarshalCBOR: " + err.Error())
 	}
-	if len(b) != 20 {
-		return errp.Errorf("invalid bytes length, expected 20, got %d", len(b))
-	}
+
 	copy((*id)[:], b)
 	if *id != StakeEmpty && !id.Valid() {
-		return errp.Errorf("invalid StakeSymbol: %s", id.GoString())
+		return errors.New("util.StakeSymbol.UnmarshalCBOR: invalid StakeSymbol " + id.GoString())
 	}
 	return nil
-}
-
-func EthIDToStakeSymbol(ids ...EthID) []StakeSymbol {
-	rt := make([]StakeSymbol, 0, len(ids))
-	for _, id := range ids {
-		rt = append(rt, id.ToStakeSymbol())
-	}
-	return rt
 }

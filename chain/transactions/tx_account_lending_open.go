@@ -21,7 +21,7 @@ func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxOpenLending.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxOpenLending.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -35,7 +35,7 @@ func (tx *TxOpenLending) MarshalJSON() ([]byte, error) {
 
 func (tx *TxOpenLending) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxOpenLending.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxOpenLending.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -67,7 +67,7 @@ func (tx *TxOpenLending) SyntacticVerify() error {
 
 func (tx *TxOpenLending) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxOpenLending.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxOpenLending.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

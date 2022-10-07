@@ -13,8 +13,7 @@ import (
 
 type TxTransferCash struct {
 	TxBase
-	exSigners util.EthIDs
-	input     *ld.TxTransfer
+	input *ld.TxTransfer
 }
 
 func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
@@ -23,7 +22,7 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxTransferCash.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxTransferCash.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +36,7 @@ func (tx *TxTransferCash) MarshalJSON() ([]byte, error) {
 
 func (tx *TxTransferCash) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxTransferCash.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxTransferCash.SyntacticVerify: ")
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
 	}
@@ -51,6 +50,9 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 
 	case len(tx.ld.Tx.Data) == 0:
 		return errp.Errorf("invalid data")
+
+	case len(tx.ld.ExSignatures) == 0:
+		return errp.Errorf("no exSignatures")
 	}
 
 	tx.input = &ld.TxTransfer{}
@@ -91,22 +93,18 @@ func (tx *TxTransferCash) SyntacticVerify() error {
 		return errp.Errorf("data expired")
 	}
 
-	tx.exSigners, err = tx.ld.ExSigners()
-	if err != nil {
-		return errp.Errorf("invalid exSignatures, %v", err)
-	}
 	return nil
 }
 
 func (tx *TxTransferCash) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxTransferCash.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxTransferCash.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
 	// verify issuer's signatures
-	if !tx.to.SatisfySigning(tx.exSigners) {
+	if !tx.to.Verify(tx.ld.ExHash(), tx.ld.ExSignatures, tx.to.IDKey()) {
 		return errp.Errorf("invalid signature for issuer")
 	}
 

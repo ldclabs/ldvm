@@ -75,7 +75,7 @@ type BlockState interface {
 	transactions.ChainState
 }
 
-func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID, baseDB database.Database) *blockState {
+func newBlockState(ctx *Context, height, timestamp uint64, parentState util.Hash, baseDB database.Database) *blockState {
 	vdb := versiondb.New(baseDB)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	bs := &blockState{
@@ -168,10 +168,10 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id util.EthID) (*transactions.Account, error) {
+func (bs *blockState) LoadAccount(id util.Address) (*transactions.Account, error) {
 	acc := bs.accountCache[id]
 	if acc == nil {
-		errp := util.ErrPrefix("BlockState.LoadAccount error: ")
+		errp := util.ErrPrefix("chain.BlockState.LoadAccount: ")
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
@@ -205,7 +205,7 @@ func (bs *blockState) LoadAccount(id util.EthID) (*transactions.Account, error) 
 func (bs *blockState) LoadLedger(acc *transactions.Account) error {
 	if acc.Ledger() == nil {
 		id := acc.ID()
-		errp := util.ErrPrefix("BlockState.LoadLedger error: ")
+		errp := util.ErrPrefix("chain.BlockState.LoadLedger: ")
 		data, err := bs.ledgerDB.Get(id[:])
 		if err != nil && err != database.ErrNotFound {
 			return errp.ErrorIf(err)
@@ -216,8 +216,8 @@ func (bs *blockState) LoadLedger(acc *transactions.Account) error {
 }
 
 func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transactions.Account) {
-	id := util.EthID(nodeID).ToStakeSymbol()
-	acc, err := bs.LoadAccount(util.EthID(id))
+	id := util.Address(nodeID).ToStakeSymbol()
+	acc, err := bs.LoadAccount(util.Address(id))
 	if err != nil || !acc.Valid(ld.StakeAccount) {
 		return util.StakeEmpty, nil
 	}
@@ -227,7 +227,7 @@ func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSym
 func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transactions.Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
-		acc, err := bs.LoadAccount(util.EthID(id))
+		acc, err := bs.LoadAccount(util.Address(id))
 		if err == nil && acc.Valid(ld.StakeAccount) {
 			return acc, nil
 		}
@@ -236,7 +236,7 @@ func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transactions.Account, err
 }
 
 func (bs *blockState) SaveName(ns *service.Name) error {
-	errp := util.ErrPrefix("BlockState.SaveName error: ")
+	errp := util.ErrPrefix("chain.BlockState.SaveName: ")
 	if ns.DataID == util.DataIDEmpty {
 		return errp.Errorf("data ID is empty")
 	}
@@ -255,7 +255,7 @@ func (bs *blockState) SaveName(ns *service.Name) error {
 }
 
 func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
-	errp := util.ErrPrefix("BlockState.LoadModel error: ")
+	errp := util.ErrPrefix("chain.BlockState.LoadModel: ")
 	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -273,7 +273,7 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 }
 
 func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
-	errp := util.ErrPrefix("BlockState.SaveModel error: ")
+	errp := util.ErrPrefix("chain.BlockState.SaveModel: ")
 	if mi.ID == util.ModelIDEmpty {
 		return errp.Errorf("model id is empty")
 	}
@@ -286,7 +286,7 @@ func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
 }
 
 func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
-	errp := util.ErrPrefix("BlockState.LoadData error: ")
+	errp := util.ErrPrefix("chain.BlockState.LoadData: ")
 	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -304,7 +304,7 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
 }
 
 func (bs *blockState) SaveData(di *ld.DataInfo) error {
-	errp := util.ErrPrefix("BlockState.SaveData error: ")
+	errp := util.ErrPrefix("chain.BlockState.SaveData: ")
 	if di.ID == util.DataIDEmpty {
 		return errp.Errorf("data id is empty")
 	}
@@ -317,7 +317,7 @@ func (bs *blockState) SaveData(di *ld.DataInfo) error {
 }
 
 func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
-	errp := util.ErrPrefix("BlockState.SavePrevData error: ")
+	errp := util.ErrPrefix("chain.BlockState.SavePrevData: ")
 	if di.ID == util.DataIDEmpty {
 		return errp.Errorf("data id is empty")
 	}
@@ -330,7 +330,7 @@ func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
 }
 
 func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
-	errp := util.ErrPrefix("BlockState.DeleteData error: ")
+	errp := util.ErrPrefix("chain.BlockState.DeleteData: ")
 	if di.ID == util.DataIDEmpty {
 		return errp.Errorf("data id is empty")
 	}
@@ -350,7 +350,7 @@ func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
 }
 
 func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	errp := util.ErrPrefix("BlockState.GetBlockIDAtHeight error: ")
+	errp := util.ErrPrefix("chain.BlockState.GetBlockIDAtHeight: ")
 	data, err := bs.heightDB.Get(database.PackUInt64(height))
 	if err != nil {
 		return ids.Empty, errp.ErrorIf(err)
@@ -359,7 +359,7 @@ func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 }
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
-	errp := util.ErrPrefix("BlockState.SaveBlock error: ")
+	errp := util.ErrPrefix("chain.BlockState.SaveBlock: ")
 	for _, a := range bs.accountCache {
 		data, ledger, err := a.Marshal()
 		if err == nil {
@@ -401,7 +401,7 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 
 // Commit when accept
 func (bs *blockState) Commit() error {
-	errp := util.ErrPrefix("BlockState.Commit error: ")
+	errp := util.ErrPrefix("chain.BlockState.Commit: ")
 	if err := bs.vdb.SetDatabase(bs.bc.DB()); err != nil {
 		return errp.ErrorIf(err)
 	}

@@ -23,7 +23,7 @@ func (tx *TxCreateToken) MarshalJSON() ([]byte, error) {
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("TxCreateToken.MarshalJSON error: ")
+	errp := util.ErrPrefix("transactions.TxCreateToken.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -37,7 +37,7 @@ func (tx *TxCreateToken) MarshalJSON() ([]byte, error) {
 
 func (tx *TxCreateToken) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxCreateToken.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxCreateToken.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -47,7 +47,7 @@ func (tx *TxCreateToken) SyntacticVerify() error {
 	case tx.ld.Tx.To == nil:
 		return errp.Errorf("nil to as token account")
 
-	case *tx.ld.Tx.To == util.EthIDEmpty:
+	case *tx.ld.Tx.To == util.AddressEmpty:
 		return errp.Errorf("invalid to as token account, expected not %s", tx.ld.Tx.To)
 
 	case tx.ld.Tx.Amount == nil:
@@ -79,11 +79,14 @@ func (tx *TxCreateToken) SyntacticVerify() error {
 	case tx.input.Amount == nil || tx.input.Amount.Sign() <= 0:
 		return errp.Errorf("invalid amount, expected >= 1")
 
-	case tx.input.Approver != nil && *tx.input.Approver == util.EthIDEmpty:
-		return errp.Errorf("invalid approver, expected not %s", tx.input.Approver)
-
 	case len(tx.input.Name) < 3:
 		return errp.Errorf("invalid name %q, expected length >= 3", tx.input.Name)
+	}
+
+	if tx.input.Approver != nil {
+		if err = tx.input.Approver.Valid(); err != nil {
+			return errp.Errorf("invalid approver, %v", err)
+		}
 	}
 	return nil
 }
@@ -91,7 +94,7 @@ func (tx *TxCreateToken) SyntacticVerify() error {
 // ApplyGenesis skipping signature verification
 func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateToken.ApplyGenesis error: ")
+	errp := util.ErrPrefix("transactions.TxCreateToken.ApplyGenesis: ")
 
 	tx.input = &ld.TxAccounter{}
 	if err = tx.input.Unmarshal(tx.ld.Tx.Data); err != nil {
@@ -132,7 +135,7 @@ func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 
 func (tx *TxCreateToken) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxCreateToken.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxCreateToken.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)

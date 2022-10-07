@@ -30,14 +30,14 @@ func TestPrefixErr(t *testing.T) {
 	assert.Nil(er)
 	assert.Equal([]byte{0}, data)
 
-	errp = ErrPrefix("ErrPrefix error: ")
+	errp = ErrPrefix("ErrPrefix: ")
 	assert.Nil(errp.ErrorIf(err))
-	assert.EqualError(errp.ErrorIf(errors.New("invalid name")), "ErrPrefix error: invalid name")
-	assert.EqualError(errp.Errorf("invalid name %s", "-_*"), "ErrPrefix error: invalid name -_*")
+	assert.EqualError(errp.ErrorIf(errors.New("invalid name")), "ErrPrefix: invalid name")
+	assert.EqualError(errp.Errorf("invalid name %s", "-_*"), "ErrPrefix: invalid name -_*")
 
 	data, er = errp.ErrorMap(mocker([]byte{0}, errors.New("invalid data")))
 	assert.Nil(data)
-	assert.EqualError(er, "ErrPrefix error: invalid data")
+	assert.EqualError(er, "ErrPrefix: invalid data")
 	data, er = errp.ErrorMap(mocker([]byte{0}, err))
 	assert.Nil(er)
 	assert.Equal([]byte{0}, data)

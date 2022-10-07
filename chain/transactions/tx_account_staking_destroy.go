@@ -13,7 +13,7 @@ type TxDestroyStake struct {
 
 func (tx *TxDestroyStake) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyStake.SyntacticVerify error: ")
+	errp := util.ErrPrefix("transactions.TxDestroyStake.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -38,12 +38,12 @@ func (tx *TxDestroyStake) SyntacticVerify() error {
 
 func (tx *TxDestroyStake) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("TxDestroyStake.Apply error: ")
+	errp := util.ErrPrefix("transactions.TxDestroyStake.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if !tx.from.SatisfySigningPlus(tx.signers) {
+	if !tx.from.VerifyPlus(tx.ld.TxHash(), tx.ld.Signatures, nil) {
 		return errp.Errorf("invalid signatures for stake keepers")
 	}
 
