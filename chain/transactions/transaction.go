@@ -38,6 +38,8 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 		tt = &TxTransferPay{TxBase: TxBase{ld: tx}}
 	case ld.TypeTransferCash:
 		tt = &TxTransferCash{TxBase: TxBase{ld: tx}}
+	case ld.TypeTransferMultiple:
+		tt = &TxTransferMultiple{TxBase: TxBase{ld: tx}}
 	case ld.TypeExchange:
 		tt = &TxExchange{TxBase: TxBase{ld: tx}}
 
@@ -90,7 +92,7 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypePunish:
 		tt = &TxPunish{TxBase: TxBase{ld: tx}}
 	default:
-		return nil, fmt.Errorf("NewTx: unknown tx type %d", tx.Tx.Type)
+		return nil, fmt.Errorf("NewTx: unknown tx type %s", tx.Tx.Type.String())
 	}
 
 	if err := tt.SyntacticVerify(); err != nil {

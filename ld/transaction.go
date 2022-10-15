@@ -39,8 +39,8 @@ type TxData struct {
 	Nonce     uint64            `cbor:"n" json:"nonce"`
 	GasTip    uint64            `cbor:"gt" json:"gasTip"`
 	GasFeeCap uint64            `cbor:"gf" json:"gasFeeCap"`
-	From      util.Address      `cbor:"fr" json:"from"`
-	To        *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`
+	From      util.Address      `cbor:"fr" json:"from"`                   // Address of the sender
+	To        *util.Address     `cbor:"to,omitempty" json:"to,omitempty"` // Address of the recipient
 	Token     *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
 	Amount    *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
 	Data      util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
@@ -308,6 +308,8 @@ func (t *Transaction) Txs() Txs {
 func (t *Transaction) Copy() *Transaction {
 	x := new(Transaction)
 	*x = *t
+	x.Tx.raw = nil
+	x.raw = nil
 	return x
 }
 

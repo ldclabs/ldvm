@@ -29,8 +29,7 @@ func TestTxCreateStake(t *testing.T) {
 	stakeid := util.Address(stake)
 	token := ld.MustNewToken("$TEST")
 
-	from, err := cs.LoadAccount(signer.Signer1.Key().Address())
-	assert.NoError(err)
+	from := cs.MustAccount(signer.Signer1.Key().Address())
 	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -330,10 +329,8 @@ func TestTxCreateStake(t *testing.T) {
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	stakeAcc, err := cs.LoadAccount(stakeid)
-	assert.NoError(err)
-	ldc, err := cs.LoadAccount(constants.LDCAccount)
-	assert.NoError(err)
+	stakeAcc := cs.MustAccount(stakeid)
+	ldc := cs.MustAccount(constants.LDCAccount)
 	miner, err := cs.LoadMiner(ctx.Miner())
 	assert.NoError(err)
 

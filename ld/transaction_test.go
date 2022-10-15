@@ -158,13 +158,16 @@ func TestTransaction(t *testing.T) {
 
 	tx1 := tx.Copy()
 	assert.NoError(tx1.SyntacticVerify())
-	jsondata2, err := json.Marshal(tx1)
-	assert.NoError(err)
-	assert.Equal(jsondata, jsondata2)
+	assert.Equal(tx.Tx.Bytes(), tx1.Tx.Bytes())
+
+	tx1 = tx.Copy()
 	tx1.Tx.Data = []byte(`"Hello, world!"`)
-	jsondata2, err = json.Marshal(tx1)
+	assert.Nil(tx.Tx.Data)
+	assert.NotEqual(tx.Tx.Bytes(), tx1.Tx.Bytes())
+	jsondata, err = json.Marshal(tx1)
 	assert.NoError(err)
-	assert.Contains(string(jsondata2), `"data":"Hello, world!"`)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"Hello, world!"},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}`, string(jsondata))
 
 	tx2 := &Transaction{}
 	assert.NoError(tx2.Unmarshal(tx.Bytes()))

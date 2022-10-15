@@ -30,8 +30,7 @@ func TestTxPunish(t *testing.T) {
 	from := cs.MustAccount(constants.GenesisAccount)
 	assert.NoError(from.UpdateKeepers(ld.Uint16Ptr(1), &signer.Keys{signer.Signer1.Key()}, nil, nil))
 
-	to, err := cs.LoadAccount(signer.Signer2.Key().Address())
-	assert.NoError(err)
+	to := cs.MustAccount(signer.Signer2.Key().Address())
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypePunish,
