@@ -12,42 +12,43 @@ const (
 	TypeTest TxType = iota
 
 	// Transfer
-	TypeEth          // send given amount of NanoLDC to a address in ETH transaction
-	TypeTransfer     // send given amount of NanoLDC to a address
-	TypeTransferPay  // send given amount of NanoLDC to the address who request payment
-	TypeTransferCash // cash given amount of NanoLDC to sender, like cashing a check.
-	TypeExchange     // exchange tokens
+	TypeEth              // Sends token to a address in ETH transaction
+	TypeTransfer         // Sends token to a address
+	TypeTransferPay      // Sends token to the address who request payment
+	TypeTransferCash     // Transfer token to sender, like cashing a check.
+	TypeTransferMultiple // Sends token to multiple addresses.
+	TypeExchange         // Exchanges tokens
 )
 
 const (
-	// punish transaction can be issued by genesisAccount
+	// Punishs transaction can be issued by genesisAccount
 	// we can only punish illegal data
 	TypePunish TxType = 16 + iota
 
 	// Model
-	TypeCreateModel     // create a data model
-	TypeUpdateModelInfo // update data model's info
+	TypeCreateModel     // Creates a data model
+	TypeUpdateModelInfo // Updates data model's info
 
 	// Data
-	TypeCreateData           // create a data from the model
-	TypeUpdateData           // update the data's data
-	TypeUpgradeData          // upgrade the data's model and data
-	TypeUpdateDataInfo       // update data's info, such as keepers, threshold, approvers, sigClaims, etc.
-	TypeUpdateDataInfoByAuth // update data's info by authorization
-	TypeDeleteData           // delete the data
+	TypeCreateData           // Creates a data from the model
+	TypeUpdateData           // Updates the data's data
+	TypeUpgradeData          // Updates the data's model and data
+	TypeUpdateDataInfo       // Updates data's info, such as keepers, threshold, approvers, sigClaims, etc.
+	TypeUpdateDataInfoByAuth // Updates data's info by authorization
+	TypeDeleteData           // Deletes the data
 )
 
 const (
 	// Account
-	TypeAddNonceTable     TxType = 32 + iota // add more nonce with expire time to account
-	TypeUpdateAccountInfo                    // update account's Keepers and Threshold
-	TypeCreateToken                          // create a token account
-	TypeDestroyToken                         // destroy a token account
-	TypeCreateStake                          // create a stake account
-	TypeResetStake                           // reset a stake account
-	TypeDestroyStake                         // destroy a stake account
+	TypeAddNonceTable     TxType = 32 + iota // Add more nonce with expire time to account
+	TypeUpdateAccountInfo                    // Updates account's Keepers and Threshold
+	TypeCreateToken                          // Creates a token account
+	TypeDestroyToken                         // Destroy a token account
+	TypeCreateStake                          // Creates a stake account
+	TypeResetStake                           // Reset a stake account
+	TypeDestroyStake                         // Destroy a stake account
 	TypeTakeStake                            // take a stake in
-	TypeWithdrawStake                        // withdraw stake
+	TypeWithdrawStake                        // Withdraw stake
 	TypeUpdateStakeApprover
 	TypeOpenLending
 	TypeCloseLending
@@ -61,6 +62,7 @@ var TransferTxTypes = TxTypes{
 	TypeTransfer,
 	TypeTransferPay,
 	TypeTransferCash,
+	TypeTransferMultiple,
 	TypeExchange,
 }
 
@@ -166,7 +168,7 @@ func (t TxType) Gas() uint64 {
 	case TypeTest:
 		return 0
 
-	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeExchange:
+	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeTransferMultiple, TypeExchange:
 		return 42
 
 	case TypeAddNonceTable, TypeUpdateAccountInfo, TypeUpdateData, TypeUpdateDataInfo:
@@ -209,6 +211,8 @@ func (t TxType) String() string {
 		return "TypeTransferPay"
 	case TypeTransferCash:
 		return "TypeTransferCash"
+	case TypeTransferMultiple:
+		return "TypeTransferMultiple"
 	case TypeExchange:
 		return "TypeExchange"
 	case TypeAddNonceTable:

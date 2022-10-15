@@ -24,7 +24,7 @@ func TestTxType(t *testing.T) {
 			assert.Equal(TxType(1), ty)
 			assert.True(TransferTxTypes.Has(ty))
 		case TypeExchange:
-			assert.Equal(TxType(5), ty)
+			assert.Equal(TxType(6), ty)
 			assert.True(TransferTxTypes.Has(ty))
 		case TypePunish:
 			assert.Equal(TxType(16), ty)
