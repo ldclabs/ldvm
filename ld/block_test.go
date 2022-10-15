@@ -45,7 +45,6 @@ func TestBlock(t *testing.T) {
 	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1)}
 	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify: nil pointer")
 
-	to := signer.Signer2.Key().Address()
 	tx := &Transaction{
 		Tx: TxData{
 			Type:      TypeTransfer,
@@ -54,7 +53,7 @@ func TestBlock(t *testing.T) {
 			GasTip:    0,
 			GasFeeCap: 1000,
 			From:      signer.Signer1.Key().Address(),
-			To:        &to,
+			To:        signer.Signer2.Key().Address().Ptr(),
 			Amount:    big.NewInt(1_000_000),
 		},
 	}

@@ -55,7 +55,6 @@ func TestPrefixDB(t *testing.T) {
 	assert.False(ok)
 
 	cc := NewCacher(100, 1, func() Objecter { return new(ld.Transaction) })
-	to := signer.Signer2.Key().Address()
 	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
 		ChainID:   2357,
@@ -63,7 +62,7 @@ func TestPrefixDB(t *testing.T) {
 		GasTip:    0,
 		GasFeeCap: 1000,
 		From:      signer.Signer1.Key().Address(),
-		To:        &to,
+		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    big.NewInt(1_000_000),
 	}}
 	assert.NoError(tx.SignWith(signer.Signer1))

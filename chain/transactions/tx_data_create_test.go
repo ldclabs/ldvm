@@ -1080,7 +1080,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"mid":"WSCLBn7ynhrF0Idg7gWOr0BevyNdd7kv","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"expire":100,"data":"o2FuZ2xkYy50by5iZXOBomF0ZFRlc3RicHOhZGRlc2NkZGVzY2Jyc4F1bGRjLnRvLiBJTiBBIDEwLjAuMC4xJFhefQ"}},"sigs":["NacbaYChHnsS6eovz9Fu9c4hKLyDhs3sM5krkn-CY_4tIaPh8GAxtmK9-ah2Z7FEZ48QeOXwWMRkZRqfdsPyowDHvlqg"],"exSigs":["fmnRn6RAg3uF5ohNS-5PMzFYOrjFiwOGvhATHHM5_JAbak8BjG8LNGhhIeK7usiY4boNKGv5m6mb0d8U0BIMJQFv-rIl"],"id":"wSXlF4ef67FnDx3a3TVOq7JHNIkaxMP-oXH5jv5ticCycBcU"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"mid":"b8onI5zOwqPZO9jxMBBgZWnnCUzd-187","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"expire":100,"data":"o2FuZ2xkYy50by5iZXOBomF0ZFRlc3RicHOhZGRlc2NkZGVzY2Jyc4F1bGRjLnRvLiBJTiBBIDEwLjAuMC4xJFhefQ"}},"sigs":["Agi0n3ypfN8pX-EuIbhKfDmH-NSksy8IyPwtKiy4xqZsCD6F06sOe_H-SGgd7xqWoy-ZkQl0LZnMA6SBDnKLmgBgH3sg"],"exSigs":["NkF-wtCdSzXees4-Xw_xxmzNRl9hinEoFGHZ0KZCW5MLfAf-YdE6RCTdUflBg2ss5ncv_Sba3zD818ihV1Tj8QH31jau"],"id":"h8Ac6wx8oCUWzySj6Ze0RqsAFYSM3FFefWdbIwYn50EhNMbm"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 
@@ -1122,7 +1122,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		`TxCreateData.Apply: name "ldc.to." conflict`)
+		`TxCreateData.Apply: name "ldc.to." is conflict`)
 	cs.CheckoutAccounts()
 
 	name2 = &service.Name{
@@ -1170,7 +1170,6 @@ func TestTxCreateDataGenesis(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-
 	sender := signer.Signer1.Key().Address()
 
 	cfg, err := json.Marshal(ctx.ChainConfig().FeeConfig)

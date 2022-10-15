@@ -246,12 +246,35 @@ func (bs *blockState) SaveName(ns *service.Name) error {
 	ok, err := bs.nameDB.Has(key)
 	switch {
 	case ok:
-		return errp.Errorf("name %q conflict", name)
-	case err == nil:
-		err = bs.nameDB.Put(key, ns.DataID[:])
+		return errp.Errorf("name %q is conflict", name)
+
+	case err != nil:
+		return errp.ErrorIf(err)
+
+	default:
+		return errp.ErrorIf(bs.nameDB.Put(key, ns.DataID[:]))
+	}
+}
+
+func (bs *blockState) DeleteName(ns *service.Name) error {
+	errp := util.ErrPrefix("chain.BlockState.DeleteName: ")
+	if ns.DataID == util.DataIDEmpty {
+		return errp.Errorf("data ID is empty")
 	}
 
-	return errp.ErrorIf(err)
+	name := ns.ASCII()
+	key := []byte(name)
+	ok, err := bs.nameDB.Has(key)
+	switch {
+	case ok:
+		return errp.ErrorIf(bs.nameDB.Delete(key))
+
+	case err != nil:
+		return errp.ErrorIf(err)
+
+	default:
+		return errp.Errorf("name %q is not exist", name)
+	}
 }
 
 func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {

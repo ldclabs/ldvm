@@ -381,8 +381,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.Nil(senderEntry.Approver)
 
 	// add stake approver for testing
-	approver := signer.Signer2.Key()
-	input3 := &ld.TxAccounter{Approver: &approver}
+	input3 := &ld.TxAccounter{Approver: signer.Signer2.Key().Ptr()}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateStakeApprover,
 		ChainID:   ctx.ChainConfig().ChainID,

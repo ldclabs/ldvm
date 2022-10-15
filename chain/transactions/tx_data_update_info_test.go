@@ -25,10 +25,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-
 	owner := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
-	approverAddr := approver.Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -49,7 +46,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &approverAddr,
+		To:        signer.Signer2.Key().Address().Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -169,7 +166,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(di.SyntacticVerify())
 
 	input = &ld.TxUpdater{ID: &did, Version: 1,
-		Approver:    &approver,
+		Approver:    signer.Signer2.Key().Ptr(),
 		ApproveList: &ld.TxTypes{ld.TypeDeleteData},
 		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &signer.Keys{signer.Signer1.Key()},
@@ -208,7 +205,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{ID: &did, Version: 2,
-		Approver:    &approver,
+		Approver:    signer.Signer2.Key().Ptr(),
 		ApproveList: &ld.TxTypes{ld.TypeDeleteData},
 		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &signer.Keys{signer.Signer1.Key()},
@@ -232,7 +229,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	input = &ld.TxUpdater{ID: &did, Version: 2,
-		Approver: &approver,
+		Approver: signer.Signer2.Key().Ptr(),
 		ApproveList: &ld.TxTypes{
 			ld.TypeUpdateDataInfo,
 			ld.TypeUpdateDataInfoByAuth,
@@ -248,9 +245,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 			CWTID:      util.HashFromData(di.Payload),
 		},
 	}
-	sig, err := signer.Signer2.SignData(input.SigClaims.Bytes())
-	assert.NoError(err)
-	input.Sig = &sig
+	input.Sig = signer.Signer2.MustSignData(input.SigClaims.Bytes()).Ptr()
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
@@ -453,10 +448,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 			CWTID:      util.HashFromData([]byte(`421`)),
 		},
 	}
-	sig, err = signer.Signer2.SignData(input.SigClaims.Bytes())
-	assert.NoError(err)
-	input.Sig = &sig
-
+	input.Sig = signer.Signer2.MustSignData(input.SigClaims.Bytes()).Ptr()
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,

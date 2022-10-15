@@ -22,7 +22,6 @@ import (
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -82,7 +81,6 @@ type BlockChain interface {
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
 	LoadData(util.DataID) (*ld.DataInfo, error)
 	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
-	ResolveName(name string) (*service.Name, error)
 	LoadRawData(rawType string, key []byte) ([]byte, error)
 }
 
@@ -110,7 +108,6 @@ type blockChain struct {
 
 	verifiedBlocks *sync.Map
 	recentBlocks   *db.Cacher
-	recentNames    *db.Cacher
 	recentHeights  *db.Cacher
 	recentData     *db.Cacher
 
@@ -168,9 +165,6 @@ func NewChain(
 		return new(Block)
 	})
 	s.recentHeights = db.NewCacher(1_000, 60*10, func() db.Objecter {
-		return new(db.RawObject)
-	})
-	s.recentNames = db.NewCacher(1_000, 60*10, func() db.Objecter {
 		return new(db.RawObject)
 	})
 	s.recentData = db.NewCacher(1_000, 60*10, func() db.Objecter {
@@ -639,37 +633,6 @@ func (bc *blockChain) SetTxsHeight(height uint64, txIDs ...util.Hash) {
 
 func (bc *blockChain) GetTxHeight(id util.Hash) int64 {
 	return bc.txPool.GetHeight(id)
-}
-
-func (bc *blockChain) ResolveName(name string) (*service.Name, error) {
-	errp := util.ErrPrefix("chain.BlockChain.ResolveName: ")
-	dn, err := service.NewDN(name)
-	if err != nil {
-		return nil, errp.Errorf("invalid name %q,: %v", name, err)
-	}
-	obj, err := bc.nameDB.LoadObject([]byte(dn.ASCII()), bc.recentNames)
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-
-	data := obj.(*db.RawObject)
-	id, err := ids.ToID(*data)
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	di, err := bc.LoadData(util.DataID(id))
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	ns := &service.Name{}
-	if err := ns.Unmarshal(di.Payload); err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	if err := ns.SyntacticVerify(); err != nil {
-		return nil, errp.ErrorIf(err)
-	}
-	ns.DataID = di.ID
-	return ns, nil
 }
 
 func (bc *blockChain) LoadAccount(id util.Address) (*ld.Account, error) {

@@ -176,7 +176,6 @@ func (t *DataInfo) ValidSigClaims() error {
 
 func (t *DataInfo) MarkDeleted(data []byte) error {
 	t.Version = 0
-	t.ModelID = RawModelID
 	t.SigClaims = nil
 	t.Sig = nil
 	t.Payload = data

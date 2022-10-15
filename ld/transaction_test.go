@@ -41,12 +41,11 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{ChainID: gChainID}
 	assert.NoError(tx.SyntacticVerify())
 
-	to := signer.Signer2.Key().Address()
 	tx = &TxData{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
 		From:    signer.Signer1.Key().Address(),
-		To:      &to,
+		To:      signer.Signer2.Key().Address().Ptr(),
 		Amount:  big.NewInt(1),
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -92,12 +91,11 @@ func TestTransaction(t *testing.T) {
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, ExSignatures: signer.Sigs{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty exSignatures")
 
-	to := signer.Signer2.Key().Address()
 	tx = &Transaction{Tx: TxData{
 		Type:    TypeTransfer,
 		ChainID: gChainID,
 		From:    signer.Signer1.Key().Address(),
-		To:      &to,
+		To:      signer.Signer2.Key().Address().Ptr(),
 		Amount:  big.NewInt(1),
 		Data:    GenJSONData(1024 * 256),
 	}}
@@ -117,7 +115,7 @@ func TestTransaction(t *testing.T) {
 		Type:    TypeTransfer,
 		ChainID: gChainID,
 		From:    signer.Signer1.Key().Address(),
-		To:      &to,
+		To:      signer.Signer2.Key().Address().Ptr(),
 		Amount:  big.NewInt(1),
 		Data:    GenJSONData(1024 * 255),
 	}}
@@ -136,7 +134,7 @@ func TestTransaction(t *testing.T) {
 			GasTip:    0,
 			GasFeeCap: 1000,
 			From:      signer.Signer1.Key().Address(),
-			To:        &to,
+			To:        signer.Signer2.Key().Address().Ptr(),
 			Amount:    big.NewInt(1_000_000),
 		},
 	}
@@ -196,7 +194,6 @@ func TestTxs(t *testing.T) {
 	_, err := NewBatchTx(testTx)
 	assert.ErrorContains(err, "NewBatchTx: not batch transactions")
 
-	to := signer.Signer2.Key().Address()
 	tx1 := &Transaction{Tx: TxData{
 		Type:      TypeTransfer,
 		ChainID:   gChainID,
@@ -204,7 +201,7 @@ func TestTxs(t *testing.T) {
 		GasTip:    0,
 		GasFeeCap: 1000,
 		From:      signer.Signer1.Key().Address(),
-		To:        &to,
+		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    big.NewInt(1_000_000),
 	}}
 	assert.NoError(tx1.SignWith(signer.Signer1))
@@ -216,7 +213,7 @@ func TestTxs(t *testing.T) {
 		GasTip:    0,
 		GasFeeCap: 1000,
 		From:      signer.Signer1.Key().Address(),
-		To:        &to,
+		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    big.NewInt(1_000_000),
 		Data:      []byte(`"👋"`),
 	}}

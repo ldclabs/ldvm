@@ -259,15 +259,13 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 	tokenid := util.Address(token)
-
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
 
 	// CreateToken
 	input := &ld.TxAccounter{
 		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &signer.Keys{signer.Signer1.Key()},
-		Approver:    &approver,
+		Approver:    signer.Signer2.Key().Ptr(),
 		ApproveList: &ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken},
 		Amount:      new(big.Int).SetUint64(constants.LDC * 10),
 		Name:        "LDC Token",
@@ -311,7 +309,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
-	assert.Equal(approver, tokenAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), tokenAcc.ld.Approver)
 	assert.Equal(ld.TxTypes{ld.TypeOpenLending, ld.TypeDestroyToken}, tokenAcc.ld.ApproveList)
 
 	// OpenLending

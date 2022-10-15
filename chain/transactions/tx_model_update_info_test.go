@@ -27,10 +27,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-
 	owner := signer.Signer1.Key().Address()
-	assert.NoError(err)
-	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,
@@ -171,7 +168,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	mid = util.ModelID{'1', '2', '3', '4', '5', '6'}
 	input = ld.TxUpdater{
 		ModelID:  &mid,
-		Approver: &approver,
+		Approver: signer.Signer2.Key().Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -223,7 +220,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	mi, err = cs.LoadModel(mid)
 	assert.NoError(err)
 	assert.NotNil(mi.Approver)
-	assert.True(approver.Equal(mi.Approver))
+	assert.True(signer.Signer2.Key().Equal(mi.Approver))
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)

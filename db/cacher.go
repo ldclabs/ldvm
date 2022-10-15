@@ -32,7 +32,7 @@ type RawObject []byte
 
 func (r *RawObject) Unmarshal(data []byte) error {
 	if r == nil {
-		return errors.New("RawObject.Unmarshal error: nil pointer")
+		return errors.New("db.RawObject.Unmarshal: nil pointer")
 	}
 	*r = append((*r)[0:0], data...)
 	return nil
@@ -52,7 +52,7 @@ func (c *Cacher) SetObject(key []byte, value interface{}) error {
 
 func (c *Cacher) UnmarshalObject(data []byte) (interface{}, error) {
 	if c.new == nil {
-		return nil, errors.New("Cacher.Unmarshal error: no function to create object")
+		return nil, errors.New("db.Cacher.Unmarshal: no function to create object")
 	}
 
 	obj := c.new()
