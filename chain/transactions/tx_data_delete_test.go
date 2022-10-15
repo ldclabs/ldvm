@@ -9,6 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
@@ -25,9 +26,7 @@ func TestTxDeleteData(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDeleteData,
@@ -180,7 +179,7 @@ func TestTxDeleteData(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer2.Key()},
-		Approver:  approver,
+		Approver:  signer.Signer2.Key(),
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -213,7 +212,7 @@ func TestTxDeleteData(t *testing.T) {
 		Version:   2,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
-		Approver:  approver,
+		Approver:  signer.Signer2.Key(),
 		Payload:   []byte(`42`),
 		ID:        did,
 	}
@@ -302,6 +301,101 @@ func TestTxDeleteData(t *testing.T) {
 	di2, err = cs.LoadData(di.ID)
 	assert.NoError(err)
 	assert.Equal(uint64(0), di2.Version)
+	assert.Equal([]byte(`421`), []byte(di2.Payload))
+
+	assert.NoError(cs.VerifyState())
+}
+
+func TestTxDeleteNameServiceData(t *testing.T) {
+	assert := assert.New(t)
+
+	ctx := NewMockChainContext()
+	cs := ctx.MockChainState()
+
+	sender := signer.Signer1.Key().Address()
+	recipient := signer.Signer2.Key().Address()
+
+	nm, err := service.NameModel()
+	assert.NoError(err)
+	mi := &ld.ModelInfo{
+		Name:      nm.Name(),
+		Threshold: 1,
+		Keepers:   signer.Keys{signer.Signer2.Key()},
+		Schema:    nm.Schema(),
+		ID:        ctx.ChainConfig().NameServiceID,
+	}
+
+	name := &service.Name{
+		Name:       "ldc:to",
+		Records:    []string{"ldc:to IN A 10.0.0.1"},
+		Extensions: service.Extensions{},
+	}
+	assert.NoError(name.SyntacticVerify())
+
+	input := &ld.TxUpdater{
+		ModelID:   &mi.ID,
+		Version:   1,
+		Threshold: ld.Uint16Ptr(1),
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
+		Data:      name.Bytes(),
+		To:        &recipient,
+		Expire:    100,
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+	}
+	assert.NoError(input.SyntacticVerify())
+	ltx := &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		To:        &recipient,
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+
+	senderAcc := cs.MustAccount(sender)
+	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(cs.SaveModel(mi))
+
+	ltx.Timestamp = 10
+	itx, err := NewTx(ltx)
+	assert.NoError(err)
+
+	_, err = cs.LoadDataByName("ldc:to")
+	assert.ErrorContains(err, `"ldc:to" not found`)
+	assert.NoError(itx.Apply(ctx, cs))
+	di, err := cs.LoadDataByName("ldc:to")
+	assert.NoError(err)
+	assert.Equal(mi.ID, di.ModelID)
+
+	input = &ld.TxUpdater{ID: &di.ID, Version: 1, Data: []byte(`421`)}
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeDeleteData,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
+	assert.NoError(err)
+	assert.NoError(itx.Apply(ctx, cs))
+
+	_, err = cs.LoadDataByName("ldc:to")
+	assert.ErrorContains(err, `"ldc:to" not found`)
+
+	di2, err := cs.LoadData(di.ID)
+	assert.NoError(err)
+	assert.Equal(uint64(0), di2.Version)
+	assert.Equal(mi.ID, di2.ModelID)
 	assert.Equal([]byte(`421`), []byte(di2.Payload))
 
 	assert.NoError(cs.VerifyState())

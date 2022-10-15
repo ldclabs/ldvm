@@ -32,4 +32,5 @@ type ChainState interface {
 	SavePrevData(*ld.DataInfo) error
 	DeleteData(*ld.DataInfo, []byte) error
 	SaveName(*service.Name) error
+	DeleteName(*service.Name) error
 }

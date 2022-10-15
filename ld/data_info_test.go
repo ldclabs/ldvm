@@ -182,6 +182,7 @@ func TestDataInfo(t *testing.T) {
 
 	assert.NoError(di.MarkDeleted(nil))
 	assert.Equal(uint64(0), di.Version)
+	assert.Equal(util.ModelIDEmpty, di.ModelID)
 	assert.Nil(di.Sig)
 	assert.Nil(di.SigClaims)
 	assert.Nil(di.Payload)
@@ -272,6 +273,13 @@ func TestDataInfoValidSigClaims(t *testing.T) {
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(di.ValidSigClaims())
 	// TODO
+
+	assert.NoError(di.MarkDeleted(nil))
+	assert.Equal(uint64(0), di.Version)
+	assert.Equal(CBORModelID, di.ModelID)
+	assert.Nil(di.Sig)
+	assert.Nil(di.SigClaims)
+	assert.Nil(di.Payload)
 }
 
 func TestDataInfoPatch(t *testing.T) {

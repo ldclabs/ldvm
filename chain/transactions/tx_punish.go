@@ -8,6 +8,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -89,6 +90,21 @@ func (tx *TxPunish) Apply(ctx ChainContext, cs ChainState) error {
 
 	if tx.di, err = cs.LoadData(*tx.input.ID); err != nil {
 		return errp.ErrorIf(err)
+	}
+
+	if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
+		ns := &service.Name{}
+		if err = ns.Unmarshal(tx.di.Payload); err != nil {
+			return errp.ErrorIf(err)
+		}
+		if err = ns.SyntacticVerify(); err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		ns.DataID = tx.di.ID
+		if err = cs.DeleteName(ns); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
 
 	if err = cs.DeleteData(tx.di, tx.input.Data); err != nil {

@@ -191,11 +191,27 @@ func (m *MockChainState) SaveName(ns *service.Name) error {
 	_, ok := m.NC[name]
 	switch {
 	case ok:
-		return fmt.Errorf("name %q conflict", name)
+		return fmt.Errorf("name %q is conflict", name)
 	default:
 		m.NC[name] = ns.DataID
 	}
 	return nil
+}
+
+func (m *MockChainState) DeleteName(ns *service.Name) error {
+	if ns.DataID == util.DataIDEmpty {
+		return fmt.Errorf("MBS.DeleteName: name ID is empty")
+	}
+
+	name := ns.ASCII()
+	_, ok := m.NC[name]
+	switch {
+	case ok:
+		delete(m.NC, name)
+		return nil
+	default:
+		return fmt.Errorf("MBS.DeleteName: name %q is not exist", name)
+	}
 }
 
 func (m *MockChainState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {

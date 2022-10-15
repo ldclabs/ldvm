@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -99,6 +100,21 @@ func (tx *TxDeleteData) Apply(ctx ChainContext, cs ChainState) error {
 
 	case !tx.ld.IsApproved(tx.di.Approver, tx.di.ApproveList, false):
 		return errp.Errorf("invalid signature for data approver")
+	}
+
+	if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
+		ns := &service.Name{}
+		if err = ns.Unmarshal(tx.di.Payload); err != nil {
+			return errp.ErrorIf(err)
+		}
+		if err = ns.SyntacticVerify(); err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		ns.DataID = tx.di.ID
+		if err = cs.DeleteName(ns); err != nil {
+			return errp.ErrorIf(err)
+		}
 	}
 
 	if err = cs.DeleteData(tx.di, tx.input.Data); err != nil {

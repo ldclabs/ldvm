@@ -7,8 +7,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/fxamacker/cbor/v2"
-
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -41,9 +39,7 @@ func NameModel() (*ld.IPLDModel, error) {
 }
 
 type lazyName struct {
-	Name    string          `cbor:"n"`
-	Linked  cbor.RawMessage `cbor:"l"`
-	Records cbor.RawMessage `cbor:"rs"`
+	Name string `cbor:"n"`
 }
 
 func GetName(data []byte) (string, error) {

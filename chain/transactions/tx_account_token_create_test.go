@@ -28,10 +28,7 @@ func TestTxCreateToken(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 	tokenid := util.Address(token)
-
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
-	approverAddr := approver.Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -127,7 +124,7 @@ func TestTxCreateToken(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &approverAddr,
+		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
 	}}
@@ -219,7 +216,7 @@ func TestTxCreateToken(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
-		Approver:  &approver,
+		Approver:  signer.Signer2.Key().Ptr(),
 		Name:      "LD",
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -266,7 +263,7 @@ func TestTxCreateToken(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Amount:    new(big.Int).SetUint64(constants.LDC * 10),
-		Approver:  &approver,
+		Approver:  signer.Signer2.Key().Ptr(),
 		Name:      "LDC",
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -330,7 +327,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(uint64(0), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
-	assert.Equal(approver, tokenAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 
@@ -429,7 +426,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
-	assert.Equal(approver, tokenAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), tokenAcc.ld.Approver)
 	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())

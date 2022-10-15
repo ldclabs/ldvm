@@ -27,7 +27,8 @@ var LocalGenesisConfigJSON = `
       "threshold": 2,
       "keepers": [
         "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
-        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG"
+        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG",
+        "OVlX-75gy0DuaRuz2k5QnlFVSuKOJezRd4CQdkIjkn5pYt0F"
       ]
     },
     "0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc": {
@@ -35,7 +36,8 @@ var LocalGenesisConfigJSON = `
       "threshold": 1,
       "keepers": [
         "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
-        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG"
+        "RBccN_9de3u43K1cgfFihKIp5kE1lmGG",
+        "vlU2vQ63fTjirRWtJJvVcncVnyBaFovseXYCgCQkS-avAHc4"
       ]
     }
   }

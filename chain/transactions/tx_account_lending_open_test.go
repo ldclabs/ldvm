@@ -26,7 +26,6 @@ func TestTxOpenLending(t *testing.T) {
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeOpenLending,
@@ -186,7 +185,7 @@ func TestTxOpenLending(t *testing.T) {
 		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: lending exists")
 	cs.CheckoutAccounts()
 
-	assert.NoError(senderAcc.UpdateKeepers(nil, nil, &approver, &ld.TxTypes{ld.TypeOpenLending}))
+	assert.NoError(senderAcc.UpdateKeepers(nil, nil, signer.Signer2.Key().Ptr(), &ld.TxTypes{ld.TypeOpenLending}))
 	// close lending
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,

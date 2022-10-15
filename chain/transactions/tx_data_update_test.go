@@ -9,6 +9,7 @@ import (
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 
@@ -625,9 +626,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 			CWTID:      util.HashFromData([]byte(`{"name":"Tester","nonces":[1,2,3]}`)),
 		},
 	}
-	sig, err := signer.Signer2.SignData(input.SigClaims.Bytes())
-	assert.NoError(err)
-	input.Sig = &sig
+	input.Sig = signer.Signer2.MustSignData(input.SigClaims.Bytes()).Ptr()
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
@@ -667,6 +666,107 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","exp":100,"nbf":0,"iat":1,"cti":"HQ1ebnZXNJoRQij56bSc5UqffxMktgk7X0sc4fsuAo3laabe"},"sig":"5kzAmOqhJq7ukKhZNrry5efqSuK2659fpTeTkJfAj_coayRmQMkqRHOsMM6PsC4XUTSr9cFkFcJ56QF0PM9RmgAIdq69","data":[{"op":"replace","path":"/name","value":"Tester"}]}},"sigs":["WFThCMEtoY-jGj-foQPFlmnWmwwcKxLmPD-DO_9fNqltJMTcc_Nx5aTAUIDg2GF58t5FdPhDLKA9RzjbEp-lMgGcRJWF"],"id":"kXLbTFWpwFVlCEOCjcNBREwx0pwJDhF6MM-lgHOsUp3HVkRD"}`, string(jsondata))
+
+	assert.NoError(cs.VerifyState())
+}
+
+func TestTxUpdateNameServiceData(t *testing.T) {
+	assert := assert.New(t)
+
+	ctx := NewMockChainContext()
+	cs := ctx.MockChainState()
+
+	sender := signer.Signer1.Key().Address()
+	recipient := signer.Signer2.Key().Address()
+
+	nm, err := service.NameModel()
+	assert.NoError(err)
+	mi := &ld.ModelInfo{
+		Name:      nm.Name(),
+		Threshold: 1,
+		Keepers:   signer.Keys{signer.Signer2.Key()},
+		Schema:    nm.Schema(),
+		ID:        ctx.ChainConfig().NameServiceID,
+	}
+
+	name := &service.Name{
+		Name:       "ldc.to.",
+		Records:    []string{"ldc.to. IN A 10.0.0.1"},
+		Extensions: service.Extensions{},
+	}
+	assert.NoError(name.SyntacticVerify())
+
+	input := &ld.TxUpdater{
+		ModelID:   &mi.ID,
+		Version:   1,
+		Threshold: ld.Uint16Ptr(1),
+		Keepers:   &signer.Keys{signer.Signer1.Key()},
+		Data:      name.Bytes(),
+		To:        &recipient,
+		Expire:    100,
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+	}
+	assert.NoError(input.SyntacticVerify())
+	ltx := &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeCreateData,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		To:        &recipient,
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+
+	senderAcc := cs.MustAccount(sender)
+	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(cs.SaveModel(mi))
+
+	ltx.Timestamp = 10
+	itx, err := NewTx(ltx)
+	assert.NoError(err)
+
+	_, err = cs.LoadDataByName("ldc.to.")
+	assert.ErrorContains(err, `"ldc.to." not found`)
+	assert.NoError(itx.Apply(ctx, cs))
+	di, err := cs.LoadDataByName("ldc.to.")
+	assert.NoError(err)
+	assert.Equal(mi.ID, di.ModelID)
+
+	patchDoc := cborpatch.Patch{
+		{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("ld.to.")},
+	}
+	input = &ld.TxUpdater{ID: &di.ID, Version: 1,
+		Data:   util.MustMarshalCBOR(patchDoc),
+		To:     &recipient,
+		Amount: new(big.Int).SetUint64(constants.MilliLDC),
+	}
+
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeUpdateData,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      sender,
+		To:        &recipient,
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer1))
+	assert.NoError(ltx.ExSignWith(signer.Signer2))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
+	assert.NoError(err)
+
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		`can't update name, expected "ldc.to.", got "ld.to."`)
+	cs.CheckoutAccounts()
 
 	assert.NoError(cs.VerifyState())
 }

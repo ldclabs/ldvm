@@ -25,11 +25,10 @@ func TestTxBase(t *testing.T) {
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
-
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
+
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.ld.Approver = approver
+	senderAcc.ld.Approver = signer.Signer2.Key()
 	senderAcc.ld.Nonce = 1
 
 	ltx := &ld.Transaction{Tx: ld.TxData{

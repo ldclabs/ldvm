@@ -14,6 +14,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -221,11 +222,32 @@ type ResolveArgs struct {
 
 // GetData
 func (api *BlockChainAPI) Resolve(_ *http.Request, args *ResolveArgs, reply *GetReply) error {
-	data, err := api.bc.ResolveName(args.Name)
+	dn, err := service.NewDN(args.Name)
 	if err != nil {
 		return err
 	}
-	reply.ID = data.DataID.String()
-	reply.Data = data
+
+	raw, err := api.bc.LoadRawData("name", []byte(dn.ASCII()))
+	if err != nil {
+		return err
+	}
+
+	var id util.DataID
+	copy(id[:], raw)
+	di, err := api.bc.LoadData(id)
+	if err != nil {
+		return err
+	}
+	ns := &service.Name{}
+	if err := ns.Unmarshal(di.Payload); err != nil {
+		return err
+	}
+	if err := ns.SyntacticVerify(); err != nil {
+		return err
+	}
+	ns.DataID = di.ID
+
+	reply.ID = id.String()
+	reply.Data = ns
 	return nil
 }

@@ -27,7 +27,6 @@ func TestTxCreateModel(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-
 	owner := signer.Signer1.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{

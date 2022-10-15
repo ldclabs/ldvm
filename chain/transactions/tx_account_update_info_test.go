@@ -25,9 +25,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
 	token := ld.MustNewToken("$LDC")
-
 	sender := signer.Signer1.Key().Address()
-	approver := signer.Signer2.Key()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateAccountInfo,
@@ -131,7 +129,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	input = ld.TxAccounter{
 		Threshold:   ld.Uint16Ptr(1),
 		Keepers:     &signer.Keys{signer.Signer1.Key()},
-		Approver:    &approver,
+		Approver:    signer.Signer2.Key().Ptr(),
 		ApproveList: &ld.AccountTxTypes,
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -174,7 +172,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
-	assert.Equal(approver, senderAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
 	assert.Equal(ld.AccountTxTypes, senderAcc.ld.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
@@ -220,7 +218,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
-	assert.Equal(approver, senderAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
 	assert.Equal(ld.TransferTxTypes, senderAcc.ld.ApproveList)
 
 	// clear Approver
@@ -288,7 +286,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	// add Approver again
 	input = ld.TxAccounter{
-		Approver: &approver,
+		Approver: signer.Signer2.Key().Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -337,7 +335,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 		senderAcc.Balance().Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()}, senderAcc.Keepers())
-	assert.Equal(approver, senderAcc.ld.Approver)
+	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
 	assert.Nil(senderAcc.ld.ApproveList)
 
 	// clear keepers should failed

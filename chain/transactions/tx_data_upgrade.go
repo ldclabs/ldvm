@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -196,19 +195,6 @@ func (tx *TxUpgradeData) Apply(ctx ChainContext, cs ChainState) error {
 
 	if err = tx.di.ValidSigClaims(); err != nil {
 		return errp.ErrorIf(err)
-	}
-
-	if ctx.ChainConfig().IsNameService(tx.di.ModelID) {
-		var n1, n2 string
-		if n1, err = service.GetName(tx.prevDI.Payload); err != nil {
-			return errp.Errorf("invalid NameService data, %v", err)
-		}
-		if n2, err = service.GetName(tx.di.Payload); err != nil {
-			return errp.Errorf("invalid NameService data, %v", err)
-		}
-		if n1 != n2 {
-			return errp.Errorf("can't update name, expected %q, got %q", n1, n2)
-		}
 	}
 
 	if err = cs.SavePrevData(tx.prevDI); err != nil {

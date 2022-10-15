@@ -51,10 +51,16 @@ func TestName(t *testing.T) {
 	name2 := &Name{}
 	assert.NoError(name2.Unmarshal(name.Bytes()))
 	assert.Equal(name.Bytes(), name2.Bytes())
+	nn, err := GetName(name.Bytes())
+	assert.NoError(err)
+	assert.Equal("公信.com.", nn)
 
 	name.Records = append(name.Records, "xn--vuq70b.com. IN A 10.0.0.1")
 	assert.NoError(name.SyntacticVerify())
 	assert.NotEqual(name.Bytes(), name2.Bytes())
+	nn, err = GetName(name.Bytes())
+	assert.NoError(err)
+	assert.Equal("公信.com.", nn)
 
 	data, err := json.Marshal(name)
 	assert.NoError(err)

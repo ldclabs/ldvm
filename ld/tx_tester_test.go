@@ -152,12 +152,11 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.SyntacticVerify())
 	assert.False(tx.maybeTestData())
 
-	approver := signer.Signer2.Key()
 	di := &DataInfo{
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
-		Approver:  approver,
+		Approver:  signer.Signer2.Key(),
 		Payload:   []byte(`42`),
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -186,7 +185,7 @@ func TestTxTester(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
-		Approver:  approver,
+		Approver:  signer.Signer2.Key(),
 		Payload:   util.MustMarshalCBOR(v),
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -197,7 +196,7 @@ func TestTxTester(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
-		Approver:  approver,
+		Approver:  signer.Signer2.Key(),
 		Payload:   MustMarshalJSON(v),
 	}
 	assert.NoError(di.SyntacticVerify())
