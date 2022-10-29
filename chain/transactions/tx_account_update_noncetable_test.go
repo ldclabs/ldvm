@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTxAddNonceTable(t *testing.T) {
+func TestTxUpdateNonceTable(t *testing.T) {
 	assert := assert.New(t)
 
 	// SyntacticVerify
-	tx := &TxAddNonceTable{}
+	tx := &TxUpdateNonceTable{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
 	assert.NoError(err)
@@ -28,7 +28,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	sender := signer.Signer1.Key().Address()
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -40,7 +40,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "no signatures")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -54,7 +54,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "invalid to, should be nil")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -68,7 +68,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "invalid token, should be nil")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -80,7 +80,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.ErrorContains(ltx.SyntacticVerify(), "nil \"to\" together with amount")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -93,7 +93,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.ErrorContains(err, "invalid data")
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -110,7 +110,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err := util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -130,7 +130,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -147,7 +147,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -165,7 +165,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -183,7 +183,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     0,
 		GasTip:    100,
@@ -207,9 +207,9 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas := ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
@@ -219,13 +219,13 @@ func TestTxAddNonceTable(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeAddNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":[1001,1,3,7,5]},"sigs":["7wfPcHU5TDQ-6Z800sdu-qN4nsxLnEj4lq7NAeND8wwNPoxnlYvxCjOXnNzx-8-cO233xvdYPseVo9rOL3W0wgB3TO2Z"],"id":"F2k4eqJNBj7gdy3y-hrebplVMYQx7IBe4PzAU5dWNq04XpCx"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":[1001,1,3,7,5]},"sigs":["7wfPcHU5TDQ-6Z800sdu-qN4nsxLnEj4lq7NAeND8wwNPoxnlYvxCjOXnNzx-8-cO233xvdYPseVo9rOL3W0wgB3TO2Z"],"id":"F2k4eqJNBj7gdy3y-hrebplVMYQx7IBe4PzAU5dWNq04XpCx"}`, string(jsondata))
 
-	input = []uint64{cs.Timestamp() + 1, 2, 4, 1}
+	input = []uint64{cs.Timestamp() + 1, 1, 2, 4, 1}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
@@ -247,7 +247,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
@@ -264,18 +264,18 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas += ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(2), senderAcc.Nonce())
 	assert.Equal(1, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
 
 	input = []uint64{cs.Timestamp() + 2, 0}
 	inputData, err = util.MarshalCBOR(input)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasTip:    100,
@@ -292,12 +292,12 @@ func TestTxAddNonceTable(t *testing.T) {
 
 	senderGas += ltx.Gas()
 	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
-		itx.(*TxAddNonceTable).miner.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(3), senderAcc.Nonce())
 	assert.Equal(2, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal([]uint64{0}, senderAcc.ld.NonceTable[cs.Timestamp()+2])
 
 	// consume nonce table
@@ -366,7 +366,7 @@ func TestTxAddNonceTable(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxTransferCash).miner.Balance().Uint64())
 	assert.Equal(1, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{1, 2, 3, 4, 5, 6, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Nil(senderAcc.ld.NonceTable[cs.Timestamp()+2], "should clean emtpy nonce table")
 
 	assert.NoError(cs.VerifyState())

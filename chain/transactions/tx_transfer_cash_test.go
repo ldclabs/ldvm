@@ -294,7 +294,7 @@ func TestTxTransferCash(t *testing.T) {
 		From:   &to.id,
 		To:     &from.id,
 		Amount: new(big.Int).SetUint64(constants.LDC),
-		Expire: cs.Timestamp(),
+		Expire: cs.Timestamp() + 1,
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -342,9 +342,9 @@ func TestTxTransferCash(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"nonce 0 not exists at 10")
+		"nonce 0 not exists at 1001")
 	cs.CheckoutAccounts()
-	assert.NoError(to.AddNonceTable(cs.Timestamp(), []uint64{2, 1, 0}))
+	assert.NoError(to.UpdateNonceTable(cs.Timestamp()+1, []uint64{2, 1, 0}))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 1000000000, got 0")
@@ -359,12 +359,12 @@ func TestTxTransferCash(t *testing.T) {
 	assert.Equal(constants.LDC*2-ltx.Gas()*(ctx.Price+100),
 		from.Balance().Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
-	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[cs.Timestamp()])
+	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1000}},"sigs":["ZVA7uvKhNosFboYq25r0YJfBpM84pHviIyELVJack2Yx0SN2OZpTfCIaSYKc5WZzH_Vd2dAOI-EHEN3pSa-83ACqYAJF"],"exSigs":["IxWsQSu_ZXP6GszX5FzhYQH7giHB68dqjRVn1cNnpP0M1wQGoRo8SyveLM7CYegD7I2nqNGNb_5Hrrl0khlyUAHhsHUg"],"id":"UVSB4LvAXrTCpUky2_bcm-OQ5mGFO-4VJTreaodk66qr5PmS"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1001}},"sigs":["PikI2rs3hdiy_2lnFoStuaqqyN0-ulnHV8_t1FZC57dqSsI5GgS1Po0gfQqCOkvsCud2MoyVs9m4TbI-IuFHOgG2E2qo"],"exSigs":["Jt_wdqDpYzI5Ib7815vM-olw6isgg5UeMhmSz2in4VA5cRCNdNbd0pqD-XYAK0gDzwvhRxLLj6b-Kf0LGwOKSwBOmpIz"],"id":"um4FGzP6ffE4XZZAnvUcoD6C76kxqTaOnsRST1o0_Ljon6D2"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

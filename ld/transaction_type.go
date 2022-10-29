@@ -40,7 +40,7 @@ const (
 
 const (
 	// Account
-	TypeAddNonceTable     TxType = 32 + iota // Add more nonce with expire time to account
+	TypeUpdateNonceTable  TxType = 32 + iota // Add or update nonce with expire time
 	TypeUpdateAccountInfo                    // Updates account's Keepers and Threshold
 	TypeCreateToken                          // Creates a token account
 	TypeDestroyToken                         // Destroy a token account
@@ -79,7 +79,7 @@ var DataTxTypes = TxTypes{
 }
 
 var AccountTxTypes = TxTypes{
-	TypeAddNonceTable,
+	TypeUpdateNonceTable,
 	TypeUpdateAccountInfo,
 	TypeCreateToken,
 	TypeDestroyToken,
@@ -111,7 +111,7 @@ var TokenFromTxTypes = TxTypes{
 	TypeEth,
 	TypeTransfer,
 	TypeUpdateAccountInfo,
-	TypeAddNonceTable,
+	TypeUpdateNonceTable,
 	TypeDestroyToken,
 	TypeOpenLending,
 	TypeCloseLending,
@@ -129,7 +129,7 @@ var TokenToTxTypes = TxTypes{
 
 var StakeFromTxTypes0 = TxTypes{
 	TypeUpdateAccountInfo,
-	TypeAddNonceTable,
+	TypeUpdateNonceTable,
 	TypeResetStake,
 	TypeDestroyStake,
 }
@@ -171,7 +171,7 @@ func (t TxType) Gas() uint64 {
 	case TypeEth, TypeTransfer, TypeTransferPay, TypeTransferCash, TypeTransferMultiple, TypeExchange:
 		return 42
 
-	case TypeAddNonceTable, TypeUpdateAccountInfo, TypeUpdateData, TypeUpdateDataInfo:
+	case TypeUpdateNonceTable, TypeUpdateAccountInfo, TypeUpdateData, TypeUpdateDataInfo:
 		return 42
 
 	case TypePunish, TypeCreateData, TypeUpgradeData, TypeUpdateDataInfoByAuth, TypeDeleteData:
@@ -215,8 +215,8 @@ func (t TxType) String() string {
 		return "TypeTransferMultiple"
 	case TypeExchange:
 		return "TypeExchange"
-	case TypeAddNonceTable:
-		return "TypeAddNonceTable"
+	case TypeUpdateNonceTable:
+		return "TypeUpdateNonceTable"
 	case TypeUpdateAccountInfo:
 		return "TypeUpdateAccountInfo"
 	case TypeCreateToken:

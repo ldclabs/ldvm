@@ -407,7 +407,7 @@ func TestTxBorrow(t *testing.T) {
 		From:   &lender,
 		To:     &borrower,
 		Amount: new(big.Int).SetUint64(constants.LDC),
-		Expire: cs.Timestamp(),
+		Expire: cs.Timestamp() + 1,
 		Data:   dueTimeData,
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -435,10 +435,10 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).SubByNonceTable: nonce 0 not exists at 1000")
+		"nonce 0 not exists at 1001")
 	cs.CheckoutAccounts()
 
-	assert.NoError(lenderAcc.AddNonceTable(cs.Timestamp(), []uint64{0, 1}))
+	assert.NoError(lenderAcc.UpdateNonceTable(cs.Timestamp()+1, []uint64{0, 1}))
 	assert.NoError(itx.Apply(ctx, cs))
 	cs.CommitAccounts()
 
@@ -461,20 +461,20 @@ func TestTxBorrow(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1000,"data":"GgABVWhrgiP-"}},"sigs":["0jqcWHFyRlBg1Pznz3N3DjkUotjzViKFYIPasP3Qu0oai2VnE5LGvRXU7_GuTNeVFq1dXqJVcbYnhXGWfIdFhwHpLsuu"],"exSigs":["uC13lD2HYWhffKQyz1BZRVoni7NAicuwLYWyDNh8QwUAAC4RHLL2k8DHW6LJYIX86Jgnw52cgns0n7hz-sMuqgF8HqBu"],"id":"gLl9ENMSKEWHE2c4oBUQE8xj3wiClPZoBleMChU0RkR6Ad7u"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1001,"data":"GgABVWhrgiP-"}},"sigs":["M-ev3GGkRy8KvHmbAJoENKO0y8e1WVmuPCJ3mWNcUBtDMyU2gpu9pKwp_R-kdFt8d6xU_u1cxnHYygUvfV0mbwA2Ef2B"],"exSigs":["NgAL6RskeRV3yquqE6Qd5nUHpgWFrnf2hVzyqTwypyovOsyEaBt_rIa_ZwYxkGCmJvnkAih6sLeRoSwyd0U38wFTlQpE"],"id":"rg9f2lvhqTHfn4TE6cbz51IXE-C2vLGvBLR-c_bfAcp-LouL"}`, string(jsondata))
 
 	// borrow again after a day
 	ctx.height++
 	ctx.timestamp += 3600 * 24
 	cs.CheckoutAccounts()
 
-	assert.NoError(lenderAcc.AddNonceTable(cs.Timestamp(), []uint64{999}))
+	assert.NoError(lenderAcc.UpdateNonceTable(cs.Timestamp()+1, []uint64{999}))
 	input = &ld.TxTransfer{
 		Nonce:  999,
 		From:   &lender,
 		To:     &borrower,
 		Amount: new(big.Int).SetUint64(constants.LDC),
-		Expire: cs.Timestamp(),
+		Expire: cs.Timestamp() + 1,
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,

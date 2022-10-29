@@ -362,12 +362,12 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NotNil(tokenAcc.ld.Lending)
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 
-	// AddNonceTable
+	// UpdateNonceTable
 	ns := []uint64{cs.Timestamp() + 1, 1, 2, 3}
 	ndData, err := util.MarshalCBOR(ns)
 	assert.NoError(err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
-		Type:      ld.TypeAddNonceTable,
+		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     1,
 		GasTip:    100,
@@ -384,9 +384,9 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 
 	tokenGas += ltx.Gas()
 	assert.Equal((tokenGas+senderGas)*ctx.Price,
-		itx.(*TxAddNonceTable).ldc.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).ldc.Balance().Uint64())
 	assert.Equal((tokenGas+senderGas)*100,
-		itx.(*TxAddNonceTable).miner.Balance().Uint64())
+		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal([]uint64{1, 2, 3}, tokenAcc.ld.NonceTable[cs.Timestamp()+1])
 	assert.Equal(uint64(2), tokenAcc.Nonce())
 

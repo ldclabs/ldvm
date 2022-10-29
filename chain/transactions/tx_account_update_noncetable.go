@@ -9,18 +9,18 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-type TxAddNonceTable struct {
+type TxUpdateNonceTable struct {
 	TxBase
 	input []uint64
 }
 
-func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
+func (tx *TxUpdateNonceTable) MarshalJSON() ([]byte, error) {
 	if tx == nil || tx.ld == nil {
 		return []byte("null"), nil
 	}
 
 	v := tx.ld.Copy()
-	errp := util.ErrPrefix("transactions.TxAddNonceTable.MarshalJSON: ")
+	errp := util.ErrPrefix("transactions.TxUpdateNonceTable.MarshalJSON: ")
 	if tx.input == nil {
 		return nil, errp.Errorf("nil tx.input")
 	}
@@ -33,9 +33,9 @@ func (tx *TxAddNonceTable) MarshalJSON() ([]byte, error) {
 }
 
 // ApplyGenesis skipping signature verification
-func (tx *TxAddNonceTable) SyntacticVerify() error {
+func (tx *TxUpdateNonceTable) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("transactions.TxAddNonceTable.SyntacticVerify: ")
+	errp := util.ErrPrefix("transactions.TxUpdateNonceTable.SyntacticVerify: ")
 
 	if err = tx.TxBase.SyntacticVerify(); err != nil {
 		return errp.ErrorIf(err)
@@ -77,15 +77,15 @@ func (tx *TxAddNonceTable) SyntacticVerify() error {
 	return nil
 }
 
-func (tx *TxAddNonceTable) Apply(ctx ChainContext, cs ChainState) error {
+func (tx *TxUpdateNonceTable) Apply(ctx ChainContext, cs ChainState) error {
 	var err error
-	errp := util.ErrPrefix("transactions.TxAddNonceTable.Apply: ")
+	errp := util.ErrPrefix("transactions.TxUpdateNonceTable.Apply: ")
 
 	if err = tx.TxBase.verify(ctx, cs); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	if err = tx.from.AddNonceTable(tx.input[0], tx.input[1:]); err != nil {
+	if err = tx.from.UpdateNonceTable(tx.input[0], tx.input[1:]); err != nil {
 		return errp.ErrorIf(err)
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))

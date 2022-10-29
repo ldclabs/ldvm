@@ -38,7 +38,7 @@ func TestTxType(t *testing.T) {
 		case TypeDeleteData:
 			assert.Equal(TxType(24), ty)
 			assert.True(DataTxTypes.Has(ty))
-		case TypeAddNonceTable:
+		case TypeUpdateNonceTable:
 			assert.Equal(TxType(32), ty)
 			assert.True(AccountTxTypes.Has(ty))
 		case TypeRepay:

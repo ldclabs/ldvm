@@ -178,7 +178,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","approveList":["TypeAddNonceTable","TypeUpdateAccountInfo","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]}},"sigs":["8XFo0t3PUW4mO9J60r1AC4m4SCBT7Udgq6eClT2_LksF0f-W17wKHAcmgpNzV5IWYC5jGsJfjCNSs8xrlHIxVABb1Egx"],"id":"_9nauLRM0XLKzAumQThx_afPZ9yBbttrgLAc28u9uJDeOEkU"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","approveList":["TypeUpdateNonceTable","TypeUpdateAccountInfo","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]}},"sigs":["8XFo0t3PUW4mO9J60r1AC4m4SCBT7Udgq6eClT2_LksF0f-W17wKHAcmgpNzV5IWYC5jGsJfjCNSs8xrlHIxVABb1Egx"],"id":"_9nauLRM0XLKzAumQThx_afPZ9yBbttrgLAc28u9uJDeOEkU"}`, string(jsondata))
 
 	// update ApproveList
 	input = ld.TxAccounter{
