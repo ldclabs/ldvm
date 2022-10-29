@@ -209,7 +209,7 @@ func TestTxRepay(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.Add(token, new(big.Int).SetUint64(constants.LDC)))
-	assert.NoError(lenderAcc.AddNonceTable(cs.Timestamp()+1, []uint64{1}))
+	assert.NoError(lenderAcc.UpdateNonceTable(cs.Timestamp()+1, []uint64{1}))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	borrowerGas := ltx.Gas()

@@ -428,19 +428,16 @@ func (a *Account) SubByNonceTable(
 	return nil
 }
 
-func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
+func (a *Account) UpdateNonceTable(expire uint64, ns []uint64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).AddNonceTable: ", a.id))
-	if len(a.ld.NonceTable) >= 1024 {
-		return errp.Errorf("too many NonceTable groups, expected <= 1024")
+	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).UpdateNonceTable: ", a.id))
+	if expire <= a.ld.Timestamp {
+		return errp.Errorf("invalid expire, expected >= %d, got %d", a.ld.Timestamp, expire)
 	}
 
-	us := util.Uint64Set(make(map[uint64]struct{}, len(a.ld.NonceTable[expire])+len(ns)))
-	if uu, ok := a.ld.NonceTable[expire]; ok {
-		us.Add(uu...)
-	}
+	us := util.Uint64Set(make(map[uint64]struct{}, len(ns)))
 	for _, u := range ns {
 		if us.Has(u) {
 			return errp.Errorf("nonce %d exists at %d", u, expire)
@@ -448,12 +445,16 @@ func (a *Account) AddNonceTable(expire uint64, ns []uint64) error {
 		us.Add(u)
 	}
 
-	a.ld.NonceTable[expire] = us.List()
 	// clear expired nonces
 	for e := range a.ld.NonceTable {
 		if e < a.ld.Timestamp {
 			delete(a.ld.NonceTable, e)
 		}
+	}
+
+	a.ld.NonceTable[expire] = us.List()
+	if len(a.ld.NonceTable) > 1024 {
+		return errp.Errorf("too many NonceTable groups, expected <= 1024")
 	}
 	return nil
 }

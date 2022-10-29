@@ -106,22 +106,25 @@ func TestNativeAccount(t *testing.T) {
 
 	// NonceTable
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 1000, big.NewInt(10)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 1000 not exists at 12345")
+		"nonce 1000 not exists at 12345")
 
-	assert.NoError(acc.AddNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
-	assert.ErrorContains(acc.AddNonceTable(12345, []uint64{2, 10}),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).AddNonceTable: nonce 2 exists at 12345")
+	assert.ErrorContains(acc.UpdateNonceTable(1, []uint64{1, 2, 3, 4, 0}),
+		"invalid expire, expected >= 2, got 1")
+	assert.NoError(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
+	assert.ErrorContains(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 2, 10}),
+		"nonce 2 exists at 12345")
+	assert.NoError(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 0, 10}))
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 0, big.NewInt(10)))
 
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 0, big.NewInt(10)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 0 not exists at 12345")
+		"nonce 0 not exists at 12345")
 	assert.ErrorContains(acc.SubByNonceTable(token, 123456, 2, big.NewInt(10)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonceTable: nonce 2 not exists at 123456")
+		"nonce 2 not exists at 123456")
 	assert.NoError(acc.SubByNonceTable(token, 12345, 2, big.NewInt(10)))
 	assert.Equal(uint64(70), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(70), acc.balanceOfAll(token).Uint64())
 
-	assert.NoError(acc.AddNonceTable(12345, []uint64{0}))
+	assert.NoError(acc.UpdateNonceTable(12345, []uint64{0, 1, 3, 4}))
 	assert.Equal([]uint64{0, 1, 3, 4}, acc.ld.NonceTable[12345])
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 1, big.NewInt(10)))
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 3, big.NewInt(10)))
@@ -131,14 +134,18 @@ func TestNativeAccount(t *testing.T) {
 	assert.Equal(uint64(50), acc.balanceOfAll(token).Uint64())
 	assert.Equal(0, len(acc.ld.NonceTable))
 
-	for i := uint64(0); i < 1026; i++ {
-		assert.NoError(acc.AddNonceTable(i, []uint64{i}))
+	for i := uint64(3); i < 1027; i++ {
+		assert.NoError(acc.UpdateNonceTable(i, []uint64{i}))
 	}
-	assert.Nil(acc.ld.NonceTable[0])
-	assert.Nil(acc.ld.NonceTable[1])
+	assert.Nil(acc.ld.NonceTable[2])
+	assert.NotNil(acc.ld.NonceTable[3])
 	assert.Equal(1024, len(acc.ld.NonceTable))
-	assert.ErrorContains(acc.AddNonceTable(100, []uint64{100}),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).AddNonceTable: too many NonceTable groups, expected <= 1024")
+	assert.ErrorContains(acc.UpdateNonceTable(1028, []uint64{1028}),
+		"too many NonceTable groups, expected <= 1024")
+
+	acc.ld.Timestamp = 28
+	assert.NoError(acc.UpdateNonceTable(1028, []uint64{1028}))
+	assert.Equal(1000, len(acc.ld.NonceTable))
 
 	// Marshal
 	data, _, err := acc.Marshal()

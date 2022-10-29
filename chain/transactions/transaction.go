@@ -43,8 +43,8 @@ func NewTx(tx *ld.Transaction) (Transaction, error) {
 	case ld.TypeExchange:
 		tt = &TxExchange{TxBase: TxBase{ld: tx}}
 
-	case ld.TypeAddNonceTable:
-		tt = &TxAddNonceTable{TxBase: TxBase{ld: tx}}
+	case ld.TypeUpdateNonceTable:
+		tt = &TxUpdateNonceTable{TxBase: TxBase{ld: tx}}
 	case ld.TypeUpdateAccountInfo:
 		tt = &TxUpdateAccountInfo{TxBase: TxBase{ld: tx}}
 	case ld.TypeCreateToken:

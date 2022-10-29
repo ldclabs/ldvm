@@ -261,7 +261,7 @@ func TestTxExchange(t *testing.T) {
 		Quota:   new(big.Int).SetUint64(constants.LDC * 1000),
 		Minimum: new(big.Int).SetUint64(constants.LDC),
 		Price:   new(big.Int).SetUint64(1_000_000),
-		Expire:  cs.Timestamp(),
+		Expire:  cs.Timestamp() + 1,
 		Payee:   to.id,
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -280,7 +280,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
-	ltx.Timestamp = cs.Timestamp() + 1
+	ltx.Timestamp = cs.Timestamp() + 2
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "data expired")
 	ltx.Timestamp = 1
@@ -335,9 +335,9 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"nonce 1 not exists at 1")
+		"nonce 1 not exists at 1001")
 	cs.CheckoutAccounts()
-	assert.NoError(to.AddNonceTable(cs.Timestamp(), []uint64{1, 2, 3}))
+	assert.NoError(to.UpdateNonceTable(cs.Timestamp()+1, []uint64{1, 2, 3}))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient $LDC balance, expected 1000000000, got 0")
@@ -355,12 +355,12 @@ func TestTxExchange(t *testing.T) {
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100)-1_000_000,
 		from.Balance().Uint64())
 	assert.Equal(uint64(2), from.Nonce())
-	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[cs.Timestamp()])
+	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1000,"payee":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"}},"sigs":["s5FjLK_TknR_zxjX1O3tcZFs9sCjRnn-xlHTtD8NdGtn-ZMWvtEhC6Lrn639a4tUuDD0ikmG8gg3Y7s9su1T-wFaaCov"],"exSigs":["r1QWsbB9KwOS7Q_kOrVv7jKDnYy6OxvAxhnjOKqWCxxLbH3_YznWRdYWnP6FiTZkxWl_PPRcze8KEw9ltprrbwBdOUm0"],"id":"D9-qUGRL7VXf06Bi212flAX6Vk4AZScB5SBOFC25m78bUxuP"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1001,"payee":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"}},"sigs":["mNAnqs_fDjrTdr3ud6iZECvbrlOT6SNPRgz-M7IdM14asWSZRQM-2FrtSGYLsG-N9gxEioYCI3xoI3AAtrGbWQBK6q8_"],"exSigs":["EzEU0phfo3vv-_CTa0wjejpyMtK5hLXrzAzu8Idf3LYTJeIAIWEMbaHFCXm1fsAiPBysZr6m6Sv9iQrXLwQmdAGGK3Oe"],"id":"9rPbEZ0C5cgvmArAQa1oIZ9aDga-qsi6l13y8Ume0OATrUa7"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
