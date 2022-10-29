@@ -4,6 +4,7 @@
 package vm
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -273,7 +274,7 @@ func (v *VM) Disconnected(id ids.NodeID) error {
 // This node should typically send an AppResponse to [nodeID] in response to
 // a valid message using the same request ID before the deadline. However,
 // the VM may arbitrarily choose to not send a response to this request.
-func (v *VM) AppRequest(id ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
+func (v *VM) AppRequest(ctx context.Context, id ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
 	v.Log.Info("LDVM.AppRequest",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID),
@@ -302,7 +303,7 @@ func (v *VM) AppRequest(id ids.NodeID, requestID uint32, deadline time.Time, req
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another AppRequest, or it may give
 // up trying to get the requested information.
-func (v *VM) AppResponse(id ids.NodeID, requestID uint32, response []byte) error {
+func (v *VM) AppResponse(ctx context.Context, id ids.NodeID, requestID uint32, response []byte) error {
 	v.Log.Info("LDVM.AppResponse",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID),
@@ -323,10 +324,82 @@ func (v *VM) AppResponse(id ids.NodeID, requestID uint32, response []byte) error
 // * This engine sent a request to [nodeID] with ID [requestID].
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
-func (v *VM) AppRequestFailed(id ids.NodeID, requestID uint32) error {
+func (v *VM) AppRequestFailed(ctx context.Context, id ids.NodeID, requestID uint32) error {
 	v.Log.Info("LDVM.AppRequestFailed",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID))
+	return nil
+}
+
+// CrossChainAppRequest Notify this engine of a request for data from
+// [chainID].
+//
+// The meaning of [request], and what should be sent in response to it, is
+// application (VM) specific.
+//
+// Guarantees surrounding the request are specific to the implementation of
+// the requesting VM. For example, the request may or may not be guaranteed
+// to be well-formed/valid depending on the implementation of the requesting
+// VM.
+//
+// This node should typically send a CrossChainAppResponse to [chainID] in
+// response to a valid message using the same request ID before the
+// deadline. However, the VM may arbitrarily choose to not send a response
+// to this request.
+func (v *VM) CrossChainAppRequest(ctx context.Context, chainID ids.ID, requestID uint32, deadline time.Time, request []byte) error {
+	v.Log.Info("LDVM.CrossChainAppRequest",
+		zap.Stringer("chainID", chainID),
+		zap.Uint32("requestID", requestID),
+		zap.Int("requestBytes", len(request)))
+	return nil
+}
+
+// CrossChainAppRequestFailed notifies this engine that a
+// CrossChainAppRequest message it sent to [chainID] with request ID
+// [requestID] failed.
+//
+// This may be because the request timed out or because the message couldn't
+// be sent to [chainID].
+//
+// It is guaranteed that:
+// * This engine sent a request to [chainID] with ID [requestID].
+// * CrossChainAppRequestFailed([chainID], [requestID]) has not already been
+// called.
+// * CrossChainAppResponse([chainID], [requestID]) has not already been
+// called.
+func (v *VM) CrossChainAppRequestFailed(ctx context.Context, chainID ids.ID, requestID uint32) error {
+	v.Log.Info("LDVM.CrossChainAppRequestFailed",
+		zap.Stringer("chainID", chainID),
+		zap.Uint32("requestID", requestID))
+	return nil
+}
+
+// CrossChainAppResponse notifies this engine of a response to the
+// CrossChainAppRequest message it sent to [chainID] with request ID
+// [requestID].
+//
+// The meaning of [response] is application (VM) specific.
+//
+// It is guaranteed that:
+// * This engine sent a request to [chainID] with ID [requestID].
+// * CrossChainAppRequestFailed([chainID], [requestID]) has not already been
+// called.
+// * CrossChainAppResponse([chainID], [requestID]) has not already been
+// called.
+//
+// Guarantees surrounding the response are specific to the implementation of
+// the responding VM. For example, the response may or may not be guaranteed
+// to be well-formed/valid depending on the implementation of the requesting
+// VM.
+//
+// If [response] is invalid or not the expected response, the VM chooses how
+// to react. For example, the VM may send another CrossChainAppRequest, or
+// it may give up trying to get the requested information.
+func (v *VM) CrossChainAppResponse(ctx context.Context, chainID ids.ID, requestID uint32, response []byte) error {
+	v.Log.Info("LDVM.CrossChainAppResponse",
+		zap.Stringer("chainID", chainID),
+		zap.Uint32("requestID", requestID),
+		zap.Int("responseBytes", len(response)))
 	return nil
 }
 

@@ -4,6 +4,8 @@
 package vm
 
 import (
+	"context"
+
 	"github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 
@@ -39,7 +41,7 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 	}
 
 	n.vm.Log.Debug("PushNetwork.GossipTx SendAppGossip", zap.Int("bytes", len(data)))
-	if err = n.vm.appSender.SendAppGossip(data); err != nil {
+	if err = n.vm.appSender.SendAppGossip(context.TODO(), data); err != nil {
 		n.vm.Log.Warn("PushNetwork.GossipTx SendAppGossip failed", zap.Error(err))
 	}
 }
@@ -56,8 +58,8 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 // need to be responded to.
 //
 // A node may gossip the same message multiple times. That is,
-// AppGossip([nodeID], [msg]) may be called multiple times.
-func (v *VM) AppGossip(nodeID ids.NodeID, msg []byte) error {
+// AppGossip(ctx context.Context, nodeID ids.NodeID, msg []byte) may be called multiple times.
+func (v *VM) AppGossip(ctx context.Context, nodeID ids.NodeID, msg []byte) error {
 	txs := ld.Txs{}
 	var err error
 	var tx *ld.Transaction
