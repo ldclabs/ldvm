@@ -47,6 +47,10 @@ func (id Address) Ptr() *Address {
 	return &id
 }
 
+func (id Address) Valid() bool {
+	return true
+}
+
 func (id Address) String() string {
 	return CheckSumHex(id[:])
 }
@@ -162,6 +166,10 @@ func DataIDFrom(str string) (DataID, error) {
 
 func (id DataID) Bytes() []byte {
 	return id[:]
+}
+
+func (id DataID) Valid() bool {
+	return true
 }
 
 func (id DataID) String() string {
@@ -283,6 +291,10 @@ func (id Hash) Bytes() []byte {
 	return id[:]
 }
 
+func (id Hash) Valid() bool {
+	return true
+}
+
 func (id Hash) String() string {
 	return EncodeToString(id[:])
 }
@@ -387,6 +399,10 @@ func ModelIDFromHash(id Hash) ModelID {
 
 func (id ModelID) Bytes() []byte {
 	return id[:]
+}
+
+func (id ModelID) Valid() bool {
+	return true
 }
 
 func (id ModelID) String() string {

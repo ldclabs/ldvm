@@ -36,13 +36,20 @@ func TestBlock(t *testing.T) {
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid miner address")
 
 	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100}
+	assert.ErrorContains(blk.SyntacticVerify(), "nil validators")
+
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100,
+		Validators: util.IDList[util.StakeSymbol]{}}
 	assert.ErrorContains(blk.SyntacticVerify(), "no txs")
 
-	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1),
-		Validators: []util.StakeSymbol{{1, 2, 3}}}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100,
+		Validators: util.IDList[util.StakeSymbol]{{1, 2, 3}},
+		Txs:        make([]*Transaction, 1)}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
 
-	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100, Txs: make([]*Transaction, 1)}
+	blk = &Block{State: util.Hash{1, 2, 3}, GasPrice: 100,
+		Validators: util.IDList[util.StakeSymbol]{},
+		Txs:        make([]*Transaction, 1)}
 	assert.ErrorContains(blk.SyntacticVerify(), "Transaction.SyntacticVerify: nil pointer")
 
 	tx := &Transaction{
@@ -65,6 +72,7 @@ func TestBlock(t *testing.T) {
 		Gas:           tx.Gas(),
 		GasPrice:      1000,
 		GasRebateRate: 200,
+		Validators:    util.IDList[util.StakeSymbol]{},
 		Txs:           Txs{tx},
 	}
 
@@ -76,7 +84,7 @@ func TestBlock(t *testing.T) {
 	jsondata, err := json.Marshal(blk)
 	assert.NoError(err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","height":0,"timestamp":0,"state":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","gas":638,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":null,"pChainHeight":0,"id":"bZ2rHS4yOz7W6lbLwmLKGqE6w3wRPlNzt5u4kEbdVdJGfv_d","txs":[{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}]}`, string(jsondata))
+	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","height":0,"timestamp":0,"state":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","gas":638,"gasPrice":1000,"gasRebateRate":200,"miner":"","validators":[],"pChainHeight":0,"id":"gXRjaleH9COtNPGo6W9obGHMms94tV_ajrFf1qTL5OtYaTOs","txs":[{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}]}`, string(jsondata))
 
 	blk.Gas++
 	assert.ErrorContains(blk.SyntacticVerify(),

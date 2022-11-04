@@ -46,7 +46,7 @@ func TestAddressID(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"`, string(data))
 
-	eids := make(Addresses, 0)
+	eids := make(IDList[Address], 0)
 	err = json.Unmarshal([]byte(`[
 		"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641",
 	  "44171C37Ff5D7B7bb8dcad5C81f16284A229e641",
@@ -167,7 +167,7 @@ func TestDataID(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(`"CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ"`, string(data))
 
-	mids := make(DataIDs, 0)
+	mids := make(IDList[DataID], 0)
 	err = json.Unmarshal([]byte(`[
 		"CscDx5BycsagXYdpwTk8v7eQk4NKPzreiYRfP_qLqwzDe_zZ",
 		"",

@@ -29,9 +29,9 @@ type Block struct {
 	Miner util.StakeSymbol `cbor:"mn" json:"miner"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Validators []util.StakeSymbol `cbor:"vs" json:"validators"`
-	PCHeight   uint64             `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
-	Txs        Txs                `cbor:"txs" json:"-"`
+	Validators util.IDList[util.StakeSymbol] `cbor:"vs" json:"validators"`
+	PCHeight   uint64                        `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
+	Txs        Txs                           `cbor:"txs" json:"-"`
 
 	// external assignment fields
 	ID     util.Hash         `cbor:"-" json:"id"`
@@ -76,6 +76,9 @@ func (b *Block) SyntacticVerify() error {
 
 	case b.Miner != util.StakeEmpty && !b.Miner.Valid():
 		return errp.Errorf("invalid miner address %s", b.Miner.GoString())
+
+	case b.Validators == nil:
+		return errp.Errorf("nil validators")
 
 	case len(b.Validators) > 256:
 		return errp.Errorf("too many validators")
