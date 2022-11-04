@@ -32,6 +32,7 @@ var (
 type Config struct {
 	EventCacheSize int            `json:"eventCacheSize"`
 	Logger         logging.Config `json:"logger"`
+	TxPoolEndpoint string         `json:"txPoolEndpoint"`
 }
 
 func New(data []byte) (*Config, error) {

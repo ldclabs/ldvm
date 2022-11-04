@@ -437,7 +437,7 @@ func (a *Account) UpdateNonceTable(expire uint64, ns []uint64) error {
 		return errp.Errorf("invalid expire, expected >= %d, got %d", a.ld.Timestamp, expire)
 	}
 
-	us := util.Uint64Set(make(map[uint64]struct{}, len(ns)))
+	us := util.NewSet[uint64](len(ns))
 	for _, u := range ns {
 		if us.Has(u) {
 			return errp.Errorf("nonce %d exists at %d", u, expire)

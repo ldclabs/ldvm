@@ -597,7 +597,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	p := &service.Profile{
 		Type:       1,
 		Name:       "tester",
-		Follows:    util.DataIDs{},
+		Follows:    util.IDList[util.DataID]{},
 		Extensions: service.Extensions{},
 	}
 	assert.NoError(p.SyntacticVerify())
@@ -724,7 +724,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	pf := &service.Profile{
 		Type:       1,
 		Name:       "LDC",
-		Follows:    util.DataIDs{},
+		Follows:    util.IDList[util.DataID]{},
 		Extensions: service.Extensions{},
 	}
 	assert.NoError(pf.SyntacticVerify())

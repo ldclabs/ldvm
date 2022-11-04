@@ -38,10 +38,10 @@ type Profile struct {
 	Image string      `cbor:"i" json:"image"`       // Thing property, relay url
 	URL   string      `cbor:"u" json:"url"`         // Thing property, relay url
 	// follow other ProfileService data id
-	Follows util.DataIDs `cbor:"fs" json:"follows"`
+	Follows util.IDList[util.DataID] `cbor:"fs" json:"follows"`
 	// optional, other ProfileService data id
-	Members    util.DataIDs `cbor:"ms,omitempty" json:"members,omitempty"`
-	Extensions Extensions   `cbor:"es" json:"extensions"`
+	Members    util.IDList[util.DataID] `cbor:"ms,omitempty" json:"members,omitempty"`
+	Extensions Extensions               `cbor:"es" json:"extensions"`
 
 	// external assignment fields
 	DataID util.DataID `cbor:"-" json:"did"`
@@ -94,11 +94,7 @@ func (p *Profile) SyntacticVerify() error {
 		return errp.Errorf("too many follows, should not exceed 1024")
 	}
 
-	if err = p.Follows.CheckDuplicate(); err != nil {
-		return errp.Errorf("invalid follows, %v", err)
-	}
-
-	if err = p.Follows.CheckEmptyID(); err != nil {
+	if err = p.Follows.Valid(); err != nil {
 		return errp.Errorf("invalid follows, %v", err)
 	}
 
@@ -106,11 +102,7 @@ func (p *Profile) SyntacticVerify() error {
 		return errp.Errorf("too many follows, should not exceed 1024")
 	}
 
-	if err = p.Members.CheckDuplicate(); err != nil {
-		return errp.Errorf("invalid members, %v", err)
-	}
-
-	if err = p.Members.CheckEmptyID(); err != nil {
+	if err = p.Members.Valid(); err != nil {
 		return errp.Errorf("invalid members, %v", err)
 	}
 

@@ -88,12 +88,12 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 `
 
 	type profile struct {
-		Type    uint16       `cbor:"t"`
-		Name    string       `cbor:"n"`
-		Image   string       `cbor:"i"`
-		URL     string       `cbor:"u"`
-		Follows util.DataIDs `cbor:"fs"`
-		Members util.DataIDs `cbor:"ms,omitempty"`
+		Type    uint16                   `cbor:"t"`
+		Name    string                   `cbor:"n"`
+		Image   string                   `cbor:"i"`
+		URL     string                   `cbor:"u"`
+		Follows util.IDList[util.DataID] `cbor:"fs"`
+		Members util.IDList[util.DataID] `cbor:"ms,omitempty"`
 	}
 
 	mo, err := NewIPLDModel("ProfileService", sc)
@@ -102,7 +102,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 	v1 := &profile{
 		Type:    0,
 		Name:    "Test",
-		Follows: util.DataIDs{},
+		Follows: util.IDList[util.DataID]{},
 	}
 
 	od := util.MustMarshalCBOR(v1)
