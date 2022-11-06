@@ -192,6 +192,54 @@ func TestEd25519Sig(t *testing.T) {
 	assert.Equal(2, sig.FindKey(msg, Signer1.Key(), Signer2.Key(), Signer3.Key()))
 }
 
+func TestBLS12381Sig(t *testing.T) {
+	assert := assert.New(t)
+
+	msg := util.Sum256([]byte("hello"))
+	sig, err := Signer4.SignHash(msg)
+	require.NoError(t, err)
+
+	sig2 := Sig{}
+	data := sig.Bytes()
+	sigStr := "kUu8w4TvwF5jgsccH72NmbBcYlE0gTQB4dBuDhwJwThjN_GI5loddLnTptMGKtaIGFLGiiUlQCiwDoQw1Hb1lcP8HEEvREQfkuyPuIc7BCBdvBQsFbBdIiFC9_ABP2mOZtaGyg"
+
+	assert.NotNil(sig)
+	assert.True(sig != nil)
+	assert.Equal(BLS12381, sig.Kind())
+
+	assert.Equal(data, sig.Bytes())
+	assert.Equal(sigStr, sig.String())
+	assert.Equal(sigStr, sig.GoString())
+	assert.True(sig.Equal(sig))
+	assert.False(sig.Equal(sig2))
+
+	b, err := sig.MarshalText()
+	require.NoError(t, err)
+	assert.Equal(sigStr, string(b))
+	assert.NoError(sig2.UnmarshalText(b))
+	assert.Equal(data, sig2.Bytes())
+
+	b, err = sig.MarshalJSON()
+	require.NoError(t, err)
+	assert.Equal(strconv.Quote(sigStr), string(b))
+	sig2 = Sig{}
+	assert.NoError(sig2.UnmarshalJSON(b))
+	assert.Equal(data, sig2.Bytes())
+
+	b, err = sig.MarshalCBOR()
+	require.NoError(t, err)
+	assert.Equal(util.MustMarshalCBOR(data), b)
+	sig2 = Sig{}
+	assert.NoError(sig2.UnmarshalCBOR(b))
+	assert.Equal(data, sig2.Bytes())
+	assert.Equal(data, sig2.Clone().Bytes())
+
+	assert.Equal(-1, sig.FindKey(msg))
+	assert.Equal(0, sig.FindKey(msg, Signer4.Key()))
+	assert.Equal(1, sig.FindKey(msg, Signer2.Key(), Signer4.Key()))
+	assert.Equal(2, sig.FindKey(msg, Signer1.Key(), Signer2.Key(), Signer4.Key()))
+}
+
 func TestSigs(t *testing.T) {
 	assert := assert.New(t)
 
@@ -210,7 +258,7 @@ func TestSigs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NoError(Sigs{sig1, sig2, sig3}.Valid())
-	assert.ErrorContains(Sigs{sig1, sig2, sig3, sig3}.Valid(), "duplicate sig xYmDC3UoLgAO0nYZ6zsQuPiZbCkZBFfDBEuq8BSx8zILpnMGZ4WE1VRjrpA5mZuvT7Ga9QmUttEWBn97gtnNDWp08G0")
+	assert.ErrorContains(Sigs{sig1, sig2, sig3, sig3}.Valid(), "duplicate sig gMM7IYZaMz6Zq-yetgri4HB2wp7IlXZNVMpP1eoqtLC3bZrjN4pAx0UhxwaLYGPFEvdhGyLs3_ZW6wdAhyVBV8xpEVfvnUxj5FA7thIeBRK_ZCTacGoJ0rWpmO8C10QXefWbIg")
 
 	assert.ErrorContains(Sigs{sig1, sig2, sig3, Sig{}}.Valid(), "unknown sig p__G-A")
 }

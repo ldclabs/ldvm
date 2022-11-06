@@ -202,8 +202,9 @@ func TestTxTransferMultiple(t *testing.T) {
 	jsondata, err = itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000},{"to":"0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d","amount":1000000000},{"to":"0xaf007738116a90d317f7028a77db4Da8aC58F836","amount":1000000000}]},"sigs":["gMGDXMoczMoTc7a75ld-L5KuiLuicZU9GBCwdqmNSIISGeeb_WmT3cSSX2dCCCzomAqziLOoxbInTuXJ09wwMAABsf2p","5odMmW9EnvO8J1XY9aDUhthTGrDlG50GXn1BHx9IpWGEHQtdCUEpXX3d74rGUTEeVULxYBggqlCDqEfXtf1ICs4fIcw"],"id":"_VrJkggU32UvzNIQ7z1jQqXodcsO1xamgLvTODFlrFHxL2lc"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000},{"to":"0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d","amount":1000000000},{"to":"0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48","amount":1000000000}]},"sigs":["QCwkMF-A60MCZcDJwmdNmfz1COcd4TTloLLz1Wa-KJNwxsA3OjTFwc2hWIUxp4S1QW_FZHum7eU3pFn5Ts5t3QG2lB9F","UXTu3KuKTteltUFG841YsHzWCX-hitolCUa0GLXS9a8TMYLB9gX6ybihgEwboTdPY_xpY50_2j4OUJzwx-UsAZRfNOs"],"id":"-DTJ718VYcF1gI2NEAwc8jodVMqjeb2a_YTr9HZzWSjXxukk"}`, string(jsondata))
 
+	// test transfer multiple from ed25519 account
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransferMultiple,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -306,6 +307,110 @@ func TestTxTransferMultiple(t *testing.T) {
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000}]},"sigs":["ZF7WmAYlK-_p8ukngiZOSEh0SnV9IMTZk_rKTBUMY23QLHge2lUKJB96kKYAW_hEiUWZhtloSK3m4MA_R3sqBM7BIzc"],"id":"LGhzwbexTcGPU5wVI07yiTf9wrk_nt3VEx5uyEX4A_mk2_IJ"}`, string(jsondata))
+
+	// test transfer multiple from BLS12-381 account
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeTransferMultiple,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      signer.Signer4.Key().Address(),
+		Token:     token.Ptr(),
+		Data: ld.MustMarshal(ld.SendOutputs{
+			{To: recipient.ID(), Amount: new(big.Int).SetUint64(constants.LDC)},
+		}),
+	}}
+
+	assert.NoError(ltx.SignWith(signer.Signer4))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
+	require.NoError(t, err)
+
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		"invalid signatures for sender", "can not find ed25519 signer automatically")
+	cs.CheckoutAccounts()
+
+	// update account keepers for BLS12-381 signer
+	signer4Acc := cs.MustAccount(signer.Signer4.Key().Address())
+	input = ld.TxAccounter{
+		Threshold: ld.Uint16Ptr(1),
+		Keepers:   &signer.Keys{signer.Signer4.Key()},
+	}
+	assert.NoError(input.SyntacticVerify())
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeUpdateAccountInfo,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     0,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      signer4Acc.ID(),
+		Data:      input.Bytes(),
+	}}
+	assert.NoError(ltx.SignWith(signer.Signer4))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
+	require.NoError(t, err)
+
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		"insufficient NativeLDC balance, expected 1076900, got 0")
+	cs.CheckoutAccounts()
+
+	signer4Acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	assert.Equal(uint16(0), signer4Acc.Threshold())
+	assert.Equal(signer.Keys{}, signer4Acc.Keepers())
+	assert.NoError(itx.Apply(ctx, cs))
+
+	signer4Gas := ltx.Gas()
+	assert.Equal((senderGas+signer3Gas+signer4Gas)*ctx.Price,
+		itx.(*TxUpdateAccountInfo).ldc.Balance().Uint64())
+	assert.Equal((senderGas+signer3Gas+signer4Gas)*100,
+		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
+	assert.Equal(constants.LDC-signer4Gas*(ctx.Price+100),
+		signer4Acc.Balance().Uint64())
+	assert.Equal(uint64(1), signer4Acc.Nonce())
+	assert.Equal(uint16(1), signer4Acc.Threshold())
+	assert.Equal(signer.Keys{signer.Signer4.Key()}, signer4Acc.Keepers())
+
+	// we can spend the token now~
+	ltx = &ld.Transaction{Tx: ld.TxData{
+		Type:      ld.TypeTransferMultiple,
+		ChainID:   ctx.ChainConfig().ChainID,
+		Nonce:     1,
+		GasTip:    100,
+		GasFeeCap: ctx.Price,
+		From:      signer4Acc.ID(),
+		Token:     token.Ptr(),
+		Data: ld.MustMarshal(ld.SendOutputs{
+			{To: recipient.ID(), Amount: new(big.Int).SetUint64(constants.LDC)},
+		}),
+	}}
+
+	assert.NoError(ltx.SignWith(signer.Signer4))
+	assert.NoError(ltx.SyntacticVerify())
+	itx, err = NewTx(ltx)
+	require.NoError(t, err)
+
+	assert.NoError(itx.Apply(ctx, cs))
+	signer4Gas += ltx.Gas()
+	assert.Equal((senderGas+signer3Gas+signer4Gas)*ctx.Price,
+		itx.(*TxTransferMultiple).ldc.Balance().Uint64())
+	assert.Equal((senderGas+signer3Gas+signer4Gas)*100,
+		itx.(*TxTransferMultiple).miner.Balance().Uint64())
+	assert.Equal(constants.LDC-signer4Gas*(ctx.Price+100),
+		signer4Acc.Balance().Uint64())
+	assert.Equal(uint64(0), signer4Acc.BalanceOf(token).Uint64())
+	assert.Equal(uint64(2), signer4Acc.Nonce())
+
+	assert.Equal(constants.LDC, recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*3, recipient.BalanceOf(token).Uint64())
+
+	jsondata, err = itx.MarshalJSON()
+	require.NoError(t, err)
+	// fmt.Println(string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000}]},"sigs":["rsQDh81jCy0zEQYwNhTbEjh8wEIgZeBUrJY_UAn_Os6lfwCYSBreDHQUeQleDF9uFnhX1PbHnk32qDYBS0GUXlbzPe4vyW4kLm9vvdvmmYrWAnrEDWVyzBq-du-8S3_eUCdh5g"],"id":"Ukc7ARBz5NYzNmzogotAfpY-cEHgRMDUxAL_aJiUiN0VGIyn"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

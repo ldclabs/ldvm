@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/ldclabs/ldvm/util"
@@ -20,6 +21,7 @@ const (
 	Unknown Kind = iota
 	Ed25519
 	Secp256k1
+	BLS12381
 )
 
 type Kind uint8
@@ -30,6 +32,66 @@ type Signer interface {
 	PrivateSeed() []byte
 	SignHash(digestHash []byte) (Sig, error)
 	SignData(message []byte) (Sig, error)
+}
+
+type bls12381Signer struct {
+	priv *bls.SecretKey
+	key  Key
+}
+
+func (s *bls12381Signer) Kind() Kind {
+	return BLS12381
+}
+
+func (s *bls12381Signer) Key() Key {
+	return s.key
+}
+
+func (s *bls12381Signer) PrivateSeed() []byte {
+	return bls.SecretKeyToBytes(s.priv)
+}
+
+func (s *bls12381Signer) SignHash(digestHash []byte) (Sig, error) {
+	if hashLen := len(digestHash); hashLen != DigestLength {
+		return nil, errors.New("signer.Signer<BLS12381>.SignHash: invalid hash length, expected 32, got " +
+			strconv.Itoa(hashLen))
+	}
+
+	sig := bls.Sign(s.priv, digestHash)
+	return bls.SignatureToBytes(sig), nil
+}
+
+func (s *bls12381Signer) SignData(message []byte) (Sig, error) {
+	return s.SignHash(util.Sum256(message))
+}
+
+func NewBLS12381() (Signer, error) {
+	priv, err := bls.NewSecretKey()
+	if err != nil {
+		return nil, errors.New("signer.NewBLS12381: " + err.Error())
+	}
+
+	return &bls12381Signer{
+		priv: priv,
+		key:  bls.PublicKeyToBytes(bls.PublicFromSecretKey(priv)),
+	}, nil
+}
+
+func BLS12381From(privateSeed []byte) (Signer, error) {
+	if seedLen := len(privateSeed); seedLen != bls.SecretKeyLen {
+		return nil, errors.New("signer.BLS12381From: invalid seed length, expected 32, got %d" +
+			strconv.Itoa(seedLen))
+	}
+
+	priv, err := bls.SecretKeyFromBytes(privateSeed)
+	if err != nil {
+		return nil, errors.New("signer.BLS12381From: " + err.Error())
+	}
+
+	return &bls12381Signer{
+		priv: priv,
+		key:  bls.PublicKeyToBytes(bls.PublicFromSecretKey(priv)),
+	}, nil
 }
 
 type ed25519Signer struct {
@@ -55,8 +117,7 @@ func (s *ed25519Signer) SignHash(digestHash []byte) (Sig, error) {
 			strconv.Itoa(hashLen))
 	}
 
-	sig := ed25519.Sign(s.priv, digestHash)
-	return Sig(sig), nil
+	return ed25519.Sign(s.priv, digestHash), nil
 }
 
 func (s *ed25519Signer) SignData(message []byte) (Sig, error) {
@@ -107,15 +168,16 @@ func (s *secp256k1Signer) PrivateSeed() []byte {
 
 func (s *secp256k1Signer) SignHash(digestHash []byte) (Sig, error) {
 	if hashLen := len(digestHash); hashLen != DigestLength {
-		return nil, errors.New("signer.Signer<Secp256k1>.SignHash: invalid hash length, expected 32, got " +
-			strconv.Itoa(hashLen))
+		return nil, errors.New(
+			"signer.Signer<Secp256k1>.SignHash: invalid hash length, expected 32, got " +
+				strconv.Itoa(hashLen))
 	}
 
 	sig, err := crypto.Sign(digestHash, s.priv)
 	if err != nil {
 		return nil, errors.New("signer.Signer<Secp256k1>.SignHash: " + err.Error())
 	}
-	return Sig(sig), nil
+	return sig, nil
 }
 
 func (s *secp256k1Signer) SignData(message []byte) (Sig, error) {
@@ -131,7 +193,7 @@ func NewSecp256k1() (Signer, error) {
 	addr := crypto.PubkeyToAddress(priv.PublicKey)
 	return &secp256k1Signer{
 		priv: priv,
-		key:  Key(addr[:]),
+		key:  addr[:],
 	}, nil
 }
 
@@ -144,6 +206,6 @@ func Secp256k1From(privateSeed []byte) (Signer, error) {
 	addr := crypto.PubkeyToAddress(priv.PublicKey)
 	return &secp256k1Signer{
 		priv: priv,
-		key:  Key(addr[:]),
+		key:  addr[:],
 	}, nil
 }

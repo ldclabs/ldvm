@@ -85,7 +85,7 @@ func TestDataInfo(t *testing.T) {
 	assert.ErrorContains(di.SyntacticVerify(), "invalid threshold")
 
 	di = &DataInfo{Keepers: signer.Keys{signer.Key(util.AddressEmpty[:])}}
-	assert.ErrorContains(di.SyntacticVerify(), "empty secp256k1 key")
+	assert.ErrorContains(di.SyntacticVerify(), "empty Secp256k1 key")
 
 	di = &DataInfo{Version: 1, Approver: signer.Key(util.AddressEmpty[:])}
 	assert.ErrorContains(di.SyntacticVerify(), "invalid approver")
