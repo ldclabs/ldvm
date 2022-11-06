@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxDestroyStake(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxDestroyStake(t *testing.T) {
 	tx := &TxDestroyStake{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -115,7 +116,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -149,7 +150,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
@@ -186,7 +187,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -203,7 +204,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: stake in lock, please retry after lockTime, Unix(1100)")
@@ -224,7 +225,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.NoError(itx.Apply(ctx, cs))
 	cs.CheckoutAccounts()
@@ -253,7 +254,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*11))
@@ -289,7 +290,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -318,7 +319,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: stake ledger not empty, please withdraw all except recipient")
@@ -339,7 +340,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -368,7 +369,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas := ltx.Gas()
@@ -390,7 +391,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.Equal(0, len(stakeAcc.ledger.Stake))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeDestroyStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x0000000000000000000000000000002354455354","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"},"sigs":["48OVRuaf_QHvxdUNOnZDXnUAMKKBDcxHiqHazqfp0MACRmEv7xe3M4ukta17alZ_t1e2vYczaIZW4aRhtYJ3gQHUm7Pu","bhJRPt29cy0CdFHl8Wn2wgIylCWOgZH70Fi1k9ZFiS5v4-FFCl2AwnvmMp1NHeXf4gQJscEkRyYs--nxfO22WQFWhz36"],"id":"F-OK20ASGhw1N823p7O5ajH15gHb2vFUi4Ow0GVsbkBWNnAw"}`, string(jsondata))
 
@@ -422,7 +423,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	keeperGas += ltx.Gas()
@@ -453,7 +454,7 @@ func TestTxDestroyStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas += ltx.Gas()
@@ -519,7 +520,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
@@ -567,7 +568,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -578,7 +579,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas := ltx.Gas()
@@ -592,7 +593,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	// UpdateNonceTable
 	ns := []uint64{cs.Timestamp() + 1, 1, 2, 3}
 	ndData, err := util.MarshalCBOR(ns)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -606,7 +607,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas += ltx.Gas()
@@ -644,7 +645,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	approverAcc := cs.MustAccount(approverAddr)
 	approverAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
@@ -673,7 +674,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyStake.Apply: Account(0x0000000000000000000000000000002354455354).DestroyStake: please repay all before close")
@@ -694,7 +695,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	approverGas += ltx.Gas()
@@ -719,7 +720,7 @@ func TestTxDestroyStakeWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas += ltx.Gas()

@@ -9,6 +9,7 @@ import (
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIPLDModel(t *testing.T) {
@@ -36,17 +37,17 @@ func TestIPLDModel(t *testing.T) {
 	type SomeModel {String:Any}
 	`
 	im, err := NewIPLDModel("SomeModel", sc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("SomeModel", im.Name())
 	assert.Equal(sc, string(im.Schema()))
 	assert.Equal("map", im.Type().TypeKind().String())
 
 	data, err := util.MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(im.Valid(data))
 
 	data, err = util.MarshalCBOR([]interface{}{"a", "b", 1})
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid: decode:`)
 
 	sc = `
@@ -56,19 +57,19 @@ func TestIPLDModel(t *testing.T) {
 	}
 `
 	im, err = NewIPLDModel("NameService", sc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("struct", im.Type().TypeKind().String())
 
 	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(im.Valid(data))
 
 	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `invalid key: "x"`)
 
 	data, err = util.MarshalCBOR(map[string]interface{}{"n": "test"})
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `missing required fields`)
 }
 
@@ -97,7 +98,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 	}
 
 	mo, err := NewIPLDModel("ProfileService", sc)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	v1 := &profile{
 		Type:    0,
@@ -112,7 +113,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 	}
 
 	data, err := mo.ApplyPatch(od, util.MustMarshalCBOR(ipldops))
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	v2 := &profile{}
 	assert.NoError(util.UnmarshalCBOR(data, v2))
@@ -124,7 +125,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 	}
 
 	_, err = mo.ApplyPatch(od, util.MustMarshalCBOR(ipldops))
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	_, err = mo.ApplyPatch(data, util.MustMarshalCBOR(ipldops))
 	assert.ErrorContains(err,

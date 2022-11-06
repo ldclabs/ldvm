@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSON(t *testing.T) {
@@ -66,7 +67,7 @@ func TestJSON(t *testing.T) {
 
 	data := &testRawData{Data: addr1[:]}
 	b, err := json.Marshal(data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`{"data":"jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"}`, string(b))
 
 	v := &testRawData{}
@@ -75,7 +76,7 @@ func TestJSON(t *testing.T) {
 
 	data = &testRawData{Data: []byte(`"Hello 👋"`)}
 	b, err = json.Marshal(data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`{"data":"Hello 👋"}`, string(b))
 
 	v = &testRawData{}

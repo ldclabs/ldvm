@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxCreateStake(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxCreateStake(t *testing.T) {
 	tx := &TxCreateStake{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -294,7 +295,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance, expected 2378300, got 0")
@@ -320,7 +321,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 1001002403500, got 1000000000")
@@ -331,8 +332,8 @@ func TestTxCreateStake(t *testing.T) {
 
 	stakeAcc := cs.MustAccount(stakeid)
 	ldc := cs.MustAccount(constants.LDCAccount)
-	miner, err := cs.LoadMiner(ctx.Miner())
-	assert.NoError(err)
+	miner, err := cs.LoadBuilder(ctx.Builder())
+	require.NoError(t, err)
 
 	assert.Equal(ltx.Gas()*ctx.Price,
 		ldc.Balance().Uint64())
@@ -355,7 +356,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(constants.LDC*1000, stakeAcc.ledger.Stake[from.id.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","amount":1001000000000,"data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","data":"hlQAAAAAAAAAAAAAAAAAAAAAAAAAAAAZB9AaAAGGoMJEO5rKAMJEO5rKAMz9ac8"}},"sigs":["zTENIbPu7D6OBdAhXFiZw1SYEEnb6vNgeCHFjG60e1BZ9W6BAgDFGoCVhm08qiaiFx225Kr_1vnu42hrTe8zfQCJhI_H"],"id":"PnBb3GPc7IfR-RE4XITuCa6TjwmvJxJ7HnaUITmmwwQJhBKB"}`, string(jsondata))
 
@@ -375,7 +376,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
 
 	cs.CommitAccounts()
@@ -399,7 +400,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -410,7 +411,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(uint64(1), stakeAcc.Nonce())
@@ -451,7 +452,7 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())

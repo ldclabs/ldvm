@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxResetStake(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxResetStake(t *testing.T) {
 	tx := &TxResetStake{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -153,7 +154,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
@@ -220,7 +221,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -253,7 +254,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: can't change stake type, expected 0, got 1")
@@ -279,7 +280,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: can't change stake token, expected NativeLDC, got $TEST")
@@ -304,7 +305,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: stake in lock, please retry after lockTime, Unix(1100)")
@@ -330,7 +331,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.NoError(itx.Apply(ctx, cs))
 	cs.CheckoutAccounts()
@@ -359,7 +360,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*11))
@@ -395,7 +396,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -430,7 +431,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: stake holders should not more than 1")
@@ -451,7 +452,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -486,7 +487,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeGas := ltx.Gas()
@@ -503,7 +504,7 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeResetStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x0000000000000000000000000000002354455354","data":{"token":"","type":0,"lockTime":1102,"withdrawFee":1000,"minAmount":100000000000,"maxAmount":100000000000}},"sigs":["UP78TBuYAouPKIVTITDyyPY9Lq_2p3xHpKy--G8J2uNmikmtzVcv3iCKkCu2Y7Ht2_zc07QSNF6RjFaV7FUgcwE-HkXb","l9bMNy_e2yWeGfXPfrKT10CKVR70ZpW223bGvHO7rNIPPCc8lDDQegDqGftQ_M9aHfCoYqz1wa39CmKiVyybHgDjMNRy"],"id":"selx2k_hGWS7rk2yujcPa6xT7_OIIB-HEVmpHXtrYnEDkeZ2"}`, string(jsondata))
 

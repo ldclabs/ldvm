@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateDataInfo(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	tx := &TxUpdateDataInfo{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -184,7 +185,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -223,7 +224,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
 	cs.CheckoutAccounts()
@@ -260,7 +261,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas := ltx.Gas()
@@ -273,7 +274,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(di.Version+1, di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer2.Key()}, di.Keepers)
@@ -289,7 +290,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		ld.TypeDeleteData}, di2.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateDataInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","approveList":["TypeUpdateDataInfo","TypeUpdateDataInfoByAuth","TypeDeleteData"],"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","exp":100,"nbf":0,"iat":1,"cti":"Thad30ecjNm0xF4ChBgXMMtC3zqL6JKn83m9aQ2x6vrOudt9"},"sig":"Gg4e8InrIr9DuJXe7CJf6zlg71U48gv0R4DhHi13OiMpRF9d5GxC-nIXZAGo1zx-E0v-ucjjzvEkv2iW5dppUgCF1by8"}},"sigs":["Xjq0_tGT4AnE6nKpag-FqB2eJHlBwXpWsjYhudnW-gQ1OGgFKQCTrWliZK1T2qPZVb_pTUF3aEtltc197dGdnwDDe55m","t5cwBzgvxm-2hAUV4lioaQ0APvacyHe-ARDbppivWV4UKk0nQL5r-O1-KBYpRIq6YZsO41uqe3mT0PQYU2QPXwA2Kbnj"],"id":"_SOjtobO5nph-igJ9dITxbRrjeCCX75mNmJo8gkYE2vuBKGB"}`, string(jsondata))
 
@@ -309,7 +310,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for data approver")
 	cs.CheckoutAccounts()
@@ -318,12 +319,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas += ltx.Gas()
 	di2, err = cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(4), di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
@@ -349,12 +350,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas += ltx.Gas()
 	di2, err = cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(5), di2.Version)
 	assert.Equal(uint16(0), di2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
@@ -377,12 +378,12 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas += ltx.Gas()
 	di2, err = cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(6), di2.Version)
 	assert.Equal(uint16(0), di2.Threshold)
 	assert.Equal(signer.Keys{}, di2.Keepers)
@@ -405,7 +406,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
 	cs.CheckoutAccounts()
@@ -431,7 +432,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid sigClaims, should not be nil")
 	cs.CheckoutAccounts()
@@ -465,7 +466,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
 	cs.CheckoutAccounts()
@@ -484,7 +485,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
 
 	assert.NoError(cs.VerifyState())

@@ -70,6 +70,20 @@ func (list IDList[T]) Valid() error {
 	return nil
 }
 
+func (list IDList[T]) Equal(target IDList[T]) bool {
+	if len(list) != len(target) {
+		return false
+	}
+
+	for i := range list {
+		if list[i] != target[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 type Set[T ordered] map[T]struct{}
 
 func NewSet[T ordered](cap int) Set[T] {

@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxAccounter(t *testing.T) {
@@ -54,9 +55,9 @@ func TestTxAccounter(t *testing.T) {
 	}
 	assert.NoError(tx.SyntacticVerify())
 	cbordata, err := tx.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH","RBccN_9de3u43K1cgfFihKIp5kE1lmGG"],"amount":1000,"data":42}`, string(jsondata))
 

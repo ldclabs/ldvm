@@ -141,6 +141,13 @@ func (a *Account) valid(t ld.AccountType) bool {
 	}
 }
 
+func (a *Account) ValidValidator() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.valid(ld.StakeAccount) && a.ld.Stake.Type == 0
+}
+
 func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
 	return a.ld.Verify(digestHash, sigs, accountKey)
 }

@@ -11,6 +11,7 @@ import (
 
 	jsonpatch "github.com/ldclabs/json-patch"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -25,10 +26,10 @@ func TestGenesis(t *testing.T) {
 	address2 := signer.Signer2.Key().Address()
 
 	file, err := os.ReadFile("./genesis_sample.json")
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	gs, err := FromJSON(file)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(uint64(2357), gs.Chain.ChainID)
 	assert.Equal(0, gs.Chain.MaxTotalSupply.Cmp(big.NewInt(1000000000000000000)))
@@ -36,11 +37,9 @@ func TestGenesis(t *testing.T) {
 
 	assert.Equal(0, len(gs.Chain.FeeConfigs))
 	assert.Equal(uint64(0), gs.Chain.FeeConfig.StartHeight)
-	assert.Equal(uint64(1000), gs.Chain.FeeConfig.ThresholdGas)
 	assert.Equal(uint64(10000), gs.Chain.FeeConfig.MinGasPrice)
 	assert.Equal(uint64(100000), gs.Chain.FeeConfig.MaxGasPrice)
 	assert.Equal(uint64(4200000), gs.Chain.FeeConfig.MaxTxGas)
-	assert.Equal(uint64(4200000), gs.Chain.FeeConfig.MaxBlockTxsSize)
 	assert.Equal(uint64(1000), gs.Chain.FeeConfig.GasRebateRate)
 	assert.Equal(0, gs.Chain.FeeConfig.MinTokenPledge.Cmp(big.NewInt(10000000000000)))
 	assert.Equal(0, gs.Chain.FeeConfig.MinStakePledge.Cmp(big.NewInt(1000000000000)))
@@ -60,12 +59,8 @@ func TestGenesis(t *testing.T) {
 	_, err = gs.Chain.AppendFeeConfig([]byte{})
 	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig: EOF")
 
-	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{}))
-	assert.ErrorContains(err, "invalid thresholdGas")
-
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":     0,
-		"thresholdGas":    1000,
 		"minGasPrice":     10000,
 		"maxGasPrice":     100000,
 		"maxTxGas":        42000000,
@@ -78,7 +73,6 @@ func TestGenesis(t *testing.T) {
 
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":     1000,
-		"thresholdGas":    9999,
 		"minGasPrice":     10000,
 		"maxGasPrice":     100000,
 		"maxTxGas":        42000000,
@@ -87,10 +81,23 @@ func TestGenesis(t *testing.T) {
 		"minTokenPledge":  10000000000000,
 		"minStakePledge":  1000000000000,
 	}))
-	assert.NoError(err)
+	assert.ErrorContains(err, "nil builders")
+
+	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+		"startHeight":     1000,
+		"minGasPrice":     10000,
+		"maxGasPrice":     100000,
+		"maxTxGas":        42000000,
+		"maxBlockTxsSize": 4200000,
+		"gasRebateRate":   1000,
+		"minTokenPledge":  10000000000000,
+		"minStakePledge":  1000000000000,
+		"builders":        util.IDList[util.StakeSymbol]{},
+	}))
+	require.NoError(t, err)
+
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":     100,
-		"thresholdGas":    88888,
 		"minGasPrice":     10000,
 		"maxGasPrice":     100000,
 		"maxTxGas":        42000000,
@@ -98,33 +105,29 @@ func TestGenesis(t *testing.T) {
 		"gasRebateRate":   1000,
 		"minTokenPledge":  10000000000000,
 		"minStakePledge":  1000000000000,
+		"builders":        util.IDList[util.StakeSymbol]{},
 	}))
-	assert.NoError(err)
-	assert.Equal(uint64(1000), gs.Chain.Fee(10).ThresholdGas)
-	assert.Equal(uint64(88888), gs.Chain.Fee(100).ThresholdGas)
-	assert.Equal(uint64(88888), gs.Chain.Fee(999).ThresholdGas)
-	assert.Equal(uint64(9999), gs.Chain.Fee(1000).ThresholdGas)
-	assert.Equal(uint64(9999), gs.Chain.Fee(10000).ThresholdGas)
+	require.NoError(t, err)
 
 	txs, err := gs.ToTxs()
-	assert.NoError(err)
-	assert.Equal("ffF2nObAQ8JvoSI_glT_kfX5jIwclUpQaWGIWrSFLRqvo0cD", gs.Chain.FeeConfigID.String())
+	require.NoError(t, err)
+	assert.Equal("WUaNVh1sccOMUODD0ZA5I9-K2u2FuAbW8gWfN1XbYXhpb8tu", gs.Chain.FeeConfigID.String())
 	assert.Equal("b8onI5zOwqPZO9jxMBBgZWnnCUzd-187", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 
 	jsondata, err := json.Marshal(txs)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	file, err = os.ReadFile("./genesis_sample_txs.json")
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.True(jsonpatch.Equal(jsondata, file))
 
 	cbordata, err := txs.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	txs2 := ld.Txs{}
 	assert.NoError(txs2.Unmarshal(cbordata))
 	cbordata2, err := txs2.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(cbordata, cbordata2)
 }

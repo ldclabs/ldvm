@@ -10,6 +10,7 @@ import (
 
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNilKey(t *testing.T) {
@@ -31,19 +32,19 @@ func TestNilKey(t *testing.T) {
 	assert.True(key.Equal(key))
 
 	b, err := key.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("p__G-A", string(b))
 	assert.NoError(key.UnmarshalText(b), "empty key")
 	assert.Nil(key)
 
 	b, err = key.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`"p__G-A"`, string(b))
 	assert.NoError(key.UnmarshalJSON(b), "empty key")
 	assert.Nil(key)
 
 	b, err = key.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(nil), b)
 	assert.NoError(key.UnmarshalCBOR(b), "empty key")
 	assert.Nil(key)
@@ -51,7 +52,7 @@ func TestNilKey(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(key.Verify(msg, Sigs{sig}))
 }
 
@@ -76,19 +77,19 @@ func TestEmptyKey(t *testing.T) {
 	assert.False(key.Equal(key2))
 
 	b, err := key.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("p__G-A", string(b))
 	assert.NoError(key.UnmarshalText(b), "empty key")
 	assert.Equal([]byte{}, key.Bytes())
 
 	b, err = key.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`"p__G-A"`, string(b))
 	assert.NoError(key.UnmarshalJSON(b), "empty key")
 	assert.Equal([]byte{}, key.Bytes())
 
 	b, err = key.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR([]byte{}), b)
 	assert.NoError(key.UnmarshalCBOR(b), "empty key")
 	assert.Equal([]byte{}, key.Bytes())
@@ -96,7 +97,7 @@ func TestEmptyKey(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(key.Verify(msg, Sigs{sig}))
 }
 
@@ -125,20 +126,20 @@ func TestSecp256k1Key(t *testing.T) {
 	assert.False(key.Equal(key2))
 
 	b, err := key.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(keyStr, string(b))
 	assert.NoError(key2.UnmarshalText(b))
 	assert.Equal(data, key2.Bytes())
 
 	b, err = key.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(strconv.Quote(keyStr), string(b))
 	key2 = Key{}
 	assert.NoError(key2.UnmarshalJSON(b))
 	assert.Equal(data, key2.Bytes())
 
 	b, err = key.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(data), b)
 	key2 = Key{}
 	assert.NoError(key2.UnmarshalCBOR(b))
@@ -147,12 +148,12 @@ func TestSecp256k1Key(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(key.Verify(msg, Sigs{sig}))
 	assert.True(key2.Verify(msg, Sigs{sig}))
 
 	sig2, err := Signer2.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(key.Verify(msg, Sigs{sig2}))
 	assert.False(key2.Verify(msg, Sigs{sig2}))
 	assert.True(key.Verify(msg, Sigs{sig2, sig}))
@@ -184,20 +185,20 @@ func TestEd25519Key(t *testing.T) {
 	assert.False(key.Equal(key2))
 
 	b, err := key.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(keyStr, string(b))
 	assert.NoError(key2.UnmarshalText(b))
 	assert.Equal(data, key2.Bytes())
 
 	b, err = key.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(strconv.Quote(keyStr), string(b))
 	key2 = Key{}
 	assert.NoError(key2.UnmarshalJSON(b))
 	assert.Equal(data, key2.Bytes())
 
 	b, err = key.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(data), b)
 	key2 = Key{}
 	assert.NoError(key2.UnmarshalCBOR(b))
@@ -206,18 +207,18 @@ func TestEd25519Key(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer3.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(key.Verify(msg, Sigs{sig}))
 	assert.True(key2.Verify(msg, Sigs{sig}))
 
 	sig2, err := Signer2.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(key.Verify(msg, Sigs{sig2}))
 	assert.False(key2.Verify(msg, Sigs{sig2}))
 	assert.True(key.Verify(msg, Sigs{sig2, sig}))
 
 	sig3, err := Signer4.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(key.Verify(msg, Sigs{sig3}))
 	assert.False(key2.Verify(msg, Sigs{sig3}))
 	assert.True(key.Verify(msg, Sigs{sig3, sig2, sig}))
@@ -239,7 +240,7 @@ func TestKeys(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(keys.Verify(msg, Sigs{sig}, 0))
 	assert.False(keys.VerifyPlus(msg, Sigs{sig}, 0))
 	assert.False(keys.Verify(msg, Sigs{sig}, 1))
@@ -275,11 +276,11 @@ func TestKeys(t *testing.T) {
 
 	msg = util.Sum256([]byte("LDC Labs"))
 	sig1, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sig2, err := Signer2.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sig3, err := Signer4.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.False(keys.Verify(msg, Sigs{sig1}, 0))
 	assert.True(keys.VerifyPlus(msg, Sigs{sig1}, 0))
@@ -326,7 +327,7 @@ func TestKeyInStruct(t *testing.T) {
 
 	t1 := &T1{Key: nil}
 	d, err := util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a0", fmt.Sprintf("%x", d))
 
 	var t1b T1
@@ -335,7 +336,7 @@ func TestKeyInStruct(t *testing.T) {
 	var key Key
 	t1 = &T1{Key: &key}
 	d, err = util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1616bf6", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t1b))
 	assert.True(t1b.Key == nil)
@@ -343,7 +344,7 @@ func TestKeyInStruct(t *testing.T) {
 
 	t1 = &T1{Key: &Key{}}
 	d, err = util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1616b40", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t1b))
 	assert.True(t1b.Key != nil)
@@ -356,7 +357,7 @@ func TestKeyInStruct(t *testing.T) {
 
 	t2 := &T2{}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1616bf6", fmt.Sprintf("%x", d))
 
 	var t2b T2
@@ -365,7 +366,7 @@ func TestKeyInStruct(t *testing.T) {
 
 	t2 = &T2{Key: key}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1616bf6", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t2b))
 	assert.True(t2b.Key == nil)
@@ -374,7 +375,7 @@ func TestKeyInStruct(t *testing.T) {
 
 	t2 = &T2{Key: Key{}}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1616b40", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t2b))
 	assert.True(t2b.Key != nil)

@@ -21,7 +21,7 @@ type MockChainContext struct {
 	cfg               *genesis.ChainConfig
 	height, timestamp uint64
 	Price             uint64
-	MinerID           util.StakeSymbol
+	BuilderID         util.StakeSymbol
 }
 
 func NewMockChainContext() *MockChainContext {
@@ -38,7 +38,7 @@ func NewMockChainContext() *MockChainContext {
 		height:    1,
 		timestamp: 1000,
 		Price:     1000,
-		MinerID:   ld.MustNewStake("#LDC"),
+		BuilderID: ld.MustNewStake("#LDC"),
 	}
 }
 
@@ -54,8 +54,8 @@ func (m *MockChainContext) GasPrice() *big.Int {
 	return new(big.Int).SetUint64(m.Price)
 }
 
-func (m *MockChainContext) Miner() util.StakeSymbol {
-	return m.MinerID
+func (m *MockChainContext) Builder() util.StakeSymbol {
+	return m.BuilderID
 }
 
 func (m *MockChainContext) MockChainState() *MockChainState {
@@ -166,7 +166,7 @@ func (m *MockChainState) CheckoutAccounts() {
 	}
 }
 
-func (m *MockChainState) LoadMiner(id util.StakeSymbol) (*Account, error) {
+func (m *MockChainState) LoadBuilder(id util.StakeSymbol) (*Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
 		miner = util.Address(id)

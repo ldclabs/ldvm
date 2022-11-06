@@ -215,19 +215,6 @@ func (t *Transaction) ExHash() []byte {
 	return t.exHash
 }
 
-func (t *Transaction) BytesSize() int {
-	total := 0
-	switch {
-	case t.IsBatched():
-		for _, tx := range t.batch {
-			total += tx.BytesSize()
-		}
-	default:
-		total = len(t.Bytes())
-	}
-	return total
-}
-
 func (t *Transaction) Unmarshal(data []byte) error {
 	return util.ErrPrefix("Transaction.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
@@ -297,11 +284,6 @@ func (t *Transaction) needApprove(approver signer.Key, approveList TxTypes) bool
 
 func (t *Transaction) IsBatched() bool {
 	return len(t.batch) > 0
-}
-
-// Txs in batch should keep origin order.
-func (t *Transaction) Txs() Txs {
-	return t.batch
 }
 
 // Copy is not a deep copy, used for json.Marshaling
@@ -380,12 +362,53 @@ func (txs Txs) To() (*Transaction, error) {
 	}
 }
 
-func (txs Txs) BytesSize() int {
+func (t *Transaction) Txs() Txs {
+	switch {
+	case t.IsBatched():
+		return t.batch
+	default:
+		return Txs{t}
+	}
+}
+
+func (t *Transaction) Size() int {
+	switch {
+	case t.IsBatched():
+		return len(t.batch)
+	default:
+		return 1
+	}
+}
+
+func (txs Txs) Size() int {
 	s := 0
 	for _, tx := range txs {
-		s += tx.BytesSize()
+		s += tx.Size()
 	}
 	return s
+}
+
+func (t *Transaction) IDs() util.IDList[util.Hash] {
+	switch {
+	case t.IsBatched():
+		return t.batch.IDs()
+	default:
+		return util.IDList[util.Hash]{t.ID}
+	}
+}
+
+func (txs Txs) IDs() util.IDList[util.Hash] {
+	txIDs := util.NewIDList[util.Hash](txs.Size())
+	for _, tx := range txs {
+		switch {
+		case tx.IsBatched():
+			txIDs = append(txIDs, tx.batch.IDs()...)
+		default:
+			txIDs = append(txIDs, tx.ID)
+		}
+	}
+
+	return txIDs
 }
 
 type group struct {

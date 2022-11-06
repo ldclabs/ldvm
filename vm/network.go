@@ -7,9 +7,6 @@ import (
 	"context"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"go.uber.org/zap"
-
-	"github.com/ldclabs/ldvm/ld"
 )
 
 type PushNetwork struct {
@@ -18,32 +15,6 @@ type PushNetwork struct {
 
 func (v *VM) NewPushNetwork() {
 	v.network = &PushNetwork{v}
-}
-
-func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
-	if n.vm.appSender == nil || tx == nil {
-		return
-	}
-
-	var err error
-	var data []byte
-
-	// it should be a batch tx when txs length is greater than 1
-	if tx.IsBatched() {
-		data, err = tx.Txs().Marshal()
-	} else {
-		data, err = ld.Txs{tx}.Marshal()
-	}
-
-	if err != nil {
-		n.vm.Log.Warn("PushNetwork.GossipTx marshal txs failed", zap.Error(err))
-		return
-	}
-
-	n.vm.Log.Debug("PushNetwork.GossipTx SendAppGossip", zap.Int("bytes", len(data)))
-	if err = n.vm.appSender.SendAppGossip(context.TODO(), data); err != nil {
-		n.vm.Log.Warn("PushNetwork.GossipTx SendAppGossip failed", zap.Error(err))
-	}
 }
 
 // AppGossip implements the common.VM AppHandler AppGossip interface
@@ -60,26 +31,5 @@ func (n *PushNetwork) GossipTx(tx *ld.Transaction) {
 // A node may gossip the same message multiple times. That is,
 // AppGossip(ctx context.Context, nodeID ids.NodeID, msg []byte) may be called multiple times.
 func (v *VM) AppGossip(ctx context.Context, nodeID ids.NodeID, msg []byte) error {
-	txs := ld.Txs{}
-	var err error
-	var tx *ld.Transaction
-
-	if err = txs.Unmarshal(msg); err == nil {
-		v.Log.Info("LDVM.AppGossip",
-			zap.Stringer("nodeID", nodeID),
-			zap.Int("bytes", len(msg)),
-			zap.Int("txs", len(txs)))
-
-		if tx, err = txs.To(); err == nil {
-			err = v.bc.AddRemoteTxs(tx)
-		}
-	}
-
-	if err != nil {
-		v.Log.Warn("LDVM.AppGossip",
-			zap.Stringer("nodeID", nodeID),
-			zap.Int("bytes", len(msg)),
-			zap.Error(err))
-	}
-	return err
+	return nil
 }

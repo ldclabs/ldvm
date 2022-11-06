@@ -13,6 +13,7 @@ require (
 	github.com/ldclabs/json-patch v1.3.0
 	github.com/mailgun/holster/v4 v4.9.3
 	github.com/rivo/uniseg v0.4.2
+	github.com/rs/xid v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.13.0
 	github.com/stretchr/testify v1.8.1

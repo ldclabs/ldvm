@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateNonceTable(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	tx := &TxUpdateNonceTable{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -108,7 +109,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input := []uint64{10}
 	inputData, err := util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -128,7 +129,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 		input[i] = uint64(i)
 	}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -145,7 +146,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input = []uint64{cs.Timestamp() - 1, 123}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -163,7 +164,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input = []uint64{3600*24*30 + 2, 123}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -181,7 +182,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input = []uint64{cs.Timestamp() + 1, 1, 3, 7, 5}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -195,7 +196,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance, expected 603900, got 0")
@@ -217,13 +218,13 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.Equal([]uint64{1, 3, 5, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateNonceTable","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":[1001,1,3,7,5]},"sigs":["7wfPcHU5TDQ-6Z800sdu-qN4nsxLnEj4lq7NAeND8wwNPoxnlYvxCjOXnNzx-8-cO233xvdYPseVo9rOL3W0wgB3TO2Z"],"id":"F2k4eqJNBj7gdy3y-hrebplVMYQx7IBe4PzAU5dWNq04XpCx"}`, string(jsondata))
 
 	input = []uint64{cs.Timestamp() + 1, 1, 2, 4, 1}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -237,7 +238,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "nonce 1 exists at 1001")
@@ -245,7 +246,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input = []uint64{cs.Timestamp() + 1, 2, 4, 6}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -259,7 +260,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -273,7 +274,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input = []uint64{cs.Timestamp() + 2, 0}
 	inputData, err = util.MarshalCBOR(input)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -287,7 +288,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -327,7 +328,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	ltx.Timestamp = cs.Timestamp()
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "nonce 0 not exists at 1001")
@@ -357,7 +358,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()

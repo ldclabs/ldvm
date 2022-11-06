@@ -4,235 +4,205 @@
 package chain
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/ava-labs/avalanchego/ids"
-	"github.com/mailgun/holster/v4/collections"
-
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/cborrpc"
+	"github.com/ldclabs/ldvm/util/signer"
+	"go.uber.org/zap"
 )
 
-const (
-	knownTxsCapacity = 1000000
-	knownTxsTTL      = 600 // seconds
-)
-
-// TxPool contains all currently known transactions. Transactions
-// enter the pool when they are received from the network or submitted
-// locally. They exit the pool when they are included in the blockchain.
-type TxPool interface {
-	Len() int
-	SetTxsHeight(height uint64, txIDs ...util.Hash)
-	ClearTxs(txIDs ...util.Hash)
-	AddRemote(txs ...*ld.Transaction)
-	AddLocal(txs ...*ld.Transaction)
-	GetHeight(txID util.Hash) int64
-	PopTxsBySize(askSize int) ld.Txs
-	Reject(tx *ld.Transaction)
-	Clear()
+type TxPool struct {
+	mu     sync.Mutex
+	cli    *cborrpc.Client
+	nodeID ids.NodeID
+	cache  map[uint64]ld.Txs // cached processing Txs
 }
 
-// NewTxPool creates a new transaction pool.
-func NewTxPool() *txPool {
-	return &txPool{
-		txQueueSet:     ids.NewSet(10000),
-		txQueue:        make([]*ld.Transaction, 0, 10000),
-		knownTxs:       &knownTxs{collections.NewTTLMap(knownTxsCapacity)},
-		signalTxsReady: func() {},                   // initially noop
-		gossipTx:       func(tx *ld.Transaction) {}, // initially noop
+func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
+	header := http.Header{}
+	header.Set("x-node-id", ctx.NodeID.String())
+	header.Set("user-agent",
+		strings.Replace(ctx.Name(), "@v", "/", 1)+" (TxPool Client, CBOR-RPC)")
+
+	return &TxPool{
+		cli:    cborrpc.NewClient(pdsEndpoint+"/txs", rt, header),
+		nodeID: ctx.NodeID,
+		cache:  make(map[uint64]ld.Txs, 10),
 	}
 }
 
-type txPool struct {
-	mu             sync.RWMutex
-	txQueueSet     ids.Set
-	txQueue        ld.Txs
-	knownTxs       *knownTxs
-	signalTxsReady func()
-	gossipTx       func(tx *ld.Transaction)
+// TODO: Authorization
+type TxReqParams struct {
+	NodeID ids.NodeID  `cbor:"n"`
+	Height uint64      `cbor:"h"`
+	Params interface{} `cbor:"p,omitempty"`
 }
 
-type knownTxs struct {
-	cache *collections.TTLMap
+type TxsBuildStatus struct {
+	Unknown    util.IDList[util.Hash] `cbor:"0,omitempty"`
+	Processing util.IDList[util.Hash] `cbor:"1,omitempty"`
+	Rejected   util.IDList[util.Hash] `cbor:"2,omitempty"`
+	Accepted   util.IDList[util.Hash] `cbor:"3,omitempty"`
 }
 
-func (k *knownTxs) getHeight(txID util.Hash) int64 {
-	if s, ok := k.cache.Get(string(txID[:])); ok {
-		return s.(int64)
-	}
-	return -3
+type TxOrBatch struct {
+	Tx           *ld.TxData  `cbor:"tx,omitempty"`
+	Signatures   signer.Sigs `cbor:"ss,omitempty"`
+	ExSignatures signer.Sigs `cbor:"es,omitempty"`
+	Batch        ld.Txs      `cbor:"ba,omitempty"`
 }
 
-func (k *knownTxs) setHeight(txID util.Hash, height int64) {
-	k.cache.Set(string(txID[:]), height, knownTxsTTL)
-}
-
-func (k *knownTxs) clear() {
-	i := 100
-	for i == 100 {
-		i = k.cache.RemoveExpired(i)
-	}
-}
-
-// Len returns the number of transactions in the pool.
-func (p *txPool) Len() int {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	n := 0
-	for _, tx := range p.txQueue {
-		switch {
-		case tx.IsBatched():
-			n += len(tx.Txs())
-		default:
-			n += 1
+func (t *TxOrBatch) toTransaction() (*ld.Transaction, error) {
+	switch {
+	case t.Tx != nil:
+		tx := &ld.Transaction{Tx: *t.Tx, Signatures: t.Signatures, ExSignatures: t.ExSignatures}
+		if err := tx.SyntacticVerify(); err != nil {
+			return nil, err
 		}
-	}
-	return n
-}
+		return tx, nil
 
-// GetHeight returns the height of block that transactions included in.
-// -3: the transaction is not in the pool
-// -2: the transaction is rejected
-// -1: the transaction is in the pool, but not yet included in a block
-// >= 0: the transaction is included in a block with the given height
-func (p *txPool) GetHeight(txID util.Hash) int64 {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
+	case len(t.Batch) > 1:
+		return ld.NewBatchTx(t.Batch...)
 
-	return p.knownTxs.getHeight(txID)
-}
-
-// SetTxsHeight sets the height of block that transactions included in.
-// It should be called only when block accepted.
-func (p *txPool) SetTxsHeight(height uint64, txIDs ...util.Hash) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for _, txID := range txIDs {
-		p.knownTxs.setHeight(txID, int64(height))
+	default:
+		return nil, fmt.Errorf("invalid TxOrBatch")
 	}
 }
 
-// ClearTxs removes transaction entities from the pool.
-// but their ids and status can be retrieved.
-func (p *txPool) ClearTxs(txIDs ...util.Hash) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *TxPool) LoadByIDs(height uint64, txIDs util.IDList[util.Hash]) (ld.Txs, error) {
+	errp := util.ErrPrefix("chain.TxPool.LoadByIDs: ")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	for _, txID := range txIDs {
-		p.clear(txID)
-	}
-}
-
-func (p *txPool) clear(txID util.Hash) {
-	if !p.txQueueSet.Contains(ids.ID(txID)) {
-		return
-	}
-
-	for i, tx := range p.txQueue {
-		if tx.ID == txID {
-			p.txQueueSet.Remove(ids.ID(txID))
-			n := copy(p.txQueue[i:], p.txQueue[i+1:])
-			p.txQueue = p.txQueue[:i+n]
-			return
-		}
-	}
-}
-
-func (p *txPool) knownTx(txID util.Hash) bool {
-	if p.txQueueSet.Contains(ids.ID(txID)) {
-		return true
-	}
-
-	return p.knownTxs.getHeight(txID) >= -2
-}
-
-// AddRemote adds transaction entities from the network (API or AppGossip).
-// The transaction already in the pool will not be added.
-// The added transaction will be gossiped to the network.
-// Transaction should be syntactic verified before adding.
-func (p *txPool) AddRemote(txs ...*ld.Transaction) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	added := 0
-	for i, tx := range txs {
-		if !p.knownTx(tx.ID) {
-			added++
-			p.knownTxs.setHeight(tx.ID, int64(-1))
-			p.txQueueSet.Add(ids.ID(tx.ID))
-			p.txQueue = append(p.txQueue, txs[i])
-
-			go p.gossipTx(txs[i])
+	txs, ok := p.loadByIDsFromCache(height, txIDs)
+	if !ok {
+		txs = make(ld.Txs, 0, len(txIDs))
+		params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: txIDs}
+		res := p.cli.Req(ctx, "LoadByIDs", params, &txs)
+		if res.Error != nil {
+			return nil, errp.ErrorIf(res.Error)
 		}
 	}
 
-	if added > 0 {
-		p.signalTxsReady()
+	if len(txs) != len(txIDs) {
+		return nil, errp.Errorf("invalid txs length, expected %d, got %d", len(txIDs), len(txs))
 	}
-}
 
-// AddLocal adds transaction entities from block build failing.
-// So that the transaction can be process again.
-func (p *txPool) AddLocal(txs ...*ld.Transaction) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for i, tx := range txs {
-		if p.knownTxs.getHeight(tx.ID) <= -2 {
-			// transaction expired or rejected, ignore it.
-			continue
+	for i := range txIDs {
+		tx := txs[i]
+		if err := tx.SyntacticVerify(); err != nil {
+			return nil, errp.ErrorIf(err)
 		}
 
-		if !p.txQueueSet.Contains(ids.ID(tx.ID)) {
-			p.txQueueSet.Add(ids.ID(tx.ID))
-			p.txQueue = append(p.txQueue, txs[i])
+		if tx.ID != txIDs[i] {
+			return nil, errp.Errorf("invalid tx id, expected %s, got %s", txIDs[i], tx.ID)
 		}
 	}
+	return txs, nil
 }
 
-// Reject removes a transaction from the pool, and sets the status to rejected.
-func (p *txPool) Reject(tx *ld.Transaction) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *TxPool) SizeToBuild(height uint64) int {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-	p.clear(tx.ID)
-	p.knownTxs.setHeight(tx.ID, int64(-2))
+	params := &TxReqParams{NodeID: p.nodeID, Height: height}
+	size := 0
+	res := p.cli.Req(ctx, "SizeToBuild", params, &size)
+	if res.Error != nil {
+		logging.Log.Warn("TxPool.SizeToBuild",
+			zap.Uint64("height", height),
+			zap.Error(res.Error))
+	}
+	return size
 }
 
-// PopTxsBySize sorts transactions by priority and returns
-// a batch of high priority transactions with the given size.
-// The returned transactions are removed from the pool.
-func (p *txPool) PopTxsBySize(askSize int) ld.Txs {
-	if uint64(askSize) < 100 {
-		return ld.Txs{}
+func (p *TxPool) FetchToBuild(height uint64) (ld.Txs, error) {
+	errp := util.ErrPrefix("chain.TxPool.FetchToBuild: ")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result := make([]TxOrBatch, 0)
+	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: ld.MaxBlockTxsSize}
+	res := p.cli.Req(ctx, "FetchToBuild", params, &result)
+	if res.Error != nil {
+		return nil, errp.ErrorIf(res.Error)
 	}
 
-	rt := make(ld.Txs, 0, 64)
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.txQueue.Sort()
-	total := 0
-	n := 0
-	for i, tx := range p.txQueue {
-		total += tx.BytesSize()
-		if total > askSize {
-			break
+	txs := make(ld.Txs, 0, len(result))
+	for _, v := range result {
+		tx, err := v.toTransaction()
+		if err != nil {
+			return nil, errp.ErrorIf(err)
 		}
-		n++
-		p.txQueueSet.Remove(ids.ID(tx.ID))
-		rt = append(rt, p.txQueue[i])
+		txs = append(txs, tx)
 	}
-	if n > 0 {
-		n = copy(p.txQueue, p.txQueue[n:])
-		p.txQueue = p.txQueue[:n]
+
+	if txs.Size() > ld.MaxBlockTxsSize {
+		return nil, errp.Errorf("invalid txs size, expected <= %d, got %d", ld.MaxBlockTxsSize, txs.Size())
 	}
-	return rt
+
+	txIDs := txs.IDs()
+	// sort and check
+	txs.Sort()
+	for i, id := range txs.IDs() {
+		if id != txIDs[i] {
+			return nil, errp.Errorf("invalid txs order, expected %s, got %s", id, txIDs[i])
+		}
+	}
+
+	return txs, nil
 }
 
-func (p *txPool) Clear() {
-	p.knownTxs.clear()
+func (p *TxPool) UpdateBuildStatus(height uint64, tbs *TxsBuildStatus) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: tbs}
+	res := p.cli.Req(ctx, "UpdateBuildStatus", params, nil)
+	if res.Error != nil {
+		logging.Log.Warn("TxPool.UpdateBuildStatus",
+			zap.Uint64("height", height),
+			zap.Error(res.Error))
+	}
+
+	if len(tbs.Accepted) > 0 {
+		p.freeCache(height)
+	}
+}
+
+func (p *TxPool) loadByIDsFromCache(height uint64, txIDs util.IDList[util.Hash]) (txs ld.Txs, ok bool) {
+	p.mu.Lock()
+	if txs, ok = p.cache[height]; ok {
+		if !txs.IDs().Equal(txIDs) {
+			delete(p.cache, height)
+			ok = false
+		}
+	}
+	p.mu.Unlock()
+	return
+}
+
+func (p *TxPool) SetCache(height uint64, txs ld.Txs) {
+	p.mu.Lock()
+	p.cache[height] = txs
+	p.mu.Unlock()
+}
+
+func (p *TxPool) freeCache(acceptedHeight uint64) {
+	p.mu.Lock()
+	for k := range p.cache {
+		if k <= acceptedHeight {
+			delete(p.cache, k)
+		}
+	}
+	p.mu.Unlock()
 }

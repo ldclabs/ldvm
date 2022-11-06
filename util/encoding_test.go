@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheckSumHex(t *testing.T) {
@@ -46,7 +47,7 @@ func TestCheckSumHex(t *testing.T) {
 	assert.NotEqual(hexStr, CheckSumHex(data))
 
 	b, err := hex.DecodeString(hexStr[2:])
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(data, b)
 }
 
@@ -60,11 +61,11 @@ func TestEncodeToStringAndDecodeString(t *testing.T) {
 	assert.Equal("jbl8fOziScK5i9wCJsxMKle_UvwKxwPH", str)
 
 	data, err := DecodeString(str)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(addr.Bytes(), data)
 
 	data, err = DecodeStringWithLen(str, 20)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(addr.Bytes(), data)
 
 	_, err = DecodeStringWithLen(str, 22)
@@ -87,11 +88,11 @@ func TestEncodeToQuoteStringAndDecodeQuoteString(t *testing.T) {
 	assert.Equal(`"jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"`, str)
 
 	data, err := DecodeQuoteString(str)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(addr.Bytes(), data)
 
 	data, err = DecodeQuoteStringWithLen(str, 20)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(addr.Bytes(), data)
 
 	_, err = DecodeQuoteStringWithLen(str, 32)

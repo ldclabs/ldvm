@@ -15,6 +15,7 @@ import (
 
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateData(t *testing.T) {
@@ -24,7 +25,7 @@ func TestTxUpdateData(t *testing.T) {
 	tx := &TxUpdateData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -369,7 +370,7 @@ func TestTxUpdateData(t *testing.T) {
 
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -429,7 +430,7 @@ func TestTxUpdateData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas := ltx.Gas()
@@ -442,14 +443,14 @@ func TestTxUpdateData(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(2), di2.Version)
 	assert.Equal([]byte(`42`), []byte(di.Payload))
 	assert.Equal([]byte(`421`), []byte(di2.Payload))
 	assert.Equal(cs.PDC[di.ID], di.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":1,"data":421}},"sigs":["BcFojxqmTnyayqNlocYESaeCz5lGrK7Zj2XhiB25RxFB1EijQCl4wyVgjjTs0soNHxPjSup-ST0QWTgRMdDdxQGM1L5d"],"id":"XJGFQoGdpV3rjeWl_1uwaMDim_Sw2uyQiGnrvWmDk40828u1"}`, string(jsondata))
 
@@ -463,7 +464,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	tx := &TxUpdateData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -478,7 +479,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	}
 
 	data, err := util.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	di := &ld.DataInfo{
 		ModelID:   ld.CBORModelID,
@@ -507,7 +508,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid CBOR patch")
 	cs.CheckoutAccounts()
@@ -521,7 +522,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 		Data: patchdata,
 	}
 	newData, err := patch.Apply(di.Payload)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -535,7 +536,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas := ltx.Gas()
@@ -548,7 +549,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.Equal(uint64(1), itx.(*TxUpdateData).from.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(3), di2.Version)
 	assert.NotEqual(newData, []byte(di.Payload))
 	assert.Equal(newData, []byte(di2.Payload))
@@ -559,7 +560,7 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.Equal([]int{1, 2, 3, 4}, nc.Nonces)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"data":"gaNib3BjYWRkZHBhdGhlL25vLy1ldmFsdWUEaHzLug"}},"sigs":["fxDq5biu1_omEOmiYwC5xqc1pVHPX0s2voMEqWBOqlh3PcsIk-zbRA_ZHg45_xwMPuo2_0zJG1Yw0fPhI5k4-wAcJyJU"],"id":"NZ1QxDxvX2MQXCPUqW-bHCWVzqDzjK-1WhnZKlsgiPcS91sa"}`, string(jsondata))
 
@@ -573,7 +574,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	tx := &TxUpdateData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -610,7 +611,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid JSON patch")
 	cs.CheckoutAccounts()
@@ -640,7 +641,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas := ltx.Gas()
@@ -653,7 +654,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(3), di2.Version)
 	assert.Equal([]byte(`{"name":"test","nonces":[1,2,3]}`), []byte(di.Payload))
 	assert.Equal([]byte(`{"name":"Tester","nonces":[1,2,3]}`), []byte(di2.Payload))
@@ -663,7 +664,7 @@ func TestTxUpdateJSONData(t *testing.T) {
 	assert.NoError(di2.ValidSigClaims())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","exp":100,"nbf":0,"iat":1,"cti":"HQ1ebnZXNJoRQij56bSc5UqffxMktgk7X0sc4fsuAo3laabe"},"sig":"5kzAmOqhJq7ukKhZNrry5efqSuK2659fpTeTkJfAj_coayRmQMkqRHOsMM6PsC4XUTSr9cFkFcJ56QF0PM9RmgAIdq69","data":[{"op":"replace","path":"/name","value":"Tester"}]}},"sigs":["WFThCMEtoY-jGj-foQPFlmnWmwwcKxLmPD-DO_9fNqltJMTcc_Nx5aTAUIDg2GF58t5FdPhDLKA9RzjbEp-lMgGcRJWF"],"id":"kXLbTFWpwFVlCEOCjcNBREwx0pwJDhF6MM-lgHOsUp3HVkRD"}`, string(jsondata))
 
@@ -680,7 +681,7 @@ func TestTxUpdateNameServiceData(t *testing.T) {
 	recipient := signer.Signer2.Key().Address()
 
 	nm, err := service.NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
@@ -728,13 +729,13 @@ func TestTxUpdateNameServiceData(t *testing.T) {
 
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	_, err = cs.LoadDataByName("ldc.to.")
 	assert.ErrorContains(err, `"ldc.to." not found`)
 	assert.NoError(itx.Apply(ctx, cs))
 	di, err := cs.LoadDataByName("ldc.to.")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(mi.ID, di.ModelID)
 
 	patchDoc := cborpatch.Patch{
@@ -761,7 +762,7 @@ func TestTxUpdateNameServiceData(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),

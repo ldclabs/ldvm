@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateStakeApprover(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	tx := &TxUpdateStakeApprover{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -175,7 +176,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -217,7 +218,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeAcc := cs.MustAccount(stakeid)
@@ -254,7 +255,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -278,7 +279,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(approver, *stakeAcc.ledger.Stake[sender.AsKey()].Approver)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","data":{"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG"}},"sigs":["pgW4Z590E7jhuKH2N-Og_r8YVu3rylsDfWf02DVUAUFi2ZeaZk6s_vK-l6W8q-G3OxYmXrCfr0umGcxfH6ThvwDeg2W1"],"id":"ieVICnmp0R08Pl5mgJD0dNYeC4Xh64YI_IER0ZNxSgJLFQBN"}`, string(jsondata))
 
@@ -297,7 +298,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -307,7 +308,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -324,7 +325,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()].Approver)
 
 	jsondata, err = itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateStakeApprover","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","data":{"approver":"p__G-A"}},"sigs":["OER5mnDmbqgBFckuLwU2nU_GeETVpWlvGQN7yxBw4DQpDoCNGBOm2-6ERLMJzqaSqOsKnNazHYSrU6GKfyGoEQF1874F","dQBSBvPAn3uOCjsSsQDJmXNcvWmHvBtaqzf7WmR9Ggo19R0NFqbMtRwYATl-QuaP4EfZ2toec_N9u30JuQ1msABZ2ZH1"],"id":"q6jDVcY7UKEkThILjGqSBAbmGfJyVDq90e2VS4XWjG2XzoZu"}`, string(jsondata))
 

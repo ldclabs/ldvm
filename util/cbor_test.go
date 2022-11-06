@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCBOR(t *testing.T) {
@@ -16,7 +17,7 @@ func TestCBOR(t *testing.T) {
 	assert.Nil(err)
 
 	data, err := MarshalCBOR(addr)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.NoError(ValidCBOR(data))
 	assert.ErrorContains(ValidCBOR(addr[:]), "unexpected EOF")
@@ -26,7 +27,7 @@ func TestCBOR(t *testing.T) {
 	assert.Equal(addr.Bytes(), addr1.Bytes())
 
 	data2, err := UnmarshalCBORWithLen(data, 20)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(addr.Bytes(), data2)
 
 	_, err = UnmarshalCBORWithLen(data, 32)

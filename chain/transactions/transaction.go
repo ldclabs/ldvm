@@ -14,6 +14,7 @@ type Transaction interface {
 	LD() *ld.Transaction
 	ID() util.Hash
 	Type() ld.TxType
+	Gas() uint64
 	Bytes() []byte
 	SyntacticVerify() error
 	Apply(ctx ChainContext, cs ChainState) error

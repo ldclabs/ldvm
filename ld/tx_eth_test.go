@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxEth(t *testing.T) {
@@ -30,9 +31,9 @@ func TestTxEth(t *testing.T) {
 	})
 	eip2718TxHash := EthSigner.Hash(eip2718Tx)
 	signedEip2718Tx, err := types.SignTx(eip2718Tx, EthSigner, signer.Signer1.PK)
-	assert.NoError(err)
+	require.NoError(t, err)
 	signedEip2718TxBinary, err := signedEip2718Tx.MarshalBinary()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	txe := &TxEth{}
 	assert.NoError(txe.Unmarshal(signedEip2718TxBinary))
@@ -44,7 +45,7 @@ func TestTxEth(t *testing.T) {
 	tx := txe.ToTransaction()
 	assert.NoError(tx.SyntacticVerify())
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(TxType(1), tx.Tx.Type)
 	assert.Equal(gChainID, tx.Tx.ChainID)
@@ -59,7 +60,7 @@ func TestTxEth(t *testing.T) {
 	assert.Equal(txe.sig, tx.Signatures[0])
 
 	cbordata, err := tx.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xb94F5374FCE5eDBC8E2A8697C15331677E6EBF0b","amount":10,"data":"Afhvggk1gIXo1KUQAIJhqJS5T1N0_OXtvI4qhpfBUzFnfm6_C4UCVAvkAIJVRMCAoCyt0-a5DEePGkPlTvTT6xSe8uCoMpj_NkFWXeRfPzLmoHjk5vg2chuCcxQFq8omO4q6XkbsXrLqg78OEqUdO2UEgeq2Uw"},"sigs":["LK3T5rkMR48aQ-VO9NPrFJ7y4KgymP82QVZd5F8_MuZ45Ob4NnIbgnMUBavKJjuKul5G7F6y6oO_DhKlHTtlBACygGdJ"],"id":"WAcArva0XB9MUVi7NTVfF82tl1AypM7qE85Z_zs-HUoDGXMI"}`, string(jsondata))
 
@@ -88,9 +89,9 @@ func TestTxEthLegacy(t *testing.T) {
 	})
 	legacyTxHash := ethSigner.Hash(legacyTx)
 	signedLegacyTx, err := types.SignTx(legacyTx, ethSigner, signer.Signer1.PK)
-	assert.NoError(err)
+	require.NoError(t, err)
 	signedLegacyTxBinary, err := signedLegacyTx.MarshalBinary()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	txe := &TxEth{}
 	assert.NoError(txe.Unmarshal(signedLegacyTxBinary))
@@ -102,7 +103,7 @@ func TestTxEthLegacy(t *testing.T) {
 	tx := txe.ToTransaction()
 	assert.NoError(tx.SyntacticVerify())
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(TxType(1), tx.Tx.Type)
 	assert.Equal(gChainID, tx.Tx.ChainID)
@@ -117,7 +118,7 @@ func TestTxEthLegacy(t *testing.T) {
 	assert.Equal(txe.sig, tx.Signatures[0])
 
 	cbordata, err := tx.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	tx2 := &Transaction{}
 	assert.NoError(tx2.Unmarshal(cbordata))
@@ -142,9 +143,9 @@ func TestTxEthErr(t *testing.T) {
 		Data:     common.FromHex("5544"),
 	})
 	signedEip2718Tx, err := types.SignTx(eip2718Tx, EthSigner, signer.Signer1.PK)
-	assert.NoError(err)
+	require.NoError(t, err)
 	signedEip2718TxBinary, err := signedEip2718Tx.MarshalBinary()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	txe := &TxEth{}
 	assert.NoError(txe.Unmarshal(signedEip2718TxBinary))

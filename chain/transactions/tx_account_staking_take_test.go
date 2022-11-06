@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTakeStake(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxTakeStake(t *testing.T) {
 	tx := &TxTakeStake{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -408,7 +409,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -448,7 +449,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
@@ -503,7 +504,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -525,7 +526,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTakeStake","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"data":{"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","amount":10000000000,"expire":1000,"data":"GQPpCCqE-A"}},"sigs":["Iw9SIIObPPf5L-bqZcDIz9vqqZL1GepYOtv_9Rcl6wNyH11s3_ZKr-fh-tqDkcjgF79K2mPcC_DPWVS0XmTmOwA7rS1Z"],"exSigs":["VLX6dVoL1Ogsn1YfSnSTpkfRsRT0tIxipLlaXoK7FtxltReagRCcFBgLXEV7X66R0RJq6TW_kD7BwDto64sEgwDwVkKW"],"id":"Hgf9u2FN3QNfCpN9n4U0suPfKsGCGr2daSDRUuDPAfhe28uh"}`, string(jsondata))
 
@@ -560,7 +561,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxTakeStake.Apply: Account(0x0000000000000000000000000000002354455354).TakeStake: invalid total amount for 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc, expected <= 100000000000, got 120000000000")
@@ -589,7 +590,7 @@ func TestTxTakeStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()

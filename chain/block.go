@@ -50,9 +50,6 @@ type Block struct {
 	parent       *Block // the genesis block is the parent of itself
 	bs           BlockState
 	status       choices.Status
-	txs          []transactions.Transaction // txs field will unfold batch tx
-	originTxs    []*ld.Transaction          // originTxs keep the original txs
-	txIDs        []util.Hash
 	verified     bool
 	nextGasPrice uint64
 }
@@ -67,23 +64,22 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 		GasPrice:      ctx.ChainConfig().FeeConfig.MinGasPrice,
 		GasRebateRate: ctx.ChainConfig().FeeConfig.GasRebateRate,
 		Validators:    []util.StakeSymbol{},
-		Txs:           txs,
+		Txs:           util.NewIDList[util.Hash](len(txs)),
 	}, ctx)
 
 	blk.InitState(blk, memdb.NewWithSize(0))
-	blk.txs = make([]transactions.Transaction, len(blk.ld.Txs))
 	gas := uint64(0)
-	for i := range blk.ld.Txs {
-		tx := blk.ld.Txs[i]
-		ntx, err := transactions.NewGenesisTx(tx)
+	for i := range txs {
+		ntx, err := transactions.NewGenesisTx(txs[i])
 		if err != nil {
 			return nil, errp.ErrorIf(err)
 		}
-		gas += tx.Gas()
+		gas += ntx.Gas()
 		if err := ntx.(transactions.GenesisTx).ApplyGenesis(blk, blk.bs); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
-		blk.txs[i] = ntx
+
+		blk.ld.Txs = append(blk.ld.Txs, ntx.ID())
 	}
 
 	blk.ld.Gas = gas
@@ -111,17 +107,6 @@ func (b *Block) Unmarshal(data []byte) error {
 		return errp.ErrorIf(err)
 	}
 
-	b.txs = make([]transactions.Transaction, len(b.ld.Txs))
-	for i := range b.ld.Txs {
-		tx := b.ld.Txs[i]
-		tx.Height = b.ld.Height
-		tx.Timestamp = b.ld.Timestamp
-		ntx, err := transactions.NewTx(tx)
-		if err != nil {
-			return errp.ErrorIf(err)
-		}
-		b.txs[i] = ntx
-	}
 	return nil
 }
 
@@ -130,17 +115,7 @@ func (b *Block) SetContext(ctx *Context) { b.ctx = ctx }
 func (b *Block) Context() *Context { return b.ctx }
 
 func (b *Block) MarshalJSON() ([]byte, error) {
-	errp := util.ErrPrefix("chain.Block.MarshalJSON: ")
-	txs := make([]json.RawMessage, len(b.txs))
-	for i := range b.txs {
-		d, err := b.txs[i].MarshalJSON()
-		if err != nil {
-			return nil, errp.ErrorIf(err)
-		}
-		txs[i] = d
-	}
-	b.ld.RawTxs = txs
-	return errp.ErrorMap(json.Marshal(b.ld))
+	return json.Marshal(b.ld)
 }
 
 func (b *Block) InitState(parent *Block, db database.Database) {
@@ -159,37 +134,10 @@ func (b *Block) Hash() util.Hash { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
 
-func (b *Block) Tx(id util.Hash) transactions.Transaction {
-	for _, tx := range b.txs {
-		if tx.ID() == id {
-			return tx
-		}
-	}
-	return nil
-}
+func (b *Block) Builder() util.StakeSymbol { return b.ld.Builder }
 
-func (b *Block) TxIDs() []util.Hash {
-	if len(b.txIDs) != len(b.ld.Txs) {
-		b.txIDs = make([]util.Hash, len(b.ld.Txs))
-		for i, tx := range b.ld.Txs {
-			b.txIDs[i] = tx.ID
-		}
-	}
-	return b.txIDs
-}
-
-func (b *Block) Miner() util.StakeSymbol { return b.ld.Miner }
-
-func (b *Block) TxsSize() int {
-	txsSize := 0
-	for _, tx := range b.ld.Txs {
-		txsSize += tx.BytesSize()
-	}
-	return txsSize
-}
-
-func (b *Block) BuildMiner(vbs BlockState) {
-	b.ld.Miner, _ = vbs.LoadStakeAccountByNodeID(b.ctx.NodeID)
+func (b *Block) SetBuilder(vbs BlockState) {
+	b.ld.Builder, _ = vbs.LoadValidatorAccountByNodeID(b.ctx.NodeID)
 }
 
 func (b *Block) BuildTxs(vbs BlockState, txs ...*ld.Transaction) choices.Status {
@@ -208,9 +156,7 @@ func (b *Block) TryBuildTxs(txs ...*ld.Transaction) error {
 
 func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (choices.Status, error) {
 	feeCfg := b.FeeConfig()
-	gas := b.ld.Gas
-	ntxs := make([]transactions.Transaction, 0, len(txs))
-
+	gas := uint64(0)
 	for i := range txs {
 		tx := txs[i]
 		tx.Height = b.ld.Height
@@ -225,37 +171,35 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 				feeCfg.MaxTxGas, tx.Gas())
 			return choices.Rejected, tx.Err
 		}
-		gas += tx.Gas()
 
+		gas += tx.Gas()
 		ntx, err := transactions.NewTx(tx)
 		if err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
 		}
+
 		if err := ntx.Apply(b, vbs); err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
 		}
-
-		ntxs = append(ntxs, ntx)
 	}
 
-	if len(ntxs) == 0 {
+	if len(txs) == 0 {
 		return choices.Rejected, fmt.Errorf("no valid transaction")
 	}
 
 	if add {
-		b.ld.Gas = gas
-		for i := range ntxs {
-			b.ld.Txs = append(b.ld.Txs, ntxs[i].LD())
-			b.txs = append(b.txs, ntxs[i])
+		b.ld.Gas += gas
+		for i := range txs {
+			b.ld.Txs = append(b.ld.Txs, txs[i].ID)
 		}
 	}
 	return choices.Processing, nil
 }
 
-func (b *Block) BuildMinerFee(vbs BlockState) error {
-	errp := util.ErrPrefix("chain.Block.BuildMinerFee: ")
+func (b *Block) SetBuilderFee(vbs BlockState) error {
+	errp := util.ErrPrefix("chain.Block.SetBuilderFee: ")
 	shares := make([]*transactions.Account, 0)
 	b.ld.Validators = []util.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
@@ -274,10 +218,10 @@ func (b *Block) BuildMinerFee(vbs BlockState) error {
 		}
 	}
 
-	return errp.ErrorIf(b.applyMinerFee(shares, vbs))
+	return errp.ErrorIf(b.applyBuilderFee(shares, vbs))
 }
 
-func (b *Block) verifyMinerFee() error {
+func (b *Block) verifyBuilderFee() error {
 	shares := make([]*transactions.Account, 0)
 	if b.ctx.ValidatorState != nil {
 		var err error
@@ -295,7 +239,7 @@ func (b *Block) verifyMinerFee() error {
 		return fmt.Errorf("validators are not empty")
 	}
 
-	return b.applyMinerFee(shares, b.bs)
+	return b.applyBuilderFee(shares, b.bs)
 }
 
 func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transactions.Account, error) {
@@ -317,7 +261,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 
 	accs := make([]*transactions.Account, 0, len(vv))
 	for _, nid := range vv {
-		if _, acc := vbs.LoadStakeAccountByNodeID(nid); acc != nil {
+		if _, acc := vbs.LoadValidatorAccountByNodeID(nid); acc != nil {
 			accs = append(accs, acc)
 		}
 	}
@@ -330,7 +274,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 	return accs, nil
 }
 
-func (b *Block) applyMinerFee(shares []*transactions.Account, vbs BlockState) error {
+func (b *Block) applyBuilderFee(shares []*transactions.Account, vbs BlockState) error {
 	ldc, err := vbs.LoadAccount(constants.LDCAccount)
 	if err != nil {
 		return err
@@ -339,7 +283,8 @@ func (b *Block) applyMinerFee(shares []*transactions.Account, vbs BlockState) er
 	if err != nil {
 		return err
 	}
-	miner, err := vbs.LoadMiner(b.ld.Miner)
+
+	builder, err := vbs.LoadBuilder(b.ld.Builder)
 	if err != nil {
 		return err
 	}
@@ -364,7 +309,7 @@ func (b *Block) applyMinerFee(shares []*transactions.Account, vbs BlockState) er
 			return err
 		}
 	}
-	return miner.Add(constants.NativeToken, gas20)
+	return builder.Add(constants.NativeToken, gas20)
 }
 
 func (b *Block) BuildState(vbs BlockState) error {
@@ -383,7 +328,6 @@ func (b *Block) Verify() error {
 			zap.Stringer("id", b.Hash()),
 			zap.Uint64("height", b.Height()),
 			zap.Error(err))
-		b.reject()
 		return errp.ErrorIf(err)
 	}
 
@@ -406,8 +350,7 @@ func (b *Block) verify() error {
 	// logging.Log.Debug("Block.verify: %s", string(data))
 
 	if h := b.parent.Height() + 1; b.Height() != h {
-		return fmt.Errorf("invalid block height, expected %d, got %d",
-			h, b.Height())
+		return fmt.Errorf("invalid block height, expected %d, got %d", h, b.Height())
 	}
 
 	if b.ld.Timestamp < b.parent.ld.Timestamp {
@@ -415,22 +358,38 @@ func (b *Block) verify() error {
 	}
 
 	if gasPrice := b.parent.NextGasPrice(); b.ld.GasPrice != gasPrice {
-		return fmt.Errorf("invalid block gasPrice, expected %d, got %d",
-			gasPrice, b.ld.GasPrice)
+		return fmt.Errorf("invalid block gasPrice, expected %d, got %d", gasPrice, b.ld.GasPrice)
 	}
 
-	if txsSize := b.TxsSize(); uint64(txsSize) > b.FeeConfig().MaxBlockTxsSize {
-		return fmt.Errorf("invalid block txs size, expected <= %d bytes, got %d bytes",
-			b.FeeConfig().MaxBlockTxsSize, txsSize)
+	if err := b.parent.FeeConfig().ValidBuilder(b.ld.Builder); err != nil {
+		return err
 	}
 
-	for _, tx := range b.txs {
-		if err := tx.Apply(b, b.bs); err != nil {
+	txs, err := b.ctx.Chain().LoadTxsByIDsFromPds(b.Height(), b.ld.Txs)
+	if err != nil {
+		return err
+	}
+
+	gas := uint64(0)
+	for i := range txs {
+		tx := txs[i]
+		tx.Height = b.ld.Height
+		tx.Timestamp = b.ld.Timestamp
+		ntx, err := transactions.NewTx(tx)
+		if err != nil {
+			return err
+		}
+		gas += ntx.Gas()
+		if err := ntx.Apply(b, b.bs); err != nil {
 			return err
 		}
 	}
 
-	if err := b.verifyMinerFee(); err != nil {
+	if b.ld.Gas != gas {
+		return fmt.Errorf("invalid block gas, expected %d, got %d", b.ld.Gas, gas)
+	}
+
+	if err := b.verifyBuilderFee(); err != nil {
 		return fmt.Errorf("set mint fee: %v", err)
 	}
 
@@ -458,12 +417,10 @@ func (b *Block) Accept() error {
 		zap.Stringer("parent", b.Parent()))
 
 	if !b.verified {
-		b.reject()
 		return errp.Errorf("%s not verified", b.Hash())
 	}
 
 	if err := b.ctx.Chain().SetLastAccepted(b); err != nil {
-		b.reject()
 		return errp.Errorf("set last accepted: %v", err)
 	}
 
@@ -472,12 +429,10 @@ func (b *Block) Accept() error {
 			zap.Stringer("id", b.Hash()),
 			zap.Uint64("height", b.Height()),
 			zap.Error(err))
-		b.reject()
 		return errp.ErrorIf(err)
 	}
 
 	b.status = choices.Accepted
-	b.ctx.Chain().SetTxsHeight(b.ld.Height, b.TxIDs()...)
 	return nil
 }
 
@@ -487,16 +442,9 @@ func (b *Block) Reject() error {
 	logging.Log.Info("Block.Reject",
 		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()))
-	b.reject()
+	b.verified = false
+	b.status = choices.Rejected
 	return nil
-}
-
-func (b *Block) reject() {
-	if b.status != choices.Rejected {
-		b.status = choices.Rejected
-		// only return origin txs (build by this node) to the tx pool
-		b.ctx.Chain().AddLocalTxs(b.originTxs...)
-	}
 }
 
 func (b *Block) ChainConfig() *genesis.ChainConfig {
@@ -568,22 +516,29 @@ func (b *Block) GasPrice() *big.Int {
 	return new(big.Int).SetUint64(b.ld.GasPrice)
 }
 
+// NextGasPrice returns the next block's gas price.
+// It should be called after the block is verified.
 func (b *Block) NextGasPrice() uint64 {
+	if !b.verified {
+		return 0
+	}
+
 	if b.nextGasPrice == 0 {
 		feeCfg := b.FeeConfig()
 		nextGasPrice := b.ld.GasPrice
-		txsSize := b.ld.Txs.BytesSize()
-		if uint64(txsSize)*2 < feeCfg.MaxBlockTxsSize {
+		txsSize := len(b.ld.Txs)
+		if txsSize*10 < ld.MaxBlockTxsSize {
 			nextGasPrice = uint64(float64(nextGasPrice) / math.SqrtPhi)
 			if nextGasPrice < feeCfg.MinGasPrice {
 				nextGasPrice = feeCfg.MinGasPrice
 			}
-		} else if float64(txsSize)*math.SqrtPhi > float64(feeCfg.MaxBlockTxsSize) {
+		} else if txsSize*2 > ld.MaxBlockTxsSize {
 			nextGasPrice = uint64(float64(nextGasPrice) * math.SqrtPhi)
 			if nextGasPrice > feeCfg.MaxGasPrice {
 				nextGasPrice = feeCfg.MaxGasPrice
 			}
 		}
+
 		b.nextGasPrice = nextGasPrice
 	}
 	return b.nextGasPrice

@@ -1,3 +1,3 @@
 {
-  "txPoolEndpoint": "http://localhost:8080/txpool/v1"
+  "pdsEndpoint": "h2c://localhost:8080/pds"
 }

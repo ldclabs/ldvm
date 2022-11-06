@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxWithdrawStake(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	tx := &TxWithdrawStake{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -212,7 +213,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -254,7 +255,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
@@ -294,7 +295,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: invalid token, expected $TEST, got NativeLDC")
@@ -317,7 +318,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: stake in lock, please retry after lockTime")
@@ -339,7 +340,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc has no stake to withdraw")
@@ -371,7 +372,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	senderAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.NoError(itx.Apply(ctx, cs))
@@ -408,7 +409,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -441,7 +442,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: stake in lock, please retry after lockTime, Unix(1002)")
@@ -463,7 +464,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc need approver signing")
@@ -484,7 +485,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc has an insufficient stake to withdraw, expected 10000000000, got 20000000000")
@@ -519,7 +520,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	keeperAcc.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.NoError(itx.Apply(ctx, cs))
@@ -555,7 +556,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxWithdrawStake.Apply: Account(0x0000000000000000000000000000002354455354).WithdrawStake: insufficient $TEST balance for withdraw, expected 20000000000, got 15000000000")
@@ -586,7 +587,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	keeperGas += ltx.Gas()
@@ -619,7 +620,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -641,7 +642,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.Equal(constants.LDC*10, stakeAcc.ledger.Stake[keeper.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeWithdrawStake","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x0000000000000000000000000000002354455354","data":{"token":"$TEST","amount":20000000000}},"sigs":["GCouv5gEIVe7MSD4vgK5zCMfs9V3fwuRnwfQIvsXnaYJ40Pn4OJJG9EPBWvEwbr39ztXkMN2AM2OZ2d2EWDpogHNKD5a","zmRyPTdwU3DlToYJH8MLWc-LqLrL2DWNqlTu6NV8JRFLd0wCt3-ykq2bco887TzjLbftNdfaWqL8gZxvgKef4ABl0GM0"],"id":"r9xN8GGi48Rn_lfcDhl9EBBtCV6h3Ds2tEDnqg1ZKhKd1ElX"}`, string(jsondata))
 
@@ -662,7 +663,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -697,7 +698,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	keeperGas += ltx.Gas()

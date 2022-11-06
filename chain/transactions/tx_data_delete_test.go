@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxDeleteData(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxDeleteData(t *testing.T) {
 	tx := &TxDeleteData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -166,7 +167,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -202,7 +203,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for data keepers")
 	cs.CheckoutAccounts()
@@ -245,11 +246,11 @@ func TestTxDeleteData(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(0), di2.Version)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeDeleteData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2}},"sigs":["Tv2J35_XRo-ZjUxZQGnqGbmgNhXFM3yz9BQR2IN3t78WwzRFC1st9MqLuU-YVC5N99lOqSPWfURM1EqNhQ_dBgEtF85W"],"id":"1Kup2s__vTTwi_wFaUNkMbaonyXBKl0RgNyXWFVls8nxdK20"}`, string(jsondata))
 
@@ -266,7 +267,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid version, expected 0, got 2")
 	cs.CheckoutAccounts()
@@ -295,11 +296,11 @@ func TestTxDeleteData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	di2, err = cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(0), di2.Version)
 	assert.Equal([]byte(`421`), []byte(di2.Payload))
 
@@ -316,7 +317,7 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 	recipient := signer.Signer2.Key().Address()
 
 	nm, err := service.NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
@@ -364,13 +365,13 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	_, err = cs.LoadDataByName("ldc:to")
 	assert.ErrorContains(err, `"ldc:to" not found`)
 	assert.NoError(itx.Apply(ctx, cs))
 	di, err := cs.LoadDataByName("ldc:to")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(mi.ID, di.ModelID)
 
 	input = &ld.TxUpdater{ID: &di.ID, Version: 1, Data: []byte(`421`)}
@@ -386,14 +387,14 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	_, err = cs.LoadDataByName("ldc:to")
 	assert.ErrorContains(err, `"ldc:to" not found`)
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(0), di2.Version)
 	assert.Equal(mi.ID, di2.ModelID)
 	assert.Equal([]byte(`421`), []byte(di2.Payload))

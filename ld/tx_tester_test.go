@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTester(t *testing.T) {
@@ -56,7 +57,7 @@ func TestTxTester(t *testing.T) {
 	assert.False(tx.maybeTestData())
 
 	data, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(data))
 	assert.Equal(`{"objectType":"Address","objectID":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","tests":[{"path":"/t","value":"AF1TRp8"},{"path":"/n","value":"ASdn8Vw"},{"path":"/b","value":"wkQ7msoAEtHq1g"},{"path":"/th","value":"ASdn8Vw"}]}`, string(data))
 
@@ -105,7 +106,7 @@ func TestTxTester(t *testing.T) {
 	assert.False(tx.maybeTestData())
 
 	data, err = json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(data))
 	assert.Equal(`{"objectType":"Model","objectID":"AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah","tests":[{"path":"/n","value":"a05hbWVTZXJ2aWNlEFh-6A"},{"path":"/th","value":"ASdn8Vw"},{"path":"/kp/0","value":"VI25fHzs4knCuYvcAibMTCpXv1L8tEv5Hg"},{"path":"/ap","value":"9kV6peQ"}]}`, string(data))
 
@@ -170,7 +171,7 @@ func TestTxTester(t *testing.T) {
 	assert.True(tx.maybeTestData())
 
 	data, err = json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(data))
 	assert.Equal(`{"objectType":"Data","objectID":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","tests":[{"path":"/v","value":"ASdn8Vw"},{"path":"/th","value":"ASdn8Vw"},{"path":"/kp/0","value":"VI25fHzs4knCuYvcAibMTCpXv1L8tEv5Hg"},{"path":"/ap","value":"VEQXHDf_XXt7uNytXIHxYoSiKeZBrSD8AA"},{"path":"/pl/name","value":"ZEpvaG7CssqR"},{"path":"/pl/age","value":"GCpEY_8t"}]}`, string(data))
 

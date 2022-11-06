@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxCreateToken(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxCreateToken(t *testing.T) {
 	tx := &TxCreateToken{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -280,7 +281,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -308,7 +309,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(ctx, cs))
 
@@ -332,7 +333,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x00000000000000000000000000000000244C4443","amount":10000000000000,"data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","amount":10000000000,"name":"LDC"}},"sigs":["8htMbeZH3FXJvx1-vCF_JNDw2U5VYz3PxWl_Nvd654s5Tr1tM4mmbGRKb_Nwq2fgZfiyP-J517t3P3NoCMYA3QC8upym"],"id":"sS-MItyigKpK8_aqbgoz9STjakL974USNZaCQdj1t1sZN1Xu"}`, string(jsondata))
 
@@ -351,7 +352,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "token account $LDC exists")
@@ -370,7 +371,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyToken.Apply: invalid signature for approver")
@@ -379,7 +380,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 2113100, got 0")
@@ -414,7 +415,7 @@ func TestTxCreateToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
 	assert.NoError(itx.Apply(ctx, cs))
 
@@ -483,7 +484,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		Data:    input.Bytes(),
 	}}
 	itx, err := NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.NoError(itx.(*TxCreateToken).ApplyGenesis(ctx, cs))
 
@@ -505,7 +506,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	assert.Equal(0, len(ldcAcc.ld.Tokens))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateToken","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","to":"0x0000000000000000000000000000000000000000","data":{"amount":1000000000000000000,"name":"Linked Data Chain","data":"Hello, LDVM!"}},"id":"85P0P5wJoPXpZF7BSALe1ronSxmtj0PkWzx5wlWYo52WX3ri"}`, string(jsondata))
 

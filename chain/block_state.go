@@ -66,7 +66,7 @@ type blockState struct {
 type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
-	LoadStakeAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transactions.Account)
+	LoadValidatorAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transactions.Account)
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
@@ -215,16 +215,16 @@ func (bs *blockState) LoadLedger(acc *transactions.Account) error {
 	return nil
 }
 
-func (bs *blockState) LoadStakeAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transactions.Account) {
+func (bs *blockState) LoadValidatorAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transactions.Account) {
 	id := util.Address(nodeID).ToStakeSymbol()
 	acc, err := bs.LoadAccount(util.Address(id))
-	if err != nil || !acc.Valid(ld.StakeAccount) {
+	if err != nil || !acc.ValidValidator() {
 		return util.StakeEmpty, nil
 	}
 	return id, acc
 }
 
-func (bs *blockState) LoadMiner(id util.StakeSymbol) (*transactions.Account, error) {
+func (bs *blockState) LoadBuilder(id util.StakeSymbol) (*transactions.Account, error) {
 	miner := constants.GenesisAccount
 	if id != util.StakeEmpty && id.Valid() {
 		acc, err := bs.LoadAccount(util.Address(id))

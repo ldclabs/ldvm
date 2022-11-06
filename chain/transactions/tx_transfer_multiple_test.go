@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTransferMultiple(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	tx := &TxTransferMultiple{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -111,7 +112,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -121,7 +122,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer3))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -149,7 +150,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(constants.LDC, recipient.Balance().Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000}]},"sigs":["NiWYr-MRWUJH8O7FEdcbWmARopZZ7Xd8Yx1RBRqGGxUz5QKRclEHKcWBl8b9Xbk3GtONpPfaDSRdRSIdPVICGQEl2ESU","w2mo8HgwDoG6onyGGqJSjDft8vZBhPYLk-Fy-u86Byh_arHhzPofi2Tv2pAkzmjO18K9grSK2frruCSuZFvGBwMoy4E"],"id":"nDmAeN7TbkYrq1lB0NFGdkykpxe0DbtERmZ8HXyKWyW6jsFe"}`, string(jsondata))
 
@@ -172,7 +173,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer3))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	sender.Add(token, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
@@ -199,7 +200,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(constants.LDC, cs.MustAccount(signer.Signer4.Key().Address()).BalanceOf(token).Uint64())
 
 	jsondata, err = itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000},{"to":"0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d","amount":1000000000},{"to":"0xaf007738116a90d317f7028a77db4Da8aC58F836","amount":1000000000}]},"sigs":["gMGDXMoczMoTc7a75ld-L5KuiLuicZU9GBCwdqmNSIISGeeb_WmT3cSSX2dCCCzomAqziLOoxbInTuXJ09wwMAABsf2p","5odMmW9EnvO8J1XY9aDUhthTGrDlG50GXn1BHx9IpWGEHQtdCUEpXX3d74rGUTEeVULxYBggqlCDqEfXtf1ICs4fIcw"],"id":"_VrJkggU32UvzNIQ7z1jQqXodcsO1xamgLvTODFlrFHxL2lc"}`, string(jsondata))
 
@@ -219,7 +220,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer3))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -245,7 +246,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer3))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -285,7 +286,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer3))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.NoError(itx.Apply(ctx, cs))
 	signer3Gas += ltx.Gas()
@@ -302,7 +303,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(constants.LDC*2, recipient.BalanceOf(token).Uint64())
 
 	jsondata, err = itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferMultiple","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d","token":"$LDC","data":[{"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000000}]},"sigs":["ZF7WmAYlK-_p8ukngiZOSEh0SnV9IMTZk_rKTBUMY23QLHge2lUKJB96kKYAW_hEiUWZhtloSK3m4MA_R3sqBM7BIzc"],"id":"LGhzwbexTcGPU5wVI07yiTf9wrk_nt3VEx5uyEX4A_mk2_IJ"}`, string(jsondata))
 
@@ -338,7 +339,7 @@ func TestTxTransferMultipleGas(t *testing.T) {
 		assert.NoError(tx.SyntacticVerify())
 		gas := tx.Gas()
 		fmt.Printf("recipients: %d, gas/recip: %.1f, txSize: %d, totalGas: %d\n",
-			i+1, float64(gas)/float64(i+1), tx.BytesSize(), gas)
+			i+1, float64(gas)/float64(i+1), len(tx.Bytes()), gas)
 	}
 	assert.True(false, "should print gas/recip...")
 }

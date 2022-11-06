@@ -10,6 +10,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestModelInfo(t *testing.T) {
@@ -75,9 +76,9 @@ func TestModelInfo(t *testing.T) {
 	}
 	assert.NoError(tx.SyntacticVerify())
 	cbordata, err := tx.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"name":"NameService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"schema":"\n\ttype ID20 bytes\n\ttype NameService struct {\n\t\tname    String        (rename \"n\")\n\t\tlinked  nullable ID20 (rename \"l\")\n\t\trecords [String]      (rename \"rs\")\n\t}\n","id":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye"}`, string(jsondata))
 
@@ -93,7 +94,7 @@ func TestModelInfo(t *testing.T) {
 	tx2.Approver = signer.Signer3.Key()
 	assert.NoError(tx2.SyntacticVerify())
 	jsondata, err = json.Marshal(tx2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"name":"NameService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"OVlX-75gy0DuaRuz2k5QnlFVSuKOJezRd4CQdkIjkn5pYt0F","schema":"\n\ttype ID20 bytes\n\ttype NameService struct {\n\t\tname    String        (rename \"n\")\n\t\tlinked  nullable ID20 (rename \"l\")\n\t\trecords [String]      (rename \"rs\")\n\t}\n","id":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye"}`, string(jsondata))
 

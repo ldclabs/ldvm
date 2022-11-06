@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxExchange(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxExchange(t *testing.T) {
 	tx := &TxExchange{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	token := ld.MustNewToken("$LDC")
 	ctx := NewMockChainContext()
@@ -285,7 +286,7 @@ func TestTxExchange(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 	ltx.Timestamp = 1
 	_, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeExchange,
@@ -303,7 +304,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -332,7 +333,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"nonce 1 not exists at 1001")
@@ -358,7 +359,7 @@ func TestTxExchange(t *testing.T) {
 	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeExchange","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"nonce":1,"sell":"$LDC","receive":"","quota":1000000000000,"minimum":1000000000,"price":1000000,"expire":1001,"payee":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"}},"sigs":["mNAnqs_fDjrTdr3ud6iZECvbrlOT6SNPRgz-M7IdM14asWSZRQM-2FrtSGYLsG-N9gxEioYCI3xoI3AAtrGbWQBK6q8_"],"exSigs":["EzEU0phfo3vv-_CTa0wjejpyMtK5hLXrzAzu8Idf3LYTJeIAIWEMbaHFCXm1fsAiPBysZr6m6Sv9iQrXLwQmdAGGK3Oe"],"id":"9rPbEZ0C5cgvmArAQa1oIZ9aDga-qsi6l13y8Ume0OATrUa7"}`, string(jsondata))
 
