@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxDestroyToken(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxDestroyToken(t *testing.T) {
 	tx := &TxDestroyToken{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -126,7 +127,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -164,7 +165,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for keepers")
@@ -173,7 +174,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -194,7 +195,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	recipientAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
@@ -222,7 +223,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	tokenGas += ltx.Gas()
@@ -245,7 +246,7 @@ func TestTxDestroyToken(t *testing.T) {
 	assert.Equal(signer.Keys{}, testToken.Keepers())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641"},"sigs":["lHgSlVzFykfOwC9oQ6zQy_bBYA2M956P89SZ1Kbof79p22zGK2W41CvX3pCrvxnTQlMPH-qtkSPfpnJ857EC4wG6gsN8","09Sl-st2HTiztAZ3wApmvN_sdRFBFXrF419p_FAkxwRg0IWHLYzsiiJwhIkBJtl4XmLbg0ZWol4bPqcH3ev7ZAFMSGV0"],"id":"j_xIfHsXX7FqTRExLzyENfU4hqK4YpKl1EGHvdx_7_d-tz7e"}`, string(jsondata))
 
@@ -285,7 +286,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	tokenAcc := cs.MustAccount(tokenid)
 	senderAcc := cs.MustAccount(sender)
@@ -333,7 +334,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 
 	cs.CommitAccounts()
@@ -344,7 +345,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -365,7 +366,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	// UpdateNonceTable
 	ns := []uint64{cs.Timestamp() + 1, 1, 2, 3}
 	ndData, err := util.MarshalCBOR(ns)
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateNonceTable,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -379,7 +380,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	tokenGas += ltx.Gas()
@@ -416,7 +417,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -441,7 +442,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -451,7 +452,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyToken.Apply: Account(0x00000000000000000000000000000000244C4443).DestroyToken: some token in the use, maxTotalSupply expected 10000000000, got 9000000000")
@@ -472,7 +473,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -496,7 +497,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	tokenGas += ltx.Gas()
@@ -518,7 +519,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.Equal(uint64(0), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeDestroyToken","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x00000000000000000000000000000000244C4443","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"},"sigs":["Qh_xHvlxao46OeFUCQHmDFr8X5Jky2fopWDjB2Q93AJNeyaAF5JDBKNygXWB1ooqOyGodMOQglzXGXMm9eiXFgHzyXKX","yjJ-_yYfuTgwJctXY8uoSs9wsRwARhCu9Nf_ibxvozB-lZZDWHCM9Pltfud-tv29MBLRtpbL9lFLH9tNKc6IqgDFCL71"],"id":"e6nJPIAV6ym0S60lk37AfOlzhYtHqp1hGt9trGBdoUYGYXJN"}`, string(jsondata))
 
@@ -535,7 +536,7 @@ func TestTxDestroyTokenWithApproverAndLending(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"TxDestroyToken.Apply: invalid signatures for sender")
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDN(t *testing.T) {
@@ -41,19 +42,19 @@ func TestDN(t *testing.T) {
 	assert.Nil(dn)
 
 	dn, err = NewDN("com.")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(dn.IsDomain())
 	assert.Equal("com.", dn.ASCII())
 	assert.Equal("com.", dn.String())
 
 	dn, err = NewDN("abc.com.")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(dn.IsDomain())
 	assert.Equal("abc.com.", dn.ASCII())
 	assert.Equal("abc.com.", dn.String())
 
 	dn, err = NewDN("公信.com.")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(dn.IsDomain())
 	assert.Equal("xn--vuq70b.com.", dn.ASCII())
 	assert.Equal("公信.com.", dn.String())
@@ -79,37 +80,37 @@ func TestDN(t *testing.T) {
 	assert.Nil(dn)
 
 	dn, err = NewDN("com")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("com", dn.ASCII())
 	assert.Equal("com", dn.String())
 
 	dn, err = NewDN("公信")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("xn--vuq70b", dn.ASCII())
 	assert.Equal("公信", dn.String())
 
 	dn, err = NewDN("xn--vuq70b")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("xn--vuq70b", dn.ASCII())
 	assert.Equal("公信", dn.String())
 
 	dn, err = NewDN("did:公信")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("did:xn--vuq70b", dn.ASCII())
 	assert.Equal("did:公信", dn.String())
 
 	dn, err = NewDN("公信:公信")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("xn--vuq70b:xn--vuq70b", dn.ASCII())
 	assert.Equal("公信:公信", dn.String())
 
 	dn, err = NewDN("xn--vuq70b:xn--vuq70b")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.False(dn.IsDomain())
 	assert.Equal("xn--vuq70b:xn--vuq70b", dn.ASCII())
 	assert.Equal("公信:公信", dn.String())

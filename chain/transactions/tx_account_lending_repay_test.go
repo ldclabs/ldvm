@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxRepay(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxRepay(t *testing.T) {
 	tx := &TxRepay{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -73,7 +74,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -110,7 +111,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	lenderAcc := cs.MustAccount(lender)
 	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -141,7 +142,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -163,7 +164,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -201,7 +202,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -252,7 +253,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	borrowerGas += ltx.Gas()
@@ -276,7 +277,7 @@ func TestTxRepay(t *testing.T) {
 	assert.Equal(uint64(0), entry.DueTime)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeRepay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","token":"$LDC","amount":1000000000},"sigs":["DJpQlyTwsgCRYOsGgGVxeKZhG5di0e028DPM4YSGV8ZK-4iLRAxTDGVQ1o8_Dzgsz-ZsY0ajb4yjfs_uIs5_pwBYjYXp"],"id":"VkUgbcrSqCsYIjk14O90UqOr95Jy0tfVFaZzJg5wH-R29AwO"}`, string(jsondata))
 
@@ -296,7 +297,7 @@ func TestTxRepay(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	borrowerGas += ltx.Gas()

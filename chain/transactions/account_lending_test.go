@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLending(t *testing.T) {
@@ -93,9 +94,9 @@ func TestLending(t *testing.T) {
 
 	// Marshal
 	data, ledger, err := na.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	na2, err := ParseAccount(na.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
 	lg := &ld.AccountLedger{}
@@ -105,14 +106,14 @@ func TestLending(t *testing.T) {
 
 	// Repay
 	am, err := na.Repay(constants.NativeToken, addr0, ldc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(constants.LDC, am.Uint64())
 	total -= constants.LDC
 	assert.Equal(total, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
 	na.ld.Timestamp = uint64(daysecs*4 + 100)
 	total += uint64(float64(total * 10_000 / 1_000_000)) // DailyInterest
 	am, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(total, am.Uint64())
 	assert.NotNil(na.ledger.Lending)
 	assert.Equal(0, len(na.ledger.Lending))
@@ -123,9 +124,9 @@ func TestLending(t *testing.T) {
 
 	// Close and Marshal again
 	data, ledger, err = na.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	na2, err = ParseAccount(na.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -140,9 +141,9 @@ func TestLending(t *testing.T) {
 	na.ledger = lg
 	assert.NoError(na.CloseLending())
 	data, ledger, err = na.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	na2, err = ParseAccount(na.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -177,9 +178,9 @@ func TestLending(t *testing.T) {
 
 	// Save again
 	data, ledger, err = na.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	na2, err = ParseAccount(na.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -192,7 +193,7 @@ func TestLending(t *testing.T) {
 	_, err = na.Repay(constants.NativeToken, addr0, ldc)
 	assert.Error(err)
 	am, err = na.Repay(token, addr0, ldc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(constants.LDC, am.Uint64())
 	total = constants.LDC
 	total = uint64(float64(total * 10_000 / 1_000_000)) // DailyInterest
@@ -200,15 +201,15 @@ func TestLending(t *testing.T) {
 	assert.Equal(1, len(na.ledger.Lending))
 
 	am, err = na.Repay(token, addr0, ldc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(total, am.Uint64())
 	assert.Equal(0, len(na.ledger.Lending))
 	assert.NotNil(na.ledger.Lending)
 
 	data, ledger, err = na.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	na2, err = ParseAccount(na.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}

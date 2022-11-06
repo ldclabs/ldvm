@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProfile(t *testing.T) {
@@ -57,7 +58,7 @@ func TestProfile(t *testing.T) {
 	}
 	assert.NoError(p.SyntacticVerify())
 	data, err := json.Marshal(p)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(data))
 	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"extensions":[{"title":"test","properties":{"age":23},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
@@ -72,7 +73,7 @@ func TestProfile(t *testing.T) {
 	assert.NotEqual(p.Bytes(), p2.Bytes())
 
 	pm, err := ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(pm.Valid(p.Bytes()))
 
 	p.Members = util.IDList[util.DataID]{{1, 2, 3}}
@@ -85,7 +86,7 @@ func TestProfile(t *testing.T) {
 	assert.Equal(p.Bytes(), p2.Bytes())
 
 	data, err = json.Marshal(p2)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(data))
 	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
@@ -96,7 +97,7 @@ func TestProfile(t *testing.T) {
 		{Op: "remove", Path: "/ms/0"},
 	}
 	data, err = pm.ApplyPatch(p.Bytes(), util.MustMarshalCBOR(ipldops))
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	p2 = &Profile{}
 	assert.NoError(p2.Unmarshal(data))
@@ -104,7 +105,7 @@ func TestProfile(t *testing.T) {
 	assert.NotEqual(p.Bytes(), p2.Bytes())
 
 	data, err = json.Marshal(p2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(data))
 	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"https://ldclabs.org","follows":["AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTokenAccount(t *testing.T) {
@@ -70,9 +71,9 @@ func TestTokenAccount(t *testing.T) {
 
 	// Marshal
 	data, _, err := nativeToken.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	acc2, err := ParseAccount(nativeToken.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(nativeToken.ld.Bytes(), acc2.ld.Bytes())
 
 	token := ld.MustNewToken("$TEST")
@@ -103,9 +104,9 @@ func TestTokenAccount(t *testing.T) {
 
 	// Marshal
 	data, _, err = testToken.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	acc2, err = ParseAccount(testToken.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(testToken.ld.Bytes(), acc2.ld.Bytes())
 
 	// Lending
@@ -127,7 +128,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.ErrorContains(testToken.DestroyToken(acc),
 		"Account(0x0000000000000000000000000000002454455354).DestroyToken: some token in the use, maxTotalSupply expected 1000000, got 998000")
 	actual, err := testToken.Repay(token, acc.id, big.NewInt(1000))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(1000), actual.Uint64())
 
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
@@ -150,9 +151,9 @@ func TestTokenAccount(t *testing.T) {
 
 	// Marshal again
 	data, _, err = testToken.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	acc2, err = ParseAccount(testToken.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(testToken.ld.Bytes(), acc2.ld.Bytes())
 
 	// Create again

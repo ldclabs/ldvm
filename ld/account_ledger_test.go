@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/util/signer"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAccountLedger(t *testing.T) {
@@ -113,7 +114,7 @@ func TestAccountLedger(t *testing.T) {
 	}
 	assert.NoError(al.SyntacticVerify())
 	cbordata, err := al.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	al2 := &AccountLedger{}
 	assert.NoError(al2.Unmarshal(cbordata))

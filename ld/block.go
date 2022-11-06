@@ -4,14 +4,14 @@
 package ld
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/ldclabs/ldvm/util"
 )
 
 const (
-	futureBound = 10 * time.Second
+	futureBound     = 10 * time.Second
+	MaxBlockTxsSize = 10000
 )
 
 type Block struct {
@@ -26,29 +26,16 @@ type Block struct {
 	// The address of validator (convert to valid StakeAccount) who build this block.
 	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Miner util.StakeSymbol `cbor:"mn" json:"miner"`
+	Builder util.StakeSymbol `cbor:"b" json:"builder"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
 	Validators util.IDList[util.StakeSymbol] `cbor:"vs" json:"validators"`
 	PCHeight   uint64                        `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
-	Txs        Txs                           `cbor:"txs" json:"-"`
+	Txs        util.IDList[util.Hash]        `cbor:"txs" json:"txs"`
 
 	// external assignment fields
-	ID     util.Hash         `cbor:"-" json:"id"`
-	RawTxs []json.RawMessage `cbor:"-" json:"txs"`
-	raw    []byte            `cbor:"-" json:"-"` // the block's raw bytes
-}
-
-func (b *Block) TxsMarshalJSON() error {
-	b.RawTxs = make([]json.RawMessage, len(b.Txs))
-	for i, tx := range b.Txs {
-		d, err := json.Marshal(tx)
-		if err != nil {
-			return err
-		}
-		b.RawTxs[i] = d
-	}
-	return nil
+	ID  util.Hash `cbor:"-" json:"id"`
+	raw []byte    `cbor:"-" json:"-"` // the block's raw bytes
 }
 
 // SyntacticVerify verifies that a *Block is well-formed.
@@ -74,8 +61,8 @@ func (b *Block) SyntacticVerify() error {
 	case b.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
-	case b.Miner != util.StakeEmpty && !b.Miner.Valid():
-		return errp.Errorf("invalid miner address %s", b.Miner.GoString())
+	case b.Builder != util.StakeEmpty && !b.Builder.Valid():
+		return errp.Errorf("invalid builder address %s", b.Builder.GoString())
 
 	case b.Validators == nil:
 		return errp.Errorf("nil validators")
@@ -85,6 +72,9 @@ func (b *Block) SyntacticVerify() error {
 
 	case len(b.Txs) == 0:
 		return errp.Errorf("no txs")
+
+	case len(b.Txs) > MaxBlockTxsSize:
+		return errp.Errorf("too many txs")
 	}
 
 	for _, s := range b.Validators {
@@ -94,17 +84,14 @@ func (b *Block) SyntacticVerify() error {
 	}
 
 	var err error
-	gas := uint64(0)
-	for _, tx := range b.Txs {
-		if err = tx.SyntacticVerify(); err != nil {
-			return errp.ErrorIf(err)
-		}
-		gas += tx.Gas()
+	if err := b.Validators.Valid(); err != nil {
+		return errp.Errorf("invalid validators, %s", err.Error())
 	}
 
-	if b.Gas != gas {
-		return errp.Errorf("invalid gas, expected %d, got %d", gas, b.Gas)
+	if err := b.Txs.Valid(); err != nil {
+		return errp.Errorf("invalid txs, %s", err.Error())
 	}
+
 	if b.raw, err = b.Marshal(); err != nil {
 		return errp.ErrorIf(err)
 	}

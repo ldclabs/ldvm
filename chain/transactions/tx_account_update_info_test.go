@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateAccountInfo(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	tx := &TxUpdateAccountInfo{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -145,7 +146,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -176,7 +177,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(ld.AccountTxTypes, senderAcc.ld.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG","approveList":["TypeUpdateNonceTable","TypeUpdateAccountInfo","TypeCreateToken","TypeDestroyToken","TypeCreateStake","TypeResetStake","TypeDestroyStake","TypeTakeStake","TypeWithdrawStake","TypeUpdateStakeApprover","TypeOpenLending","TypeCloseLending","TypeBorrow","TypeRepay"]}},"sigs":["8XFo0t3PUW4mO9J60r1AC4m4SCBT7Udgq6eClT2_LksF0f-W17wKHAcmgpNzV5IWYC5jGsJfjCNSs8xrlHIxVABb1Egx"],"id":"_9nauLRM0XLKzAumQThx_afPZ9yBbttrgLAc28u9uJDeOEkU"}`, string(jsondata))
 
@@ -197,7 +198,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"invalid signature for approver")
@@ -206,7 +207,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -238,7 +239,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -271,7 +272,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -301,7 +302,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"invalid signatures for keepers")
@@ -323,7 +324,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -381,7 +382,7 @@ func TestTxUpdateAccountInfoGenesis(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.(*TxUpdateAccountInfo).ApplyGenesis(ctx, cs))
 
 	senderAcc := cs.MustAccount(sender)
@@ -394,7 +395,7 @@ func TestTxUpdateAccountInfoGenesis(t *testing.T) {
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateAccountInfo","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"]}},"id":"vEdXnrHRGJLl_9UI0g0BVaSSdNbGwdH25RY1LYUjcwuXOv6g"}`, string(jsondata))
 

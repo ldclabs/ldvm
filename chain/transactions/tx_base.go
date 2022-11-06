@@ -49,6 +49,10 @@ func (tx *TxBase) Type() ld.TxType {
 	return tx.ld.Tx.Type
 }
 
+func (tx *TxBase) Gas() uint64 {
+	return tx.ld.Gas()
+}
+
 func (tx *TxBase) Bytes() []byte {
 	return tx.ld.Tx.Bytes()
 }
@@ -103,7 +107,7 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 	if tx.ldc, err = cs.LoadAccount(constants.LDCAccount); err != nil {
 		return err
 	}
-	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
+	if tx.miner, err = cs.LoadBuilder(ctx.Builder()); err != nil {
 		return err
 	}
 	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {

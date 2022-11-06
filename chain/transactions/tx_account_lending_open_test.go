@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxOpenLending(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxOpenLending(t *testing.T) {
 	tx := &TxOpenLending{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -127,7 +128,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance, expected 1816100, got 0")
@@ -153,7 +154,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeOpenLending","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":1000000000,"maxAmount":1000000000}},"sigs":["ZZ2aLGhz_-T0BHAhU-K7ls9CQ07EmvR4jHCAqq28SecdHQB2EDBKKibUI0W74oejQ5q78LdBhbNcmZ_CswtJWADJzBvv"],"id":"BomskC8OyfMUjpxBQSecj3OYmyTtobhE6ybc9e-1P_WGWo7z"}`, string(jsondata))
 
@@ -179,7 +180,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: lending exists")
@@ -199,7 +200,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -231,7 +232,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for approver")
 	cs.CheckoutAccounts()
@@ -240,7 +241,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()

@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxExchanger(t *testing.T) {
@@ -51,9 +52,9 @@ func TestTxExchanger(t *testing.T) {
 	tx.Price = big.NewInt(1000)
 	assert.NoError(tx.SyntacticVerify())
 	cbordata, err := tx.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"nonce":1,"sell":"$USD","receive":"","quota":1000000,"minimum":1000,"price":1000,"expire":1000,"payee":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff"}`, string(jsondata))
 

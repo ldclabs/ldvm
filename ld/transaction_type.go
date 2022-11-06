@@ -145,6 +145,7 @@ var StakeFromTxTypes1 = TxTypes{
 var StakeFromTxTypes2 = TxTypes{
 	TypeEth,
 	TypeTransfer,
+	TypeTransferMultiple,
 }.Union(StakeFromTxTypes1)
 
 var StakeToTxTypes = TxTypes{

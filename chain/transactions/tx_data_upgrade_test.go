@@ -15,6 +15,7 @@ import (
 	"github.com/ldclabs/ldvm/util/signer"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpgradeData(t *testing.T) {
@@ -24,7 +25,7 @@ func TestTxUpgradeData(t *testing.T) {
 	tx := &TxUpgradeData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -440,7 +441,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -508,7 +509,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	modelAcc := cs.MustAccount(modelKeeper)
 	modelAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -531,7 +532,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -626,7 +627,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -659,7 +660,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -681,7 +682,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	ownerGas := ltx.Gas()
@@ -694,7 +695,7 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(2), di2.Version)
 	assert.Equal(ld.CBORModelID, di.ModelID)
 	assert.Equal(modelID, di2.ModelID)
@@ -707,7 +708,7 @@ func TestTxUpgradeData(t *testing.T) {
 	}), []byte(di2.Payload))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","mid":"ePJIiccufhcsCSZxBGUt_rw_RArEjblf","version":1,"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"gaNib3BjYWRkZHBhdGhiL3ZldmFsdWUCNeW97w"}},"sigs":["zfl447E-aNXCXjzf9d31gdzr5F5jA1eOX2PN668ieBENojR4dLiMGnZNx8KYDs-hhQu96qtX8bIg90f3AF3_JwEhWqX4"],"exSigs":["Hru-bi1UK7t7Mci9nKLs0vTv7-m2c3WYy0rcbzXTcNEwCXplMZGeQ4XVfssiTq6QH2ykq9h-Fm-hNNUlDKtStAFEBRnD"],"id":"h-wQf-Ck4OvCdRdGFU04ZHuQEt3fD45IpXITXT2DAXzRXVE0"}`, string(jsondata))
 
@@ -725,7 +726,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		recipient := signer.Signer2.Key().Address()
 
 		nm, err := service.NameModel()
-		assert.NoError(err)
+		require.NoError(t, err)
 		mi := &ld.ModelInfo{
 			Name:      nm.Name(),
 			Threshold: 1,
@@ -773,13 +774,13 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 
 		ltx.Timestamp = 10
 		itx, err := NewTx(ltx)
-		assert.NoError(err)
+		require.NoError(t, err)
 
 		_, err = cs.LoadDataByName("ldc.to.")
 		assert.ErrorContains(err, `"ldc.to." not found`)
 		assert.NoError(itx.Apply(ctx, cs))
 		di, err := cs.LoadDataByName("ldc.to.")
-		assert.NoError(err)
+		require.NoError(t, err)
 		assert.Equal(mi.ID, di.ModelID)
 
 		modelID := util.ModelID{1, 2, 3}
@@ -807,7 +808,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		assert.NoError(ltx.ExSignWith(signer.Signer2))
 		assert.NoError(ltx.SyntacticVerify())
 		itx, err = NewTx(ltx)
-		assert.NoError(err)
+		require.NoError(t, err)
 
 		cs.CommitAccounts()
 		assert.ErrorContains(itx.Apply(ctx, cs),
@@ -827,7 +828,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		recipient := signer.Signer2.Key().Address()
 
 		nm, err := service.NameModel()
-		assert.NoError(err)
+		require.NoError(t, err)
 		mi := &ld.ModelInfo{
 			Name:      nm.Name(),
 			Threshold: 1,
@@ -871,7 +872,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 
 		ltx.Timestamp = 10
 		itx, err := NewTx(ltx)
-		assert.NoError(err)
+		require.NoError(t, err)
 
 		_, err = cs.LoadDataByName("ldc.to.")
 		assert.ErrorContains(err, `"ldc.to." not found`)
@@ -880,7 +881,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		assert.ErrorContains(err, `"ldc.to." not found`)
 
 		di, err := cs.LoadData(util.DataID(ltx.ID))
-		assert.NoError(err)
+		require.NoError(t, err)
 		assert.Equal(name.Bytes(), []byte(di.Payload))
 
 		patchDoc := cborpatch.Patch{
@@ -907,7 +908,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		assert.NoError(ltx.ExSignWith(signer.Signer2))
 		assert.NoError(ltx.SyntacticVerify())
 		itx, err = NewTx(ltx)
-		assert.NoError(err)
+		require.NoError(t, err)
 
 		cs.CommitAccounts()
 		assert.ErrorContains(itx.Apply(ctx, cs),

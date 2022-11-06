@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxEth(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxEth(t *testing.T) {
 	tx := &TxEth{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -41,11 +42,11 @@ func TestTxEth(t *testing.T) {
 		Gas:      0,
 		GasPrice: ld.ToEthBalance(new(big.Int).SetUint64(ctx.Price)),
 	})
-	assert.NoError(err)
+	require.NoError(t, err)
 	ltx := txe.ToTransaction()
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	tx = itx.(*TxEth)
 
 	tx.ld.Tx.To = nil
@@ -93,7 +94,7 @@ func TestTxEth(t *testing.T) {
 	tx.ld.ExSignatures = nil
 	assert.NoError(itx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -113,7 +114,7 @@ func TestTxEth(t *testing.T) {
 	assert.Equal(uint64(1), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeEth","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"Afhtggk1gIXo1KUQAICURBccN_9de3u43K1cgfFihKIp5kGHA41-pMaAAIDAgKAdoEgM7s4-fcjMiP6WKyney6v3xkseSstOMxf-iVOg06AboSU-K8y7fsL0NZER8sKbPIxp5u1W_majwQtli6fvxNKn68g"},"sigs":["HaBIDO7OPn3IzIj-lisp3sur98ZLHkrLTjMX_olToNMboSU-K8y7fsL0NZER8sKbPIxp5u1W_majwQtli6fvxAD1gFQV"],"id":"8_IJeoNODJbFU-y0c3MZhjUcTqTL8yUttza6-S8dRQ1S4v3t"}`, string(jsondata))
 

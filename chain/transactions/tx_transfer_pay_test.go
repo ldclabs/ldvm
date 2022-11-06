@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTransferPay(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxTransferPay(t *testing.T) {
 	tx := &TxTransferPay{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	token := ld.MustNewToken("$LDC")
 	ctx := NewMockChainContext()
@@ -329,7 +330,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 1668700, got 0")
@@ -363,7 +364,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(ltx.Gas()*ctx.Price,
@@ -377,7 +378,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferPay","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000000000,"data":{"to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000000000}},"sigs":["of3-EFMhbJXk2rvw9r8LpgJnLTUJfOkH16wVbzR09oU_mcX3UHA5s7jUv51UuLJKk8oQIItYCNy5FEEDW-8knwBSwhwe"],"exSigs":["xWE7sqxH59Wovg9YWEeRFYg4712_0RAxtBwFdlYOmvNzF1w4AYwZ17HU9dXrq8PYLMYdah6RRycUHMss3Jp9-wBdFAO5"],"id":"-N--1o5JQ9I9KISuKdPTdN8CnWuJDgc3XzAB8OY039oquAY_"}`, string(jsondata))
 
@@ -404,7 +405,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs), "should support 0 amount")
 
 	assert.NoError(cs.VerifyState())

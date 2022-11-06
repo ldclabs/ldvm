@@ -14,15 +14,21 @@ type Context struct {
 	bc      BlockChain
 	config  *config.Config
 	genesis *genesis.Genesis
+	name    string
 }
 
 func NewContext(
+	name string,
 	ctx *snow.Context,
 	bc BlockChain,
 	config *config.Config,
 	genesis *genesis.Genesis,
 ) *Context {
-	return &Context{ctx, bc, config, genesis}
+	return &Context{ctx, bc, config, genesis, name}
+}
+
+func (c *Context) Name() string {
+	return c.name
 }
 
 func (c *Context) Chain() BlockChain {

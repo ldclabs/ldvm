@@ -31,6 +31,17 @@ func TestIDList(t *testing.T) {
 		assert.True(ids.Has(AddressEmpty))
 		assert.True(ids.Has(Address{1, 2, 3}))
 		assert.True(ids.Has(addr2))
+		assert.True(ids.Equal(IDList[Address]{
+			AddressEmpty,
+			{1, 2, 3},
+			addr1,
+			addr2,
+		}))
+		assert.False(ids.Equal(IDList[Address]{
+			{1, 2, 3},
+			addr1,
+			addr2,
+		}))
 
 		assert.False(ids.Has(Address{1, 2, 4}))
 		assert.Nil(ids.CheckDuplicate())
@@ -63,6 +74,17 @@ func TestIDList(t *testing.T) {
 		assert.True(ids.Has(DataIDEmpty))
 		assert.True(ids.Has(DataID{1, 2, 3}))
 		assert.True(ids.Has(id2))
+		assert.True(ids.Equal(IDList[DataID]{
+			DataIDEmpty,
+			{1, 2, 3},
+			id1,
+			id2,
+		}))
+		assert.False(ids.Equal(IDList[DataID]{
+			{1, 2, 3},
+			id1,
+			id2,
+		}))
 
 		assert.False(ids.Has(DataID{1, 2, 4}))
 		assert.Nil(ids.CheckDuplicate())

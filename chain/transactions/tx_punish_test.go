@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxPunish(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxPunish(t *testing.T) {
 	tx := &TxPunish{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -172,7 +173,7 @@ func TestTxPunish(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -192,7 +193,7 @@ func TestTxPunish(t *testing.T) {
 		Payload:   []byte(`"test...."`),
 		ID:        did,
 	}
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(cs.SaveData(di))
 	assert.NoError(cs.SavePrevData(di))
@@ -207,12 +208,12 @@ func TestTxPunish(t *testing.T) {
 	assert.Equal(uint64(1), from.Nonce())
 
 	di, err = cs.LoadData(did)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(0), di.Version)
 	assert.Equal(input.Data, di.Payload)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypePunish","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","data":{"id":"YWJjZGVmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACuCNU1","data":"Illegal content"}},"sigs":["UPUNmg0N7UxdpDwR4cwnnLGvuRLUBJ5x6lthPexKUjVGJ7Mn6a8KJ8Rq8xdVUFOeWxr6W8oASqZMebETWPysGAHDgCjD"],"id":"y1ilDeTEerfrXkeEwjUmP02og4hw8u3mDsnMFNr_wsP2sKNu"}`, string(jsondata))
 
@@ -229,7 +230,7 @@ func TestTxPunishNameServiceData(t *testing.T) {
 	recipient := signer.Signer2.Key().Address()
 
 	nm, err := service.NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
@@ -277,13 +278,13 @@ func TestTxPunishNameServiceData(t *testing.T) {
 
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	_, err = cs.LoadDataByName("ldc:to")
 	assert.ErrorContains(err, `"ldc:to" not found`)
 	assert.NoError(itx.Apply(ctx, cs))
 	di, err := cs.LoadDataByName("ldc:to")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(mi.ID, di.ModelID)
 
 	genesis := cs.MustAccount(constants.GenesisAccount)
@@ -304,14 +305,14 @@ func TestTxPunishNameServiceData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	_, err = cs.LoadDataByName("ldc:to")
 	assert.ErrorContains(err, `"ldc:to" not found`)
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(0), di2.Version)
 	assert.Equal(mi.ID, di2.ModelID)
 	assert.Nil(di2.Payload)

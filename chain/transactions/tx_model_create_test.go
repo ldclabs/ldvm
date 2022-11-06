@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxCreateModel(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxCreateModel(t *testing.T) {
 	tx := &TxCreateModel{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -111,7 +112,7 @@ func TestTxCreateModel(t *testing.T) {
 	input := &ld.ModelInfo{}
 	assert.ErrorContains(input.SyntacticVerify(), "ModelInfo.SyntacticVerify: invalid name")
 	ipldm, err := service.ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	input = &ld.ModelInfo{
 		Name:      ipldm.Name(),
 		Threshold: 1,
@@ -130,7 +131,7 @@ func TestTxCreateModel(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -151,14 +152,14 @@ func TestTxCreateModel(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err := cs.LoadModel(itx.(*TxCreateModel).input.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(input.Name, mi.Name)
 	assert.Equal(input.Schema, mi.Schema)
 	assert.Equal(input.Threshold, mi.Threshold)
 	assert.Equal(input.Keepers, mi.Keepers)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"name":"ProfileService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"HY5mXzOlgOcwc-xstUV7EJPalAQIeL2b"}},"sigs":["pOREi-jwXzVnccK3LB67sQ_ZIVAVV8uuN_EzAUCrAsBdUYdk7tFPwZEkR7tMppp3RHVAPjam5wRVK_mUhP7v7AG0NV3V"],"id":"HY5mXzOlgOcwc-xstUV7EJPalAQGOgsRjOXNdaxNAuza5mb2"}`, string(jsondata))
 
@@ -181,7 +182,7 @@ func TestTxCreateModel(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	fromGas += ltx.Gas()
@@ -210,7 +211,7 @@ func TestTxCreateModel(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	modelGas := ltx.Gas()
@@ -234,7 +235,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	owner := signer.Signer1.Key().Address()
 
 	nm, err := service.NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
@@ -252,7 +253,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err := NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
 	assert.Equal(uint64(0), itx.(*TxCreateModel).ldc.Balance().Uint64())
@@ -261,7 +262,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(uint64(1), itx.(*TxCreateModel).from.Nonce())
 
 	mi2, err := cs.LoadModel(itx.(*TxCreateModel).input.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint16(1), mi2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
@@ -269,12 +270,12 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(mi.Schema, mi2.Schema)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"name":"NameService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"schema":"type ID20 bytes\n\ttype NameService struct {\n\t\tname       String        (rename \"n\")\n\t\tlinked     optional ID20 (rename \"l\")\n\t\trecords    [String]      (rename \"rs\")\n\t\textensions [Any]         (rename \"es\")\n\t}","id":"keQIKtE491kODEshAG0tI9EVd1So6OM7"}},"id":"keQIKtE491kODEshAG0tI9EVd1RD71cR4h73M0xgUOm0D9tM"}`, string(jsondata))
 
 	pm, err := service.ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi = &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 1,
@@ -293,7 +294,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
 	assert.Equal(uint64(0), itx.(*TxCreateModel).ldc.Balance().Uint64())
@@ -302,7 +303,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(uint64(2), itx.(*TxCreateModel).from.Nonce())
 
 	mi2, err = cs.LoadModel(itx.(*TxCreateModel).input.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint16(1), mi2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, mi2.Keepers)
 	assert.Nil(mi2.Approver)
@@ -310,7 +311,7 @@ func TestTxCreateModelGenesis(t *testing.T) {
 	assert.Equal(mi.Schema, mi2.Schema)
 
 	jsondata, err = itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateModel","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"name":"ProfileService","threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"schema":"type ID20 bytes\n\ttype ProfileService struct {\n\t\ttype        Int             (rename \"t\")\n\t\tname        String          (rename \"n\")\n\t\tdescription String          (rename \"d\")\n\t\timage       String          (rename \"i\")\n\t\turl         String          (rename \"u\")\n\t\tfollows     [ID20]          (rename \"fs\")\n\t\tmembers     optional [ID20] (rename \"ms\")\n\t\textensions  [Any]           (rename \"es\")\n\t}","id":"mO2W1IlEMsieYIWUAwnK6OHgSm9J3pLH"}},"id":"mO2W1IlEMsieYIWUAwnK6OHgSm-A_0zgrD-KKWK_bpIj8V-F"}`, string(jsondata))
 

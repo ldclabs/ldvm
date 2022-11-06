@@ -10,6 +10,7 @@ import (
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestName(t *testing.T) {
@@ -52,31 +53,31 @@ func TestName(t *testing.T) {
 	assert.NoError(name2.Unmarshal(name.Bytes()))
 	assert.Equal(name.Bytes(), name2.Bytes())
 	nn, err := GetName(name.Bytes())
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("公信.com.", nn)
 
 	name.Records = append(name.Records, "xn--vuq70b.com. IN A 10.0.0.1")
 	assert.NoError(name.SyntacticVerify())
 	assert.NotEqual(name.Bytes(), name2.Bytes())
 	nn, err = GetName(name.Bytes())
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("公信.com.", nn)
 
 	data, err := json.Marshal(name)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(data))
 	assert.Equal(`{"name":"公信.com.","linked":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","records":["xn--vuq70b.com. IN A 10.0.0.1"],"extensions":[],"did":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM"}`, string(data))
 
 	nm, err := NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(nm.Valid(name.Bytes()))
 
 	ipldops := cborpatch.Patch{
 		{Op: "add", Path: "/rs/-", Value: util.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
 	}
 	data, err = nm.ApplyPatch(name.Bytes(), util.MustMarshalCBOR(ipldops))
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	name2 = &Name{}
 	assert.NoError(name2.Unmarshal(data))
@@ -84,7 +85,7 @@ func TestName(t *testing.T) {
 	name2.DataID = name.DataID
 
 	data, err = json.Marshal(name2)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(data))
 	assert.Equal(`{"name":"公信.com.","linked":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","records":["xn--vuq70b.com. IN A 10.0.0.1","xn--vuq70b.com. IN AAAA ::1"],"extensions":[],"did":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM"}`, string(data))

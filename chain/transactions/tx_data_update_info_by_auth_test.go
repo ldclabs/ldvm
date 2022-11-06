@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateDataInfoByAuth(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	tx := &TxUpdateDataInfoByAuth{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -360,7 +361,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -420,7 +421,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid exSignatures for data keepers")
 	cs.CheckoutAccounts()
@@ -441,7 +442,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid exSignature for data approver")
 	cs.CheckoutAccounts()
@@ -463,7 +464,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	buyerGas := ltx.Gas()
@@ -479,7 +480,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.Equal(uint64(1), buyerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(di.Version+1, di2.Version)
 	assert.Equal(uint16(1), di2.Threshold)
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
@@ -489,7 +490,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.Nil(di2.ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateDataInfoByAuth","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","token":"$LDC","amount":1000000,"data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"token":"$LDC","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000}},"sigs":["jIwbZj66JDXhroiCUW7Tc4qLLFsXM2Z8Q9ZTedRIgntDRhrK1NIafbBirpC0MVBm5AsODBbd-mmSDnIvE30wFwC6g34A"],"exSigs":["GyB7Ag9nn-wXjmQwlg9YYm61X1a7bgVjUfNbPbNOnLdz6abXIBdOLG6Bc40RyNMrXS173wjy5cP1mIJRgA6vUQDGgC_s","6J2VngrdbCekT7SPUDC93WA9vTKYxtvrKBVpLCBnxvJckCBmTr4dlBANCmWH4OxDWUiTE_yItuStFEz_YfWKOAAcS6UV"],"id":"P2sJmW5wOkP6j6UCOATAHtAoFj8bLdhUIvGIuWUgHQ39JV_y"}`, string(jsondata))
 

@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxCloseLending(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxCloseLending(t *testing.T) {
 	tx := &TxCloseLending{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -91,7 +92,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -126,7 +127,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -147,7 +148,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -161,7 +162,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.Equal(0, len(senderAcc.ledger.Lending))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCloseLending","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"},"sigs":["zrmer4p4JajJ0m7u6n_jZy7t5OCk0MGMtQY4wA_Kc4MdUO-vxlM7KSWLOTiBHV_gKhVoiRH5lYsSHH4U9uAehQCAi2Ra"],"id":"itAEy7-z-oloqFRTapwFuD75fsXP8R8hHXAJevvkv1WK8OE6"}`, string(jsondata))
 
@@ -177,7 +178,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
 

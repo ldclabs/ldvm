@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/util"
@@ -43,9 +44,9 @@ func TestState(t *testing.T) {
 	s = NewState(util.HashEmpty)
 	assert.NoError(s.SyntacticVerify())
 	cbordata, err := s.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(s)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","accounts":{},"ledgers":{},"datas":{},"models":{},"id":"K_pzrWr2Xqa8eiIkQyUCwO6b6Lh9LMvDRyFxGJVIYdvFo_Or"}`,

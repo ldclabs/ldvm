@@ -10,6 +10,7 @@ import (
 
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNilSig(t *testing.T) {
@@ -29,19 +30,19 @@ func TestNilSig(t *testing.T) {
 	assert.True(sig.Equal(sig))
 
 	b, err := sig.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("p__G-A", string(b))
 	assert.NoError(sig.UnmarshalText(b))
 	assert.Nil(sig)
 
 	b, err = sig.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`"p__G-A"`, string(b))
 	assert.NoError(sig.UnmarshalJSON(b))
 	assert.Nil(sig)
 
 	b, err = sig.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(nil), b)
 	assert.NoError(sig.UnmarshalCBOR(b))
 	assert.Nil(sig)
@@ -71,20 +72,20 @@ func TestEmptySig(t *testing.T) {
 	assert.False(sig.Equal(sig2))
 
 	b, err := sig.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("p__G-A", string(b))
 	assert.NoError(sig.UnmarshalText(b))
 	assert.Equal([]byte{}, sig.Bytes())
 
 	b, err = sig.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(`"p__G-A"`, string(b))
 	assert.NoError(sig.UnmarshalJSON(b))
 	assert.Equal([]byte{}, sig.Bytes())
 	assert.Equal([]byte{}, sig.Clone().Bytes())
 
 	b, err = sig.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR([]byte{}), b)
 	assert.NoError(sig.UnmarshalCBOR(b))
 	assert.Equal([]byte{}, sig.Bytes())
@@ -100,7 +101,7 @@ func TestSecp256k1Sig(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	sig2 := Sig{}
 	data := sig.Bytes()
@@ -117,20 +118,20 @@ func TestSecp256k1Sig(t *testing.T) {
 	assert.False(sig.Equal(sig2))
 
 	b, err := sig.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sigStr, string(b))
 	assert.NoError(sig2.UnmarshalText(b))
 	assert.Equal(data, sig2.Bytes())
 
 	b, err = sig.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(strconv.Quote(sigStr), string(b))
 	sig2 = Sig{}
 	assert.NoError(sig2.UnmarshalJSON(b))
 	assert.Equal(data, sig2.Bytes())
 
 	b, err = sig.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(data), b)
 	sig2 = Sig{}
 	assert.NoError(sig2.UnmarshalCBOR(b))
@@ -148,7 +149,7 @@ func TestEd25519Sig(t *testing.T) {
 
 	msg := util.Sum256([]byte("hello"))
 	sig, err := Signer3.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	sig2 := Sig{}
 	data := sig.Bytes()
@@ -165,20 +166,20 @@ func TestEd25519Sig(t *testing.T) {
 	assert.False(sig.Equal(sig2))
 
 	b, err := sig.MarshalText()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sigStr, string(b))
 	assert.NoError(sig2.UnmarshalText(b))
 	assert.Equal(data, sig2.Bytes())
 
 	b, err = sig.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(strconv.Quote(sigStr), string(b))
 	sig2 = Sig{}
 	assert.NoError(sig2.UnmarshalJSON(b))
 	assert.Equal(data, sig2.Bytes())
 
 	b, err = sig.MarshalCBOR()
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(util.MustMarshalCBOR(data), b)
 	sig2 = Sig{}
 	assert.NoError(sig2.UnmarshalCBOR(b))
@@ -202,11 +203,11 @@ func TestSigs(t *testing.T) {
 
 	msg := util.Sum256([]byte("LDC Labs"))
 	sig1, err := Signer1.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sig2, err := Signer2.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sig3, err := Signer4.SignHash(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.NoError(Sigs{sig1, sig2, sig3}.Valid())
 	assert.ErrorContains(Sigs{sig1, sig2, sig3, sig3}.Valid(), "duplicate sig xYmDC3UoLgAO0nYZ6zsQuPiZbCkZBFfDBEuq8BSx8zILpnMGZ4WE1VRjrpA5mZuvT7Ga9QmUttEWBn97gtnNDWp08G0")
@@ -223,7 +224,7 @@ func TestSigInStruct(t *testing.T) {
 
 	t1 := &T1{Sig: nil}
 	d, err := util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a0", fmt.Sprintf("%x", d))
 
 	var t1b T1
@@ -232,7 +233,7 @@ func TestSigInStruct(t *testing.T) {
 	var sig Sig
 	t1 = &T1{Sig: &sig}
 	d, err = util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a16173f6", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t1b))
 	assert.True(t1b.Sig == nil)
@@ -240,7 +241,7 @@ func TestSigInStruct(t *testing.T) {
 
 	t1 = &T1{Sig: &Sig{}}
 	d, err = util.MarshalCBOR(t1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1617340", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t1b))
 	assert.True(t1b.Sig != nil)
@@ -252,7 +253,7 @@ func TestSigInStruct(t *testing.T) {
 
 	t2 := &T2{}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a16173f6", fmt.Sprintf("%x", d))
 
 	var t2b T2
@@ -260,7 +261,7 @@ func TestSigInStruct(t *testing.T) {
 
 	t2 = &T2{Sig: sig}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a16173f6", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t2b))
 	assert.True(t2b.Sig == nil)
@@ -268,7 +269,7 @@ func TestSigInStruct(t *testing.T) {
 
 	t2 = &T2{Sig: Sig{}}
 	d, err = util.MarshalCBOR(t2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal("a1617340", fmt.Sprintf("%x", d))
 	assert.NoError(util.UnmarshalCBOR(d, &t2b))
 	assert.True(t2b.Sig != nil)

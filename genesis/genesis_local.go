@@ -11,14 +11,13 @@ var LocalGenesisConfigJSON = `
     "message": "Hello, LDVM!",
     "feeConfig": {
       "startHeight": 0,
-      "thresholdGas": 1000,
       "minGasPrice": 10000,
       "maxGasPrice": 100000,
       "maxTxGas": 42000000,
-      "maxBlockTxsSize": 4200000,
       "gasRebateRate": 1000,
       "minTokenPledge": 10000000000000,
-      "minStakePledge": 1000000000000
+      "minStakePledge": 1000000000000,
+      "builders": []
     }
   },
   "alloc": {

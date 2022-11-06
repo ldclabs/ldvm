@@ -4,10 +4,15 @@
 package cborrpc
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/httprpc"
+	"github.com/rs/xid"
 )
 
 // This is a simple implementation of CBOR-RPC.
@@ -135,25 +140,88 @@ func (req *Req) InvalidMethod() *Res {
 	})
 }
 
-func DecodeRes(data []byte) (*Res, error) {
+func DecodeRes(data []byte) *Res {
 	res := &Res{}
 	if err := util.UnmarshalCBOR(data, res); err != nil {
-		return nil, &Err{Code: CodeParseError, Message: err.Error()}
+		res.Error = &Err{Code: CodeParseError, Message: err.Error()}
 	}
-	return res, nil
+	return res
 }
 
 func (res *Res) DecodeResult(result interface{}) error {
-	if res.Error != nil {
-		return res.Error
+	if res.Error == nil {
+		if err := util.UnmarshalCBOR(res.Result, result); err != nil {
+			res.Error = &Err{Code: CodeParseError, Message: err.Error()}
+		}
 	}
-
-	if err := util.UnmarshalCBOR(res.Result, result); err != nil {
-		return &Err{Code: CodeParseError, Message: err.Error()}
-	}
-	return nil
+	return res.Error
 }
 
 func (res *Res) String() string {
 	return fmt.Sprintf("{error: %v, result: %x}", res.Error, res.Result)
+}
+
+type Client struct {
+	cli      *httprpc.Client
+	endpoint string
+	header   http.Header
+}
+
+func NewClient(endpoint string, rt http.RoundTripper, header http.Header) *Client {
+	return &Client{
+		cli:      httprpc.NewClient(rt),
+		endpoint: endpoint,
+		header:   header,
+	}
+}
+
+func (c *Client) Do(ctx context.Context, req *Req) *Res {
+	err := ctx.Err()
+	if err != nil {
+		return req.Error(fmt.Errorf("context.Context error: %v", err))
+	}
+
+	if req == nil || req.Method == "" {
+		return req.Error(fmt.Errorf("invalid request"))
+	}
+
+	data, err := util.MarshalCBOR(req)
+	if err != nil {
+		return req.Error(err)
+	}
+
+	r, err := http.NewRequestWithContext(ctx, "POST", c.endpoint, bytes.NewBuffer(data))
+	if err != nil {
+		return req.Error(err)
+	}
+
+	r.Header.Set("accept", MIMEApplicationCBOR)
+	r.Header.Set("content-type", MIMEApplicationCBORCharsetUTF8)
+	r.Header.Set("x-request-id", xid.New().String())
+	httprpc.CopyHeader(r.Header, c.header)
+	httprpc.CopyHeader(r.Header, httprpc.HeaderFromCtx(ctx))
+
+	data, err = c.cli.Do(r)
+	if err != nil {
+		return req.Error(err)
+	}
+
+	return DecodeRes(data)
+}
+
+func (c *Client) Req(ctx context.Context, method string, params, result interface{}) *Res {
+	data, err := util.MarshalCBOR(params)
+	if err != nil {
+		return &Res{Error: &Err{
+			Code:    CodeInvalidParams,
+			Message: fmt.Sprintf("MarshalCBOR error, %v", err),
+		}}
+	}
+
+	res := c.Do(ctx, &Req{Method: method, Params: data})
+	if result != nil {
+		res.DecodeResult(result)
+	}
+
+	return res
 }

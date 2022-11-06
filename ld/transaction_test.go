@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxData(t *testing.T) {
@@ -51,7 +52,7 @@ func TestTxData(t *testing.T) {
 	assert.NoError(tx.SyntacticVerify())
 
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1}`, string(jsondata))
 
@@ -140,7 +141,7 @@ func TestTransaction(t *testing.T) {
 	}
 	assert.NoError(tx.SignWith(signer.Signer1))
 	assert.NoError(tx.SyntacticVerify())
-	assert.Equal(len(tx.Bytes()), tx.BytesSize())
+	assert.Equal(1, tx.Size())
 	assert.Equal(uint64(638), tx.Gas())
 
 	approver := signer.Key(constants.GenesisAccount[:])
@@ -152,7 +153,7 @@ func TestTransaction(t *testing.T) {
 	assert.False(tx.needApprove(approver, TxTypes{TypeUpdateAccountInfo}))
 
 	jsondata, err := json.Marshal(tx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}`, string(jsondata))
 
@@ -165,7 +166,7 @@ func TestTransaction(t *testing.T) {
 	assert.Nil(tx.Tx.Data)
 	assert.NotEqual(tx.Tx.Bytes(), tx1.Tx.Bytes())
 	jsondata, err = json.Marshal(tx1)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":0,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"Hello, world!"},"sigs":["fbPsFreXByjy0g0y0WQLUDT2KqyiBIC2RbMs2HWU9VNrI4GG1GJMj-9j_Nf0QuMXVvUXEIg3ksOOlSBl30XA3QAgiCJt"],"id":"aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"}`, string(jsondata))
 
@@ -192,7 +193,7 @@ func TestTxs(t *testing.T) {
 	}).ToTransaction()
 
 	assert.NoError(testTx.SyntacticVerify())
-	assert.Equal(48, testTx.BytesSize())
+	assert.Equal(1, testTx.Size())
 
 	_, err := NewBatchTx(testTx)
 	assert.ErrorContains(err, "NewBatchTx: not batch transactions")
@@ -223,15 +224,15 @@ func TestTxs(t *testing.T) {
 	assert.NoError(tx2.SignWith(signer.Signer1))
 
 	txs, err := NewBatchTx(testTx, tx1, tx2)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.True(txs.IsBatched())
 	assert.Equal(tx2.ID, txs.ID)
 	assert.Equal(tx2.Bytes(), txs.Bytes())
-	assert.Equal(len(testTx.Bytes())+len(tx1.Bytes())+len(tx2.Bytes()), txs.BytesSize())
+	assert.Equal(3, txs.Size())
 
 	data, err := txs.Txs().Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	txs2 := Txs{}
 	assert.NoError(txs2.Unmarshal(data))
 	assert.Equal(3, len(txs2))
@@ -255,12 +256,10 @@ func TestTxsSort(t *testing.T) {
 	stx3 := MustNewTestTx(s2, TypeTransfer, &to, GenJSONData(1100))
 	stx4 := MustNewTestTx(s1, TypeTransfer, &to, GenJSONData(1000))
 	btx, err := NewBatchTx(stx0, stx1, stx2, stx3, stx4)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(stx3.ID, btx.ID)
 	assert.Equal(stx3.Gas(), btx.Gas())
-	assert.Equal(
-		len(stx0.Bytes())+len(stx1.Bytes())+len(stx2.Bytes())+len(stx3.Bytes())+len(stx4.Bytes()),
-		btx.BytesSize())
+	assert.Equal(5, btx.Size())
 	assert.Equal(stx3.priority, btx.priority)
 	assert.Equal(uint64(455), stx0.priority)
 	assert.Equal(uint64(1216), stx1.priority)

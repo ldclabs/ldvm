@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTransferCash(t *testing.T) {
@@ -20,7 +21,7 @@ func TestTxTransferCash(t *testing.T) {
 	tx := &TxTransferCash{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	token := ld.MustNewToken("$LDC")
 	ctx := NewMockChainContext()
@@ -312,7 +313,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 1491600, got 0")
@@ -338,7 +339,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -362,7 +363,7 @@ func TestTxTransferCash(t *testing.T) {
 	assert.Equal([]uint64{1, 2}, to.ld.NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransferCash","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1001}},"sigs":["PikI2rs3hdiy_2lnFoStuaqqyN0-ulnHV8_t1FZC57dqSsI5GgS1Po0gfQqCOkvsCud2MoyVs9m4TbI-IuFHOgG2E2qo"],"exSigs":["Jt_wdqDpYzI5Ib7815vM-olw6isgg5UeMhmSz2in4VA5cRCNdNbd0pqD-XYAK0gDzwvhRxLLj6b-Kf0LGwOKSwBOmpIz"],"id":"um4FGzP6ffE4XZZAnvUcoD6C76kxqTaOnsRST1o0_Ljon6D2"}`, string(jsondata))
 

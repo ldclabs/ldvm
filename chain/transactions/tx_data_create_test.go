@@ -15,6 +15,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxCreateData(t *testing.T) {
@@ -24,7 +25,7 @@ func TestTxCreateData(t *testing.T) {
 	tx := &TxCreateData{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -214,7 +215,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// RawModel
 	input = &ld.TxUpdater{
@@ -336,7 +337,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -357,7 +358,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(ld.RawModelID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(0), di.Threshold)
@@ -367,7 +368,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.Equal([]byte(`42`), []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","version":1,"threshold":0,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":42}},"sigs":["ttZ88NBzJ7rnBGmEXGXHoO21D1SVs23Z10ps7_j8y6tx8cOjOEdZsPJdTCuGxMrqcPS-2JrdPB3MxlqF9FkvWQGgs59e"],"id":"hKP3Ze5zrRLoHxZVnNmzhSZnkYN5VfIRtrHWIJYCbPFWLc4F"}`, string(jsondata))
 
@@ -388,7 +389,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	}
 
 	data, err := util.MarshalCBOR(&cborData{Name: "test", Nonces: []int{1, 2, 3}})
-	assert.NoError(err)
+	require.NoError(t, err)
 	invalidData := data[:len(data)-3]
 
 	// CBORModel
@@ -412,7 +413,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -445,7 +446,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -458,7 +459,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(ld.CBORModelID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(0), di.Threshold)
@@ -468,7 +469,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.Equal(data, []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah","version":1,"threshold":0,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":"omJuYWR0ZXN0Ym5vgwECA_B3TG8"}},"sigs":["CXPn-XOm0zK8b0M5G0j71R6wG_Pw4WBucCsG5YxQf6UZkEZXydY0qW1vyt0wKKq1q3y15sdQLJkR359KOvxWkgGW9Ibr"],"id":"EokfA74wRa86_ZQxxI-ieGgP7trT6QbEkEU0lX-ZmKYI29Gr"}`, string(jsondata))
 
@@ -489,7 +490,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	}
 
 	data, err := json.Marshal(&jsonData{Name: "test", Nonces: []int{1, 2, 3}})
-	assert.NoError(err)
+	require.NoError(t, err)
 	invalidData := data[:len(data)-3]
 
 	// JSONModel
@@ -513,7 +514,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -546,7 +547,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -559,7 +560,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(ld.JSONModelID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(0), di.Threshold)
@@ -569,7 +570,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.Equal(data, []byte(di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":0,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"na":"test","no":[1,2,3]}}},"sigs":["ilbLtpq89vy-VaFdaM8wvGfIb2uQ4ttfhBDvTvgA-4stBCVit1lrs6od0n-6lZa2IPNU23iiSycOeeEtxsvVaQHc0U3B"],"id":"kh-RbEn8dkNCaFnv2aht4C9YMdqZHxrhSeRIDdV9DiGFCeLh"}`, string(jsondata))
 
@@ -585,7 +586,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	sender := signer.Signer1.Key().Address()
 
 	pm, err := service.ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	ps := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 0,
@@ -623,7 +624,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -663,7 +664,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -676,7 +677,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(ps.ID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(1), di.Threshold)
@@ -695,7 +696,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.Equal(p.Bytes(), p2.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AQIDBAUAAAAAAAAAAAAAAAAAAADELdAH","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":"p2FkYGFpYGFuZnRlc3RlcmF0AWF1YGJlc4BiZnOA_mpfEg"}},"sigs":["tFjAaEX2gBzH26OkCPMX9uyzCTALrmkpT1eV24YIKMFovX41e6Zshx7D8o92u9c_UZIQNDL_Ope2G7lvsygMGABoALzU"],"id":"wqVmFPM_CfUdWb1brcvmarDK5BA0-Ed_altqVsi9yX8K_pyi"}`, string(jsondata))
 
@@ -712,7 +713,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	recipient := signer.Signer2.Key().Address()
 
 	pm, err := service.ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      pm.Name(),
 		Threshold: 1,
@@ -749,7 +750,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -916,7 +917,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"invalid exSignatures for model keepers")
@@ -938,7 +939,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -951,7 +952,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(mi.ID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(1), di.Threshold)
@@ -970,7 +971,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.Equal(pf.Bytes(), p2.Bytes())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":0,"data":{"mid":"AQIDAAAAAAAAAAAAAAAAAAAAAABuT_CC","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":0,"expire":100,"data":"p2FkYGFpYGFuY0xEQ2F0AWF1YGJlc4BiZnOABj3NMQ"}},"sigs":["O-g2YPiQMATEkQhDrXFuRyqrWSCw3HIIOyGAm2XAV2c4d-oqms9frFzEif0jtAVU1JVR_UEAucdQnONtTYA7tAEvC_nZ"],"exSigs":["Xs2qEFdgNxVYqCuoCQrYTTehsfSvsSNLJStECHBMgU9sEicGK7zIuWfoY9z-ZP81fyiOkuD5Xk8nXIFRP4PszgEUU4Um"],"id":"rcaBsIO7PtL7AZJQiAQBjUZb7J59aXPJ4Fpe-ys3QnU1frQw"}`, string(jsondata))
 
@@ -987,7 +988,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	recipient := signer.Signer2.Key().Address()
 
 	nm, err := service.NameModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      nm.Name(),
 		Threshold: 1,
@@ -1040,7 +1041,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 
 	ltx.Timestamp = 10
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	_, err = cs.LoadDataByName("ldc.to.")
 	assert.ErrorContains(err, `"ldc.to." not found`)
@@ -1057,7 +1058,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadDataByName("ldc.to.")
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(mi.ID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(1), di.Threshold)
@@ -1078,7 +1079,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.Equal("desc", n2.Extensions[0].Properties["desc"].(string))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"mid":"b8onI5zOwqPZO9jxMBBgZWnnCUzd-187","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"expire":100,"data":"o2FuZ2xkYy50by5iZXOBomF0ZFRlc3RicHOhZGRlc2NkZGVzY2Jyc4F1bGRjLnRvLiBJTiBBIDEwLjAuMC4xJFhefQ"}},"sigs":["Agi0n3ypfN8pX-EuIbhKfDmH-NSksy8IyPwtKiy4xqZsCD6F06sOe_H-SGgd7xqWoy-ZkQl0LZnMA6SBDnKLmgBgH3sg"],"exSigs":["NkF-wtCdSzXees4-Xw_xxmzNRl9hinEoFGHZ0KZCW5MLfAf-YdE6RCTdUflBg2ss5ncv_Sba3zD818ihV1Tj8QH31jau"],"id":"h8Ac6wx8oCUWzySj6Ze0RqsAFYSM3FFefWdbIwYn50EhNMbm"}`, string(jsondata))
 
@@ -1119,7 +1120,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		`TxCreateData.Apply: name "ldc.to." is conflict`)
@@ -1161,7 +1162,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = 10
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 }
 
@@ -1173,7 +1174,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	sender := signer.Signer1.Key().Address()
 
 	cfg, err := json.Marshal(ctx.ChainConfig().FeeConfig)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cfgData := &ld.TxUpdater{
 		ModelID:   &ld.JSONModelID,
@@ -1191,7 +1192,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.(GenesisTx).ApplyGenesis(ctx, cs))
 
 	assert.Equal(uint64(0), itx.(*TxCreateData).ldc.Balance().Uint64())
@@ -1200,7 +1201,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.Equal(uint64(1), itx.(*TxCreateData).from.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(ld.JSONModelID, di.ModelID)
 	assert.Equal(uint64(1), di.Version)
 	assert.Equal(uint16(1), di.Threshold)
@@ -1210,9 +1211,9 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	assert.True(jsonpatch.Equal(cfg, di.Payload))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"thresholdGas":1000,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"maxBlockTxsSize":4200000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000}}},"id":"lqFJUOJetbRIx7A6LGXP5ON2u0mhzpCoH4nXNEzBEodzLpRM"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000,"builders":[]}}},"id":"2JKqawRmOf_0OEHvYQQFG2KlGlSaHfc2AKrt6cT-bR0Sft2a"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

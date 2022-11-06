@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTransfer(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxTransfer(t *testing.T) {
 	tx := &TxTransfer{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -75,7 +76,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance")
 	cs.CheckoutAccounts()
@@ -95,7 +96,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.Equal(uint64(2), from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000},"sigs":["IX83ghjdiu09Zg4-ZjXIMAlZItoyOJ9ZxTSeAX63gV549EM4gtDf_fMeefUWzH4pT6YKYchkhL6a9pYdVRZCegGBPL0O"],"id":"3-5PqLJQpKdAtM7MDHuIuH5gopri-5McUcBu9b-stOW9Uimp"}`, string(jsondata))
 
@@ -115,7 +116,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient $LDC balance")
 	cs.CheckoutAccounts()
@@ -135,7 +136,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.Equal(uint64(3), from.Nonce())
 
 	jsondata, err = itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000},"sigs":["uGG3X1KnhErX6M4bba6hRK5p8LQv3JypqXNQ1ypaUNN2-JSGCOkV9zQ4YLdSIJqOcfLe--EnUT5pKLNincmqIgBsXXMx"],"id":"i4GN43OdfBiEOseH1fP8u0sg7LoUQ4TF2yLgIteaOKxhHz1v"}`, string(jsondata))
 
@@ -154,7 +155,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs), "should support 0 amount")
 
 	assert.NoError(cs.VerifyState())
@@ -178,7 +179,7 @@ func TestTxTransferGenesis(t *testing.T) {
 	}}
 
 	itx, err := NewGenesisTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.NoError(itx.(*TxTransfer).ApplyGenesis(ctx, cs))
 
@@ -194,7 +195,7 @@ func TestTxTransferGenesis(t *testing.T) {
 		itx.(*TxTransfer).from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x0000000000000000000000000000000000000000","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000000000000000000},"id":"UNJMvAMIzdXEqMoJF7eVHAg1l42bkP3ceNXdTR7vs8qbbhhI"}`, string(jsondata))
 
@@ -224,7 +225,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	fromGas := ltx.Gas()
@@ -251,7 +252,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.ErrorContains(itx.Apply(ctx, cs), "TxBase.Apply: invalid signatures for sender")
 
 	assert.NoError(cs.VerifyState())

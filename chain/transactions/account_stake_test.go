@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStakeAccount(t *testing.T) {
@@ -69,9 +70,9 @@ func TestStakeAccount(t *testing.T) {
 
 	// Marshal
 	data, ledger, err := testStake.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	testStake2, err := ParseAccount(testStake.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
 
 	lg := &ld.AccountLedger{}
@@ -135,7 +136,7 @@ func TestStakeAccount(t *testing.T) {
 	assert.ErrorContains(testStake.DestroyStake(acc),
 		"Account(0x0000000000000000000000000000002354455354).DestroyStake: please repay all before close")
 	actual, err := testStake.Repay(constants.NativeToken, acc.id, big.NewInt(1000))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(uint64(1000), actual.Uint64())
 
 	assert.ErrorContains(testStake.DestroyStake(acc2),
@@ -162,9 +163,9 @@ func TestStakeAccount(t *testing.T) {
 
 	// Marshal again
 	data, ledger, err = testStake.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	testStake2, err = ParseAccount(testStake.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(testStake.ld.Bytes(), testStake2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -371,9 +372,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	// Marshal
 	data, ledger, err := sa.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa2, err := ParseAccount(sa.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	lg := &ld.AccountLedger{}
@@ -399,7 +400,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 		"Account(0x00000000000000000000000000000000234C4443).WithdrawStake: stake in lock, please retry after lockTime, Unix(10)")
 	sa.ld.Timestamp = 11
 	_, err = sa.WithdrawStake(constants.NativeToken, addr0, big.NewInt(0), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	_, err = sa.WithdrawStake(constants.NativeToken, addr3, big.NewInt(0), txIsApprovedFn)
 	assert.ErrorContains(err, "has no stake to withdraw")
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, big.NewInt(0), txIsApprovedFn)
@@ -410,7 +411,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.ErrorContains(err, "Account(0x00000000000000000000000000000000234C4443).WithdrawStake: stake in lock, please retry after lockTime, Unix(11)")
 	sa.ld.Timestamp = 12
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, big.NewInt(0), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// check UpdateStakeApprover
 	assert.ErrorContains(
@@ -439,13 +440,13 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, big.NewInt(1000), txIsNotApprovedFn)
 	assert.ErrorContains(err, "need approver signing")
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2, big.NewInt(0), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	_, err = sa.WithdrawStake(constants.NativeToken, addr2,
 		new(big.Int).SetUint64(constants.LDC+1), txIsApprovedFn)
 	assert.ErrorContains(err,
 		"insufficient stake to withdraw, expected 1000000000, got 1000000001")
 	am, err := sa.WithdrawStake(constants.NativeToken, addr2, ldc, txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(constants.LDC-uint64(ldcf*float64(withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
 	assert.NotNil(sa.ledger.Stake[addr2.AsKey()])
@@ -453,14 +454,14 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	total := uint64(1088043477)
 	am, err = sa.WithdrawStake(constants.NativeToken, addr0, new(big.Int).SetUint64(total), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
 	assert.Nil(sa.ledger.Stake[addr0.AsKey()])
 
 	total = sa.GetStakeAmount(constants.NativeToken, addr1).Uint64()
 	am, err = sa.WithdrawStake(constants.NativeToken, addr1, new(big.Int).SetUint64(total), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa.Sub(constants.NativeToken, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
 	assert.Nil(sa.ledger.Stake[addr1.AsKey()])
@@ -474,9 +475,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	// Marshal again
 	data, ledger, err = sa.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa2, err = ParseAccount(sa.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -504,9 +505,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	// Marshal again
 	data, ledger, err = sa.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa2, err = ParseAccount(sa.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -593,9 +594,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 
 	// Marshal again
 	data, ledger, err = sa.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa2, err = ParseAccount(sa.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -604,9 +605,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(ledger, lg.Bytes())
 
 	data, ledger, err = sc.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sc2, err := ParseAccount(sc.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sc.ld.Bytes(), sc2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -615,7 +616,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(ledger, lg.Bytes())
 
 	am, err = sa.WithdrawStake(token, addr2, ldc, txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa.Sub(token, am)
 	fee := uint64(float64(constants.LDC*withdrawFee) / 1_000_000)
 	assert.Equal(constants.LDC-fee, am.Uint64(), "withdraw fee")
@@ -636,9 +637,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(constants.LDC*22+fee, sa.balanceOf(token).Uint64())
 	// Marshal again
 	data, ledger, err = sc.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sc2, err = ParseAccount(sc.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sc.ld.Bytes(), sc2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}
@@ -649,7 +650,7 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	// Destroy sa
 	total = sa.GetStakeAmount(token, addr1).Uint64()
 	am, err = sa.WithdrawStake(token, addr1, new(big.Int).SetUint64(total), txIsApprovedFn)
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa.Sub(token, am)
 	assert.Equal(total-uint64(float64(total*withdrawFee)/1_000_000), am.Uint64(), "withdraw fee")
 	assert.Equal(1, am.Cmp(pledge))
@@ -668,9 +669,9 @@ func TestTakeStakeAndWithdraw(t *testing.T) {
 	assert.Equal(1, acc0.balanceOf(token).Cmp(ldc))
 
 	data, ledger, err = sa.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	sa2, err = ParseAccount(sa.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(sa.ld.Bytes(), sa2.ld.Bytes())
 
 	lg = &ld.AccountLedger{}

@@ -189,7 +189,7 @@ func (tx *TxCreateData) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if tx.ldc, err = cs.LoadAccount(constants.LDCAccount); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.miner, err = cs.LoadMiner(ctx.Miner()); err != nil {
+	if tx.miner, err = cs.LoadBuilder(ctx.Builder()); err != nil {
 		return errp.ErrorIf(err)
 	}
 

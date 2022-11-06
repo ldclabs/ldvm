@@ -13,6 +13,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxUpdateModelInfo(t *testing.T) {
@@ -22,7 +23,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	tx := &TxUpdateModelInfo{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -183,7 +184,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -197,7 +198,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	ipldm, err := service.ProfileModel()
-	assert.NoError(err)
+	require.NoError(t, err)
 	mi := &ld.ModelInfo{
 		Name:      ipldm.Name(),
 		Threshold: 1,
@@ -218,12 +219,12 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err = cs.LoadModel(mid)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NotNil(mi.Approver)
 	assert.True(signer.Signer2.Key().Equal(mi.Approver))
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeUpdateModelInfo","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"MTIzNDU2AAAAAAAAAAAAAAAAAABQtLNs","approver":"RBccN_9de3u43K1cgfFihKIp5kE1lmGG"}},"sigs":["RUuVcEakQT_mucfMBvnWss53sKCleyNrZtlmkX6OKrtvdj6ez5JVsS4OmnwT-CxQBHM98KydOCZhmNRlsBRfoQD6iQKn"],"id":"n_HYkPVptSXKQltq2Qc9kYK89ddJwjngjVGRr_FOMd-lIYwO"}`, string(jsondata))
 
@@ -249,7 +250,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signature for approver")
 	cs.CheckoutAccounts()
@@ -266,11 +267,11 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	mi, err = cs.LoadModel(mid)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Nil(mi.Approver)
 	assert.Equal(signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()}, mi.Keepers)
 
@@ -293,7 +294,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for keepers")
@@ -311,11 +312,11 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	mi, err = cs.LoadModel(mid)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Nil(mi.Approver)
 	assert.Equal(uint16(0), mi.Threshold)
 	assert.Equal(signer.Keys{signer.Signer2.Key()}, mi.Keepers)

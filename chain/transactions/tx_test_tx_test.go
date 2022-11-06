@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxTest(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxTest(t *testing.T) {
 	tx := &TxTest{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -146,7 +147,7 @@ func TestTxTest(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -167,7 +168,7 @@ func TestTxTest(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"objectType":"Address","objectID":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","tests":[{"path":"/b","value":"wkQ7msoAEtHq1g"}]}},"sigs":["XigOrlGbvrRgUUfQaJoyRsP5hWt1MJO3oxoQTHJ9e7Ikhm9od505BbdA1XUT-iejZIDbMSWZL7PpT6Xqk-fuvAHllKNp"],"id":"8N34No8u-JnJ4hkgzl_UIJ4UVgcc32OASKfnCxhw9EzQC_Kt"}`, string(jsondata))
 }

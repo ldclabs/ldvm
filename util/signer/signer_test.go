@@ -8,16 +8,17 @@ import (
 
 	"github.com/ldclabs/ldvm/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecp256k1Signer(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, err := NewSecp256k1()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	s2, err := Secp256k1From(s1.PrivateSeed())
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(Secp256k1, s1.Kind())
 	assert.Equal(Secp256k1, s2.Kind())
@@ -27,19 +28,19 @@ func TestSecp256k1Signer(t *testing.T) {
 
 	msg := []byte("hello")
 	sig1, err := s1.SignData(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(Secp256k1, sig1.Kind())
 
 	sig2, err := s2.SignData(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 
 	sig2, err = s1.SignHash(util.Sum256(msg))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 
 	sig2, err = s2.SignHash(util.Sum256(msg))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 }
 
@@ -47,10 +48,10 @@ func TestEd25519Signer(t *testing.T) {
 	assert := assert.New(t)
 
 	s1, err := NewEd25519()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	s2, err := Ed25519From(s1.PrivateSeed())
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(Ed25519, s1.Kind())
 	assert.Equal(Ed25519, s2.Kind())
@@ -60,18 +61,18 @@ func TestEd25519Signer(t *testing.T) {
 
 	msg := []byte("hello")
 	sig1, err := s1.SignData(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(Ed25519, sig1.Kind())
 
 	sig2, err := s2.SignData(msg)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 
 	sig2, err = s1.SignHash(util.Sum256(msg))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 
 	sig2, err = s2.SignHash(util.Sum256(msg))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.True(sig1.Equal(sig2))
 }

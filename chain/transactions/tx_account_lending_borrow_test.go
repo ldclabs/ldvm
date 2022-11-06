@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxBorrow(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxBorrow(t *testing.T) {
 	tx := &TxBorrow{}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -276,7 +277,7 @@ func TestTxBorrow(t *testing.T) {
 
 	dueTime := cs.Timestamp()
 	dueTimeData, err := util.MarshalCBOR(dueTime)
-	assert.NoError(err)
+	require.NoError(t, err)
 	input = &ld.TxTransfer{
 		From:   &lender,
 		To:     &borrower,
@@ -305,7 +306,7 @@ func TestTxBorrow(t *testing.T) {
 
 	dueTime = cs.Timestamp() + 3600*24
 	dueTimeData, err = util.MarshalCBOR(dueTime)
-	assert.NoError(err)
+	require.NoError(t, err)
 	input = &ld.TxTransfer{
 		From:   &lender,
 		To:     &borrower,
@@ -330,7 +331,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err := NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -363,7 +364,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	lenderAcc := cs.MustAccount(lender)
 	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -396,7 +397,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -425,7 +426,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -459,7 +460,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.Equal(cs.Timestamp()+3600*24, entry.DueTime)
 
 	jsondata, err := itx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeBorrow","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","data":{"from":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","to":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","amount":1000000000,"expire":1001,"data":"GgABVWhrgiP-"}},"sigs":["M-ev3GGkRy8KvHmbAJoENKO0y8e1WVmuPCJ3mWNcUBtDMyU2gpu9pKwp_R-kdFt8d6xU_u1cxnHYygUvfV0mbwA2Ef2B"],"exSigs":["NgAL6RskeRV3yquqE6Qd5nUHpgWFrnf2hVzyqTwypyovOsyEaBt_rIa_ZwYxkGCmJvnkAih6sLeRoSwyd0U38wFTlQpE"],"id":"rg9f2lvhqTHfn4TE6cbz51IXE-C2vLGvBLR-c_bfAcp-LouL"}`, string(jsondata))
 
@@ -491,7 +492,7 @@ func TestTxBorrow(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	borrowerGas += ltx.Gas()

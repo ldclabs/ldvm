@@ -68,15 +68,14 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight     uint64   `json:"startHeight"`
-	ThresholdGas    uint64   `json:"thresholdGas"`
-	MinGasPrice     uint64   `json:"minGasPrice"`
-	MaxGasPrice     uint64   `json:"maxGasPrice"`
-	MaxTxGas        uint64   `json:"maxTxGas"`
-	MaxBlockTxsSize uint64   `json:"maxBlockTxsSize"`
-	GasRebateRate   uint64   `json:"gasRebateRate"`
-	MinTokenPledge  *big.Int `json:"minTokenPledge"`
-	MinStakePledge  *big.Int `json:"minStakePledge"`
+	StartHeight    uint64                        `json:"startHeight"`
+	MinGasPrice    uint64                        `json:"minGasPrice"`
+	MaxGasPrice    uint64                        `json:"maxGasPrice"`
+	MaxTxGas       uint64                        `json:"maxTxGas"`
+	GasRebateRate  uint64                        `json:"gasRebateRate"`
+	MinTokenPledge *big.Int                      `json:"minTokenPledge"`
+	MinStakePledge *big.Int                      `json:"minStakePledge"`
+	Builders       util.IDList[util.StakeSymbol] `json:"builders"`
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
@@ -85,9 +84,6 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	switch {
 	case cfg == nil:
 		return errp.Errorf("nil pointer")
-
-	case cfg.ThresholdGas <= 500:
-		return errp.Errorf("invalid thresholdGas")
 
 	case cfg.MinGasPrice <= 500:
 		return errp.Errorf("invalid minGasPrice")
@@ -98,9 +94,6 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	case cfg.MaxTxGas <= 1000000:
 		return errp.Errorf("invalid maxTxGas")
 
-	case cfg.MaxBlockTxsSize <= 1000000:
-		return errp.Errorf("invalid maxBlockTxsSize")
-
 	case cfg.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
@@ -109,6 +102,23 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 
 	case cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
 		return errp.Errorf("invalid minStakePledge")
+
+	case cfg.Builders == nil:
+		return errp.Errorf("nil builders")
+	}
+
+	if err := cfg.Builders.Valid(); err != nil {
+		return errp.ErrorIf(err)
+	}
+
+	return nil
+}
+
+func (cfg *FeeConfig) ValidBuilder(builder util.StakeSymbol) error {
+	errp := util.ErrPrefix("FeeConfig.ValidBuilder: ")
+
+	if len(cfg.Builders) > 0 && !cfg.Builders.Has(builder) {
+		return errp.Errorf("%s is not in the builder list", builder)
 	}
 
 	return nil
@@ -124,6 +134,7 @@ func FromJSON(data []byte) (*Genesis, error) {
 	if err := g.Chain.FeeConfig.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
+
 	g.Chain.FeeConfigs = []*FeeConfig{}
 	return g, nil
 }

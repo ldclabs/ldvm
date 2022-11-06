@@ -6,8 +6,10 @@ package chain
 import (
 	"fmt"
 	"math/big"
+	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/ids"
@@ -53,7 +55,7 @@ type BlockChain interface {
 	// global state
 	HealthCheck() (interface{}, error)
 	Bootstrap() error
-	IsBootstrapped() bool
+	State() snow.State
 	SetState(snow.State) error
 	TotalSupply() *big.Int
 
@@ -70,12 +72,10 @@ type BlockChain interface {
 	AddVerifiedBlock(*Block)
 	GetVerifiedBlock(util.Hash) *Block
 
-	// txs state
-	SubmitTx(...*ld.Transaction) error
-	AddRemoteTxs(tx ...*ld.Transaction) error
-	AddLocalTxs(txs ...*ld.Transaction)
-	SetTxsHeight(uint64, ...util.Hash)
-	GetTxHeight(util.Hash) int64
+	// txs
+	GetGenesisTxs() ld.Txs
+	PreVerifyPdsTxs(...*ld.Transaction) (uint64, error)
+	LoadTxsByIDsFromPds(uint64, []util.Hash) (ld.Txs, error)
 
 	LoadAccount(util.Address) (*ld.Account, error)
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
@@ -89,6 +89,7 @@ type blockChain struct {
 	config       *config.Config
 	genesis      *genesis.Genesis
 	genesisBlock *Block
+	genesisTxs   ld.Txs
 
 	db             database.Database
 	blockDB        *db.PrefixDB
@@ -111,24 +112,28 @@ type blockChain struct {
 	recentHeights  *db.Cacher
 	recentData     *db.Cacher
 
-	bb     *BlockBuilder
-	txPool TxPool // Proposed transactions that haven't been put into a block yet
+	bb         *BlockBuilder
+	txPool     *TxPool // Proposed transactions that haven't been put into a block yet
+	rpcTimeout time.Duration
+	builder    util.StakeSymbol
 }
 
 func NewChain(
+	name string,
 	ctx *snow.Context,
 	cfg *config.Config,
 	gs *genesis.Genesis,
 	baseDB database.Database,
 	toEngine chan<- common.Message,
-	gossipTx func(*ld.Transaction),
+	transport http.RoundTripper,
 ) *blockChain {
 	pdb := db.NewPrefixDB(baseDB, dbPrefix, 512)
+
 	s := &blockChain{
 		config:            cfg,
 		genesis:           gs,
 		db:                baseDB,
-		txPool:            NewTxPool(),
+		rpcTimeout:        3 * time.Second,
 		preferred:         new(atomicBlock),
 		lastAcceptedBlock: new(atomicBlock),
 		state:             new(atomicState),
@@ -146,19 +151,15 @@ func NewChain(
 	}
 
 	s.nameDB.SetHashKey(nameHashKey)
+	s.ctx = NewContext(name, ctx, s, cfg, gs)
 
-	txPool := NewTxPool()
-	builder := NewBlockBuilder(ctx.NodeID, txPool, toEngine)
-
-	txPool.gossipTx = gossipTx
-	txPool.signalTxsReady = builder.SignalTxsReady
-
-	s.ctx = NewContext(ctx, s, cfg, gs)
-	s.bb = builder
+	txPool := NewTxPool(s.ctx, cfg.PdsEndpoint, transport)
+	s.bb = NewBlockBuilder(txPool, toEngine)
 	s.txPool = txPool
 	s.preferred.StoreV(emptyBlock)
 	s.lastAcceptedBlock.StoreV(emptyBlock)
 	s.state.StoreV(0)
+	s.builder = util.Address(ctx.NodeID).ToStakeSymbol()
 
 	// this data will not change, so we can cache it
 	s.recentBlocks = db.NewCacher(1_000, 60*10, func() db.Objecter {
@@ -231,6 +232,7 @@ func (bc *blockChain) Bootstrap() error {
 		return errp.Errorf("invalid genesis data, expected genesis id %s", genesisID)
 	}
 
+	bc.genesisTxs = txs
 	// genesis block is the last accepted block.
 	if lastAcceptedID == genesisBlock.ID() {
 		logging.Log.Info("BlockChain.Bootstrap finished", zap.Stringer("id", lastAcceptedID))
@@ -322,8 +324,8 @@ func (bc *blockChain) SetState(state snow.State) error {
 	}
 }
 
-func (bc *blockChain) IsBootstrapped() bool {
-	return bc.state.LoadV() == snow.NormalOp
+func (bc *blockChain) State() snow.State {
+	return bc.state.LoadV()
 }
 
 // LastAccepted returns the ID of the last accepted block.
@@ -388,6 +390,11 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 	bc.lastAcceptedBlock.StoreV(blk)
 	bc.recentBlocks.SetObject(id[:], blk)
 
+	if blk.LD().Builder == bc.builder {
+		go bc.txPool.UpdateBuildStatus(blk.Height(), &TxsBuildStatus{
+			Accepted: blk.LD().Txs,
+		})
+	}
 	go func() {
 		bc.verifiedBlocks.Range(func(key, value any) bool {
 			if b, ok := value.(*Block); ok {
@@ -422,6 +429,7 @@ func (bc *blockChain) SetPreference(id util.Hash) error {
 
 	return errp.ErrorIf(bc.setPreference(preferred, blk))
 }
+
 func (bc *blockChain) setPreference(preferred, blk *Block) error {
 	if blk.Parent() != preferred.ID() {
 		if err := bc.reorg(preferred, blk); err != nil {
@@ -430,7 +438,7 @@ func (bc *blockChain) setPreference(preferred, blk *Block) error {
 	}
 
 	bc.preferred.StoreV(blk)
-	bc.bb.HandlePreferenceBlock()
+	bc.bb.HandlePreferenceBlock(blk.Height())
 	logging.Log.Info("BlockChain.SetPreference", zap.Stringer("id", blk.ID()))
 	return nil
 }
@@ -475,8 +483,11 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 
 func (bc *blockChain) BuildBlock() (*Block, error) {
 	errp := util.ErrPrefix("chain.BlockChain.BuildBlock: ")
-	if !bc.IsBootstrapped() {
-		return nil, errp.Errorf("state not bootstrapped")
+	if s := bc.State(); s != snow.NormalOp {
+		return nil, errp.Errorf("state not bootstrapped, expected %q, got %q", snow.NormalOp, s)
+	}
+	if err := bc.preferred.LoadV().FeeConfig().ValidBuilder(bc.builder); err != nil {
+		return nil, errp.ErrorIf(err)
 	}
 
 	blk, err := bc.bb.Build(bc.ctx)
@@ -514,8 +525,6 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	blk.SetContext(bc.ctx)
 	blk.InitState(parent, parent.State().VersionDB())
 
-	txIDs := blk.TxIDs()
-	bc.txPool.ClearTxs(txIDs...)
 	bc.recentBlocks.SetObject(id[:], blk)
 	return blk, nil
 }
@@ -585,54 +594,41 @@ func (bc *blockChain) GetBlockAtHeight(height uint64) (*Block, error) {
 	return bc.GetBlock(id)
 }
 
-// SubmitTx processes a transaction from API server
-func (bc *blockChain) SubmitTx(txs ...*ld.Transaction) error {
-	errp := util.ErrPrefix("chain.BlockChain.SubmitTx: ")
+func (bc *blockChain) GetGenesisTxs() ld.Txs {
+	return bc.genesisTxs
+}
+
+// PreVerifyPdsTxs pre-verify transactions from PDS server
+func (bc *blockChain) PreVerifyPdsTxs(txs ...*ld.Transaction) (uint64, error) {
+	errp := util.ErrPrefix("chain.BlockChain.PreVerifyPdsTxs: ")
 	if len(txs) == 0 {
-		return nil
+		return 0, errp.Errorf("no tx")
 	}
+
 	for _, tx := range txs {
 		if err := tx.SyntacticVerify(); err != nil {
-			return errp.ErrorIf(err)
+			return 0, errp.ErrorIf(err)
 		}
+	}
+
+	if len(txs) == 1 && txs[0].Tx.Type == ld.TypeTest {
+		return 0, errp.Errorf("TestTx should be in a batch transactions")
 	}
 
 	blk := bc.preferred.LoadV()
+	if err := blk.FeeConfig().ValidBuilder(bc.builder); err != nil {
+		return 0, errp.ErrorIf(err)
+	}
+
 	if err := blk.TryBuildTxs(txs...); err != nil {
-		return errp.ErrorIf(err)
+		return 0, errp.ErrorIf(err)
 	}
-
-	return errp.ErrorIf(bc.AddRemoteTxs(txs...))
+	bc.bb.SignalTxsReady()
+	return blk.Height() + 1, nil
 }
 
-func (bc *blockChain) AddRemoteTxs(txs ...*ld.Transaction) error {
-	errp := util.ErrPrefix("chain.BlockChain.AddRemoteTxs: ")
-	var err error
-	tx := txs[0]
-	if len(txs) > 1 {
-		tx, err = ld.NewBatchTx(txs...)
-		if err != nil {
-			return errp.ErrorIf(err)
-		}
-	}
-
-	if tx.Tx.Type == ld.TypeTest {
-		return errp.Errorf("TestTx should be in a batch transactions")
-	}
-	bc.txPool.AddRemote(tx)
-	return nil
-}
-
-func (bc *blockChain) AddLocalTxs(txs ...*ld.Transaction) {
-	bc.txPool.AddLocal(txs...)
-}
-
-func (bc *blockChain) SetTxsHeight(height uint64, txIDs ...util.Hash) {
-	bc.txPool.SetTxsHeight(height, txIDs...)
-}
-
-func (bc *blockChain) GetTxHeight(id util.Hash) int64 {
-	return bc.txPool.GetHeight(id)
+func (bc *blockChain) LoadTxsByIDsFromPds(height uint64, txIDs []util.Hash) (ld.Txs, error) {
+	return bc.txPool.LoadByIDs(height, txIDs)
 }
 
 func (bc *blockChain) LoadAccount(id util.Address) (*ld.Account, error) {
@@ -749,6 +745,6 @@ func (a *atomicState) StoreV(v snow.State) {
 }
 
 func nameHashKey(key []byte) []byte {
-	k := sha3.Sum256(key)
+	k := sha3.Sum224(key)
 	return k[:]
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
@@ -149,9 +150,9 @@ func TestNativeAccount(t *testing.T) {
 
 	// Marshal
 	data, _, err := acc.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	acc2, err := ParseAccount(acc.id, data)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(acc.ld.Bytes(), acc2.ld.Bytes())
 
 	// Lending

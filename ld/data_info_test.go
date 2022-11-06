@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
 	jsonpatch "github.com/ldclabs/json-patch"
@@ -55,9 +56,9 @@ func TestSigClaims(t *testing.T) {
 	assert.NoError(sc.SyntacticVerify())
 
 	cbordata, err := sc.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(sc)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","exp":100,"nbf":0,"iat":1,"cti":"CQoLDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARjcYE"}`, string(jsondata))
 
@@ -146,9 +147,9 @@ func TestDataInfo(t *testing.T) {
 	assert.NoError(di.SyntacticVerify())
 
 	cbordata, err := di.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(di)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH","RBccN_9de3u43K1cgfFihKIp5kE1lmGG"],"payload":42,"id":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(jsondata))
 
@@ -176,7 +177,7 @@ func TestDataInfo(t *testing.T) {
 	assert.Equal(cbordata, di2.Bytes())
 	assert.NotEqual(cbordata, di3.Bytes())
 	jsondata, err = json.Marshal(di3)
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH","RBccN_9de3u43K1cgfFihKIp5kE1lmGG"],"payload":42,"sigClaims":{"iss":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","sub":"BQYHCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADlPJnM","aud":"AAAAAAAAAAAAAAAAAAAAAAAAAADzaDye","exp":100,"nbf":0,"iat":1,"cti":"CQoLDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARjcYE"},"sig":"7w8M6jpY9hoXreRwKm5iYvk5KOy-ROsLbSPuxK3isHojBY-GZpqfGR0l33JmexKnUojpUwJkO_ZtToK5c1tYMgELIV4C","id":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(jsondata))
 
@@ -188,7 +189,7 @@ func TestDataInfo(t *testing.T) {
 	assert.Nil(di.Payload)
 
 	cbordata, err = di.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	di2 = &DataInfo{}
 	assert.NoError(di2.Unmarshal(cbordata))
 	assert.NoError(di2.SyntacticVerify())
@@ -297,7 +298,7 @@ func TestDataInfoPatch(t *testing.T) {
 
 	nd := []byte(`"test"`)
 	data, err := di.Patch(nd)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(od, []byte(di.Payload))
 	assert.Equal(nd, data)
 
@@ -326,7 +327,7 @@ func TestDataInfoPatch(t *testing.T) {
 		{Op: "replace", Path: "/a", Value: util.MustMarshalCBOR(uint(18))},
 	}
 	data, err = di.Patch(util.MustMarshalCBOR(cborops))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(od, []byte(di.Payload))
 
 	v2 := &person{}
@@ -352,7 +353,7 @@ func TestDataInfoPatch(t *testing.T) {
 		{Op: "replace", Path: "/age", Value: MustMarshalJSON(uint(18))},
 	}
 	data, err = di.Patch(MustMarshalJSON(jsonops))
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(od, []byte(di.Payload))
 
 	v2 = &person{}

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
 	"go.uber.org/zap"
@@ -35,34 +34,27 @@ const (
 type BlockBuilder struct {
 	mu              sync.RWMutex
 	nodeID          util.Address
-	txPool          txPoolForBuilder
 	lastBuildHeight uint64
 	status          builderStatus
+	txPool          *TxPool
 	toEngine        chan<- common.Message
 }
 
-type txPoolForBuilder interface {
-	Len() int
-	AddLocal(...*ld.Transaction)
-	PopTxsBySize(int) ld.Txs
-	Reject(*ld.Transaction)
-	Clear()
-}
-
-func NewBlockBuilder(nodeID ids.NodeID, txPool txPoolForBuilder, toEngine chan<- common.Message) *BlockBuilder {
+func NewBlockBuilder(txPool *TxPool, toEngine chan<- common.Message) *BlockBuilder {
 	return &BlockBuilder{
-		nodeID:   util.Address(nodeID),
+		nodeID:   util.Address(txPool.nodeID),
 		txPool:   txPool,
 		toEngine: toEngine,
 	}
 }
 
 // HandlePreferenceBlock should be called immediately after [VM.SetPreference].
-func (b *BlockBuilder) HandlePreferenceBlock() {
+func (b *BlockBuilder) HandlePreferenceBlock(height uint64) {
+	size := b.txPool.SizeToBuild(height + 1)
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	if b.txPool.Len() > 0 {
+	if size > 0 {
 		b.markBuilding()
 	} else {
 		b.status = dontBuild
@@ -94,7 +86,6 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 	defer b.mu.Unlock()
 
 	blk, err := b.build(ctx)
-	go b.txPool.Clear()
 
 	if err != nil {
 		b.status = dontBuild
@@ -119,9 +110,15 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	if ts < pts {
 		ts = pts
 	}
-	if ts == pts && b.txPool.Len() < minTxsWhenBuild {
+
+	txs, err := b.txPool.FetchToBuild(parentHeight + 1)
+	if err != nil {
+		return nil, err
+	}
+
+	if size := txs.Size(); size == 0 || (ts == pts && size < minTxsWhenBuild) {
 		time.AfterFunc(waitForMoreTxs, b.SignalTxsReady)
-		return nil, fmt.Errorf("wait txs to build")
+		return nil, fmt.Errorf("wait txs to build, expected >= %d, got %d", minTxsWhenBuild, size)
 	}
 
 	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
@@ -131,7 +128,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		Timestamp:     ts,
 		GasPrice:      preferred.NextGasPrice(),
 		GasRebateRate: feeCfg.GasRebateRate,
-		Txs:           make([]*ld.Transaction, 0, 16),
+		Txs:           util.NewIDList[util.Hash](txs.Size()),
 	}
 
 	nblk := NewBlock(blk, preferred.Context())
@@ -141,50 +138,48 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		return nil, err
 	}
 
-	// 1. BuildMiner
-	nblk.BuildMiner(vbs)
+	// 1. SetBuilder
+	nblk.SetBuilder(vbs)
 
 	// 2. TryBuildTxs
 	var status choices.Status
-	txs := b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize))
-	for len(txs) > 0 {
-		for i := range txs {
-			nvbs, err := vbs.DeriveState()
-			if err != nil {
-				return nil, err
-			}
-
-			tx := txs[i]
-			switch {
-			case tx.IsBatched():
-				status = nblk.BuildTxs(nvbs, tx.Txs()...)
-			case tx.Tx.Type == ld.TypeTest:
-				tx.Err = fmt.Errorf("TextTx should be in a batch txs")
-				status = choices.Rejected
-			default:
-				status = nblk.BuildTxs(nvbs, tx)
-			}
-
-			switch status {
-			case choices.Unknown:
-				b.txPool.AddLocal(tx)
-			case choices.Rejected:
-				b.txPool.Reject(tx)
-			default:
-				vbs = nvbs
-				nblk.originTxs = append(nblk.originTxs, tx)
-			}
+	tbs := &TxsBuildStatus{}
+	processingTxs := make(ld.Txs, 0, txs.Size())
+	for i := range txs {
+		nvbs, err := vbs.DeriveState()
+		if err != nil {
+			return nil, err
 		}
 
-		txs = b.txPool.PopTxsBySize(int(feeCfg.MaxBlockTxsSize) - nblk.TxsSize())
+		tx := txs[i]
+		switch {
+		case tx.IsBatched():
+			status = nblk.BuildTxs(nvbs, tx.Txs()...)
+		case tx.Tx.Type == ld.TypeTest:
+			status = choices.Rejected
+		default:
+			status = nblk.BuildTxs(nvbs, tx)
+		}
+
+		switch status {
+		case choices.Unknown:
+			tbs.Unknown = append(tbs.Unknown, tx.IDs()...)
+		case choices.Rejected:
+			tbs.Rejected = append(tbs.Rejected, tx.IDs()...)
+		default:
+			tbs.Processing = append(tbs.Processing, tx.IDs()...)
+			processingTxs = append(processingTxs, tx.Txs()...)
+			vbs = nvbs
+		}
 	}
 
+	go b.txPool.UpdateBuildStatus(blk.Height, tbs)
 	if len(blk.Txs) == 0 {
 		return nil, fmt.Errorf("no txs to build")
 	}
 
-	// 3. BuildMinerFee
-	if err := nblk.BuildMinerFee(vbs); err != nil {
+	// 3. SetBuilderFee
+	if err := nblk.SetBuilderFee(vbs); err != nil {
 		return nil, err
 	}
 
@@ -194,10 +189,11 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 	}
 
 	b.lastBuildHeight = blk.Height
-
+	b.txPool.SetCache(blk.Height, processingTxs)
 	logging.Log.Info("BlockBuilder.Build",
+		zap.Stringer("parent", blk.Parent),
 		zap.Stringer("id", blk.ID),
 		zap.Uint64("height", blk.Height),
-		zap.Stringer("parent", blk.Parent))
+		zap.Int("txs", len(blk.Txs)))
 	return nblk, nil
 }

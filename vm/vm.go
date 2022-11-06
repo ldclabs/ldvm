@@ -29,6 +29,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/httprpc"
 )
 
 const (
@@ -58,6 +59,7 @@ type VM struct {
 	// State of this VM
 	bc      chain.BlockChain
 	network *PushNetwork
+	name    string
 }
 
 // Initialize implements the common.VM Initialize interface
@@ -97,6 +99,7 @@ func (v *VM) Initialize(
 	v.dbManager = dbManager
 	v.appSender = appSender
 	v.toEngine = toEngine
+	v.name = fmt.Sprintf("%s@%s", Name, Version)
 	v.NewPushNetwork()
 
 	errp := util.ErrPrefix("LDVM.Initialize error: ")
@@ -106,7 +109,7 @@ func (v *VM) Initialize(
 		return errp.Errorf("failed to get config, %v", err)
 	}
 
-	cfg.Logger.MsgPrefix = fmt.Sprintf("%s@%s", Name, Version)
+	cfg.Logger.MsgPrefix = v.name
 	logFactory := avalogging.NewFactory(cfg.Logger)
 	v.Log, err = logFactory.Make("ldvm-" + ctx.NodeID.String())
 	if err != nil {
@@ -144,11 +147,21 @@ func (v *VM) initialize(
 		return fmt.Errorf("parse genesis data error, %v", err)
 	}
 
+	tr, err := httprpc.NewRoundTripper(&httprpc.TransportOptions{
+		MaxIdleConnsPerHost:   10,
+		DialTimeout:           time.Second,
+		ResponseHeaderTimeout: time.Second,
+		PingTimeout:           time.Second,
+	})
+	if err != nil {
+		return err
+	}
+
 	// update the ChainID
 	ld.SetChainID(gs.Chain.ChainID)
 
 	chaindb := v.dbManager.Current().Database
-	v.bc = chain.NewChain(v.ctx, cfg, gs, chaindb, toEngine, v.network.GossipTx)
+	v.bc = chain.NewChain(v.name, v.ctx, cfg, gs, chaindb, toEngine, tr)
 	if err = v.bc.Bootstrap(); err != nil {
 		return err
 	}
@@ -210,27 +223,10 @@ func (v *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
 // the chain. Each handler has the path:
 // [Address of node]/ext/bc/[chain ID]/[extension]
 func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
-	server := rpc.NewServer()
-	server.RegisterCodec(json.NewCodec(), "application/json")
-	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
-	if err := server.RegisterService(api.NewBlockChainAPI(v.bc), Name); err != nil {
-		v.Log.Error("LDVM.CreateHandlers error", zap.Error(err))
-		return nil, err
-	}
-
-	ethAPI := api.NewEthAPI(v.bc, Version.String())
-	cborAPI := api.NewAPI(v.bc, Version.String())
+	cborAPI := api.NewAPI(v.bc, v.name)
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
-			LockOptions: common.WriteLock,
-			Handler:     server,
-		},
-		"/eth": {
-			LockOptions: common.WriteLock,
-			Handler:     ethAPI,
-		},
-		"/cborrpc": {
 			LockOptions: common.WriteLock,
 			Handler:     cborAPI,
 		},

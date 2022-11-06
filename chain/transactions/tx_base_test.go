@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTxBase(t *testing.T) {
@@ -21,7 +22,7 @@ func TestTxBase(t *testing.T) {
 	var tx *TxBase
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 	_, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	ctx := NewMockChainContext()
 	cs := ctx.MockChainState()
@@ -156,7 +157,7 @@ func TestTxBase(t *testing.T) {
 	assert.Equal(uint64(2), senderAcc.Nonce())
 
 	jsondata, err := tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000},"sigs":["IX83ghjdiu09Zg4-ZjXIMAlZItoyOJ9ZxTSeAX63gV549EM4gtDf_fMeefUWzH4pT6YKYchkhL6a9pYdVRZCegGBPL0O","cMkLTe6LJELYl0pWi8BkDIWPyqEA1IiNr1guM75VEGIuXeASgcwrx8SpJpyvlZ28oD9_zmgDLdAxIdN1chwvuwBGm81i"],"id":"Y_SVR0ZOS38KfuTP6Eqrhe_JvXNusA4tTlyjwWNqIFGcaSHX"}`, string(jsondata))
 
@@ -198,7 +199,7 @@ func TestTxBase(t *testing.T) {
 	assert.Equal(uint64(3), tx.from.Nonce())
 
 	jsondata, err = tx.MarshalJSON()
-	assert.NoError(err)
+	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":2,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","token":"$LDC","amount":1000},"sigs":["uGG3X1KnhErX6M4bba6hRK5p8LQv3JypqXNQ1ypaUNN2-JSGCOkV9zQ4YLdSIJqOcfLe--EnUT5pKLNincmqIgBsXXMx"],"id":"i4GN43OdfBiEOseH1fP8u0sg7LoUQ4TF2yLgIteaOKxhHz1v"}`, string(jsondata))
 

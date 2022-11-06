@@ -12,6 +12,7 @@ import (
 	"github.com/ldclabs/ldvm/util"
 	"github.com/ldclabs/ldvm/util/signer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStakeConfig(t *testing.T) {
@@ -43,9 +44,9 @@ func TestStakeConfig(t *testing.T) {
 	}
 	assert.NoError(cfg.SyntacticVerify())
 	cbordata, err := cfg.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(cfg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(`{"token":"","type":0,"lockTime":0,"withdrawFee":1,"minAmount":100,"maxAmount":100}`,
 		string(jsondata))
@@ -55,9 +56,9 @@ func TestStakeConfig(t *testing.T) {
 	assert.NoError(cfg2.SyntacticVerify())
 
 	cbordata2, err := cfg2.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata2, err := json.Marshal(cfg2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
 }
@@ -97,9 +98,9 @@ func TestLendingConfig(t *testing.T) {
 	}
 	assert.NoError(cfg.SyntacticVerify())
 	cbordata, err := cfg.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(cfg)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	assert.Equal(`{"token":"$LDC","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100}`,
 		string(jsondata))
@@ -109,9 +110,9 @@ func TestLendingConfig(t *testing.T) {
 	assert.NoError(cfg2.SyntacticVerify())
 
 	cbordata2, err := cfg2.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata2, err := json.Marshal(cfg2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
 }
@@ -321,9 +322,9 @@ func TestAccount(t *testing.T) {
 	}
 	assert.NoError(acc.SyntacticVerify())
 	cbordata, err := acc.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata, err := json.Marshal(acc)
-	assert.NoError(err)
+	require.NoError(t, err)
 
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"type":"Stake","nonce":0,"balance":0,"threshold":0,"keepers":[],"tokens":{},"nonceTable":{},"stake":{"token":"","type":0,"lockTime":0,"withdrawFee":1,"minAmount":100,"maxAmount":100},"lending":{"token":"","dailyInterest":10,"overdueInterest":1,"minAmount":100,"maxAmount":100},"height":0,"timestamp":0,"address":"0x0000000000000000000000000000000000000000"}`, string(jsondata))
@@ -333,9 +334,9 @@ func TestAccount(t *testing.T) {
 	assert.NoError(acc2.SyntacticVerify())
 
 	cbordata2, err := acc2.Marshal()
-	assert.NoError(err)
+	require.NoError(t, err)
 	jsondata2, err := json.Marshal(acc2)
-	assert.NoError(err)
+	require.NoError(t, err)
 	assert.Equal(string(jsondata), string(jsondata2))
 	assert.Equal(cbordata, cbordata2)
 }
