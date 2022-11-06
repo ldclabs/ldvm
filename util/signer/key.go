@@ -20,14 +20,21 @@ func (k Key) Kind() Kind {
 		return Secp256k1
 	case 32:
 		return Ed25519
+	case 48:
+		return BLS12381
 	default:
 		return Unknown
 	}
 }
 
 var (
-	empty20 = string(util.AddressEmpty[:])
-	empty32 = string(util.HashEmpty[:])
+	empty20b [20]byte
+	empty32b [32]byte
+	empty48b [48]byte
+
+	empty20 = string(empty20b[:])
+	empty32 = string(empty32b[:])
+	empty48 = string(empty48b[:])
 )
 
 func (k Key) Valid() error {
@@ -39,12 +46,17 @@ func (k Key) Valid() error {
 	switch k.Kind() {
 	case Secp256k1:
 		if s == empty20 {
-			return errors.New("signer.Key.Valid: empty secp256k1 key")
+			return errors.New("signer.Key.Valid: empty Secp256k1 key")
 		}
 
 	case Ed25519:
 		if s == empty32 {
-			return errors.New("signer.Key.Valid: empty ed25519 key")
+			return errors.New("signer.Key.Valid: empty Ed25519 key")
+		}
+
+	case BLS12381:
+		if s == empty48 {
+			return errors.New("signer.Key.Valid: empty BLS12-381 key")
 		}
 
 	default:
@@ -71,7 +83,7 @@ func (k Key) IsAddress(addr util.Address) bool {
 	switch len(k) {
 	case 20:
 		return string(addr[:]) == string(k)
-	case 32:
+	case 32, 48:
 		return string(addr[:]) == string(util.Sum256(k)[:20])
 	}
 
@@ -84,7 +96,7 @@ func (k Key) Address() util.Address {
 	switch len(k) {
 	case 20:
 		copy(addr[:], k)
-	case 32:
+	case 32, 48:
 		copy(addr[:], util.Sum256(k)[:20])
 	}
 
@@ -242,7 +254,7 @@ func (ks Keys) FindKeyOrAddr(addr util.Address) Key {
 			if s == string(k) {
 				return k
 			}
-		case 32:
+		case 32, 48:
 			if s == string(util.Sum256(k)[:20]) {
 				return k
 			}

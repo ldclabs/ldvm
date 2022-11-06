@@ -224,6 +224,71 @@ func TestEd25519Key(t *testing.T) {
 	assert.True(key.Verify(msg, Sigs{sig3, sig2, sig}))
 }
 
+func TestBLS12381Key(t *testing.T) {
+	assert := assert.New(t)
+
+	key := Signer4.Key()
+	key2 := Key{}
+	data := key.Bytes()
+	keyStr := "hJEADz4AlkZ_NSt41-9x5eTaahzNzgMzd0wOBF-B2kJGSpWTCQutstgl0tXrZKQVIsBdNQ"
+
+	assert.NotNil(key)
+	assert.True(key != nil)
+	assert.Equal(BLS12381, key.Kind())
+	assert.NoError(key.Valid())
+
+	assert.True(key.IsAddress(Signer4.Key().Address()))
+	assert.False(key.IsAddress(Signer2.Key().Address()))
+	assert.False(key.IsAddress(Signer3.Key().Address()))
+	assert.Equal(Signer4.Key().Address(), key.Address())
+	assert.Equal(data, key.Bytes())
+	assert.Equal(keyStr, key.String())
+	assert.Equal(keyStr, key.GoString())
+	assert.Equal("0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48", key.Address().String())
+	assert.Equal("0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48", key.Address().GoString())
+	assert.True(key.Equal(key))
+	assert.False(key.Equal(key2))
+
+	b, err := key.MarshalText()
+	require.NoError(t, err)
+	assert.Equal(keyStr, string(b))
+	assert.NoError(key2.UnmarshalText(b))
+	assert.Equal(data, key2.Bytes())
+
+	b, err = key.MarshalJSON()
+	require.NoError(t, err)
+	assert.Equal(strconv.Quote(keyStr), string(b))
+	key2 = Key{}
+	assert.NoError(key2.UnmarshalJSON(b))
+	assert.Equal(data, key2.Bytes())
+
+	b, err = key.MarshalCBOR()
+	require.NoError(t, err)
+	assert.Equal(util.MustMarshalCBOR(data), b)
+	key2 = Key{}
+	assert.NoError(key2.UnmarshalCBOR(b))
+	assert.Equal(data, key2.Bytes())
+	assert.Equal(data, key2.Clone().Bytes())
+
+	msg := util.Sum256([]byte("hello"))
+	sig, err := Signer4.SignHash(msg)
+	require.NoError(t, err)
+	assert.True(key.Verify(msg, Sigs{sig}))
+	assert.True(key2.Verify(msg, Sigs{sig}))
+
+	sig2, err := Signer2.SignHash(msg)
+	require.NoError(t, err)
+	assert.False(key.Verify(msg, Sigs{sig2}))
+	assert.False(key2.Verify(msg, Sigs{sig2}))
+	assert.True(key.Verify(msg, Sigs{sig2, sig}))
+
+	sig3, err := Signer3.SignHash(msg)
+	require.NoError(t, err)
+	assert.False(key.Verify(msg, Sigs{sig3}))
+	assert.False(key2.Verify(msg, Sigs{sig3}))
+	assert.True(key.Verify(msg, Sigs{sig3, sig2, sig}))
+}
+
 func TestKeys(t *testing.T) {
 	assert := assert.New(t)
 

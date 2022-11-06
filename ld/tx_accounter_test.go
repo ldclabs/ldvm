@@ -30,7 +30,7 @@ func TestTxAccounter(t *testing.T) {
 	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
 	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
-	assert.ErrorContains(tx.SyntacticVerify(), "empty secp256k1 key")
+	assert.ErrorContains(tx.SyntacticVerify(), "empty Secp256k1 key")
 
 	tx = &TxAccounter{ApproveList: &TxTypes{TxType(255)}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid TxType TypeUnknown(255) in approveList")

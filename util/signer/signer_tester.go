@@ -32,6 +32,8 @@ func init() {
 	if Signer1.Key().Address().String() != address1 {
 		panic("invalid Signer1")
 	}
+	// fmt.Println(Signer1.Key().Address().String())
+	// 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc
 	// fmt.Println(Signer1.Key().String())
 	// jbl8fOziScK5i9wCJsxMKle_UvwKxwPH
 
@@ -45,6 +47,8 @@ func init() {
 	if Signer2.Key().Address().String() != address2 {
 		panic("invalid Signer2")
 	}
+	// fmt.Println(Signer2.Key().Address().String())
+	// 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641
 	// fmt.Println(Signer2.Key().String())
 	// RBccN_9de3u43K1cgfFihKIp5kE1lmGG
 
@@ -55,18 +59,22 @@ func init() {
 	}
 
 	Signer3 = &SignerTester{Signer: eSigner}
+	// fmt.Println(Signer3.Key().Address().String())
+	// 0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d
 	// fmt.Println(Signer3.Key().String())
 	// OVlX-75gy0DuaRuz2k5QnlFVSuKOJezRd4CQdkIjkn5pYt0F
 
 	seed = util.Sum256(Signer2.Key().Bytes())
-	eSigner, err = Ed25519From(seed)
+	eSigner, err = BLS12381From(seed)
 	if err != nil {
 		panic(err)
 	}
 
 	Signer4 = &SignerTester{Signer: eSigner}
+	// fmt.Println(Signer4.Key().Address().String())
+	// 0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48
 	// fmt.Println(Signer4.Key().String())
-	// vlU2vQ63fTjirRWtJJvVcncVnyBaFovseXYCgCQkS-avAHc4
+	// hJEADz4AlkZ_NSt41-9x5eTaahzNzgMzd0wOBF-B2kJGSpWTCQutstgl0tXrZKQVIsBdNQ
 }
 
 func MustDecodeHex(str string) []byte {

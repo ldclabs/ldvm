@@ -8,7 +8,9 @@ import (
 	"crypto/ed25519"
 	"errors"
 
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ethereum/go-ethereum/crypto"
+
 	"github.com/ldclabs/ldvm/util"
 )
 
@@ -22,6 +24,8 @@ func (s Sig) Kind() Kind {
 		return Ed25519
 	case 65:
 		return Secp256k1
+	case 96:
+		return BLS12381
 	default:
 		return Unknown
 	}
@@ -163,9 +167,9 @@ func (s Sig) FindKey(digestHash []byte, keys ...Key) int {
 		sigcpy := make([]byte, crypto.SignatureLength)
 		copy(sigcpy, s)
 		if sigcpy[64] >= 27 {
-			sigcpy[64] = sigcpy[64] - 27
+			sigcpy[64] -= 27
 		}
-		pk, err := crypto.SigToPub(digestHash, s)
+		pk, err := crypto.SigToPub(digestHash, sigcpy)
 		if err != nil {
 			return -1
 		}
@@ -173,6 +177,22 @@ func (s Sig) FindKey(digestHash []byte, keys ...Key) int {
 		id := crypto.PubkeyToAddress(*pk)
 		for i, k := range keys {
 			if k.Kind() == Secp256k1 && bytes.Equal(id[:], k.Bytes()) {
+				return i
+			}
+		}
+
+	case BLS12381:
+		sig, err := bls.SignatureFromBytes(s)
+		if err != nil {
+			return -1
+		}
+
+		for i, k := range keys {
+			if k.Kind() != BLS12381 {
+				continue
+			}
+
+			if pk, err := bls.PublicKeyFromBytes(k); err == nil && bls.Verify(pk, sig, digestHash) {
 				return i
 			}
 		}

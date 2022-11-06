@@ -41,7 +41,7 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid threshold, expected <= 0, got 1")
 	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
-	assert.ErrorContains(tx.SyntacticVerify(), "empty secp256k1 key")
+	assert.ErrorContains(tx.SyntacticVerify(), "empty Secp256k1 key")
 
 	tx = &TxUpdater{ApproveList: &TxTypes{TypeCreateData}}
 	assert.ErrorContains(tx.SyntacticVerify(),
