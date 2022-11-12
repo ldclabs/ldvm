@@ -59,8 +59,7 @@ func TestEmptySig(t *testing.T) {
 	sig := Sig{}
 	var sig2 Sig
 
-	assert.NotNil(sig)
-	assert.True(sig != nil)
+	require.NotNil(t, sig)
 	assert.Equal(Unknown, sig.Kind())
 	assert.ErrorContains(sig.Valid(), "unknown sig p__G-A")
 	assert.ErrorContains((&sig).Valid(), "unknown sig p__G-A")
@@ -107,8 +106,7 @@ func TestSecp256k1Sig(t *testing.T) {
 	data := sig.Bytes()
 	sigStr := "CFK1lA5EyeTrgWgkYJbmdfIaJWaUfMScTh3BWAupPZsjqgspDQ75bqwNLTzswotIvPGE2mbJj8wh71W5cV8aEgBKfqjO"
 
-	assert.NotNil(sig)
-	assert.True(sig != nil)
+	require.NotNil(t, sig)
 	assert.Equal(Secp256k1, sig.Kind())
 
 	assert.Equal(data, sig.Bytes())
@@ -155,8 +153,7 @@ func TestEd25519Sig(t *testing.T) {
 	data := sig.Bytes()
 	sigStr := "6Uik1OFvj2ULuT0KTBwF3u62Fw-i0xS0-ftzWwUlO7ylS35taKgmv5psNeiUiTN93BqPrwz2X_HszbZJ6hxwBBd-tWI"
 
-	assert.NotNil(sig)
-	assert.True(sig != nil)
+	require.NotNil(t, sig)
 	assert.Equal(Ed25519, sig.Kind())
 
 	assert.Equal(data, sig.Bytes())
@@ -203,8 +200,7 @@ func TestBLS12381Sig(t *testing.T) {
 	data := sig.Bytes()
 	sigStr := "kUu8w4TvwF5jgsccH72NmbBcYlE0gTQB4dBuDhwJwThjN_GI5loddLnTptMGKtaIGFLGiiUlQCiwDoQw1Hb1lcP8HEEvREQfkuyPuIc7BCBdvBQsFbBdIiFC9_ABP2mOZtaGyg"
 
-	assert.NotNil(sig)
-	assert.True(sig != nil)
+	require.NotNil(t, sig)
 	assert.Equal(BLS12381, sig.Kind())
 
 	assert.Equal(data, sig.Bytes())

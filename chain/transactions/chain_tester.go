@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/signer"
 )
 
 type MockChainContext struct {
@@ -59,10 +61,10 @@ func (m *MockChainContext) Builder() util.StakeSymbol {
 }
 
 func (m *MockChainContext) MockChainState() *MockChainState {
-	return &MockChainState{
+	cs := &MockChainState{
 		ctx: m,
 		Fee: m.cfg.FeeConfig,
-		AC:  make(AccountCache),
+		AC:  make(acct.ActiveAccounts),
 		NC:  make(map[string]util.DataID),
 		MC:  make(map[util.ModelID][]byte),
 		DC:  make(map[util.DataID][]byte),
@@ -70,12 +72,36 @@ func (m *MockChainContext) MockChainState() *MockChainState {
 		ac:  make(map[util.Address][]byte),
 		al:  make(map[util.Address][]byte),
 	}
+	builder := cs.MustAccount(util.Address(m.BuilderID))
+	if err := cs.LoadLedger(builder); err != nil {
+		panic(err)
+	}
+	builder.LD().Balance.Set(m.cfg.FeeConfig.MinStakePledge)
+
+	if err := builder.CreateStake(
+		signer.Signer1.Key().Address(),
+		m.cfg.FeeConfig.MinStakePledge,
+		&ld.TxAccounter{
+			Threshold: ld.Uint16Ptr(1),
+			Keepers:   &signer.Keys{signer.Signer1.Key()},
+		},
+		&ld.StakeConfig{
+			LockTime:    0,
+			WithdrawFee: 1,
+			MinAmount:   new(big.Int).SetUint64(constants.LDC),
+			MaxAmount:   new(big.Int).SetUint64(constants.LDC * 1000),
+		},
+	); err != nil {
+		panic(err)
+	}
+	builder.Init(big.NewInt(0), m.cfg.FeeConfig.MinStakePledge, cs.Height(), cs.Timestamp())
+	return cs
 }
 
 type MockChainState struct {
 	ctx *MockChainContext
 	Fee *genesis.FeeConfig
-	AC  AccountCache
+	AC  acct.ActiveAccounts
 	NC  map[string]util.DataID
 	MC  map[util.ModelID][]byte
 	DC  map[util.DataID][]byte
@@ -92,32 +118,34 @@ func (m *MockChainState) Timestamp() uint64 {
 	return m.ctx.timestamp
 }
 
-func (m *MockChainState) LoadAccount(id util.Address) (*Account, error) {
+func (m *MockChainState) LoadAccount(id util.Address) (*acct.Account, error) {
 	acc := m.AC[id]
 	if acc == nil {
-		acc = NewAccount(id)
+		acc = acct.NewAccount(id)
 
-		pledge := new(big.Int)
 		switch {
-		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
-			pledge.Set(m.Fee.MinTokenPledge)
+		case id == constants.LDCAccount || id == constants.GenesisAccount:
+			acc.Init(big.NewInt(0), big.NewInt(0), m.ctx.height, m.ctx.timestamp)
+		case acc.Type() == ld.TokenAccount:
+			acc.Init(big.NewInt(0), m.Fee.MinTokenPledge, m.ctx.height, m.ctx.timestamp)
 		case acc.Type() == ld.StakeAccount:
-			pledge.Set(m.Fee.MinStakePledge)
+			acc.Init(big.NewInt(0), m.Fee.MinStakePledge, m.ctx.height, m.ctx.timestamp)
+		default:
+			acc.Init(m.Fee.NonTransferableBalance, big.NewInt(0), m.ctx.height, m.ctx.timestamp)
 		}
-		acc.Init(pledge, m.ctx.height, m.ctx.timestamp)
+
 		m.AC[id] = acc
 	}
 	return m.AC[id], nil
 }
 
-func (m *MockChainState) LoadLedger(acc *Account) error {
-	if acc.Ledger() == nil {
-		return acc.InitLedger(m.al[acc.ID()])
-	}
-	return nil
+func (m *MockChainState) LoadLedger(acc *acct.Account) error {
+	return acc.LoadLedger(false, func() ([]byte, error) {
+		return m.al[acc.ID()], nil
+	})
 }
 
-func (m *MockChainState) MustAccount(id util.Address) *Account {
+func (m *MockChainState) MustAccount(id util.Address) *acct.Account {
 	acc, err := m.LoadAccount(id)
 	if err != nil {
 		panic(err)
@@ -140,25 +168,27 @@ func (m *MockChainState) CommitAccounts() {
 
 func (m *MockChainState) CheckoutAccounts() {
 	for id, data := range m.ac {
-		ac, err := ParseAccount(id, data)
-		if err != nil {
-			panic(err)
-		}
 		if acc, ok := m.AC[id]; ok {
-			acc.ld = ac.ld
-			pledge := new(big.Int)
-			switch {
-			case acc.pledge.Sign() > 0:
-				pledge.Set(acc.pledge)
-			case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
-				pledge.Set(m.Fee.MinTokenPledge)
-			case acc.Type() == ld.StakeAccount:
-				pledge.Set(m.Fee.MinStakePledge)
+			ac, err := acct.ParseAccount(id, data)
+			if err != nil {
+				panic(err)
 			}
-			acc.Init(pledge, m.ctx.height, m.ctx.timestamp)
+			*acc.LD() = (*ac.LD())
+			switch {
+			case id == constants.LDCAccount || id == constants.GenesisAccount:
+				acc.Init(big.NewInt(0), big.NewInt(0), m.ctx.height, m.ctx.timestamp)
+			case acc.Type() == ld.TokenAccount:
+				acc.Init(big.NewInt(0), m.Fee.MinTokenPledge, m.ctx.height, m.ctx.timestamp)
+			case acc.Type() == ld.StakeAccount:
+				acc.Init(big.NewInt(0), m.Fee.MinStakePledge, m.ctx.height, m.ctx.timestamp)
+			default:
+				acc.Init(m.Fee.NonTransferableBalance, big.NewInt(0), m.ctx.height, m.ctx.timestamp)
+			}
 
-			if al, ok := m.al[id]; ok {
-				if err = acc.InitLedger(al); err != nil {
+			if _, ok := m.al[id]; ok {
+				if err = acc.LoadLedger(true, func() ([]byte, error) {
+					return m.al[acc.ID()], nil
+				}); err != nil {
 					panic(err)
 				}
 			}
@@ -166,12 +196,14 @@ func (m *MockChainState) CheckoutAccounts() {
 	}
 }
 
-func (m *MockChainState) LoadBuilder(id util.StakeSymbol) (*Account, error) {
-	miner := constants.GenesisAccount
+func (m *MockChainState) LoadBuilder(id util.StakeSymbol) (*acct.Account, error) {
 	if id != util.StakeEmpty && id.Valid() {
-		miner = util.Address(id)
+		acc, err := m.LoadAccount(util.Address(id))
+		if err == nil || acc.ValidValidator() {
+			return acc, nil
+		}
 	}
-	return m.LoadAccount(miner)
+	return m.LoadAccount(constants.GenesisAccount)
 }
 
 func (m *MockChainState) LoadDataByName(name string) (*ld.DataInfo, error) {
@@ -302,12 +334,12 @@ func (m *MockChainState) VerifyState() error {
 		if err != nil {
 			return err
 		}
-		acc, err := ParseAccount(k, data)
+		acc, err := acct.ParseAccount(k, data)
 		if err != nil {
 			return err
 		}
 		if len(ledger) > 0 {
-			if err = acc.InitLedger(ledger); err != nil {
+			if err = acc.LoadLedger(false, func() ([]byte, error) { return ledger, nil }); err != nil {
 				return err
 			}
 		}
@@ -317,7 +349,7 @@ func (m *MockChainState) VerifyState() error {
 		}
 
 		if !bytes.Equal(data, data2) || !bytes.Equal(ledger, ledger2) {
-			return fmt.Errorf("Account %s is invalid", k)
+			return fmt.Errorf("account %s is invalid", k)
 		}
 	}
 	return nil

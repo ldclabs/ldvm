@@ -53,7 +53,7 @@ func TestTxUpgradeData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -344,7 +344,7 @@ func TestTxUpgradeData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -449,7 +449,7 @@ func TestTxUpgradeData(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
-	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t not found")
@@ -569,7 +569,7 @@ func TestTxUpgradeData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.NanoLDC),
 		Data:      input.Bytes(),
 	}}
@@ -692,6 +692,8 @@ func TestTxUpgradeData(t *testing.T) {
 		itx.(*TxUpgradeData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100)-constants.MilliLDC,
 		ownerAcc.Balance().Uint64())
+	assert.Equal(constants.LDC*2-ownerGas*(ctx.Price+100)-constants.MilliLDC,
+		ownerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
@@ -748,7 +750,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			Threshold: ld.Uint16Ptr(1),
 			Keepers:   &signer.Keys{signer.Signer1.Key()},
 			Data:      name.Bytes(),
-			To:        &recipient,
+			To:        recipient.Ptr(),
 			Expire:    100,
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		}
@@ -760,7 +762,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			GasTip:    100,
 			GasFeeCap: ctx.Price,
 			From:      sender,
-			To:        &recipient,
+			To:        recipient.Ptr(),
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}
@@ -769,7 +771,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		assert.NoError(ltx.SyntacticVerify())
 
 		senderAcc := cs.MustAccount(sender)
-		assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+		assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 		assert.NoError(cs.SaveModel(mi))
 
 		ltx.Timestamp = 10
@@ -789,7 +791,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		}
 		input = &ld.TxUpdater{ID: &di.ID, ModelID: &modelID, Version: 1,
 			Data:   util.MustMarshalCBOR(patchDoc),
-			To:     &recipient,
+			To:     recipient.Ptr(),
 			Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		}
 
@@ -800,7 +802,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			GasTip:    100,
 			GasFeeCap: ctx.Price,
 			From:      sender,
-			To:        &recipient,
+			To:        recipient.Ptr(),
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}
@@ -889,7 +891,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		}
 		input = &ld.TxUpdater{ID: &di.ID, ModelID: &mi.ID, Version: 1,
 			Data:   util.MustMarshalCBOR(patchDoc),
-			To:     &recipient,
+			To:     recipient.Ptr(),
 			Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		}
 
@@ -900,7 +902,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 			GasTip:    100,
 			GasFeeCap: ctx.Price,
 			From:      sender,
-			To:        &recipient,
+			To:        recipient.Ptr(),
 			Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 			Data:      input.Bytes(),
 		}}

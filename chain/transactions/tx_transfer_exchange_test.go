@@ -28,7 +28,7 @@ func TestTxExchange(t *testing.T) {
 	cs := ctx.MockChainState()
 
 	from := cs.MustAccount(signer.Signer1.Key().Address())
-	from.ld.Nonce = 1
+	from.LD().Nonce = 1
 	to := cs.MustAccount(signer.Signer2.Key().Address())
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -37,7 +37,7 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 
 	assert.NoError(ltx.SyntacticVerify())
@@ -55,8 +55,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 	}}
 
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -70,8 +70,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
 
@@ -86,8 +86,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("abc"),
 	}}
@@ -103,8 +103,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("abc"),
 	}}
@@ -123,7 +123,7 @@ func TestTxExchange(t *testing.T) {
 		Minimum: new(big.Int).SetUint64(constants.LDC),
 		Price:   new(big.Int).SetUint64(1_000_000),
 		Expire:  1,
-		Payee:   to.id,
+		Payee:   to.ID(),
 	}
 
 	assert.NoError(input.SyntacticVerify())
@@ -133,8 +133,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000 - 1),
 		Data:      input.Bytes(),
 	}}
@@ -151,8 +151,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000*1000 + 1),
 		Data:      input.Bytes(),
 	}}
@@ -171,8 +171,8 @@ func TestTxExchange(t *testing.T) {
 		Minimum:   new(big.Int).SetUint64(constants.LDC),
 		Price:     new(big.Int).SetUint64(1_000_000),
 		Expire:    1,
-		Payee:     to.id,
-		Purchaser: &constants.GenesisAccount,
+		Payee:     to.ID(),
+		Purchaser: constants.GenesisAccount.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -181,8 +181,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -202,7 +202,7 @@ func TestTxExchange(t *testing.T) {
 		Minimum: new(big.Int).SetUint64(constants.LDC),
 		Price:   new(big.Int).SetUint64(1_000_000),
 		Expire:  1,
-		Payee:   to.id,
+		Payee:   to.ID(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -211,8 +211,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &constants.GenesisAccount,
+		From:      from.ID(),
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -232,7 +232,7 @@ func TestTxExchange(t *testing.T) {
 		Minimum: new(big.Int).SetUint64(constants.LDC),
 		Price:   new(big.Int).SetUint64(1_000_000),
 		Expire:  1,
-		Payee:   to.id,
+		Payee:   to.ID(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -241,9 +241,9 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -263,7 +263,7 @@ func TestTxExchange(t *testing.T) {
 		Minimum: new(big.Int).SetUint64(constants.LDC),
 		Price:   new(big.Int).SetUint64(1_000_000),
 		Expire:  cs.Timestamp() + 1,
-		Payee:   to.id,
+		Payee:   to.ID(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -272,8 +272,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -294,8 +294,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -311,7 +311,7 @@ func TestTxExchange(t *testing.T) {
 		"insufficient NativeLDC balance, expected 2823800, got 0")
 	cs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid signatures for seller")
 	cs.CheckoutAccounts()
@@ -322,8 +322,8 @@ func TestTxExchange(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(1_000_000),
 		Data:      input.Bytes(),
 	}}
@@ -341,7 +341,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(to.UpdateNonceTable(cs.Timestamp()+1, []uint64{1, 2, 3}))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient $LDC balance, expected 1000000000, got 0")
+		"insufficient transferable $LDC balance, expected 1000000000, got 0")
 	cs.CheckoutAccounts()
 	to.Add(token, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
@@ -350,13 +350,14 @@ func TestTxExchange(t *testing.T) {
 		itx.(*TxExchange).ldc.Balance().Uint64())
 	assert.Equal(ltx.Gas()*100,
 		itx.(*TxExchange).miner.Balance().Uint64())
-	assert.Equal(uint64(1_000_000), to.Balance().Uint64())
-	assert.Equal(uint64(0), to.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC, from.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), to.Balance().Uint64())
+	assert.Equal(uint64(1_000_000), to.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), to.BalanceOf(token).Uint64())
+	assert.Equal(constants.LDC, from.BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100)-1_000_000,
 		from.Balance().Uint64())
 	assert.Equal(uint64(2), from.Nonce())
-	assert.Equal([]uint64{2, 3}, to.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal([]uint64{2, 3}, to.LD().NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ package transactions
 import (
 	"math/big"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
@@ -22,9 +23,9 @@ type ChainContext interface {
 type ChainState interface {
 	Height() uint64
 	Timestamp() uint64
-	LoadAccount(util.Address) (*Account, error)
-	LoadLedger(*Account) error
-	LoadBuilder(util.StakeSymbol) (*Account, error)
+	LoadAccount(util.Address) (*acct.Account, error)
+	LoadLedger(*acct.Account) error
+	LoadBuilder(util.StakeSymbol) (*acct.Account, error)
 	LoadModel(util.ModelID) (*ld.ModelInfo, error)
 	SaveModel(*ld.ModelInfo) error
 	LoadData(util.DataID) (*ld.DataInfo, error)

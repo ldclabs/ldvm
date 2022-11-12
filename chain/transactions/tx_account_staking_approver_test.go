@@ -80,7 +80,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		To:        &stakeid,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -107,7 +107,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      []byte("你好👋"),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -184,11 +184,11 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1002))
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: invalid stake account")
+		"invalid stake account")
 	cs.CheckoutAccounts()
 
 	scfg := &ld.StakeConfig{
@@ -225,21 +225,19 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	senderGas := ltx.Gas()
 	tx2 := itx.(*TxCreateStake)
-	assert.Equal(senderGas*ctx.Price,
-		tx2.ldc.Balance().Uint64())
-	assert.Equal(senderGas*100,
-		tx2.miner.Balance().Uint64())
-	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
-	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
 
-	assert.Nil(stakeAcc.ld.Approver)
-	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
-	assert.Nil(stakeAcc.ld.MaxTotalSupply)
-	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ledger)
-	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()])
+	assert.Equal(senderGas*ctx.Price, tx2.ldc.Balance().Uint64())
+	assert.Equal(senderGas*100, tx2.miner.Balance().Uint64())
+	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
+	assert.Equal(constants.LDC*1000, stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-senderGas*(ctx.Price+100), senderAcc.Balance().Uint64())
+
+	assert.Nil(stakeAcc.LD().Approver)
+	assert.Equal(ld.StakeAccount, stakeAcc.LD().Type)
+	assert.Nil(stakeAcc.LD().MaxTotalSupply)
+	require.NotNil(t, stakeAcc.LD().Stake)
+	require.NotNil(t, stakeAcc.Ledger())
+	assert.Nil(stakeAcc.Ledger().Stake[sender.AsKey()])
 
 	input = &ld.TxAccounter{Approver: &approver}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -259,10 +257,10 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc has no stake ledger to update")
+		"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc has no stake ledger to update")
 	cs.CheckoutAccounts()
 
-	stakeAcc.ledger.Stake[sender.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
+	stakeAcc.Ledger().Stake[sender.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).SetUint64(constants.LDC)}
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -271,12 +269,12 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
-	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*1000, stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
 
-	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
-	assert.Equal(approver, *stakeAcc.ledger.Stake[sender.AsKey()].Approver)
+	require.NotNil(t, stakeAcc.Ledger().Stake[sender.AsKey()])
+	assert.Equal(approver, *stakeAcc.Ledger().Stake[sender.AsKey()].Approver)
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -302,7 +300,7 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).UpdateStakeApprover: 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc need approver signing")
+		"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc need approver signing")
 	cs.CheckoutAccounts()
 
 	assert.NoError(ltx.SignWith(signer.Signer1, signer.Signer2))
@@ -317,12 +315,12 @@ func TestTxUpdateStakeApprover(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
-	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*1000, stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
 
-	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
-	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()].Approver)
+	require.NotNil(t, stakeAcc.Ledger().Stake[sender.AsKey()])
+	assert.Nil(stakeAcc.Ledger().Stake[sender.AsKey()].Approver)
 
 	jsondata, err = itx.MarshalJSON()
 	require.NoError(t, err)

@@ -62,8 +62,7 @@ func TestEmptyKey(t *testing.T) {
 	key := Key{}
 	var key2 Key
 
-	assert.NotNil(key)
-	assert.True(key != nil)
+	require.NotNil(t, key)
 	assert.Equal(Unknown, key.Kind())
 	assert.NoError(key.ValidOrEmpty())
 	assert.ErrorContains(key.Valid(), "empty key")
@@ -109,8 +108,7 @@ func TestSecp256k1Key(t *testing.T) {
 	data := Signer1.Key().Bytes()
 	keyStr := "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"
 
-	assert.NotNil(key)
-	assert.True(key != nil)
+	require.NotNil(t, key)
 	assert.Equal(Secp256k1, key.Kind())
 	assert.NoError(key.Valid())
 
@@ -167,8 +165,7 @@ func TestEd25519Key(t *testing.T) {
 	data := key.Bytes()
 	keyStr := "OVlX-75gy0DuaRuz2k5QnlFVSuKOJezRd4CQdkIjkn5pYt0F"
 
-	assert.NotNil(key)
-	assert.True(key != nil)
+	require.NotNil(t, key)
 	assert.Equal(Ed25519, key.Kind())
 	assert.NoError(key.Valid())
 
@@ -232,8 +229,7 @@ func TestBLS12381Key(t *testing.T) {
 	data := key.Bytes()
 	keyStr := "hJEADz4AlkZ_NSt41-9x5eTaahzNzgMzd0wOBF-B2kJGSpWTCQutstgl0tXrZKQVIsBdNQ"
 
-	assert.NotNil(key)
-	assert.True(key != nil)
+	require.NotNil(t, key)
 	assert.Equal(BLS12381, key.Kind())
 	assert.NoError(key.Valid())
 

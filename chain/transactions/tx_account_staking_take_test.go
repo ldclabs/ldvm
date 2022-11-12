@@ -94,7 +94,7 @@ func TestTxTakeStake(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("你好👋"),
 	}}
@@ -110,7 +110,7 @@ func TestTxTakeStake(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("你好👋"),
 	}}
@@ -177,7 +177,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &constants.GenesisAccount,
+		From:  constants.GenesisAccount.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -199,7 +199,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &sender,
+		From:  sender.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -220,8 +220,8 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &sender,
-		To:    &constants.GenesisAccount,
+		From:  sender.Ptr(),
+		To:    constants.GenesisAccount.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -243,7 +243,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &sender,
+		From:  sender.Ptr(),
 		To:    &stakeid,
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -254,7 +254,7 @@ func TestTxTakeStake(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      sender,
 		To:        &stakeid,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -267,9 +267,9 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &sender,
+		From:  sender.Ptr(),
 		To:    &stakeid,
-		Token: &token,
+		Token: token.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTakeStake,
@@ -291,7 +291,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce: 0,
-		From:  &sender,
+		From:  sender.Ptr(),
 		To:    &stakeid,
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -313,7 +313,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 	}
@@ -336,7 +336,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 	}
@@ -360,7 +360,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 		Expire: cs.Timestamp(),
@@ -387,7 +387,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 		Expire: cs.Timestamp(),
@@ -413,14 +413,14 @@ func TestTxTakeStake(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CheckBalance: insufficient NativeLDC balance, expected 10001776500, got 0")
+		"insufficient NativeLDC balance, expected 10001776500, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*11))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).TakeStake: invalid stake account")
+		"invalid stake account")
 	cs.CheckoutAccounts()
 
 	scfg := &ld.StakeConfig{
@@ -454,6 +454,11 @@ func TestTxTakeStake(t *testing.T) {
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
 		new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC))
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		"insufficient transferable NativeLDC balance, expected 1000000000000, got 999997747200")
+	cs.CheckoutAccounts()
+	keeperAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	keeperGas := ltx.Gas()
@@ -464,25 +469,25 @@ func TestTxTakeStake(t *testing.T) {
 		itx.(*TxCreateStake).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(),
-		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+		stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-keeperGas*(ctx.Price+100),
 		keeperAcc.Balance().Uint64())
 
-	assert.Nil(stakeAcc.ld.Approver)
-	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
-	assert.Nil(stakeAcc.ld.MaxTotalSupply)
-	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ledger)
-	assert.Nil(stakeAcc.ledger.Stake[sender.AsKey()])
-	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
-	assert.NotNil(keeperEntry)
+	assert.Nil(stakeAcc.LD().Approver)
+	assert.Equal(ld.StakeAccount, stakeAcc.LD().Type)
+	assert.Nil(stakeAcc.LD().MaxTotalSupply)
+	require.NotNil(t, stakeAcc.LD().Stake)
+	require.NotNil(t, stakeAcc.Ledger())
+	assert.Nil(stakeAcc.Ledger().Stake[sender.AsKey()])
+	keeperEntry := stakeAcc.Ledger().Stake[keeper.AsKey()]
+	require.NotNil(t, keeperEntry)
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 	assert.Equal(uint64(0), keeperEntry.LockTime)
 	assert.Nil(keeperEntry.Approver)
 
 	input = &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 		Expire: cs.Timestamp(),
@@ -505,6 +510,12 @@ func TestTxTakeStake(t *testing.T) {
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	require.NoError(t, err)
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		"insufficient transferable NativeLDC balance, expected 10000000000, got 9998223500")
+	cs.CheckoutAccounts()
+
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -514,15 +525,16 @@ func TestTxTakeStake(t *testing.T) {
 		itx.(*TxTakeStake).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*10, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*10,
-		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
-	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
-	assert.NotNil(senderEntry)
+		stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*2-senderGas*(ctx.Price+100),
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
+
+	senderEntry := stakeAcc.Ledger().Stake[sender.AsKey()]
+	require.NotNil(t, senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(cs.Timestamp()+1, senderEntry.LockTime)
 	assert.Nil(senderEntry.Approver)
-	keeperEntry = stakeAcc.ledger.Stake[keeper.AsKey()]
+	keeperEntry = stakeAcc.Ledger().Stake[keeper.AsKey()]
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
@@ -539,7 +551,7 @@ func TestTxTakeStake(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		Nonce:  1,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 100),
 		Expire: cs.Timestamp(),
@@ -564,12 +576,12 @@ func TestTxTakeStake(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxTakeStake.Apply: Account(0x0000000000000000000000000000002354455354).TakeStake: invalid total amount for 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc, expected <= 100000000000, got 120000000000")
+		"invalid total amount for 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc, expected <= 100000000000, got 120000000000")
 	cs.CheckoutAccounts()
 
 	input = &ld.TxTransfer{
 		Nonce:  1,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 80),
 		Expire: cs.Timestamp(),
@@ -602,11 +614,11 @@ func TestTxTakeStake(t *testing.T) {
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*100,
 		stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()*2+constants.LDC*100,
-		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
-	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
+		stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	senderEntry = stakeAcc.Ledger().Stake[sender.AsKey()]
 	assert.Equal(constants.LDC*100, senderEntry.Amount.Uint64())
 	assert.Equal(cs.Timestamp()+1, senderEntry.LockTime)
-	keeperEntry = stakeAcc.ledger.Stake[keeper.AsKey()]
+	keeperEntry = stakeAcc.Ledger().Stake[keeper.AsKey()]
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()*2, keeperEntry.Amount.Uint64())
 
 	assert.NoError(cs.VerifyState())

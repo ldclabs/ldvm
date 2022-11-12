@@ -47,7 +47,7 @@ func TestTxOpenLending(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -135,7 +135,7 @@ func TestTxOpenLending(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -145,13 +145,13 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
-	assert.NotNil(senderAcc.ld.Lending)
-	assert.Equal(constants.NativeToken, senderAcc.ld.Lending.Token)
-	assert.Equal(uint64(10), senderAcc.ld.Lending.DailyInterest)
-	assert.Equal(uint64(1), senderAcc.ld.Lending.OverdueInterest)
-	assert.Equal(constants.LDC, senderAcc.ld.Lending.MinAmount.Uint64())
-	assert.Equal(constants.LDC, senderAcc.ld.Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
+	require.NotNil(t, senderAcc.LD().Lending)
+	assert.Equal(constants.NativeToken, senderAcc.LD().Lending.Token)
+	assert.Equal(uint64(10), senderAcc.LD().Lending.DailyInterest)
+	assert.Equal(uint64(1), senderAcc.LD().Lending.OverdueInterest)
+	assert.Equal(constants.LDC, senderAcc.LD().Lending.MinAmount.Uint64())
+	assert.Equal(constants.LDC, senderAcc.LD().Lending.MaxAmount.Uint64())
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -183,7 +183,7 @@ func TestTxOpenLending(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: lending exists")
+		"lending exists")
 	cs.CheckoutAccounts()
 
 	assert.NoError(senderAcc.UpdateKeepers(nil, nil, signer.Signer2.Key().Ptr(), &ld.TxTypes{ld.TypeOpenLending}))
@@ -208,8 +208,8 @@ func TestTxOpenLending(t *testing.T) {
 		itx.(*TxCloseLending).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
 		itx.(*TxCloseLending).miner.Balance().Uint64())
-	assert.Nil(senderAcc.ld.Lending)
-	assert.Equal(0, len(senderAcc.ledger.Lending))
+	assert.Nil(senderAcc.LD().Lending)
+	assert.Equal(0, len(senderAcc.Ledger().Lending))
 
 	input = &ld.LendingConfig{
 		Token:           token,
@@ -250,13 +250,13 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.Equal(uint64(3), senderAcc.Nonce())
-	assert.NotNil(senderAcc.ld.Lending)
-	assert.Equal(token, senderAcc.ld.Lending.Token)
-	assert.Equal(uint64(100), senderAcc.ld.Lending.DailyInterest)
-	assert.Equal(uint64(10), senderAcc.ld.Lending.OverdueInterest)
-	assert.Equal(constants.LDC, senderAcc.ld.Lending.MinAmount.Uint64())
-	assert.Equal(constants.LDC*10, senderAcc.ld.Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
+	require.NotNil(t, senderAcc.LD().Lending)
+	assert.Equal(token, senderAcc.LD().Lending.Token)
+	assert.Equal(uint64(100), senderAcc.LD().Lending.DailyInterest)
+	assert.Equal(uint64(10), senderAcc.LD().Lending.OverdueInterest)
+	assert.Equal(constants.LDC, senderAcc.LD().Lending.MinAmount.Uint64())
+	assert.Equal(constants.LDC*10, senderAcc.LD().Lending.MaxAmount.Uint64())
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	assert.NoError(cs.VerifyState())
 }

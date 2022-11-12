@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"fmt"
@@ -13,16 +13,17 @@ import (
 )
 
 func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).OpenLending: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).OpenLending: ", a.id))
-	if a.ld.Lending != nil {
-		return errp.Errorf("lending exists")
-	}
-
 	if a.ledger == nil {
 		return errp.Errorf("invalid ledger")
+	}
+
+	if a.ld.Lending != nil {
+		return errp.Errorf("lending exists")
 	}
 
 	if err := cfg.SyntacticVerify(); err != nil {
@@ -34,10 +35,11 @@ func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 }
 
 func (a *Account) CloseLending() error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CloseLending: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CloseLending: ", a.id))
 	return errp.ErrorIf(a.closeLending(false))
 }
 
@@ -66,16 +68,17 @@ func (a *Account) Borrow(
 	amount *big.Int,
 	dueTime uint64,
 ) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).Borrow: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Borrow: ", a.id))
 	switch {
-	case a.ld.Lending == nil:
-		return errp.Errorf("invalid lending")
-
 	case a.ledger == nil:
 		return errp.Errorf("invalid ledger")
+
+	case a.ld.Lending == nil:
+		return errp.Errorf("invalid lending")
 
 	case a.ld.Lending.Token != token:
 		return errp.Errorf("invalid token, expected %s, got %s",
@@ -102,9 +105,8 @@ func (a *Account) Borrow(
 		return errp.Errorf("invalid amount, expected <= %v, got %v", a.ld.Lending.MaxAmount, total)
 	}
 
-	ba := a.balanceOf(token)
-	if ba.Cmp(amount) < 0 {
-		return errp.Errorf("insufficient %s balance, expected %v, got %v", token.GoString(), amount, ba)
+	if err := a.checkBalance(token, amount, true); err != nil {
+		return err
 	}
 
 	e.Amount.Set(total)
@@ -119,17 +121,17 @@ func (a *Account) Repay(
 	from util.Address,
 	amount *big.Int,
 ) (*big.Int, error) {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).Repay: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).Repay: ", a.id))
-
 	switch {
-	case a.ld.Lending == nil:
-		return nil, errp.Errorf("invalid lending")
-
 	case a.ledger == nil:
 		return nil, errp.Errorf("invalid ledger")
+
+	case a.ld.Lending == nil:
+		return nil, errp.Errorf("invalid lending")
 
 	case a.ld.Lending.Token != token:
 		return nil, errp.Errorf("invalid token, expected %s, got %s",

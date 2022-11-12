@@ -13,7 +13,20 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
-var Signer1, Signer2, Signer3, Signer4 *SignerTester
+// signers for testing
+var (
+	// 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc
+	Signer1 *SignerTester
+
+	// 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641
+	Signer2 *SignerTester
+
+	// 0x6962DD0564Fb1f8459624e5b7c5dD9A38b2F990d
+	Signer3 *SignerTester
+
+	// 0x22C05D35Be1305c33810086d3A4dB598c3E1Cf48
+	Signer4 *SignerTester
+)
 
 const address1 = "0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"
 const privateSeed1 = "56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027"

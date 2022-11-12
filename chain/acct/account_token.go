@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"fmt"
@@ -12,12 +12,26 @@ import (
 	"github.com/ldclabs/ldvm/util"
 )
 
+func (a *Account) TotalSupply() *big.Int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	total := new(big.Int)
+	if a.ld.Type != ld.TokenAccount {
+		return total
+	}
+
+	total.Set(a.ld.MaxTotalSupply)
+	return total.Sub(total, a.balanceOf(util.TokenSymbol(a.ld.ID), false))
+}
+
 func (a *Account) CreateToken(data *ld.TxAccounter) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateToken: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateToken: ", a.id))
-	token := util.TokenSymbol(a.id)
+	token := util.TokenSymbol(a.ld.ID)
 	if !token.Valid() {
 		return errp.Errorf("invalid token %s", token.GoString())
 	}
@@ -47,11 +61,12 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 }
 
 func (a *Account) DestroyToken(recipient *Account) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyToken: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyToken: ", a.id))
-	token := util.TokenSymbol(a.id)
+	token := util.TokenSymbol(a.ld.ID)
 	if !a.valid(ld.TokenAccount) {
 		return errp.Errorf("invalid token account %s", token.GoString())
 	}

@@ -129,10 +129,10 @@ func TestTxTransferMultiple(t *testing.T) {
 		"insufficient NativeLDC balance, expected 1131900, got 0")
 	cs.CheckoutAccounts()
 
-	sender.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	sender.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 1000000000, got 998868100")
+		"insufficient transferable NativeLDC balance, expected 1000000000, got 998868100")
 	cs.CheckoutAccounts()
 
 	sender.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
@@ -147,7 +147,8 @@ func TestTxTransferMultiple(t *testing.T) {
 		sender.Balance().Uint64())
 	assert.Equal(uint64(1), sender.Nonce())
 
-	assert.Equal(constants.LDC, recipient.Balance().Uint64())
+	assert.Equal(uint64(0), recipient.Balance().Uint64())
+	assert.Equal(constants.LDC, recipient.BalanceOfAll(constants.NativeToken).Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -178,7 +179,7 @@ func TestTxTransferMultiple(t *testing.T) {
 	sender.Add(token, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient $LDC balance, expected 3000000000, got 1000000000")
+		"insufficient transferable $LDC balance, expected 3000000000, got 1000000000")
 	cs.CheckoutAccounts()
 
 	sender.Add(token, new(big.Int).SetUint64(constants.LDC*2))
@@ -194,7 +195,8 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(uint64(0), sender.BalanceOf(token).Uint64())
 	assert.Equal(uint64(2), sender.Nonce())
 
-	assert.Equal(constants.LDC, recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, recipient.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC, recipient.BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC, cs.MustAccount(signer.Signer3.Key().Address()).BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC, cs.MustAccount(signer.Signer4.Key().Address()).BalanceOf(token).Uint64())
@@ -254,7 +256,7 @@ func TestTxTransferMultiple(t *testing.T) {
 		"insufficient NativeLDC balance, expected 796400, got 0")
 	cs.CheckoutAccounts()
 
-	signer3Acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	signer3Acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.Equal(uint16(0), signer3Acc.Threshold())
 	assert.Equal(signer.Keys{}, signer3Acc.Keepers())
 	assert.NoError(itx.Apply(ctx, cs))
@@ -300,7 +302,8 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(uint64(0), signer3Acc.BalanceOf(token).Uint64())
 	assert.Equal(uint64(2), signer3Acc.Nonce())
 
-	assert.Equal(constants.LDC, recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, recipient.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*2, recipient.BalanceOf(token).Uint64())
 
 	jsondata, err = itx.MarshalJSON()
@@ -358,7 +361,7 @@ func TestTxTransferMultiple(t *testing.T) {
 		"insufficient NativeLDC balance, expected 1076900, got 0")
 	cs.CheckoutAccounts()
 
-	signer4Acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	signer4Acc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.Equal(uint16(0), signer4Acc.Threshold())
 	assert.Equal(signer.Keys{}, signer4Acc.Keepers())
 	assert.NoError(itx.Apply(ctx, cs))
@@ -404,7 +407,8 @@ func TestTxTransferMultiple(t *testing.T) {
 	assert.Equal(uint64(0), signer4Acc.BalanceOf(token).Uint64())
 	assert.Equal(uint64(2), signer4Acc.Nonce())
 
-	assert.Equal(constants.LDC, recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), recipient.BalanceOf(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC, recipient.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC*3, recipient.BalanceOf(token).Uint64())
 
 	jsondata, err = itx.MarshalJSON()
@@ -436,8 +440,8 @@ func TestTxTransferMultipleGas(t *testing.T) {
 			Nonce:     1,
 			GasTip:    100,
 			GasFeeCap: ctx.Price,
-			From:      from.id,
-			Token:     &token,
+			From:      from.ID(),
+			Token:     token.Ptr(),
 			Data:      ld.MustMarshal(so),
 		}}
 		tx.SignWith(signer.Signer1, signer.Signer2)

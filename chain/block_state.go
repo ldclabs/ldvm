@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/chain/transactions"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
@@ -25,23 +26,23 @@ var (
 	_ BlockState = &blockState{}
 )
 
-var poolAccountCache = sync.Pool{
+var activeAccountsPool = sync.Pool{
 	New: func() any {
-		v := make(transactions.AccountCache, 256)
+		v := make(acct.ActiveAccounts, 256)
 		return &v
 	},
 }
 
-func getAccountCache() transactions.AccountCache {
-	ac := poolAccountCache.Get().(*transactions.AccountCache)
+func getActiveAccounts() acct.ActiveAccounts {
+	ac := activeAccountsPool.Get().(*acct.ActiveAccounts)
 	return *ac
 }
 
-func putAccountCache(cc transactions.AccountCache) {
+func putActiveAccounts(cc acct.ActiveAccounts) {
 	for k := range cc {
 		delete(cc, k)
 	}
-	poolAccountCache.Put(&cc)
+	activeAccountsPool.Put(&cc)
 }
 
 type blockState struct {
@@ -60,13 +61,13 @@ type blockState struct {
 	prevDataDB        *db.PrefixDB
 	stateDB           *db.PrefixDB
 	nameDB            *db.PrefixDB
-	accountCache      transactions.AccountCache
+	accts             acct.ActiveAccounts
 }
 
 type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
-	LoadValidatorAccountByNodeID(ids.NodeID) (util.StakeSymbol, *transactions.Account)
+	LoadValidatorAccountByNodeID(ids.NodeID) (util.StakeSymbol, *acct.Account)
 	GetBlockIDAtHeight(uint64) (ids.ID, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
@@ -95,7 +96,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState util.Hash
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accountCache:   getAccountCache(),
+		accts:          getActiveAccounts(),
 	}
 
 	bs.nameDB.SetHashKey(nameHashKey)
@@ -138,12 +139,12 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accountCache:   getAccountCache(),
+		accts:          getActiveAccounts(),
 	}
 
 	nbs.nameDB.SetHashKey(nameHashKey)
 
-	for _, a := range bs.accountCache {
+	for _, a := range bs.accts {
 		data, ledger, err := a.Marshal()
 		if err == nil {
 			id := a.ID()
@@ -168,54 +169,56 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id util.Address) (*transactions.Account, error) {
-	acc := bs.accountCache[id]
+func (bs *blockState) LoadAccount(id util.Address) (*acct.Account, error) {
+	acc := bs.accts[id]
 	if acc == nil {
 		errp := util.ErrPrefix("chain.BlockState.LoadAccount: ")
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
-			acc, err = transactions.ParseAccount(id, data)
+			acc, err = acct.ParseAccount(id, data)
 		case database.ErrNotFound:
 			err = nil
-			acc = transactions.NewAccount(id)
+			acc = acct.NewAccount(id)
 		}
 
 		if err != nil {
 			return nil, errp.ErrorIf(err)
 		}
 
-		pledge := new(big.Int)
 		feeCfg := bs.ctx.ChainConfig().Fee(bs.height)
 		switch {
-		case acc.Type() == ld.TokenAccount && id != constants.LDCAccount:
-			pledge.Set(feeCfg.MinTokenPledge)
+		case id == constants.LDCAccount || id == constants.GenesisAccount:
+			acc.Init(big.NewInt(0), big.NewInt(0), bs.height, bs.timestamp)
+
+		case acc.Type() == ld.TokenAccount:
+			acc.Init(big.NewInt(0), feeCfg.MinTokenPledge, bs.height, bs.timestamp)
 
 		case acc.Type() == ld.StakeAccount:
-			pledge.Set(feeCfg.MinStakePledge)
+			acc.Init(big.NewInt(0), feeCfg.MinStakePledge, bs.height, bs.timestamp)
+
+		default:
+			acc.Init(feeCfg.NonTransferableBalance, big.NewInt(0), bs.height, bs.timestamp)
 		}
 
-		acc.Init(pledge, bs.height, bs.timestamp)
-		bs.accountCache[id] = acc
+		bs.accts[id] = acc
 	}
 
-	return bs.accountCache[id], nil
+	return bs.accts[id], nil
 }
 
-func (bs *blockState) LoadLedger(acc *transactions.Account) error {
-	if acc.Ledger() == nil {
+func (bs *blockState) LoadLedger(acc *acct.Account) error {
+	return acc.LoadLedger(false, func() ([]byte, error) {
 		id := acc.ID()
-		errp := util.ErrPrefix("chain.BlockState.LoadLedger: ")
 		data, err := bs.ledgerDB.Get(id[:])
 		if err != nil && err != database.ErrNotFound {
-			return errp.ErrorIf(err)
+			return nil, err
 		}
-		return errp.ErrorIf(acc.InitLedger(data))
-	}
-	return nil
+		return data, nil
+	})
 }
 
-func (bs *blockState) LoadValidatorAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *transactions.Account) {
+func (bs *blockState) LoadValidatorAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *acct.Account) {
 	id := util.Address(nodeID).ToStakeSymbol()
 	acc, err := bs.LoadAccount(util.Address(id))
 	if err != nil || !acc.ValidValidator() {
@@ -224,15 +227,14 @@ func (bs *blockState) LoadValidatorAccountByNodeID(nodeID ids.NodeID) (util.Stak
 	return id, acc
 }
 
-func (bs *blockState) LoadBuilder(id util.StakeSymbol) (*transactions.Account, error) {
-	miner := constants.GenesisAccount
+func (bs *blockState) LoadBuilder(id util.StakeSymbol) (*acct.Account, error) {
 	if id != util.StakeEmpty && id.Valid() {
 		acc, err := bs.LoadAccount(util.Address(id))
-		if err == nil && acc.Valid(ld.StakeAccount) {
+		if err == nil && acc.ValidValidator() {
 			return acc, nil
 		}
 	}
-	return bs.LoadAccount(miner)
+	return bs.LoadAccount(constants.GenesisAccount)
 }
 
 func (bs *blockState) SaveName(ns *service.Name) error {
@@ -383,7 +385,7 @@ func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
 	errp := util.ErrPrefix("chain.BlockState.SaveBlock: ")
-	for _, a := range bs.accountCache {
+	for _, a := range bs.accts {
 		data, ledger, err := a.Marshal()
 		if err == nil {
 			id := a.ID()
@@ -433,6 +435,6 @@ func (bs *blockState) Commit() error {
 
 func (bs *blockState) Free() {
 	logging.Log.Info("blockState.Free", zap.Uint64("height", bs.height))
-	putAccountCache(bs.accountCache)
-	bs.accountCache = nil
+	putActiveAccounts(bs.accts)
+	bs.accts = nil
 }

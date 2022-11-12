@@ -163,6 +163,79 @@ func (a *Account) SyntacticVerify() error {
 	return nil
 }
 
+func (a *Account) CheckAsFrom(txType TxType) error {
+	errp := util.ErrPrefix("ld.Account.CheckAsFrom: ")
+
+	switch a.Type {
+	case TokenAccount:
+		switch {
+		case TokenFromTxTypes.Has(txType):
+			// just go ahead
+		default:
+			return errp.Errorf("can't use TokenAccount as sender for %s", txType.String())
+		}
+
+	case StakeAccount:
+		if a.Stake == nil {
+			return errp.Errorf("invalid StakeAccount as sender for %s", txType.String())
+		}
+
+		ty := a.Stake.Type
+		if ty > 2 {
+			return errp.Errorf("can't use unknown type %d StakeAccount as sender for %s",
+				ty, txType.String())
+		}
+
+		// 0: account keepers can not use stake token
+		// 1: account keepers can take a stake in other stake account
+		// 2: in addition to 1, account keepers can transfer stake token to other account
+		switch {
+		case StakeFromTxTypes0.Has(txType):
+			// just go ahead
+		case StakeFromTxTypes1.Has(txType):
+			if ty < 1 {
+				return errp.Errorf("can't use type %d StakeAccount as sender for %s",
+					ty, txType.String())
+			}
+
+		case StakeFromTxTypes2.Has(txType):
+			if ty < 2 {
+				return errp.Errorf("can't use type %d StakeAccount as sender for %s",
+					ty, txType.String())
+			}
+
+		default:
+			return errp.Errorf("can't use type %d StakeAccount as sender for %s",
+				ty, txType.String())
+		}
+	}
+	return nil
+}
+
+func (a *Account) CheckAsTo(txType TxType) error {
+	errp := util.ErrPrefix("ld.Account.CheckAsTo: ")
+
+	switch a.Type {
+	case TokenAccount:
+		switch {
+		case TokenToTxTypes.Has(txType):
+			// just go ahead
+		default:
+			return errp.Errorf("can't use TokenAccount as recipient for %s", txType.String())
+		}
+
+	case StakeAccount:
+		switch {
+		case StakeToTxTypes.Has(txType):
+			// just go ahead
+		default:
+			return errp.Errorf("can't use StakeAccount as recipient for %s", txType.String())
+		}
+	}
+
+	return nil
+}
+
 func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
 	switch {
 	case a.ID == constants.LDCAccount:

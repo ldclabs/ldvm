@@ -5,6 +5,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 )
 
@@ -99,6 +100,16 @@ func (s Set[T]) Add(vv ...T) {
 	for _, v := range vv {
 		s[v] = struct{}{}
 	}
+}
+
+func (s Set[T]) CheckAdd(vv ...T) error {
+	for _, v := range vv {
+		if s.Has(v) {
+			return fmt.Errorf("util.Set.CheckAdd: duplicate value %v", v)
+		}
+		s[v] = struct{}{}
+	}
+	return nil
 }
 
 func (s Set[T]) List() []T {

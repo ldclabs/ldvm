@@ -28,7 +28,7 @@ func TestTxTransferPay(t *testing.T) {
 	cs := ctx.MockChainState()
 
 	from := cs.MustAccount(signer.Signer1.Key().Address())
-	from.ld.Nonce = 1
+	from.LD().Nonce = 1
 
 	to := cs.MustAccount(constants.GenesisAccount)
 	assert.NoError(to.UpdateKeepers(ld.Uint16Ptr(1), &signer.Keys{signer.Signer2.Key()}, nil, nil))
@@ -39,7 +39,7 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 
 	assert.NoError(ltx.SyntacticVerify())
@@ -57,8 +57,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 	}}
 
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -72,8 +72,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 	}}
 
@@ -88,8 +88,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("0"),
 	}}
@@ -105,8 +105,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      []byte("0"),
 	}}
@@ -127,8 +127,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -141,7 +141,7 @@ func TestTxTransferPay(t *testing.T) {
 		"invalid sender, expected 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641, got 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	input = ld.TxTransfer{
-		From: &from.id,
+		From: from.ID().Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -150,8 +150,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -163,7 +163,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "nil recipient")
 
 	input = ld.TxTransfer{
-		To: &constants.GenesisAccount,
+		To: constants.GenesisAccount.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -172,7 +172,7 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        signer.Signer2.Key().Address().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
@@ -186,7 +186,7 @@ func TestTxTransferPay(t *testing.T) {
 		"invalid recipient, expected 0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff, got 0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641")
 
 	input = ld.TxTransfer{
-		To: &constants.GenesisAccount,
+		To: constants.GenesisAccount.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -195,9 +195,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -209,8 +209,8 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "invalid token, expected NativeLDC, got $LDC")
 
 	input = ld.TxTransfer{
-		To:    &constants.GenesisAccount,
-		Token: &token,
+		To:    constants.GenesisAccount.Ptr(),
+		Token: token.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -219,8 +219,8 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -232,8 +232,8 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "invalid token, expected $LDC, got NativeLDC")
 
 	input = ld.TxTransfer{
-		To:    &constants.GenesisAccount,
-		Token: &token,
+		To:    constants.GenesisAccount.Ptr(),
+		Token: token.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -242,9 +242,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -256,8 +256,8 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "nil amount")
 
 	input = ld.TxTransfer{
-		To:     &constants.GenesisAccount,
-		Token:  &token,
+		To:     constants.GenesisAccount.Ptr(),
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -267,9 +267,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -281,8 +281,8 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "invalid amount, expected 1000000000, got 1000000")
 
 	input = ld.TxTransfer{
-		To:     &constants.GenesisAccount,
-		Token:  &token,
+		To:     constants.GenesisAccount.Ptr(),
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: 10,
 	}
@@ -293,9 +293,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -308,8 +308,8 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(err, "data expired")
 
 	input = ld.TxTransfer{
-		To:     &constants.GenesisAccount,
-		Token:  &token,
+		To:     constants.GenesisAccount.Ptr(),
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -319,9 +319,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -335,7 +335,7 @@ func TestTxTransferPay(t *testing.T) {
 	assert.ErrorContains(itx.Apply(ctx, cs),
 		"insufficient NativeLDC balance, expected 1668700, got 0")
 	cs.CheckoutAccounts()
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
@@ -353,9 +353,9 @@ func TestTxTransferPay(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
-		Token:     &token,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.LDC),
 		Data:      input.Bytes(),
 	}}
@@ -371,8 +371,8 @@ func TestTxTransferPay(t *testing.T) {
 		itx.(*TxTransferPay).ldc.Balance().Uint64())
 	assert.Equal(ltx.Gas()*100,
 		itx.(*TxTransferPay).miner.Balance().Uint64())
-	assert.Equal(constants.LDC, to.balanceOf(token).Uint64())
-	assert.Equal(uint64(0), from.balanceOf(token).Uint64())
+	assert.Equal(constants.LDC, to.BalanceOf(token).Uint64())
+	assert.Equal(uint64(0), from.BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100),
 		from.Balance().Uint64())
 	assert.Equal(uint64(2), from.Nonce())
@@ -384,8 +384,8 @@ func TestTxTransferPay(t *testing.T) {
 
 	// should support 0 amount
 	input = ld.TxTransfer{
-		From:   &from.id,
-		To:     &constants.GenesisAccount,
+		From:   from.ID().Ptr(),
+		To:     constants.GenesisAccount.Ptr(),
 		Amount: new(big.Int).SetUint64(0),
 		Data:   []byte(`"some data`),
 	}
@@ -395,8 +395,8 @@ func TestTxTransferPay(t *testing.T) {
 		ChainID:   ctx.ChainConfig().ChainID,
 		Nonce:     2,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      input.Bytes(),
 	}}

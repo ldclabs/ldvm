@@ -48,7 +48,7 @@ func TestTxTest(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -159,12 +159,10 @@ func TestTxTest(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
-	assert.Equal(senderGas*ctx.Price,
-		itx.(*TxTest).ldc.Balance().Uint64())
-	assert.Equal(senderGas*100,
-		itx.(*TxTest).miner.Balance().Uint64())
-	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+	assert.Equal(senderGas*ctx.Price, itx.(*TxTest).ldc.Balance().Uint64())
+	assert.Equal(senderGas*100, itx.(*TxTest).miner.Balance().Uint64())
+	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	jsondata, err := itx.MarshalJSON()

@@ -12,6 +12,7 @@
       "gasRebateRate": 1000,
       "minTokenPledge": 10000000000000,
       "minStakePledge": 1000000000000,
+      "nonTransferableBalance": 1000000000,
       "builders": []
     }
   },

@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"math"
@@ -19,7 +19,7 @@ func TestLending(t *testing.T) {
 	assert := assert.New(t)
 
 	addr0 := signer.NewSigner().Key().Address()
-	na := NewAccount(signer.Signer1.Key().Address()).Init(big.NewInt(0), 10, 100)
+	na := NewAccount(signer.Signer1.Key().Address()).Init(big.NewInt(0), big.NewInt(0), 10, 100)
 
 	// Lending
 	ldc := new(big.Int).SetUint64(constants.LDC)
@@ -30,49 +30,45 @@ func TestLending(t *testing.T) {
 		MinAmount:       new(big.Int).SetUint64(constants.LDC),
 		MaxAmount:       new(big.Int).SetUint64(constants.LDC * 10),
 	}
-	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
-	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid lending")
+	assert.ErrorContains(na.CloseLending(), "invalid lending")
+	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0), "invalid ledger")
+
+	assert.NoError(na.LoadLedger(false, func() ([]byte, error) { return nil, nil }))
+	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0), "invalid lending")
 
 	_, err := na.Repay(constants.NativeToken, addr0, ldc)
-	assert.ErrorContains(err,
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: invalid lending")
-	assert.ErrorContains(na.OpenLending(lcfg),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: invalid ledger")
+	assert.ErrorContains(err, "invalid lending")
 
-	assert.NoError(na.InitLedger(nil))
 	assert.NoError(na.OpenLending(lcfg))
-	assert.ErrorContains(na.OpenLending(lcfg),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).OpenLending: lending exists")
+	assert.ErrorContains(na.OpenLending(lcfg), "lending exists")
 
 	assert.ErrorContains(na.Borrow(token, addr0, ldc, 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid token, expected NativeLDC, got $LDC")
+		"invalid token, expected NativeLDC, got $LDC")
 	_, err = na.Repay(token, addr0, ldc)
 	assert.ErrorContains(err,
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: invalid token, expected NativeLDC, got $LDC")
+		"invalid token, expected NativeLDC, got $LDC")
 	_, err = na.Repay(constants.NativeToken, addr0, ldc)
 	assert.ErrorContains(err,
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: don't need to repay")
+		"don't need to repay")
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 100),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid dueTime, expected > 100, got 100")
+		"invalid dueTime, expected > 100, got 100")
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, new(big.Int).SetUint64(constants.LDC-1), 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected >= 1000000000, got 999999999")
+		"invalid amount, expected >= 1000000000, got 999999999")
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: insufficient NativeLDC balance, expected 1000000000, got 0")
+		"insufficient transferable NativeLDC balance, expected 1000000000, got 0")
 
 	na.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*10))
 	assert.Nil(na.ledger.Lending[addr0.AsKey()])
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, daysecs+100))
-	assert.NotNil(na.ledger.Lending[addr0.AsKey()])
+	require.NotNil(t, na.ledger.Lending[addr0.AsKey()])
 	assert.Equal(constants.LDC, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
 	assert.Equal(uint64(100), na.ledger.Lending[addr0.AsKey()].UpdateAt)
 	assert.Equal(uint64(daysecs+100), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0,
 		new(big.Int).SetUint64(constants.LDC*10), 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected <= 10000000000, got 11000000000")
+		"invalid amount, expected <= 10000000000, got 11000000000")
 	na.ld.Timestamp = uint64(daysecs + 100)
 	assert.NoError(na.Borrow(constants.NativeToken, addr0, ldc, daysecs*2+100))
 	total := constants.LDC*2 + uint64(float64(constants.LDC*10_000/1_000_000))
@@ -90,12 +86,12 @@ func TestLending(t *testing.T) {
 	assert.Equal(uint64(0), na.ledger.Lending[addr0.AsKey()].DueTime)
 
 	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: please repay all before close")
+		"please repay all before close")
 
 	// Marshal
 	data, ledger, err := na.Marshal()
 	require.NoError(t, err)
-	na2, err := ParseAccount(na.id, data)
+	na2, err := ParseAccount(na.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
@@ -115,17 +111,16 @@ func TestLending(t *testing.T) {
 	am, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
 	require.NoError(t, err)
 	assert.Equal(total, am.Uint64())
-	assert.NotNil(na.ledger.Lending)
+	require.NotNil(t, na.ledger.Lending)
 	assert.Equal(0, len(na.ledger.Lending))
 
 	_, err = na.Repay(constants.NativeToken, addr0, new(big.Int).SetUint64(total+1))
-	assert.ErrorContains(err,
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Repay: don't need to repay")
+	assert.ErrorContains(err, "don't need to repay")
 
 	// Close and Marshal again
 	data, ledger, err = na.Marshal()
 	require.NoError(t, err)
-	na2, err = ParseAccount(na.id, data)
+	na2, err = ParseAccount(na.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
@@ -135,14 +130,13 @@ func TestLending(t *testing.T) {
 	assert.Equal(ledger, lg.Bytes())
 
 	na.ledger = nil
-	assert.ErrorContains(na.CloseLending(),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid ledger")
+	assert.ErrorContains(na.CloseLending(), "invalid ledger")
 
 	na.ledger = lg
 	assert.NoError(na.CloseLending())
 	data, ledger, err = na.Marshal()
 	require.NoError(t, err)
-	na2, err = ParseAccount(na.id, data)
+	na2, err = ParseAccount(na.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
@@ -161,17 +155,17 @@ func TestLending(t *testing.T) {
 	}))
 
 	assert.ErrorContains(na.Borrow(constants.NativeToken, addr0, ldc, 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid token, expected $LDC, got NativeLDC")
+		"invalid token, expected $LDC, got NativeLDC")
 	assert.ErrorContains(na.Borrow(token, addr0, new(big.Int).SetUint64(constants.LDC-1), 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: invalid amount, expected >= 1000000000, got 999999999")
+		"invalid amount, expected >= 1000000000, got 999999999")
 	assert.ErrorContains(na.Borrow(token, addr0, ldc, 0),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Borrow: insufficient $LDC balance, expected 1000000000, got 0")
+		"insufficient transferable $LDC balance, expected 1000000000, got 0")
 
 	na.ld.Timestamp = uint64(daysecs * 5)
 	na.Add(token, new(big.Int).SetUint64(constants.LDC*10))
 	assert.Nil(na.ledger.Lending[addr0.AsKey()])
 	assert.NoError(na.Borrow(token, addr0, ldc, 0))
-	assert.NotNil(na.ledger.Lending[addr0.AsKey()])
+	require.NotNil(t, na.ledger.Lending[addr0.AsKey()])
 	assert.Equal(constants.LDC, na.ledger.Lending[addr0.AsKey()].Amount.Uint64())
 	assert.Equal(uint64(daysecs*5), na.ledger.Lending[addr0.AsKey()].UpdateAt)
 	assert.Equal(uint64(0), na.ledger.Lending[addr0.AsKey()].DueTime)
@@ -179,7 +173,7 @@ func TestLending(t *testing.T) {
 	// Save again
 	data, ledger, err = na.Marshal()
 	require.NoError(t, err)
-	na2, err = ParseAccount(na.id, data)
+	na2, err = ParseAccount(na.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 
@@ -204,11 +198,11 @@ func TestLending(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(total, am.Uint64())
 	assert.Equal(0, len(na.ledger.Lending))
-	assert.NotNil(na.ledger.Lending)
+	require.NotNil(t, na.ledger.Lending)
 
 	data, ledger, err = na.Marshal()
 	require.NoError(t, err)
-	na2, err = ParseAccount(na.id, data)
+	na2, err = ParseAccount(na.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(na.ld.Bytes(), na2.ld.Bytes())
 

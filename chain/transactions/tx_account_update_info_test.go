@@ -47,7 +47,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -61,7 +61,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -158,8 +158,8 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 
 	assert.Equal(uint16(0), senderAcc.Threshold())
 	assert.Equal(signer.Keys{}, senderAcc.Keepers())
-	assert.Nil(senderAcc.ld.Approver)
-	assert.Nil(senderAcc.ld.ApproveList)
+	assert.Nil(senderAcc.LD().Approver)
+	assert.Nil(senderAcc.LD().ApproveList)
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -168,13 +168,13 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
-	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
-	assert.Equal(ld.AccountTxTypes, senderAcc.ld.ApproveList)
+	assert.Equal(signer.Signer2.Key(), senderAcc.LD().Approver)
+	assert.Equal(ld.AccountTxTypes, senderAcc.LD().ApproveList)
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -216,11 +216,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
-	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
-	assert.Equal(ld.TransferTxTypes, senderAcc.ld.ApproveList)
+	assert.Equal(signer.Signer2.Key(), senderAcc.LD().Approver)
+	assert.Equal(ld.TransferTxTypes, senderAcc.LD().ApproveList)
 
 	// clear Approver
 	input = ld.TxAccounter{
@@ -248,11 +248,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, senderAcc.Keepers())
-	assert.Nil(senderAcc.ld.Approver)
-	assert.Nil(senderAcc.ld.ApproveList)
+	assert.Nil(senderAcc.LD().Approver)
+	assert.Nil(senderAcc.LD().ApproveList)
 
 	// update Keepers
 	input = ld.TxAccounter{
@@ -281,7 +281,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()}, senderAcc.Keepers())
 
@@ -333,11 +333,11 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateAccountInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint16(1), senderAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()}, senderAcc.Keepers())
-	assert.Equal(signer.Signer2.Key(), senderAcc.ld.Approver)
-	assert.Nil(senderAcc.ld.ApproveList)
+	assert.Equal(signer.Signer2.Key(), senderAcc.LD().Approver)
+	assert.Nil(senderAcc.LD().ApproveList)
 
 	// clear keepers should failed
 	input = ld.TxAccounter{

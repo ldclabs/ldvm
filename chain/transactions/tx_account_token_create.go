@@ -126,9 +126,9 @@ func (tx *TxCreateToken) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 	if err = tx.to.CreateToken(tx.input); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.to.id != constants.LDCAccount {
-		pledge := new(big.Int).Set(ctx.FeeConfig().MinTokenPledge)
-		tx.to.Init(pledge, cs.Height(), cs.Timestamp())
+	if tx.to.ID() != constants.LDCAccount {
+		feeCfg := ctx.FeeConfig()
+		tx.to.Init(big.NewInt(0), feeCfg.MinTokenPledge, cs.Height(), cs.Timestamp())
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))
 }
@@ -150,9 +150,8 @@ func (tx *TxCreateToken) Apply(ctx ChainContext, cs ChainState) error {
 	if err = tx.to.CreateToken(tx.input); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.to.id != constants.LDCAccount {
-		pledge := new(big.Int).Set(ctx.FeeConfig().MinTokenPledge)
-		tx.to.Init(pledge, cs.Height(), cs.Timestamp())
+	if tx.to.ID() != constants.LDCAccount {
+		tx.to.Init(big.NewInt(0), feeCfg.MinTokenPledge, cs.Height(), cs.Timestamp())
 	}
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))
 }

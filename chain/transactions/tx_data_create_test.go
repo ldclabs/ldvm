@@ -51,7 +51,7 @@ func TestTxCreateData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -233,7 +233,7 @@ func TestTxCreateData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -354,7 +354,7 @@ func TestTxCreateData(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -455,7 +455,7 @@ func TestTxCreateCBORData(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -556,7 +556,7 @@ func TestTxCreateJSONData(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -673,7 +673,7 @@ func TestTxCreateModelDataWithoutKeepers(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -768,7 +768,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -793,7 +793,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -809,7 +809,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -824,7 +824,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 	}
 	assert.NoError(input.SyntacticVerify())
@@ -835,7 +835,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -850,7 +850,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: ld.Uint16Ptr(0),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(0),
 	}
@@ -862,7 +862,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(1),
 		Data:      input.Bytes(),
 	}}
@@ -880,7 +880,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      input.Bytes(),
 	}}
@@ -896,7 +896,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(0),
 	}
@@ -908,7 +908,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      input.Bytes(),
 	}}
@@ -930,7 +930,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      input.Bytes(),
 	}}
@@ -948,7 +948,7 @@ func TestTxCreateModelDataWithKeepers(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di, err := cs.LoadData(itx.(*TxCreateData).di.ID)
@@ -1016,7 +1016,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -1028,7 +1028,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -1036,7 +1036,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer2))
 	assert.NoError(ltx.SyntacticVerify())
 	senderAcc := cs.MustAccount(sender)
-	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	assert.NoError(cs.SaveModel(mi))
 
 	ltx.Timestamp = 10
@@ -1052,7 +1052,8 @@ func TestTxCreateNameModelData(t *testing.T) {
 		itx.(*TxCreateData).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateData).miner.Balance().Uint64())
-	assert.Equal(constants.MilliLDC, itx.(*TxCreateData).to.Balance().Uint64())
+	assert.Equal(constants.MilliLDC,
+		itx.(*TxCreateData).to.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100)-constants.MilliLDC,
 		senderAcc.Balance().Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
@@ -1099,7 +1100,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -1111,7 +1112,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -1140,7 +1141,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      data,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -1153,7 +1154,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -1213,7 +1214,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000,"builders":[]}}},"id":"2JKqawRmOf_0OEHvYQQFG2KlGlSaHfc2AKrt6cT-bR0Sft2a"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000,"nonTransferableBalance":1000000000,"builders":[]}}},"id":"TAOe8Sy4GJUGGFV-cnQxY77kmdv_DhmQHzTid2GJiSLGFh2c"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

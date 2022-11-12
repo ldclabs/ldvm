@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"math/big"
@@ -19,7 +19,7 @@ func TestTokenAccount(t *testing.T) {
 	assert := assert.New(t)
 
 	acc := NewAccount(signer.Signer1.Key().Address())
-	acc.Init(big.NewInt(0), 0, 0)
+	acc.Init(big.NewInt(0), big.NewInt(0), 0, 0)
 	amount := big.NewInt(1_000_000)
 	cfg := &ld.TxAccounter{
 		Threshold: ld.Uint16Ptr(1),
@@ -54,31 +54,31 @@ func TestTokenAccount(t *testing.T) {
 	for _, ty := range ld.AllTxTypes {
 		switch {
 		case ld.TokenFromTxTypes.Has(ty):
-			assert.NoError(nativeToken.CheckAsFrom(ty))
+			assert.NoError(nativeToken.ld.CheckAsFrom(ty))
 		default:
-			assert.Error(nativeToken.CheckAsFrom(ty))
+			assert.Error(nativeToken.ld.CheckAsFrom(ty))
 		}
 	}
 	// CheckAsTo
 	for _, ty := range ld.AllTxTypes {
 		switch {
 		case ld.TokenToTxTypes.Has(ty):
-			assert.NoError(nativeToken.CheckAsTo(ty))
+			assert.NoError(nativeToken.ld.CheckAsTo(ty))
 		default:
-			assert.Error(nativeToken.CheckAsTo(ty))
+			assert.Error(nativeToken.ld.CheckAsTo(ty))
 		}
 	}
 
 	// Marshal
 	data, _, err := nativeToken.Marshal()
 	require.NoError(t, err)
-	acc2, err := ParseAccount(nativeToken.id, data)
+	acc2, err := ParseAccount(nativeToken.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(nativeToken.ld.Bytes(), acc2.ld.Bytes())
 
 	token := ld.MustNewToken("$TEST")
 	testToken := NewAccount(util.Address(token))
-	testToken.Init(big.NewInt(100), 0, 0)
+	testToken.Init(big.NewInt(0), big.NewInt(100), 0, 0)
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
 	testToken.Add(constants.NativeToken, big.NewInt(100))
@@ -86,7 +86,7 @@ func TestTokenAccount(t *testing.T) {
 
 	assert.Equal(uint64(0), testToken.Balance().Uint64())
 	assert.Equal(uint64(100), testToken.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(amount.Uint64(), testToken.balanceOf(token).Uint64())
+	assert.Equal(amount.Uint64(), testToken.balanceOf(token, false).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(amount.Uint64(), testToken.ld.MaxTotalSupply.Uint64())
 	assert.Equal(uint16(1), testToken.Threshold())
@@ -94,18 +94,18 @@ func TestTokenAccount(t *testing.T) {
 
 	testToken.Sub(token, big.NewInt(1000))
 	acc.Add(token, big.NewInt(1000))
-	assert.Equal(uint64(999000), testToken.balanceOf(token).Uint64())
+	assert.Equal(uint64(999000), testToken.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(999000), testToken.balanceOfAll(token).Uint64())
-	assert.Equal(uint64(1000), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(1000), acc.balanceOf(token, false).Uint64())
 	testToken.Sub(token, big.NewInt(1000))
 	acc.Add(token, big.NewInt(1000))
-	assert.Equal(uint64(998000), testToken.balanceOf(token).Uint64())
-	assert.Equal(uint64(2000), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(998000), testToken.balanceOf(token, false).Uint64())
+	assert.Equal(uint64(2000), acc.balanceOf(token, false).Uint64())
 
 	// Marshal
 	data, _, err = testToken.Marshal()
 	require.NoError(t, err)
-	acc2, err = ParseAccount(testToken.id, data)
+	acc2, err = ParseAccount(testToken.ID(), data)
 	require.NoError(t, err)
 	assert.Equal(testToken.ld.Bytes(), acc2.ld.Bytes())
 
@@ -117,17 +117,17 @@ func TestTokenAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
-	assert.NoError(testToken.InitLedger(nil))
+	assert.NoError(testToken.LoadLedger(false, func() ([]byte, error) { return nil, nil }))
 	assert.NoError(testToken.OpenLending(lcfg))
-	assert.NotNil(testToken.ld.Lending)
-	assert.NotNil(testToken.ledger)
+	require.NotNil(t, testToken.ld.Lending)
+	require.NotNil(t, testToken.ledger)
 
 	// Destroy
 	assert.ErrorContains(testToken.DestroyToken(acc), "some token in the use")
-	assert.NoError(testToken.Borrow(token, acc.id, big.NewInt(1000), 0))
+	assert.NoError(testToken.Borrow(token, acc.ld.ID, big.NewInt(1000), 0))
 	assert.ErrorContains(testToken.DestroyToken(acc),
 		"Account(0x0000000000000000000000000000002454455354).DestroyToken: some token in the use, maxTotalSupply expected 1000000, got 998000")
-	actual, err := testToken.Repay(token, acc.id, big.NewInt(1000))
+	actual, err := testToken.Repay(token, acc.ld.ID, big.NewInt(1000))
 	require.NoError(t, err)
 	assert.Equal(uint64(1000), actual.Uint64())
 
@@ -136,7 +136,7 @@ func TestTokenAccount(t *testing.T) {
 	assert.NoError(testToken.DestroyToken(acc))
 	assert.Equal(uint64(0), testToken.Balance().Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(uint64(0), testToken.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), testToken.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(uint16(0), testToken.Threshold())
 	assert.Equal(signer.Keys{}, testToken.Keepers())
@@ -152,7 +152,7 @@ func TestTokenAccount(t *testing.T) {
 	// Marshal again
 	data, _, err = testToken.Marshal()
 	require.NoError(t, err)
-	acc2, err = ParseAccount(testToken.id, data)
+	acc2, err = ParseAccount(testToken.ID(), data)
 	require.NoError(t, err)
 	assert.Equal(testToken.ld.Bytes(), acc2.ld.Bytes())
 

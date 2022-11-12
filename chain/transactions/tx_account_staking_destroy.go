@@ -55,6 +55,6 @@ func (tx *TxDestroyStake) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 	// do it after TxBase.Accept
-	tx.from.pledge.SetUint64(0)
+	tx.from.ResetPledge()
 	return errp.ErrorIf(tx.from.DestroyStake(tx.to))
 }
