@@ -48,7 +48,7 @@ func TestTxDeleteData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -242,7 +242,7 @@ func TestTxDeleteData(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxDeleteData).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
@@ -339,7 +339,7 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      name.Bytes(),
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -351,7 +351,7 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -360,7 +360,7 @@ func TestTxDeleteNameServiceData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	senderAcc := cs.MustAccount(sender)
-	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	assert.NoError(cs.SaveModel(mi))
 
 	ltx.Timestamp = 10

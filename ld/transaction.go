@@ -51,7 +51,7 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *TxData is well-formed.
 func (t *TxData) SyntacticVerify() error {
-	errp := util.ErrPrefix("TxData.SyntacticVerify: ")
+	errp := util.ErrPrefix("ld.TxData.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -94,12 +94,12 @@ func (t *TxData) Bytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	return util.ErrPrefix("TxData.Unmarshal: ").
+	return util.ErrPrefix("ld.TxData.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	return util.ErrPrefix("TxData.Marshal: ").
+	return util.ErrPrefix("ld.TxData.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }
 
@@ -131,7 +131,7 @@ type Transaction struct {
 
 // SyntacticVerify verifies that a *Transaction is well-formed.
 func (t *Transaction) SyntacticVerify() error {
-	errp := util.ErrPrefix("Transaction.SyntacticVerify: ")
+	errp := util.ErrPrefix("ld.Transaction.SyntacticVerify: ")
 	if t == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -216,12 +216,12 @@ func (t *Transaction) ExHash() []byte {
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Transaction.Unmarshal: ").
+	return util.ErrPrefix("ld.Transaction.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, t))
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Transaction.Marshal: ").
+	return util.ErrPrefix("ld.Transaction.Marshal: ").
 		ErrorMap(util.MarshalCBOR(t))
 }
 
@@ -231,7 +231,7 @@ func (t *Transaction) SignWith(signers ...signer.Signer) error {
 	for _, s := range signers {
 		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("Transaction.SignWith: ").ErrorIf(err)
+			return util.ErrPrefix("ld.Transaction.SignWith: ").ErrorIf(err)
 		}
 		t.Signatures = append(t.Signatures, sig)
 	}
@@ -244,7 +244,7 @@ func (t *Transaction) ExSignWith(signers ...signer.Signer) error {
 	for _, s := range signers {
 		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("Transaction.ExSignWith: ").ErrorIf(err)
+			return util.ErrPrefix("ld.Transaction.ExSignWith: ").ErrorIf(err)
 		}
 		t.ExSignatures = append(t.ExSignatures, sig)
 	}
@@ -300,7 +300,7 @@ func (t *Transaction) Eth() *TxEth {
 }
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
-	errp := util.ErrPrefix("NewBatchTx: ")
+	errp := util.ErrPrefix("ld.NewBatchTx: ")
 
 	if len(txs) <= 1 {
 		return nil, errp.Errorf("not batch transactions")
@@ -336,12 +336,12 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Txs.Unmarshal: ").
+	return util.ErrPrefix("ld.Txs.Unmarshal: ").
 		ErrorIf(util.UnmarshalCBOR(data, txs))
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Txs.Marshal: ").
+	return util.ErrPrefix("ld.Txs.Marshal: ").
 		ErrorMap(util.MarshalCBOR(txs))
 }
 

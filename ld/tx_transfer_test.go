@@ -35,7 +35,7 @@ func TestTxTransfer(t *testing.T) {
 	tx = &TxTransfer{
 		Nonce:  1,
 		Token:  &util.NativeToken,
-		To:     &constants.GenesisAccount,
+		To:     constants.GenesisAccount.Ptr(),
 		Amount: big.NewInt(1000),
 		Expire: uint64(1000),
 		Data:   []byte(`"👋"`),

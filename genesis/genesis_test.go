@@ -72,46 +72,49 @@ func TestGenesis(t *testing.T) {
 	assert.ErrorContains(err, "invalid minTokenPledge")
 
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":     1000,
-		"minGasPrice":     10000,
-		"maxGasPrice":     100000,
-		"maxTxGas":        42000000,
-		"maxBlockTxsSize": 4200000,
-		"gasRebateRate":   1000,
-		"minTokenPledge":  10000000000000,
-		"minStakePledge":  1000000000000,
+		"startHeight":            1000,
+		"minGasPrice":            10000,
+		"maxGasPrice":            100000,
+		"maxTxGas":               42000000,
+		"maxBlockTxsSize":        4200000,
+		"gasRebateRate":          1000,
+		"minTokenPledge":         10000000000000,
+		"minStakePledge":         1000000000000,
+		"nonTransferableBalance": 1000000000,
 	}))
 	assert.ErrorContains(err, "nil builders")
 
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":     1000,
-		"minGasPrice":     10000,
-		"maxGasPrice":     100000,
-		"maxTxGas":        42000000,
-		"maxBlockTxsSize": 4200000,
-		"gasRebateRate":   1000,
-		"minTokenPledge":  10000000000000,
-		"minStakePledge":  1000000000000,
-		"builders":        util.IDList[util.StakeSymbol]{},
+		"startHeight":            1000,
+		"minGasPrice":            10000,
+		"maxGasPrice":            100000,
+		"maxTxGas":               42000000,
+		"maxBlockTxsSize":        4200000,
+		"gasRebateRate":          1000,
+		"minTokenPledge":         10000000000000,
+		"minStakePledge":         1000000000000,
+		"nonTransferableBalance": 1000000000,
+		"builders":               util.IDList[util.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 
 	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":     100,
-		"minGasPrice":     10000,
-		"maxGasPrice":     100000,
-		"maxTxGas":        42000000,
-		"maxBlockTxsSize": 4200000,
-		"gasRebateRate":   1000,
-		"minTokenPledge":  10000000000000,
-		"minStakePledge":  1000000000000,
-		"builders":        util.IDList[util.StakeSymbol]{},
+		"startHeight":            100,
+		"minGasPrice":            10000,
+		"maxGasPrice":            100000,
+		"maxTxGas":               42000000,
+		"maxBlockTxsSize":        4200000,
+		"gasRebateRate":          1000,
+		"minTokenPledge":         10000000000000,
+		"minStakePledge":         1000000000000,
+		"nonTransferableBalance": 1000000000,
+		"builders":               util.IDList[util.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 
 	txs, err := gs.ToTxs()
 	require.NoError(t, err)
-	assert.Equal("WUaNVh1sccOMUODD0ZA5I9-K2u2FuAbW8gWfN1XbYXhpb8tu", gs.Chain.FeeConfigID.String())
+	assert.Equal("ktMplll6Im13sEJfeL2KkJGj1cBS_UAtILcTkzEX1vP7tOPR", gs.Chain.FeeConfigID.String())
 	assert.Equal("b8onI5zOwqPZO9jxMBBgZWnnCUzd-187", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"math/big"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
 )
@@ -73,7 +74,7 @@ func (tx *TxTransferMultiple) Apply(ctx ChainContext, cs ChainState) error {
 	}
 
 	totalAmount := new(big.Int)
-	recipients := make(map[util.Address]*Account, len(tx.input))
+	recipients := make(map[util.Address]*acct.Account, len(tx.input))
 	for _, output := range tx.input {
 		totalAmount = totalAmount.Add(totalAmount, output.Amount)
 		if recipients[output.To], err = cs.LoadAccount(output.To); err != nil {

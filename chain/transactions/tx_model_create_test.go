@@ -49,7 +49,7 @@ func TestTxCreateModel(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -63,7 +63,7 @@ func TestTxCreateModel(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -139,7 +139,7 @@ func TestTxCreateModel(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	ownerAcc := cs.MustAccount(owner)
-	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	ownerAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*3))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	fromGas := ltx.Gas()
@@ -147,8 +147,8 @@ func TestTxCreateModel(t *testing.T) {
 		itx.(*TxCreateModel).ldc.Balance().Uint64())
 	assert.Equal(fromGas*100,
 		itx.(*TxCreateModel).miner.Balance().Uint64())
-	assert.Equal(constants.LDC-fromGas*(ctx.Price+100),
-		ownerAcc.Balance().Uint64())
+	assert.Equal(constants.LDC*3-fromGas*(ctx.Price+100),
+		ownerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err := cs.LoadModel(itx.(*TxCreateModel).input.ID)
@@ -175,8 +175,8 @@ func TestTxCreateModel(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &modelAcc.id,
-		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 500),
+		To:        modelAcc.ID().Ptr(),
+		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 1500),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -190,8 +190,11 @@ func TestTxCreateModel(t *testing.T) {
 		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal(fromGas*100,
 		itx.(*TxTransfer).miner.Balance().Uint64())
+	assert.Equal(constants.MilliLDC*1500, modelAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.MilliLDC*500, modelAcc.Balance().Uint64())
-	assert.Equal(constants.LDC-fromGas*(ctx.Price+100)-constants.MilliLDC*500,
+	assert.Equal(constants.LDC*3-fromGas*(ctx.Price+100)-constants.MilliLDC*1500,
+		ownerAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*2-fromGas*(ctx.Price+100)-constants.MilliLDC*1500,
 		ownerAcc.Balance().Uint64())
 	assert.Equal(uint64(2), ownerAcc.Nonce())
 	assert.True(ownerAcc.IsEmpty())
@@ -204,7 +207,7 @@ func TestTxCreateModel(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      modelAcc.ID(),
-		To:        &ownerAcc.id,
+		To:        ownerAcc.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 100),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))

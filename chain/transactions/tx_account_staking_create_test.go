@@ -39,7 +39,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
@@ -51,7 +51,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -64,7 +64,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -78,10 +78,10 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -94,7 +94,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 	}}
@@ -109,7 +109,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      []byte("你好👋"),
@@ -127,7 +127,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &approverAddr,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -144,7 +144,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -164,7 +164,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -185,7 +185,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -206,7 +206,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -234,7 +234,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -257,7 +257,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -286,7 +286,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(100),
 		Data:      input.Bytes(),
@@ -312,7 +312,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 1001),
 		Data:      input.Bytes(),
@@ -327,7 +327,7 @@ func TestTxCreateStake(t *testing.T) {
 		"insufficient NativeLDC balance, expected 1001002403500, got 1000000000")
 	cs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1001))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*1002))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	stakeAcc := cs.MustAccount(stakeid)
@@ -340,20 +340,20 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(ltx.Gas()*100,
 		miner.Balance().Uint64())
 	assert.Equal(constants.LDC, stakeAcc.Balance().Uint64())
-	assert.Equal(constants.LDC*1001, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*1001, stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100),
 		from.Balance().Uint64())
 
 	assert.Equal(uint64(0), stakeAcc.Nonce())
 	assert.Equal(uint16(1), stakeAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, stakeAcc.Keepers())
-	assert.Equal(approver.Address(), stakeAcc.ld.Approver.Address())
-	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
-	assert.Nil(stakeAcc.ld.MaxTotalSupply)
-	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ledger)
-	assert.NotNil(stakeAcc.ledger.Stake[from.id.AsKey()])
-	assert.Equal(constants.LDC*1000, stakeAcc.ledger.Stake[from.id.AsKey()].Amount.Uint64())
+	assert.Equal(approver.Address(), stakeAcc.LD().Approver.Address())
+	assert.Equal(ld.StakeAccount, stakeAcc.LD().Type)
+	assert.Nil(stakeAcc.LD().MaxTotalSupply)
+	require.NotNil(t, stakeAcc.LD().Stake)
+	require.NotNil(t, stakeAcc.Ledger())
+	require.NotNil(t, stakeAcc.Ledger().Stake[from.ID().AsKey()])
+	assert.Equal(constants.LDC*1000, stakeAcc.Ledger().Stake[from.ID().AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -367,7 +367,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 1001),
 		Data:      input.Bytes(),
@@ -381,12 +381,12 @@ func TestTxCreateStake(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x0000000000000000000000000000002354455354).CreateStake: stake account #TEST exists")
+		"stake account #TEST exists")
 	cs.CheckoutAccounts()
 
 	// destroy and create again
 	ctx.timestamp += 1001
-	stakeAcc.ld.Timestamp = cs.Timestamp()
+	stakeAcc.LD().Timestamp = cs.Timestamp()
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeDestroyStake,
 		ChainID:   ctx.ChainConfig().ChainID,
@@ -394,7 +394,7 @@ func TestTxCreateStake(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      stakeid,
-		To:        &from.id,
+		To:        from.ID().Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -417,12 +417,12 @@ func TestTxCreateStake(t *testing.T) {
 	assert.Equal(uint64(1), stakeAcc.Nonce())
 	assert.Equal(uint16(0), stakeAcc.Threshold())
 	assert.Equal(signer.Keys{}, stakeAcc.Keepers())
-	assert.Nil(stakeAcc.ld.Approver)
-	assert.Equal(ld.NativeAccount, stakeAcc.ld.Type)
-	assert.Nil(stakeAcc.ld.MaxTotalSupply)
-	assert.Nil(stakeAcc.ld.Stake)
-	assert.Equal(0, len(stakeAcc.ledger.Stake))
-	assert.Equal(uint64(0), stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Nil(stakeAcc.LD().Approver)
+	assert.Equal(ld.NativeAccount, stakeAcc.LD().Type)
+	assert.Nil(stakeAcc.LD().MaxTotalSupply)
+	assert.Nil(stakeAcc.LD().Stake)
+	assert.Equal(0, len(stakeAcc.Ledger().Stake))
+	assert.Equal(uint64(0), stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 
 	// creat again.
 	scfg = &ld.StakeConfig{
@@ -443,7 +443,7 @@ func TestTxCreateStake(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		To:        &stakeid,
 		Amount:    new(big.Int).SetUint64(constants.LDC * 1000),
 		Data:      input.Bytes(),
@@ -456,19 +456,19 @@ func TestTxCreateStake(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
-	assert.Equal(constants.LDC*1000, stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*1000, stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 
 	assert.Equal(uint64(1), stakeAcc.Nonce())
 	assert.Equal(uint16(1), stakeAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, stakeAcc.Keepers())
-	assert.Nil(stakeAcc.ld.Approver)
-	assert.Equal(ld.StakeAccount, stakeAcc.ld.Type)
-	assert.Nil(stakeAcc.ld.MaxTotalSupply)
-	assert.NotNil(stakeAcc.ld.Stake)
-	assert.NotNil(stakeAcc.ledger.Stake)
-	assert.Nil(stakeAcc.ledger.Stake[from.id.AsKey()])
-	assert.NotNil(stakeAcc.ld.Tokens[token.AsKey()])
-	assert.Equal(uint64(0), stakeAcc.ld.Tokens[token.AsKey()].Uint64())
+	assert.Nil(stakeAcc.LD().Approver)
+	assert.Equal(ld.StakeAccount, stakeAcc.LD().Type)
+	assert.Nil(stakeAcc.LD().MaxTotalSupply)
+	require.NotNil(t, stakeAcc.LD().Stake)
+	require.NotNil(t, stakeAcc.Ledger().Stake)
+	assert.Nil(stakeAcc.Ledger().Stake[from.ID().AsKey()])
+	require.NotNil(t, stakeAcc.LD().Tokens[token.AsKey()])
+	assert.Equal(uint64(0), stakeAcc.LD().Tokens[token.AsKey()].Uint64())
 
 	assert.NoError(cs.VerifyState())
 }

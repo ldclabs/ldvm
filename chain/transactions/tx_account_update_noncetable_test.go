@@ -47,7 +47,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -212,10 +212,10 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
-		senderAcc.Balance().Uint64())
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), senderAcc.Nonce())
-	assert.Equal(1, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{1, 3, 5, 7}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal(1, len(senderAcc.LD().NonceTable))
+	assert.Equal([]uint64{1, 3, 5, 7}, senderAcc.LD().NonceTable[cs.Timestamp()+1])
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -241,7 +241,7 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	require.NoError(t, err)
 
 	cs.CommitAccounts()
-	assert.ErrorContains(itx.Apply(ctx, cs), "nonce 1 exists at 1001")
+	assert.ErrorContains(itx.Apply(ctx, cs), "duplicate value 1")
 	cs.CheckoutAccounts()
 
 	input = []uint64{cs.Timestamp() + 1, 2, 4, 6}
@@ -269,8 +269,8 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(2), senderAcc.Nonce())
-	assert.Equal(1, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
+	assert.Equal(1, len(senderAcc.LD().NonceTable))
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.LD().NonceTable[cs.Timestamp()+1])
 
 	input = []uint64{cs.Timestamp() + 2, 0}
 	inputData, err = util.MarshalCBOR(input)
@@ -297,16 +297,16 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxUpdateNonceTable).miner.Balance().Uint64())
 	assert.Equal(uint64(3), senderAcc.Nonce())
-	assert.Equal(2, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
-	assert.Equal([]uint64{0}, senderAcc.ld.NonceTable[cs.Timestamp()+2])
+	assert.Equal(2, len(senderAcc.LD().NonceTable))
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.LD().NonceTable[cs.Timestamp()+1])
+	assert.Equal([]uint64{0}, senderAcc.LD().NonceTable[cs.Timestamp()+2])
 
 	// consume nonce table
 	recipientAcc := cs.MustAccount(signer.Signer2.Key().Address())
 	input2 := ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
-		To:     &recipientAcc.id,
+		From:   sender.Ptr(),
+		To:     recipientAcc.ID().Ptr(),
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		Expire: cs.Timestamp() + 1,
 	}
@@ -317,8 +317,8 @@ func TestTxUpdateNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      recipientAcc.id,
-		To:        &sender,
+		From:      recipientAcc.ID(),
+		To:        sender.Ptr(),
 		Data:      input2.Bytes(),
 	}}
 
@@ -336,8 +336,8 @@ func TestTxUpdateNonceTable(t *testing.T) {
 
 	input2 = ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
-		To:     &recipientAcc.id,
+		From:   sender.Ptr(),
+		To:     recipientAcc.ID().Ptr(),
 		Amount: new(big.Int).SetUint64(constants.MilliLDC),
 		Expire: cs.Timestamp() + 2,
 	}
@@ -348,8 +348,8 @@ func TestTxUpdateNonceTable(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      recipientAcc.id,
-		To:        &sender,
+		From:      recipientAcc.ID(),
+		To:        sender.Ptr(),
 		Data:      input2.Bytes(),
 	}}
 
@@ -359,6 +359,12 @@ func TestTxUpdateNonceTable(t *testing.T) {
 	ltx.Timestamp = cs.Timestamp()
 	itx, err = NewTx(ltx)
 	require.NoError(t, err)
+
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		"insufficient transferable NativeLDC balance, expected 1000000, got 0")
+	cs.CheckoutAccounts()
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas += ltx.Gas()
@@ -366,9 +372,9 @@ func TestTxUpdateNonceTable(t *testing.T) {
 		itx.(*TxTransferCash).ldc.Balance().Uint64())
 	assert.Equal(senderGas*100,
 		itx.(*TxTransferCash).miner.Balance().Uint64())
-	assert.Equal(1, len(senderAcc.ld.NonceTable))
-	assert.Equal([]uint64{2, 4, 6}, senderAcc.ld.NonceTable[cs.Timestamp()+1])
-	assert.Nil(senderAcc.ld.NonceTable[cs.Timestamp()+2], "should clean emtpy nonce table")
+	assert.Equal(1, len(senderAcc.LD().NonceTable))
+	assert.Equal([]uint64{2, 4, 6}, senderAcc.LD().NonceTable[cs.Timestamp()+1])
+	assert.Nil(senderAcc.LD().NonceTable[cs.Timestamp()+2], "should clean emtpy nonce table")
 
 	assert.NoError(cs.VerifyState())
 }

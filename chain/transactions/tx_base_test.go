@@ -29,8 +29,8 @@ func TestTxBase(t *testing.T) {
 	sender := signer.Signer1.Key().Address()
 
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.ld.Approver = signer.Signer2.Key()
-	senderAcc.ld.Nonce = 1
+	senderAcc.LD().Approver = signer.Signer2.Key()
+	senderAcc.LD().Nonce = 1
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -49,7 +49,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     0,
 		GasFeeCap: 0,
 		From:      constants.GenesisAccount,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	tx = &TxBase{ld: ltx}
 	assert.NoError(ltx.SyntacticVerify())
@@ -61,7 +61,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     0,
 		GasFeeCap: 0,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 	tx = &TxBase{ld: ltx}
@@ -75,7 +75,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     0,
 		GasFeeCap: ctx.Price - 1,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	tx = &TxBase{ld: ltx}
 	assert.ErrorContains(tx.verify(ctx, cs), "invalid gasFeeCap")
@@ -87,7 +87,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     0,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -104,7 +104,7 @@ func TestTxBase(t *testing.T) {
 		Nonce:     1,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -122,7 +122,7 @@ func TestTxBase(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -143,7 +143,7 @@ func TestTxBase(t *testing.T) {
 	assert.ErrorContains(tx.Apply(ctx, cs), "insufficient NativeLDC balance")
 	cs.CheckoutAccounts()
 
-	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.NoError(tx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -161,7 +161,7 @@ func TestTxBase(t *testing.T) {
 	// fmt.Println(string(jsondata))
 	assert.Equal(`{"tx":{"type":"TypeTransfer","chainID":2357,"nonce":1,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","amount":1000},"sigs":["IX83ghjdiu09Zg4-ZjXIMAlZItoyOJ9ZxTSeAX63gV549EM4gtDf_fMeefUWzH4pT6YKYchkhL6a9pYdVRZCegGBPL0O","cMkLTe6LJELYl0pWi8BkDIWPyqEA1IiNr1guM75VEGIuXeASgcwrx8SpJpyvlZ28oD9_zmgDLdAxIdN1chwvuwBGm81i"],"id":"Y_SVR0ZOS38KfuTP6Eqrhe_JvXNusA4tTlyjwWNqIFGcaSHX"}`, string(jsondata))
 
-	senderAcc.ld.Approver = nil
+	senderAcc.LD().Approver = nil
 	token := ld.MustNewToken("$LDC")
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -170,8 +170,8 @@ func TestTxBase(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
-		Token:     &token,
+		To:        constants.GenesisAccount.Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -194,8 +194,8 @@ func TestTxBase(t *testing.T) {
 		tx.miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100)-1000,
 		senderAcc.Balance().Uint64())
-	assert.Equal(uint64(1000), tx.to.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-1000, tx.from.balanceOf(token).Uint64())
+	assert.Equal(uint64(1000), tx.to.BalanceOf(token).Uint64())
+	assert.Equal(constants.LDC-1000, tx.from.BalanceOf(token).Uint64())
 	assert.Equal(uint64(3), tx.from.Nonce())
 
 	jsondata, err = tx.MarshalJSON()

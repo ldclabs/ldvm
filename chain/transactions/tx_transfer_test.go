@@ -28,7 +28,7 @@ func TestTxTransfer(t *testing.T) {
 	cs := ctx.MockChainState()
 
 	from := cs.MustAccount(signer.Signer1.Key().Address())
-	from.ld.Nonce = 1
+	from.LD().Nonce = 1
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeTransfer,
@@ -36,7 +36,7 @@ func TestTxTransfer(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
@@ -53,8 +53,8 @@ func TestTxTransfer(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &constants.GenesisAccount,
+		From:      from.ID(),
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -68,8 +68,8 @@ func TestTxTransfer(t *testing.T) {
 		Nonce:     1,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &constants.GenesisAccount,
+		From:      from.ID(),
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -81,7 +81,7 @@ func TestTxTransfer(t *testing.T) {
 	assert.ErrorContains(itx.Apply(ctx, cs), "insufficient NativeLDC balance")
 	cs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	fromGas := ltx.Gas()
@@ -107,9 +107,9 @@ func TestTxTransfer(t *testing.T) {
 		Nonce:     2,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &constants.GenesisAccount,
-		Token:     &token,
+		From:      from.ID(),
+		To:        constants.GenesisAccount.Ptr(),
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(1000),
 	}}
 
@@ -129,8 +129,8 @@ func TestTxTransfer(t *testing.T) {
 		itx.(*TxTransfer).ldc.Balance().Uint64())
 	assert.Equal(fromGas*100,
 		itx.(*TxTransfer).miner.Balance().Uint64())
-	assert.Equal(uint64(1000), itx.(*TxTransfer).to.balanceOf(token).Uint64())
-	assert.Equal(constants.LDC-1000, from.balanceOf(token).Uint64())
+	assert.Equal(uint64(1000), itx.(*TxTransfer).to.BalanceOf(token).Uint64())
+	assert.Equal(constants.LDC-1000, from.BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC-fromGas*(ctx.Price+100)-1000,
 		from.Balance().Uint64())
 	assert.Equal(uint64(3), from.Nonce())
@@ -147,8 +147,8 @@ func TestTxTransfer(t *testing.T) {
 		Nonce:     3,
 		GasTip:    0,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &constants.GenesisAccount,
+		From:      from.ID(),
+		To:        constants.GenesisAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(0),
 		Data:      []byte(`"some message"`),
 	}}
@@ -173,8 +173,8 @@ func TestTxTransferGenesis(t *testing.T) {
 	ltx := &ld.Transaction{Tx: ld.TxData{
 		Type:    ld.TypeTransfer,
 		ChainID: ctx.ChainConfig().ChainID,
-		From:    from.id,
-		To:      &constants.GenesisAccount,
+		From:    from.ID(),
+		To:      constants.GenesisAccount.Ptr(),
 		Amount:  ctx.ChainConfig().MaxTotalSupply,
 	}}
 
@@ -183,16 +183,11 @@ func TestTxTransferGenesis(t *testing.T) {
 
 	assert.NoError(itx.(*TxTransfer).ApplyGenesis(ctx, cs))
 
-	assert.Equal(uint64(0),
-		itx.(*TxTransfer).ldc.Balance().Uint64())
-	assert.Equal(uint64(0),
-		itx.(*TxTransfer).miner.Balance().Uint64())
-	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(),
-		itx.(*TxTransfer).to.Balance().Uint64())
-	assert.Equal(uint64(0),
-		itx.(*TxTransfer).from.Balance().Uint64())
-	assert.Equal(uint64(1),
-		itx.(*TxTransfer).from.Nonce())
+	assert.Equal(uint64(0), itx.(*TxTransfer).ldc.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxTransfer).miner.Balance().Uint64())
+	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(), itx.(*TxTransfer).to.Balance().Uint64())
+	assert.Equal(uint64(0), itx.(*TxTransfer).from.Balance().Uint64())
+	assert.Equal(uint64(1), itx.(*TxTransfer).from.Nonce())
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -210,7 +205,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 
 	signer1 := signer.NewSigner()
 	from := cs.MustAccount(signer1.Key().Address())
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	to := cs.MustAccount(util.Address{1, 2, 3})
 
 	ltx := &ld.Transaction{Tx: ld.TxData{
@@ -218,7 +213,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 		ChainID:   ctx.ChainConfig().ChainID,
 		GasFeeCap: ctx.Price,
 		From:      from.ID(),
-		To:        &to.id,
+		To:        to.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 500),
 	}}
 
@@ -229,11 +224,10 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 	assert.NoError(itx.Apply(ctx, cs))
 
 	fromGas := ltx.Gas()
-	assert.Equal(fromGas*ctx.Price,
-		itx.(*TxTransfer).ldc.Balance().Uint64())
-	assert.Equal(fromGas*0,
-		itx.(*TxTransfer).miner.Balance().Uint64())
-	assert.Equal(constants.MilliLDC*500, to.Balance().Uint64())
+	assert.Equal(fromGas*ctx.Price, itx.(*TxTransfer).ldc.Balance().Uint64())
+	assert.Equal(fromGas*0, itx.(*TxTransfer).miner.Balance().Uint64())
+	assert.Equal(uint64(0), to.Balance().Uint64())
+	assert.Equal(constants.MilliLDC*500, to.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-fromGas*(ctx.Price+0)-constants.MilliLDC*500,
 		from.Balance().Uint64())
 	assert.Equal(uint64(1), from.Nonce())
@@ -245,7 +239,7 @@ func TestTxTransferFromNoKeeperAccount(t *testing.T) {
 		ChainID:   ctx.ChainConfig().ChainID,
 		GasFeeCap: ctx.Price,
 		From:      to.ID(),
-		To:        &from.id,
+		To:        from.ID().Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC * 100),
 	}}
 

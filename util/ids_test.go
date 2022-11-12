@@ -338,7 +338,7 @@ func TestTokenSymbol(t *testing.T) {
 			}
 			if c.symbol != "" {
 				_, err := TokenFrom(c.symbol)
-				assert.NotNil(err)
+				assert.Error(err)
 			}
 		default:
 			assert.Equal(c.symbol, c.token.String())
@@ -500,7 +500,7 @@ func TestStakeSymbol(t *testing.T) {
 			assert.Equal("", c.token.String())
 			if c.symbol != "" {
 				_, err := StakeFrom(c.symbol)
-				assert.NotNil(err)
+				assert.Error(err)
 			}
 		default:
 			assert.Equal(c.symbol, c.token.String())

@@ -261,7 +261,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      buyer,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -315,7 +315,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      buyer,
 		To:        &owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -353,7 +353,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      buyer,
 		To:        &owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -413,7 +413,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      buyer,
 		To:        &owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -434,7 +434,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      buyer,
 		To:        &owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -455,7 +455,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      buyer,
 		To:        &owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -473,10 +473,11 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	assert.Equal(buyerGas*100,
 		itx.(*TxUpdateDataInfoByAuth).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-buyerGas*(ctx.Price+100),
-		buyerAcc.Balance().Uint64())
-	assert.Equal(constants.LDC-constants.MilliLDC, buyerAcc.balanceOf(token).Uint64())
+		buyerAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC-constants.MilliLDC,
+		buyerAcc.BalanceOf(token).Uint64())
 	assert.Equal(constants.MilliLDC,
-		itx.(*TxUpdateDataInfoByAuth).to.balanceOf(token).Uint64())
+		itx.(*TxUpdateDataInfoByAuth).to.BalanceOf(token).Uint64())
 	assert.Equal(uint64(1), buyerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)

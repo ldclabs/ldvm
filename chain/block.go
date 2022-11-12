@@ -19,6 +19,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 	"go.uber.org/zap"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/chain/transactions"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/genesis"
@@ -200,7 +201,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 
 func (b *Block) SetBuilderFee(vbs BlockState) error {
 	errp := util.ErrPrefix("chain.Block.SetBuilderFee: ")
-	shares := make([]*transactions.Account, 0)
+	shares := make([]*acct.Account, 0)
 	b.ld.Validators = []util.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
 		var err error
@@ -222,7 +223,7 @@ func (b *Block) SetBuilderFee(vbs BlockState) error {
 }
 
 func (b *Block) verifyBuilderFee() error {
-	shares := make([]*transactions.Account, 0)
+	shares := make([]*acct.Account, 0)
 	if b.ctx.ValidatorState != nil {
 		var err error
 		shares, err = b.getValidatorAccounts(b.ld.PCHeight, b.bs)
@@ -242,7 +243,7 @@ func (b *Block) verifyBuilderFee() error {
 	return b.applyBuilderFee(shares, b.bs)
 }
 
-func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transactions.Account, error) {
+func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*acct.Account, error) {
 	vs, err := b.ctx.ValidatorState.GetValidatorSet(pcHeight, b.ctx.SubnetID)
 	if err != nil {
 		return nil, fmt.Errorf("ValidatorState.GetValidatorSet: %v", err)
@@ -259,7 +260,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 		return vs[vv[i]] > vs[vv[j]]
 	})
 
-	accs := make([]*transactions.Account, 0, len(vv))
+	accs := make([]*acct.Account, 0, len(vv))
 	for _, nid := range vv {
 		if _, acc := vbs.LoadValidatorAccountByNodeID(nid); acc != nil {
 			accs = append(accs, acc)
@@ -274,7 +275,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*transa
 	return accs, nil
 }
 
-func (b *Block) applyBuilderFee(shares []*transactions.Account, vbs BlockState) error {
+func (b *Block) applyBuilderFee(shares []*acct.Account, vbs BlockState) error {
 	ldc, err := vbs.LoadAccount(constants.LDCAccount)
 	if err != nil {
 		return err

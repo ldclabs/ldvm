@@ -17,6 +17,7 @@ var LocalGenesisConfigJSON = `
       "gasRebateRate": 1000,
       "minTokenPledge": 10000000000000,
       "minStakePledge": 1000000000000,
+      "nonTransferableBalance": 1000000000,
       "builders": []
     }
   },
@@ -36,7 +37,7 @@ var LocalGenesisConfigJSON = `
       "keepers": [
         "jbl8fOziScK5i9wCJsxMKle_UvwKxwPH",
         "RBccN_9de3u43K1cgfFihKIp5kE1lmGG",
-        "vlU2vQ63fTjirRWtJJvVcncVnyBaFovseXYCgCQkS-avAHc4"
+        "hJEADz4AlkZ_NSt41-9x5eTaahzNzgMzd0wOBF-B2kJGSpWTCQutstgl0tXrZKQVIsBdNQ"
       ]
     }
   }

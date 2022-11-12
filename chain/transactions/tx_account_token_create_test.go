@@ -79,7 +79,7 @@ func TestTxCreateToken(t *testing.T) {
 		From:      sender,
 		To:        &tokenid,
 		Amount:    new(big.Int).SetUint64(100),
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -311,6 +311,12 @@ func TestTxCreateToken(t *testing.T) {
 	itx, err = NewTx(ltx)
 	require.NoError(t, err)
 	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(10000000000000))
+	cs.CommitAccounts()
+	assert.ErrorContains(itx.Apply(ctx, cs),
+		`insufficient transferable NativeLDC balance, expected 10000000000000, got 9999997790100`)
+	cs.CheckoutAccounts()
+
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	tokenAcc := cs.MustAccount(tokenid)
@@ -320,17 +326,19 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(senderGas*100,
 		itx.(*TxCreateToken).miner.Balance().Uint64())
 	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())
-	assert.Equal(uint64(10000000000000), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
+	assert.Equal(uint64(10000000000000), tokenAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.BalanceOf(token).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
+	assert.Equal(constants.LDC*2-senderGas*(ctx.Price+100),
+		senderAcc.BalanceOfAll(constants.NativeToken).Uint64())
 
 	assert.Equal(uint64(0), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
-	assert.Equal(signer.Signer2.Key(), tokenAcc.ld.Approver)
-	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
+	assert.Equal(signer.Signer2.Key(), tokenAcc.LD().Approver)
+	assert.Equal(constants.LDC*10, tokenAcc.LD().MaxTotalSupply.Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.LD().Tokens[token.AsKey()].Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -366,7 +374,7 @@ func TestTxCreateToken(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      tokenid,
-		To:        &sender,
+		To:        sender.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -396,10 +404,10 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(0), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{}, tokenAcc.Keepers())
-	assert.Equal(ld.NativeAccount, tokenAcc.ld.Type)
-	assert.Nil(tokenAcc.ld.Approver)
-	assert.Nil(tokenAcc.ld.MaxTotalSupply)
-	assert.Nil(tokenAcc.ld.Tokens[token.AsKey()])
+	assert.Equal(ld.NativeAccount, tokenAcc.LD().Type)
+	assert.Nil(tokenAcc.LD().Approver)
+	assert.Nil(tokenAcc.LD().MaxTotalSupply)
+	assert.Nil(tokenAcc.LD().Tokens[token.AsKey()])
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCreateToken,
@@ -427,12 +435,12 @@ func TestTxCreateToken(t *testing.T) {
 	assert.Equal(uint64(1), tokenAcc.Nonce())
 	assert.Equal(uint16(1), tokenAcc.Threshold())
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, tokenAcc.Keepers())
-	assert.Equal(signer.Signer2.Key(), tokenAcc.ld.Approver)
-	assert.Equal(constants.LDC*10, tokenAcc.ld.MaxTotalSupply.Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.ld.Tokens[token.AsKey()].Uint64())
+	assert.Equal(signer.Signer2.Key(), tokenAcc.LD().Approver)
+	assert.Equal(constants.LDC*10, tokenAcc.LD().MaxTotalSupply.Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.LD().Tokens[token.AsKey()].Uint64())
 	assert.Equal(uint64(0), tokenAcc.Balance().Uint64())
-	assert.Equal(uint64(10000000000000), tokenAcc.balanceOfAll(constants.NativeToken).Uint64())
-	assert.Equal(constants.LDC*10, tokenAcc.balanceOf(token).Uint64())
+	assert.Equal(uint64(10000000000000), tokenAcc.BalanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(constants.LDC*10, tokenAcc.BalanceOf(token).Uint64())
 
 	assert.NoError(cs.VerifyState())
 }
@@ -492,7 +500,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(),
 		ldcAcc.Balance().Uint64())
 	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(),
-		ldcAcc.balanceOfAll(constants.NativeToken).Uint64())
+		ldcAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), itx.(*TxCreateToken).miner.Balance().Uint64())
 	assert.Equal(uint64(0), itx.(*TxCreateToken).from.Balance().Uint64())
 	assert.Equal(uint64(1), itx.(*TxCreateToken).from.Nonce())
@@ -500,10 +508,10 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 	assert.Equal(uint64(0), ldcAcc.Nonce())
 	assert.Equal(uint16(0), ldcAcc.Threshold())
 	assert.Equal(signer.Keys{}, ldcAcc.Keepers())
-	assert.Nil(ldcAcc.ld.Approver)
-	assert.Nil(ldcAcc.ld.ApproveList)
-	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(), ldcAcc.ld.MaxTotalSupply.Uint64())
-	assert.Equal(0, len(ldcAcc.ld.Tokens))
+	assert.Nil(ldcAcc.LD().Approver)
+	assert.Nil(ldcAcc.LD().ApproveList)
+	assert.Equal(ctx.ChainConfig().MaxTotalSupply.Uint64(), ldcAcc.LD().MaxTotalSupply.Uint64())
+	assert.Equal(0, len(ldcAcc.LD().Tokens))
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -518,7 +526,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      constants.LDCAccount,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())

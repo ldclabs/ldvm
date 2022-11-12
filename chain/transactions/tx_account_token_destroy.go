@@ -55,6 +55,6 @@ func (tx *TxDestroyToken) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 	// DestroyToken after TxBase.accept
-	tx.from.pledge.SetUint64(0)
+	tx.from.ResetPledge()
 	return errp.ErrorIf(tx.from.DestroyToken(tx.to))
 }

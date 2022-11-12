@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"fmt"
@@ -19,11 +19,12 @@ func (a *Account) CreateStake(
 	acc *ld.TxAccounter,
 	cfg *ld.StakeConfig,
 ) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateStake: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).CreateStake: ", a.id))
-	stake := util.StakeSymbol(a.id)
+	stake := util.StakeSymbol(a.ld.ID)
 	if !stake.Valid() {
 		return errp.Errorf("invalid stake account")
 	}
@@ -63,10 +64,11 @@ func (a *Account) CreateStake(
 }
 
 func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).ResetStake: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).ResetStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -112,10 +114,11 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 }
 
 func (a *Account) DestroyStake(recipient *Account) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyStake: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).DestroyStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -139,7 +142,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	case 0:
 		// just go ahead
 	case 1:
-		if v, ok := a.ledger.Stake[recipient.id.AsKey()]; !ok || v.Amount.Sign() <= 0 {
+		if v, ok := a.ledger.Stake[recipient.ID().AsKey()]; !ok || v.Amount.Sign() <= 0 {
 			return errp.Errorf("recipient not exists")
 		}
 
@@ -175,10 +178,11 @@ func (a *Account) TakeStake(
 	from util.Address,
 	amount *big.Int,
 	lockTime uint64) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).TakeStake: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).TakeStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -231,10 +235,11 @@ func (a *Account) UpdateStakeApprover(
 	approver signer.Key,
 	txIsApprovedFn ld.TxIsApprovedFn,
 ) error {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).UpdateStakeApprover: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).UpdateStakeApprover: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return errp.Errorf("invalid stake account")
 	}
@@ -265,10 +270,11 @@ func (a *Account) WithdrawStake(
 	amount *big.Int,
 	txIsApprovedFn ld.TxIsApprovedFn,
 ) (*big.Int, error) {
+	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).WithdrawStake: ", a.ld.ID.String()))
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	errp := util.ErrPrefix(fmt.Sprintf("Account(%s).WithdrawStake: ", a.id))
 	if !a.valid(ld.StakeAccount) {
 		return nil, errp.Errorf("invalid stake account")
 	}
@@ -305,9 +311,8 @@ func (a *Account) WithdrawStake(
 			from, total, amount)
 	}
 
-	if ba := a.balanceOf(token); ba.Cmp(amount) < 0 {
-		return nil, errp.Errorf("insufficient %s balance for withdraw, expected %v, got %v",
-			token.GoString(), amount, ba)
+	if err := a.checkBalance(token, amount, true); err != nil {
+		return nil, err
 	}
 
 	a.allocStakeBonus(rate)

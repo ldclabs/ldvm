@@ -109,20 +109,20 @@ func (tx *TxCreateStake) Apply(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	pledge := new(big.Int).Set(ctx.FeeConfig().MinStakePledge)
-	if tx.amount.Cmp(pledge) < 0 {
+	feeCfg := ctx.FeeConfig()
+	if tx.amount.Cmp(feeCfg.MinStakePledge) < 0 {
 		return errp.Errorf("invalid amount, expected >= %v, got %v",
-			pledge, tx.ld.Tx.Amount)
+			feeCfg.MinStakePledge, tx.ld.Tx.Amount)
 	}
 
 	if err = cs.LoadLedger(tx.to); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	if err = tx.to.CreateStake(tx.ld.Tx.From, pledge, tx.input, tx.stake); err != nil {
+	if err = tx.to.CreateStake(tx.ld.Tx.From, feeCfg.MinStakePledge, tx.input, tx.stake); err != nil {
 		return errp.ErrorIf(err)
 	}
 
-	tx.to.Init(pledge, cs.Height(), cs.Timestamp())
+	tx.to.Init(big.NewInt(0), feeCfg.MinStakePledge, cs.Height(), cs.Timestamp())
 	return errp.ErrorIf(tx.TxBase.accept(ctx, cs))
 }

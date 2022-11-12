@@ -168,6 +168,10 @@ func (id DataID) Bytes() []byte {
 	return id[:]
 }
 
+func (id DataID) Ptr() *DataID {
+	return &id
+}
+
 func (id DataID) Valid() bool {
 	return true
 }
@@ -291,6 +295,10 @@ func (id Hash) Bytes() []byte {
 	return id[:]
 }
 
+func (id Hash) Ptr() *Hash {
+	return &id
+}
+
 func (id Hash) Valid() bool {
 	return true
 }
@@ -399,6 +407,10 @@ func ModelIDFromHash(id Hash) ModelID {
 
 func (id ModelID) Bytes() []byte {
 	return id[:]
+}
+
+func (id ModelID) Ptr() *ModelID {
+	return &id
 }
 
 func (id ModelID) Valid() bool {

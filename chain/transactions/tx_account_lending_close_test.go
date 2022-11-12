@@ -47,7 +47,7 @@ func TestTxCloseLending(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -100,10 +100,10 @@ func TestTxCloseLending(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
+		"invalid lending")
 	cs.CheckoutAccounts()
 
 	input := &ld.LendingConfig{
@@ -132,9 +132,9 @@ func TestTxCloseLending(t *testing.T) {
 
 	senderGas := ltx.Gas()
 	assert.Equal(uint64(1), senderAcc.Nonce())
-	assert.NotNil(senderAcc.ld.Lending)
-	assert.Equal(token, senderAcc.ld.Lending.Token)
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.ledger.Lending)
+	require.NotNil(t, senderAcc.LD().Lending)
+	assert.Equal(token, senderAcc.LD().Lending.Token)
+	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,
@@ -158,8 +158,8 @@ func TestTxCloseLending(t *testing.T) {
 		itx.(*TxCloseLending).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
-	assert.Nil(senderAcc.ld.Lending)
-	assert.Equal(0, len(senderAcc.ledger.Lending))
+	assert.Nil(senderAcc.LD().Lending)
+	assert.Equal(0, len(senderAcc.Ledger().Lending))
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func TestTxCloseLending(t *testing.T) {
 	itx, err = NewTx(ltx)
 	require.NoError(t, err)
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).CloseLending: invalid lending")
+		"invalid lending")
 
 	assert.NoError(cs.VerifyState())
 }

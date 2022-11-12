@@ -1,7 +1,7 @@
 // (c) 2022-2022, LDC Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package transactions
+package acct
 
 import (
 	"math/big"
@@ -20,7 +20,7 @@ func TestNativeAccount(t *testing.T) {
 
 	token := ld.MustNewToken("$TEST")
 	acc := NewAccount(signer.Signer1.Key().Address())
-	acc.Init(big.NewInt(0), 2, 2)
+	acc.Init(big.NewInt(0), big.NewInt(0), 2, 2)
 
 	assert.Equal(ld.NativeAccount, acc.Type())
 	assert.Equal(true, acc.IsEmpty())
@@ -30,22 +30,22 @@ func TestNativeAccount(t *testing.T) {
 	assert.Equal(uint64(0), acc.Nonce())
 
 	assert.Equal(uint64(0), acc.Balance().Uint64())
-	assert.Equal(uint64(0), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(0), acc.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(0), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(0), acc.balanceOfAll(token).Uint64())
 
-	assert.NoError(acc.checkBalance(constants.NativeToken, big.NewInt(0)))
-	assert.NoError(acc.checkBalance(token, big.NewInt(0)))
-	assert.ErrorContains(acc.checkBalance(constants.NativeToken, nil), "invalid amount <nil>")
-	assert.ErrorContains(acc.checkBalance(token, nil), "invalid amount <nil>")
-	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(-1)), "invalid amount -1")
-	assert.ErrorContains(acc.checkBalance(token, big.NewInt(-1)), "invalid amount -1")
-	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(1)), "insufficient NativeLDC balance")
-	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1)), "insufficient $TEST balance, expected 1, got 0")
+	assert.NoError(acc.checkBalance(constants.NativeToken, big.NewInt(0), false))
+	assert.NoError(acc.checkBalance(token, big.NewInt(0), false))
+	assert.ErrorContains(acc.checkBalance(constants.NativeToken, nil, false), "invalid amount <nil>")
+	assert.ErrorContains(acc.checkBalance(token, nil, false), "invalid amount <nil>")
+	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(-1), false), "invalid amount -1")
+	assert.ErrorContains(acc.checkBalance(token, big.NewInt(-1), false), "invalid amount -1")
+	assert.ErrorContains(acc.checkBalance(constants.NativeToken, big.NewInt(1), false), "insufficient NativeLDC balance")
+	assert.ErrorContains(acc.checkBalance(token, big.NewInt(1), false), "insufficient $TEST balance, expected 1, got 0")
 
 	for _, ty := range ld.AllTxTypes {
-		assert.NoError(acc.CheckAsFrom(ty))
-		assert.NoError(acc.CheckAsTo(ty))
+		assert.NoError(acc.ld.CheckAsFrom(ty))
+		assert.NoError(acc.ld.CheckAsTo(ty))
 	}
 
 	// UpdateKeepers
@@ -61,13 +61,13 @@ func TestNativeAccount(t *testing.T) {
 	assert.NoError(acc.Add(constants.NativeToken, big.NewInt(100)))
 	assert.NoError(acc.Add(token, big.NewInt(100)))
 	assert.Equal(uint64(100), acc.Balance().Uint64())
-	assert.Equal(uint64(100), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(100), acc.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(100), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(100), acc.balanceOfAll(token).Uint64())
 	assert.NoError(acc.Add(constants.NativeToken, big.NewInt(0)))
 	assert.NoError(acc.Add(token, big.NewInt(0)))
 	assert.Equal(uint64(100), acc.Balance().Uint64())
-	assert.Equal(uint64(100), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(100), acc.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(100), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(100), acc.balanceOfAll(token).Uint64())
 
@@ -79,31 +79,31 @@ func TestNativeAccount(t *testing.T) {
 	assert.NoError(acc.Sub(constants.NativeToken, big.NewInt(10)))
 	assert.NoError(acc.Sub(token, big.NewInt(10)))
 	assert.Equal(uint64(90), acc.Balance().Uint64())
-	assert.Equal(uint64(90), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(90), acc.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(90), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(90), acc.balanceOfAll(token).Uint64())
 	assert.NoError(acc.Sub(constants.NativeToken, big.NewInt(0)))
 	assert.NoError(acc.Sub(token, big.NewInt(0)))
 	assert.Equal(uint64(90), acc.Balance().Uint64())
-	assert.Equal(uint64(90), acc.balanceOf(token).Uint64())
+	assert.Equal(uint64(90), acc.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(90), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(90), acc.balanceOfAll(token).Uint64())
 	assert.ErrorContains(acc.Sub(constants.NativeToken, big.NewInt(100)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Sub: insufficient NativeLDC balance, expected 100, got 90")
+		"insufficient transferable NativeLDC balance, expected 100, got 90")
 	assert.ErrorContains(acc.Sub(token, big.NewInt(100)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).Sub: insufficient $TEST balance, expected 100, got 90")
+		"insufficient transferable $TEST balance, expected 100, got 90")
 
 	// SubByNonce
-	assert.ErrorContains(acc.SubByNonce(token, 1, big.NewInt(10)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: invalid nonce, expected 0, got 1")
-	assert.NoError(acc.SubByNonce(constants.NativeToken, 0, big.NewInt(10)))
-	assert.NoError(acc.SubByNonce(token, 1, big.NewInt(10)))
+	assert.ErrorContains(acc.SubGasByNonce(token, 1, big.NewInt(10)),
+		"invalid nonce, expected 0, got 1")
+	assert.NoError(acc.SubGasByNonce(constants.NativeToken, 0, big.NewInt(10)))
+	assert.NoError(acc.SubGasByNonce(token, 1, big.NewInt(10)))
 	assert.Equal(uint64(80), acc.balanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(80), acc.balanceOfAll(token).Uint64())
-	assert.ErrorContains(acc.SubByNonce(constants.NativeToken, 2, big.NewInt(100)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: insufficient NativeLDC balance, expected 100, got 80")
-	assert.ErrorContains(acc.SubByNonce(token, 2, big.NewInt(100)),
-		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).SubByNonce: insufficient $TEST balance, expected 100, got 80")
+	assert.ErrorContains(acc.SubGasByNonce(constants.NativeToken, 2, big.NewInt(100)),
+		"insufficient NativeLDC balance, expected 100, got 80")
+	assert.ErrorContains(acc.SubGasByNonce(token, 2, big.NewInt(100)),
+		"insufficient $TEST balance, expected 100, got 80")
 
 	// NonceTable
 	assert.ErrorContains(acc.SubByNonceTable(token, 12345, 1000, big.NewInt(10)),
@@ -113,7 +113,7 @@ func TestNativeAccount(t *testing.T) {
 		"invalid expire, expected >= 2, got 1")
 	assert.NoError(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 0}))
 	assert.ErrorContains(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 2, 10}),
-		"nonce 2 exists at 12345")
+		"duplicate value 2")
 	assert.NoError(acc.UpdateNonceTable(12345, []uint64{1, 2, 3, 4, 0, 10}))
 	assert.NoError(acc.SubByNonceTable(constants.NativeToken, 12345, 0, big.NewInt(10)))
 
@@ -139,7 +139,7 @@ func TestNativeAccount(t *testing.T) {
 		assert.NoError(acc.UpdateNonceTable(i, []uint64{i}))
 	}
 	assert.Nil(acc.ld.NonceTable[2])
-	assert.NotNil(acc.ld.NonceTable[3])
+	require.NotNil(t, acc.ld.NonceTable[3])
 	assert.Equal(1024, len(acc.ld.NonceTable))
 	assert.ErrorContains(acc.UpdateNonceTable(1028, []uint64{1028}),
 		"too many NonceTable groups, expected <= 1024")
@@ -151,7 +151,7 @@ func TestNativeAccount(t *testing.T) {
 	// Marshal
 	data, _, err := acc.Marshal()
 	require.NoError(t, err)
-	acc2, err := ParseAccount(acc.id, data)
+	acc2, err := ParseAccount(acc.ld.ID, data)
 	require.NoError(t, err)
 	assert.Equal(acc.ld.Bytes(), acc2.ld.Bytes())
 
@@ -162,7 +162,7 @@ func TestNativeAccount(t *testing.T) {
 		MinAmount:       big.NewInt(1000),
 		MaxAmount:       big.NewInt(1_000_000),
 	}
-	assert.NoError(acc.InitLedger(nil))
+	assert.NoError(acc.LoadLedger(false, func() ([]byte, error) { return nil, nil }))
 	assert.NoError(acc.OpenLending(cfg))
 	assert.NoError(acc.CloseLending())
 }

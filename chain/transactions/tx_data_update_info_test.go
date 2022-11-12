@@ -270,7 +270,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.Equal(ownerGas*100,
 		itx.(*TxUpdateDataInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ownerGas*(ctx.Price+100),
-		ownerAcc.Balance().Uint64())
+		ownerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	di2, err := cs.LoadData(di.ID)
@@ -281,7 +281,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	assert.Equal(signer.Keys{signer.Signer1.Key()}, di2.Keepers)
 	assert.Equal(di.Payload, di2.Payload)
 	assert.Nil(di.Approver)
-	assert.NotNil(di2.Approver)
+	require.NotNil(t, di2.Approver)
 	assert.True(signer.Signer2.Key().Equal(di2.Approver))
 	assert.Nil(di.ApproveList)
 	assert.Equal(ld.TxTypes{

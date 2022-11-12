@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ldclabs/ldvm/chain/acct"
 	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/util"
@@ -16,10 +17,10 @@ import (
 
 type TxBase struct {
 	ld        *ld.Transaction
-	ldc       *Account // native token account
-	miner     *Account
-	from      *Account
-	to        *Account
+	ldc       *acct.Account // native token account
+	miner     *acct.Account
+	from      *acct.Account
+	to        *acct.Account
 	amount    *big.Int
 	fee       *big.Int
 	tip       *big.Int
@@ -113,14 +114,16 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {
 		return err
 	}
-	if err = tx.from.CheckAsFrom(tx.ld.Tx.Type); err != nil {
+
+	if err = tx.from.LD().CheckAsFrom(tx.ld.Tx.Type); err != nil {
 		return err
 	}
+
 	if tx.ld.Tx.To != nil {
 		if tx.to, err = cs.LoadAccount(*tx.ld.Tx.To); err != nil {
 			return err
 		}
-		if err = tx.to.CheckAsTo(tx.ld.Tx.Type); err != nil {
+		if err = tx.to.LD().CheckAsTo(tx.ld.Tx.Type); err != nil {
 			return err
 		}
 	}
@@ -134,22 +137,22 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 		!tx.from.Verify(tx.ld.TxHash(), tx.ld.Signatures, tx.senderKey):
 		return fmt.Errorf("invalid signatures for sender")
 
-	case !tx.ld.IsApproved(tx.from.ld.Approver, tx.from.ld.ApproveList, false):
+	case !tx.ld.IsApproved(tx.from.LD().Approver, tx.from.LD().ApproveList, false):
 		return fmt.Errorf("invalid signature for approver")
 	}
 
 	switch tx.token {
 	case constants.NativeToken:
 		if err = tx.from.CheckBalance(constants.NativeToken,
-			new(big.Int).Add(tx.amount, tx.cost)); err != nil {
+			new(big.Int).Add(tx.amount, tx.cost), tx.amount.Sign() > 0); err != nil {
 			return err
 		}
 
 	default:
-		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost); err != nil {
+		if err = tx.from.CheckBalance(constants.NativeToken, tx.cost, false); err != nil {
 			return err
 		}
-		if err = tx.from.CheckBalance(tx.token, tx.amount); err != nil {
+		if err = tx.from.CheckBalance(tx.token, tx.amount, false); err != nil {
 			return err
 		}
 	}
@@ -158,7 +161,7 @@ func (tx *TxBase) verify(ctx ChainContext, cs ChainState) error {
 
 func (tx *TxBase) accept(ctx ChainContext, cs ChainState) error {
 	var err error
-	if err = tx.from.SubByNonce(constants.NativeToken, tx.ld.Tx.Nonce, tx.cost); err != nil {
+	if err = tx.from.SubGasByNonce(constants.NativeToken, tx.ld.Tx.Nonce, tx.cost); err != nil {
 		return err
 	}
 

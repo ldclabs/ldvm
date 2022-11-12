@@ -90,19 +90,21 @@ func (t *TxEth) Marshal() ([]byte, error) {
 }
 
 func (t *TxEth) ToTransaction() *Transaction {
-	tx := new(Transaction)
-	tx.Tx.Type = TypeEth
-	tx.Tx.ChainID = gChainID
-	tx.Tx.Nonce = t.tx.Nonce()
-	tx.Tx.GasTip = 0 // legacy transaction and EIP2718 typed transaction don't have GasTipCap
-	tx.Tx.GasFeeCap = FromEthBalance(t.tx.GasFeeCap()).Uint64()
-	tx.Tx.From = t.from
-	tx.Tx.To = &t.to
-	tx.Tx.Token = nil
-	tx.Tx.Amount = FromEthBalance(t.tx.Value())
-	tx.Tx.Data = t.Bytes()
-	tx.Signatures = signer.Sigs{t.sig}
-	tx.ExSignatures = nil
+	tx := &Transaction{
+		Tx: TxData{
+			Type:      TypeEth,
+			ChainID:   gChainID,
+			Nonce:     t.tx.Nonce(),
+			GasTip:    0, // legacy transaction and EIP2718 typed transaction don't have GasTipCap
+			GasFeeCap: FromEthBalance(t.tx.GasFeeCap()).Uint64(),
+			From:      t.from,
+			To:        t.to.Ptr(),
+			Amount:    FromEthBalance(t.tx.Value()),
+			Data:      t.Bytes(),
+		},
+		Signatures: signer.Sigs{t.sig},
+	}
+
 	tx.eth = t
 	return tx
 }

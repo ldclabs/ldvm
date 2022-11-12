@@ -134,7 +134,7 @@ func TestTxBorrow(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      borrower,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -165,7 +165,7 @@ func TestTxBorrow(t *testing.T) {
 
 	input = &ld.TxTransfer{
 		From: &lender,
-		To:   &constants.GenesisAccount,
+		To:   constants.GenesisAccount.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -196,7 +196,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -209,7 +209,7 @@ func TestTxBorrow(t *testing.T) {
 	input = &ld.TxTransfer{
 		From:  &lender,
 		To:    &borrower,
-		Token: &token,
+		Token: token.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -232,7 +232,7 @@ func TestTxBorrow(t *testing.T) {
 	input = &ld.TxTransfer{
 		From:  &lender,
 		To:    &borrower,
-		Token: &token,
+		Token: token.Ptr(),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -242,7 +242,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -254,7 +254,7 @@ func TestTxBorrow(t *testing.T) {
 	input = &ld.TxTransfer{
 		From:   &lender,
 		To:     &borrower,
-		Token:  &token,
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 	}
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -265,7 +265,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -281,7 +281,7 @@ func TestTxBorrow(t *testing.T) {
 	input = &ld.TxTransfer{
 		From:   &lender,
 		To:     &borrower,
-		Token:  &token,
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: cs.Timestamp(),
 		Data:   dueTimeData,
@@ -294,7 +294,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -310,7 +310,7 @@ func TestTxBorrow(t *testing.T) {
 	input = &ld.TxTransfer{
 		From:   &lender,
 		To:     &borrower,
-		Token:  &token,
+		Token:  token.Ptr(),
 		Amount: new(big.Int).SetUint64(constants.LDC),
 		Expire: cs.Timestamp(),
 		Data:   dueTimeData,
@@ -323,7 +323,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -341,7 +341,7 @@ func TestTxBorrow(t *testing.T) {
 	cs.MustAccount(borrower).Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: invalid lending")
+		"invalid lending")
 	cs.CheckoutAccounts()
 
 	lcfg := &ld.LendingConfig{
@@ -367,7 +367,7 @@ func TestTxBorrow(t *testing.T) {
 	require.NoError(t, err)
 
 	lenderAcc := cs.MustAccount(lender)
-	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	lenderGas := ltx.Gas()
@@ -377,9 +377,9 @@ func TestTxBorrow(t *testing.T) {
 		itx.(*TxOpenLending).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
 		lenderAcc.Balance().Uint64())
-	assert.NotNil(lenderAcc.ld.Lending)
-	assert.NotNil(lenderAcc.ledger)
-	assert.Equal(0, len(lenderAcc.ledger.Lending))
+	require.NotNil(t, lenderAcc.LD().Lending)
+	require.NotNil(t, lenderAcc.Ledger())
+	assert.Equal(0, len(lenderAcc.Ledger().Lending))
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeBorrow,
@@ -389,7 +389,7 @@ func TestTxBorrow(t *testing.T) {
 		GasFeeCap: ctx.Price,
 		From:      borrower,
 		To:        &lender,
-		Token:     &token,
+		Token:     token.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -401,7 +401,7 @@ func TestTxBorrow(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxBorrow.Apply: Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: invalid token, expected NativeLDC, got $LDC")
+		"invalid token, expected NativeLDC, got $LDC")
 	cs.CheckoutAccounts()
 
 	input = &ld.TxTransfer{
@@ -430,7 +430,7 @@ func TestTxBorrow(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"Account(0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641).Borrow: insufficient NativeLDC balance, expected 1000000000, got 998155300")
+		"insufficient transferable NativeLDC balance, expected 1000000000, got 998155300")
 	cs.CheckoutAccounts()
 
 	assert.NoError(lenderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
@@ -450,11 +450,11 @@ func TestTxBorrow(t *testing.T) {
 	assert.Equal((lenderGas+borrowerGas)*100,
 		itx.(*TxBorrow).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*2-borrowerGas*(ctx.Price+100),
-		borrowerAcc.Balance().Uint64())
+		borrowerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), borrowerAcc.Nonce())
-	assert.Equal(1, len(lenderAcc.ledger.Lending))
-	assert.NotNil(lenderAcc.ledger.Lending[borrowerAcc.id.AsKey()])
-	entry := lenderAcc.ledger.Lending[borrowerAcc.id.AsKey()]
+	assert.Equal(1, len(lenderAcc.Ledger().Lending))
+	require.NotNil(t, lenderAcc.Ledger().Lending[borrowerAcc.ID().AsKey()])
+	entry := lenderAcc.Ledger().Lending[borrowerAcc.ID().AsKey()]
 	assert.Equal(constants.LDC, entry.Amount.Uint64())
 	assert.Equal(cs.Timestamp(), entry.UpdateAt)
 	assert.Equal(cs.Timestamp()+3600*24, entry.DueTime)
@@ -501,11 +501,11 @@ func TestTxBorrow(t *testing.T) {
 	assert.Equal((lenderGas+borrowerGas)*100,
 		itx.(*TxBorrow).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*3-borrowerGas*(ctx.Price+100),
-		borrowerAcc.Balance().Uint64())
+		borrowerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-lenderGas*(ctx.Price+100),
 		lenderAcc.Balance().Uint64())
-	assert.NotNil(lenderAcc.ledger.Lending[borrower.AsKey()])
-	entry = lenderAcc.ledger.Lending[borrower.AsKey()]
+	require.NotNil(t, lenderAcc.Ledger().Lending[borrower.AsKey()])
+	entry = lenderAcc.Ledger().Lending[borrower.AsKey()]
 	rate := 1 + float64(10_000)/1_000_000
 	assert.Equal(uint64(float64(constants.LDC)*rate)+constants.LDC, entry.Amount.Uint64(),
 		"with 1 day interest")

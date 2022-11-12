@@ -68,14 +68,15 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight    uint64                        `json:"startHeight"`
-	MinGasPrice    uint64                        `json:"minGasPrice"`
-	MaxGasPrice    uint64                        `json:"maxGasPrice"`
-	MaxTxGas       uint64                        `json:"maxTxGas"`
-	GasRebateRate  uint64                        `json:"gasRebateRate"`
-	MinTokenPledge *big.Int                      `json:"minTokenPledge"`
-	MinStakePledge *big.Int                      `json:"minStakePledge"`
-	Builders       util.IDList[util.StakeSymbol] `json:"builders"`
+	StartHeight            uint64                        `json:"startHeight"`
+	MinGasPrice            uint64                        `json:"minGasPrice"`
+	MaxGasPrice            uint64                        `json:"maxGasPrice"`
+	MaxTxGas               uint64                        `json:"maxTxGas"`
+	GasRebateRate          uint64                        `json:"gasRebateRate"`
+	MinTokenPledge         *big.Int                      `json:"minTokenPledge"`
+	MinStakePledge         *big.Int                      `json:"minStakePledge"`
+	NonTransferableBalance *big.Int                      `json:"nonTransferableBalance"`
+	Builders               util.IDList[util.StakeSymbol] `json:"builders"`
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
@@ -97,11 +98,14 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	case cfg.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
-	case cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
+	case cfg.MinTokenPledge == nil || cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
 		return errp.Errorf("invalid minTokenPledge")
 
-	case cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
+	case cfg.MinStakePledge == nil || cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
 		return errp.Errorf("invalid minStakePledge")
+
+	case cfg.NonTransferableBalance == nil || cfg.NonTransferableBalance.Cmp(new(big.Int).SetUint64(0)) < 0:
+		return errp.Errorf("invalid nonTransferableBalance")
 
 	case cfg.Builders == nil:
 		return errp.Errorf("nil builders")

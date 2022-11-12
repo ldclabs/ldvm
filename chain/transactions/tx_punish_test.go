@@ -39,7 +39,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      to.id,
+		From:      to.ID(),
 	}}
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
@@ -51,7 +51,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      to.id,
+		From:      to.ID(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -65,8 +65,8 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
-		To:        &to.id,
+		From:      from.ID(),
+		To:        to.ID().Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -79,7 +79,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Token:     &constants.NativeToken,
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -93,7 +93,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Amount:    big.NewInt(1),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -105,7 +105,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -118,7 +118,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Data:      []byte("你好👋"),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -134,7 +134,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -150,7 +150,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -167,7 +167,7 @@ func TestTxPunish(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      from.id,
+		From:      from.ID(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
@@ -252,7 +252,7 @@ func TestTxPunishNameServiceData(t *testing.T) {
 		Threshold: ld.Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key()},
 		Data:      name.Bytes(),
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Expire:    100,
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 	}
@@ -264,7 +264,7 @@ func TestTxPunishNameServiceData(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &recipient,
+		To:        recipient.Ptr(),
 		Amount:    new(big.Int).SetUint64(constants.MilliLDC),
 		Data:      input.Bytes(),
 	}}
@@ -273,7 +273,7 @@ func TestTxPunishNameServiceData(t *testing.T) {
 	assert.NoError(ltx.SyntacticVerify())
 
 	senderAcc := cs.MustAccount(sender)
-	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC)))
+	assert.NoError(senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2)))
 	assert.NoError(cs.SaveModel(mi))
 
 	ltx.Timestamp = 10
@@ -299,7 +299,7 @@ func TestTxPunishNameServiceData(t *testing.T) {
 		Nonce:     0,
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
-		From:      genesis.id,
+		From:      genesis.ID(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))

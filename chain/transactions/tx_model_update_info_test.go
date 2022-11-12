@@ -49,7 +49,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		To:        &constants.GenesisAccount,
+		To:        constants.GenesisAccount.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -63,7 +63,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -210,17 +210,15 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	assert.NoError(cs.SaveModel(mi))
 	assert.NoError(itx.Apply(ctx, cs))
 
-	assert.Equal(ltx.Gas()*ctx.Price,
-		itx.(*TxUpdateModelInfo).ldc.Balance().Uint64())
-	assert.Equal(ltx.Gas()*100,
-		itx.(*TxUpdateModelInfo).miner.Balance().Uint64())
+	assert.Equal(ltx.Gas()*ctx.Price, itx.(*TxUpdateModelInfo).ldc.Balance().Uint64())
+	assert.Equal(ltx.Gas()*100, itx.(*TxUpdateModelInfo).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price+100),
-		ownerAcc.Balance().Uint64())
+		ownerAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(uint64(1), ownerAcc.Nonce())
 
 	mi, err = cs.LoadModel(mid)
 	require.NoError(t, err)
-	assert.NotNil(mi.Approver)
+	require.NotNil(t, mi.Approver)
 	assert.True(signer.Signer2.Key().Equal(mi.Approver))
 
 	jsondata, err := itx.MarshalJSON()

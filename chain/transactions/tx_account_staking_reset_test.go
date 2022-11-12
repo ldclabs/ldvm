@@ -65,7 +65,7 @@ func TestTxResetStake(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		Token:     &token,
+		Token:     token.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -158,7 +158,7 @@ func TestTxResetStake(t *testing.T) {
 
 	keeperAcc := cs.MustAccount(keeper)
 	keeperAcc.Add(constants.NativeToken,
-		new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC))
+		new(big.Int).SetUint64(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*2))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	keeperGas := ltx.Gas()
@@ -169,13 +169,13 @@ func TestTxResetStake(t *testing.T) {
 		itx.(*TxCreateStake).miner.Balance().Uint64())
 	assert.Equal(constants.LDC*0, stakeAcc.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(),
-		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+		stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-keeperGas*(ctx.Price+100),
 		keeperAcc.Balance().Uint64())
 
-	assert.NotNil(stakeAcc.ledger)
-	keeperEntry := stakeAcc.ledger.Stake[keeper.AsKey()]
-	assert.NotNil(keeperEntry)
+	require.NotNil(t, stakeAcc.Ledger())
+	keeperEntry := stakeAcc.Ledger().Stake[keeper.AsKey()]
+	require.NotNil(t, keeperEntry)
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64(), keeperEntry.Amount.Uint64())
 	assert.Equal(uint64(0), keeperEntry.LockTime)
 	assert.Nil(keeperEntry.Approver)
@@ -257,7 +257,7 @@ func TestTxResetStake(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: can't change stake type, expected 0, got 1")
+		"can't change stake type, expected 0, got 1")
 	cs.CheckoutAccounts()
 
 	input = &ld.StakeConfig{
@@ -283,7 +283,7 @@ func TestTxResetStake(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: can't change stake token, expected NativeLDC, got $TEST")
+		"can't change stake token, expected NativeLDC, got $TEST")
 	cs.CheckoutAccounts()
 
 	input = &ld.StakeConfig{
@@ -308,7 +308,7 @@ func TestTxResetStake(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: stake in lock, please retry after lockTime, Unix(1100)")
+		"stake in lock, please retry after lockTime, Unix(1100)")
 
 	ctx.timestamp += 101
 	cs.CheckoutAccounts()
@@ -339,7 +339,7 @@ func TestTxResetStake(t *testing.T) {
 	// take a stake for testing
 	input2 := &ld.TxTransfer{
 		Nonce:  0,
-		From:   &sender,
+		From:   sender.Ptr(),
 		To:     &stakeid,
 		Amount: new(big.Int).SetUint64(constants.LDC * 10),
 		Expire: cs.Timestamp(),
@@ -363,7 +363,7 @@ func TestTxResetStake(t *testing.T) {
 	require.NoError(t, err)
 
 	senderAcc := cs.MustAccount(sender)
-	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*11))
+	senderAcc.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*12))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	senderGas := ltx.Gas()
@@ -372,11 +372,11 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal((keeperGas+senderGas)*100,
 		itx.(*TxTakeStake).miner.Balance().Uint64())
 	assert.Equal(ctx.FeeConfig().MinStakePledge.Uint64()+constants.LDC*11,
-		stakeAcc.balanceOfAll(constants.NativeToken).Uint64())
+		stakeAcc.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
-	senderEntry := stakeAcc.ledger.Stake[sender.AsKey()]
-	assert.NotNil(senderEntry)
+	senderEntry := stakeAcc.Ledger().Stake[sender.AsKey()]
+	require.NotNil(t, senderEntry)
 	assert.Equal(constants.LDC*10, senderEntry.Amount.Uint64())
 	assert.Equal(uint64(0), senderEntry.LockTime)
 	assert.Nil(senderEntry.Approver)
@@ -406,9 +406,9 @@ func TestTxResetStake(t *testing.T) {
 		itx.(*TxUpdateStakeApprover).miner.Balance().Uint64())
 	assert.Equal(constants.LDC-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
-	senderEntry = stakeAcc.ledger.Stake[sender.AsKey()]
-	assert.NotNil(senderEntry)
-	assert.NotNil(senderEntry.Approver)
+	senderEntry = stakeAcc.Ledger().Stake[sender.AsKey()]
+	require.NotNil(t, senderEntry)
+	require.NotNil(t, senderEntry.Approver)
 	assert.Equal(keeper, senderEntry.Approver.Address())
 
 	// reset again
@@ -434,7 +434,7 @@ func TestTxResetStake(t *testing.T) {
 	require.NoError(t, err)
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"TxResetStake.Apply: Account(0x0000000000000000000000000000002354455354).ResetStake: stake holders should not more than 1")
+		"stake holders should not more than 1")
 	cs.CheckoutAccounts()
 
 	input2 = &ld.TxTransfer{Amount: new(big.Int).SetUint64(constants.LDC * 10)}
@@ -465,8 +465,8 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal(constants.LDC*11-withdrawFee-senderGas*(ctx.Price+100),
 		senderAcc.Balance().Uint64())
 	assert.Equal(constants.LDC+withdrawFee, stakeAcc.Balance().Uint64())
-	assert.NotNil(stakeAcc.ledger.Stake[sender.AsKey()])
-	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
+	require.NotNil(t, stakeAcc.Ledger().Stake[sender.AsKey()])
+	assert.Equal(constants.LDC*0, stakeAcc.Ledger().Stake[sender.AsKey()].Amount.Uint64())
 
 	input = &ld.StakeConfig{
 		LockTime:    cs.Timestamp() + 1,
@@ -496,12 +496,12 @@ func TestTxResetStake(t *testing.T) {
 	assert.Equal((keeperGas+senderGas+stakeGas)*100,
 		itx.(*TxResetStake).miner.Balance().Uint64())
 
-	assert.Equal(input.LockTime, stakeAcc.ld.Stake.LockTime)
-	assert.Equal(input.WithdrawFee, stakeAcc.ld.Stake.WithdrawFee)
-	assert.Equal(constants.LDC*100, stakeAcc.ld.Stake.MinAmount.Uint64())
-	assert.Equal(constants.LDC*100, stakeAcc.ld.Stake.MaxAmount.Uint64())
-	assert.Equal(2, len(stakeAcc.ledger.Stake))
-	assert.Equal(constants.LDC*0, stakeAcc.ledger.Stake[sender.AsKey()].Amount.Uint64())
+	assert.Equal(input.LockTime, stakeAcc.LD().Stake.LockTime)
+	assert.Equal(input.WithdrawFee, stakeAcc.LD().Stake.WithdrawFee)
+	assert.Equal(constants.LDC*100, stakeAcc.LD().Stake.MinAmount.Uint64())
+	assert.Equal(constants.LDC*100, stakeAcc.LD().Stake.MaxAmount.Uint64())
+	assert.Equal(2, len(stakeAcc.Ledger().Stake))
+	assert.Equal(constants.LDC*0, stakeAcc.Ledger().Stake[sender.AsKey()].Amount.Uint64())
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)

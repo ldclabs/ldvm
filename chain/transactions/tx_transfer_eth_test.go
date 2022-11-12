@@ -32,7 +32,7 @@ func TestTxEth(t *testing.T) {
 	from := cs.MustAccount(signer.Signer1.Key().Address())
 	to := cs.MustAccount(signer.Signer2.Key().Address())
 
-	testTo := common.Address(to.id)
+	testTo := common.Address(to.ID())
 
 	txe, err := ld.NewEthTx(&types.AccessListTx{
 		ChainID:  new(big.Int).SetUint64(ctx.ChainConfig().ChainID),
@@ -51,7 +51,7 @@ func TestTxEth(t *testing.T) {
 
 	tx.ld.Tx.To = nil
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid to")
-	tx.ld.Tx.To = &to.id
+	tx.ld.Tx.To = to.ID().Ptr()
 	tx.ld.Tx.Amount = nil
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid amount")
 	tx.ld.Tx.Amount = big.NewInt(1_000_000)
@@ -73,10 +73,10 @@ func TestTxEth(t *testing.T) {
 	tx.ld.Tx.GasFeeCap = ctx.Price
 	tx.ld.Tx.From = constants.GenesisAccount
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid from")
-	tx.ld.Tx.From = from.id
-	tx.ld.Tx.To = &constants.GenesisAccount
+	tx.ld.Tx.From = from.ID()
+	tx.ld.Tx.To = constants.GenesisAccount.Ptr()
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid to")
-	tx.ld.Tx.To = &to.id
+	tx.ld.Tx.To = to.ID().Ptr()
 	tx.ld.Tx.Token = &token
 	assert.ErrorContains(itx.SyntacticVerify(), "invalid token")
 	tx.ld.Tx.Token = nil
@@ -101,14 +101,15 @@ func TestTxEth(t *testing.T) {
 		"insufficient NativeLDC balance, expected 2268000, got 0")
 	cs.CheckoutAccounts()
 
-	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC))
+	from.Add(constants.NativeToken, new(big.Int).SetUint64(constants.LDC*2))
 	assert.NoError(itx.Apply(ctx, cs))
 
 	assert.Equal(ltx.Gas()*ctx.Price,
 		itx.(*TxEth).ldc.Balance().Uint64())
 	assert.Equal(uint64(0),
 		itx.(*TxEth).miner.Balance().Uint64())
-	assert.Equal(uint64(1_000_000), to.Balance().Uint64())
+	assert.Equal(uint64(0), to.Balance().Uint64())
+	assert.Equal(uint64(1_000_000), to.BalanceOfAll(constants.NativeToken).Uint64())
 	assert.Equal(constants.LDC-ltx.Gas()*(ctx.Price)-1_000_000,
 		from.Balance().Uint64())
 	assert.Equal(uint64(1), from.Nonce())
