@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func TestTxAccounter(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(), "nil keepers")
 	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid threshold, expected <= 0, got 1")
-	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	tx = &TxAccounter{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(ids.EmptyAddress[:])}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty Secp256k1 key")
 
 	tx = &TxAccounter{ApproveList: &TxTypes{TxType(255)}}

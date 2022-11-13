@@ -12,8 +12,9 @@ import (
 
 	cborpatch "github.com/ldclabs/cbor-patch"
 	jsonpatch "github.com/ldclabs/json-patch"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
 )
 
 func TestSigClaims(t *testing.T) {
@@ -25,33 +26,33 @@ func TestSigClaims(t *testing.T) {
 	sc = &SigClaims{}
 	assert.ErrorContains(sc.SyntacticVerify(), "invalid issuer")
 
-	sc = &SigClaims{Issuer: util.DataID{1, 2, 3, 4}}
+	sc = &SigClaims{Issuer: ids.DataID{1, 2, 3, 4}}
 	assert.ErrorContains(sc.SyntacticVerify(), "invalid subject")
 
-	sc = &SigClaims{Issuer: util.DataID{1, 2, 3, 4}, Subject: util.DataID{5, 6, 7, 8}}
+	sc = &SigClaims{Issuer: ids.DataID{1, 2, 3, 4}, Subject: ids.DataID{5, 6, 7, 8}}
 	assert.ErrorContains(sc.SyntacticVerify(), "invalid expiration time")
 
 	sc = &SigClaims{
-		Issuer:     util.DataID{1, 2, 3, 4},
-		Subject:    util.DataID{5, 6, 7, 8},
+		Issuer:     ids.DataID{1, 2, 3, 4},
+		Subject:    ids.DataID{5, 6, 7, 8},
 		Expiration: 100,
 	}
 	assert.ErrorContains(sc.SyntacticVerify(), "invalid issued time")
 
 	sc = &SigClaims{
-		Issuer:     util.DataID{1, 2, 3, 4},
-		Subject:    util.DataID{5, 6, 7, 8},
+		Issuer:     ids.DataID{1, 2, 3, 4},
+		Subject:    ids.DataID{5, 6, 7, 8},
 		Expiration: 100,
 		IssuedAt:   1,
 	}
 	assert.ErrorContains(sc.SyntacticVerify(), "invalid CWT id")
 
 	sc = &SigClaims{
-		Issuer:     util.DataID{1, 2, 3, 4},
-		Subject:    util.DataID{5, 6, 7, 8},
+		Issuer:     ids.DataID{1, 2, 3, 4},
+		Subject:    ids.DataID{5, 6, 7, 8},
 		Expiration: 100,
 		IssuedAt:   1,
-		CWTID:      util.Hash{9, 10, 11, 12},
+		CWTID:      ids.ID32{9, 10, 11, 12},
 	}
 	assert.NoError(sc.SyntacticVerify())
 
@@ -84,10 +85,10 @@ func TestDataInfo(t *testing.T) {
 	di = &DataInfo{Threshold: 1}
 	assert.ErrorContains(di.SyntacticVerify(), "invalid threshold")
 
-	di = &DataInfo{Keepers: signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	di = &DataInfo{Keepers: signer.Keys{signer.Key(ids.EmptyAddress[:])}}
 	assert.ErrorContains(di.SyntacticVerify(), "empty Secp256k1 key")
 
-	di = &DataInfo{Version: 1, Approver: signer.Key(util.AddressEmpty[:])}
+	di = &DataInfo{Version: 1, Approver: signer.Key(ids.EmptyAddress[:])}
 	assert.ErrorContains(di.SyntacticVerify(), "invalid approver")
 
 	di = &DataInfo{ApproveList: TxTypes{TxType(255)}}
@@ -118,7 +119,7 @@ func TestDataInfo(t *testing.T) {
 		Version:   1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Payload:   []byte(`42`),
-		SigClaims: &SigClaims{Issuer: util.DataID{1, 2, 3, 4}},
+		SigClaims: &SigClaims{Issuer: ids.DataID{1, 2, 3, 4}},
 		Sig:       &sig,
 	}
 	assert.ErrorContains(di.SyntacticVerify(), "invalid subject")
@@ -164,11 +165,11 @@ func TestDataInfo(t *testing.T) {
 
 	di3 := di2.Clone()
 	di3.SigClaims = &SigClaims{
-		Issuer:     util.DataID{1, 2, 3, 4},
-		Subject:    util.DataID{5, 6, 7, 8},
+		Issuer:     ids.DataID{1, 2, 3, 4},
+		Subject:    ids.DataID{5, 6, 7, 8},
 		Expiration: 100,
 		IssuedAt:   1,
-		CWTID:      util.Hash{9, 10, 11, 12},
+		CWTID:      ids.ID32{9, 10, 11, 12},
 	}
 	di3.Sig = &signer.Sig{1, 2, 3}
 	assert.ErrorContains(di3.SyntacticVerify(), "unknown sig AQID_ReApg")
@@ -183,7 +184,7 @@ func TestDataInfo(t *testing.T) {
 
 	assert.NoError(di.MarkDeleted(nil))
 	assert.Equal(uint64(0), di.Version)
-	assert.Equal(util.ModelIDEmpty, di.ModelID)
+	assert.Equal(ids.EmptyModelID, di.ModelID)
 	assert.Nil(di.Sig)
 	assert.Nil(di.SigClaims)
 	assert.Nil(di.Payload)
@@ -219,11 +220,11 @@ func TestDataInfoValidSigClaims(t *testing.T) {
 		Payload:   []byte(`42`),
 		Sig:       &sig,
 		SigClaims: &SigClaims{
-			Issuer:     util.DataID{1, 2, 3, 4},
-			Subject:    util.DataID{5, 6, 7, 8},
+			Issuer:     ids.DataID{1, 2, 3, 4},
+			Subject:    ids.DataID{5, 6, 7, 8},
 			Expiration: 100,
 			IssuedAt:   1,
-			CWTID:      util.Hash{9, 10, 11, 12},
+			CWTID:      ids.ID32{9, 10, 11, 12},
 		},
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -237,13 +238,13 @@ func TestDataInfoValidSigClaims(t *testing.T) {
 		Payload:   []byte(`42`),
 		Sig:       &sig,
 		SigClaims: &SigClaims{
-			Issuer:     util.DataID{1, 2, 3, 4},
-			Subject:    util.DataID{5, 6, 7, 8},
+			Issuer:     ids.DataID{1, 2, 3, 4},
+			Subject:    ids.DataID{5, 6, 7, 8},
 			Expiration: 100,
 			IssuedAt:   1,
-			CWTID:      util.Hash{9, 10, 11, 12},
+			CWTID:      ids.ID32{9, 10, 11, 12},
 		},
-		ID: util.DataID{5, 6, 7, 8},
+		ID: ids.DataID{5, 6, 7, 8},
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.ErrorContains(di.ValidSigClaims(),
@@ -254,23 +255,23 @@ func TestDataInfoValidSigClaims(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
-		Payload:   util.MustMarshalCBOR(42),
+		Payload:   encoding.MustMarshalCBOR(42),
 		Sig:       &sig,
 		SigClaims: &SigClaims{
-			Issuer:     util.DataID{1, 2, 3, 4},
-			Subject:    util.DataID{5, 6, 7, 8},
+			Issuer:     ids.DataID{1, 2, 3, 4},
+			Subject:    ids.DataID{5, 6, 7, 8},
 			Audience:   CBORModelID,
 			Expiration: 100,
 			IssuedAt:   1,
-			CWTID:      util.Hash{9, 10, 11, 12},
+			CWTID:      ids.ID32{9, 10, 11, 12},
 		},
-		ID: util.DataID{5, 6, 7, 8},
+		ID: ids.DataID{5, 6, 7, 8},
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.ErrorContains(di.ValidSigClaims(),
 		"invalid CWT id")
 
-	di.SigClaims.CWTID = util.HashFromData(di.Payload)
+	di.SigClaims.CWTID = ids.ID32FromData(di.Payload)
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(di.ValidSigClaims())
 	// TODO
@@ -310,7 +311,7 @@ func TestDataInfoPatch(t *testing.T) {
 	v1 := person{Name: "John", Age: 42}
 
 	// with CBORModelID
-	od = util.MustMarshalCBOR(v1)
+	od = encoding.MustMarshalCBOR(v1)
 	di = &DataInfo{
 		ModelID:   CBORModelID,
 		Version:   1,
@@ -323,15 +324,15 @@ func TestDataInfoPatch(t *testing.T) {
 	assert.ErrorContains(err, "invalid CBOR patch")
 
 	cborops := cborpatch.Patch{
-		{Op: "replace", Path: "/n", Value: util.MustMarshalCBOR("John X")},
-		{Op: "replace", Path: "/a", Value: util.MustMarshalCBOR(uint(18))},
+		{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("John X")},
+		{Op: "replace", Path: "/a", Value: encoding.MustMarshalCBOR(uint(18))},
 	}
-	data, err = di.Patch(util.MustMarshalCBOR(cborops))
+	data, err = di.Patch(encoding.MustMarshalCBOR(cborops))
 	require.NoError(t, err)
 	assert.Equal(od, []byte(di.Payload))
 
 	v2 := &person{}
-	assert.NoError(util.UnmarshalCBOR(data, v2))
+	assert.NoError(encoding.UnmarshalCBOR(data, v2))
 	assert.Equal("John X", v2.Name)
 	assert.Equal(uint(18), v2.Age)
 
@@ -363,7 +364,7 @@ func TestDataInfoPatch(t *testing.T) {
 
 	// with invalid modelID
 	di = &DataInfo{
-		ModelID:   util.ModelID{1, 2, 3},
+		ModelID:   ids.ModelID{1, 2, 3},
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},

@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
 	cborpatch "github.com/ldclabs/cbor-patch"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
@@ -48,22 +49,22 @@ type TxTester struct {
 	Tests      TestOps    `cbor:"ts" json:"tests"`
 
 	// external assignment fields
-	ID      ids.ID      `cbor:"-" json:"-"`
-	ShortID ids.ShortID `cbor:"-" json:"-"`
-	raw     []byte      `cbor:"-" json:"-"`
+	ID32 ids.ID32 `cbor:"-" json:"-"`
+	ID20 ids.ID20 `cbor:"-" json:"-"`
+	raw  []byte   `cbor:"-" json:"-"`
 }
 
 type TestOp struct {
 	_ struct{} `cbor:",toarray"`
 
-	Path  string       `json:"path"`
-	Value util.RawData `json:"value"`
+	Path  string           `json:"path"`
+	Value encoding.RawData `json:"value"`
 }
 
 type TestOps []TestOp
 
 func (ts TestOps) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TestOps.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TestOps.SyntacticVerify: ")
 	for _, t := range ts {
 		switch {
 		case t.Path == "":
@@ -89,7 +90,7 @@ func (ts TestOps) ToPatch() cborpatch.Patch {
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
 func (t *TxTester) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TxTester.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxTester.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -101,25 +102,25 @@ func (t *TxTester) SyntacticVerify() error {
 
 	switch t.ObjectType {
 	case AddressObject, LedgerObject:
-		id, err := util.AddressFrom(t.ObjectID)
+		id, err := ids.AddressFromStr(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
-		t.ShortID = ids.ShortID(id)
+		t.ID20 = ids.ID20(id)
 
 	case ModelObject:
-		id, err := util.ModelIDFrom(t.ObjectID)
+		id, err := ids.ModelIDFromStr(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
-		t.ShortID = ids.ShortID(id)
+		t.ID20 = ids.ID20(id)
 
 	case DataObject:
-		id, err := util.DataIDFrom(t.ObjectID)
+		id, err := ids.DataIDFromStr(t.ObjectID)
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
-		t.ID = ids.ID(id)
+		t.ID32 = ids.ID32(id)
 
 	default:
 		return errp.Errorf("invalid objectType %s", t.ObjectType.String())
@@ -147,13 +148,13 @@ func (t *TxTester) maybeTestData() bool {
 	return false
 }
 
-var rawRawModelID = string(util.MustMarshalCBOR(RawModelID))
-var rawJSONModelID = string(util.MustMarshalCBOR(JSONModelID))
+var rawRawModelID = string(encoding.MustMarshalCBOR(RawModelID))
+var rawJSONModelID = string(encoding.MustMarshalCBOR(JSONModelID))
 
 func (t *TxTester) Test(doc []byte) error {
 	var err error
 
-	errp := util.ErrPrefix("ld.TxTester.Test: ")
+	errp := erring.ErrPrefix("ld.TxTester.Test: ")
 	node := cborpatch.NewNode(doc)
 	opts := cborpatch.NewOptions()
 
@@ -161,7 +162,7 @@ func (t *TxTester) Test(doc []byte) error {
 		if rawModelID, _ := node.GetValue("/m", opts); rawModelID != nil {
 			if rawData, _ := node.GetValue("/pl", opts); rawData != nil {
 				var data []byte
-				err = util.UnmarshalCBOR(rawData, &data)
+				err = encoding.UnmarshalCBOR(rawData, &data)
 				if err == nil {
 					// try unwrap cbor data for testing
 					switch string(rawModelID) {
@@ -195,11 +196,11 @@ func (t *TxTester) Bytes() []byte {
 }
 
 func (t *TxTester) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxTester.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxTester.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTester) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxTester.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxTester.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }

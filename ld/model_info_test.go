@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,10 +47,10 @@ func TestModelInfo(t *testing.T) {
 	tx = &ModelInfo{Name: "Name", Schema: "abc"}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid schema string")
 
-	tx = &ModelInfo{Name: "Name", Schema: sc, Approver: signer.Key(util.AddressEmpty[:])}
+	tx = &ModelInfo{Name: "Name", Schema: sc, Approver: signer.Key(ids.EmptyAddress[:])}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid approver")
 
-	tx = &ModelInfo{Name: "Name", Schema: sc, Threshold: 1, Keepers: signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	tx = &ModelInfo{Name: "Name", Schema: sc, Threshold: 1, Keepers: signer.Keys{signer.Key(ids.EmptyAddress[:])}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty Secp256k1 key")
 
 	tx = &ModelInfo{Name: "Name", Schema: sc, Approver: signer.Key{}}

@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
 )
 
 func TestGenesis(t *testing.T) {
@@ -44,7 +44,7 @@ func TestGenesis(t *testing.T) {
 	assert.Equal(0, gs.Chain.FeeConfig.MinTokenPledge.Cmp(big.NewInt(10000000000000)))
 	assert.Equal(0, gs.Chain.FeeConfig.MinStakePledge.Cmp(big.NewInt(1000000000000)))
 
-	alloc1 := gs.Alloc[constants.GenesisAccount]
+	alloc1 := gs.Alloc[ids.GenesisAccount]
 	assert.Equal(0, alloc1.Balance.Cmp(big.NewInt(400000000000000000)))
 	assert.Equal(uint16(2), alloc1.Threshold)
 	assert.True(alloc1.Keepers.HasAddress(address1))
@@ -59,7 +59,7 @@ func TestGenesis(t *testing.T) {
 	_, err = gs.Chain.AppendFeeConfig([]byte{})
 	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig: EOF")
 
-	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":     0,
 		"minGasPrice":     10000,
 		"maxGasPrice":     100000,
@@ -71,7 +71,7 @@ func TestGenesis(t *testing.T) {
 	}))
 	assert.ErrorContains(err, "invalid minTokenPledge")
 
-	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":            1000,
 		"minGasPrice":            10000,
 		"maxGasPrice":            100000,
@@ -84,7 +84,7 @@ func TestGenesis(t *testing.T) {
 	}))
 	assert.ErrorContains(err, "nil builders")
 
-	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":            1000,
 		"minGasPrice":            10000,
 		"maxGasPrice":            100000,
@@ -94,11 +94,11 @@ func TestGenesis(t *testing.T) {
 		"minTokenPledge":         10000000000000,
 		"minStakePledge":         1000000000000,
 		"nonTransferableBalance": 1000000000,
-		"builders":               util.IDList[util.StakeSymbol]{},
+		"builders":               ids.IDList[ids.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 
-	_, err = gs.Chain.AppendFeeConfig(util.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
 		"startHeight":            100,
 		"minGasPrice":            10000,
 		"maxGasPrice":            100000,
@@ -108,7 +108,7 @@ func TestGenesis(t *testing.T) {
 		"minTokenPledge":         10000000000000,
 		"minStakePledge":         1000000000000,
 		"nonTransferableBalance": 1000000000,
-		"builders":               util.IDList[util.StakeSymbol]{},
+		"builders":               ids.IDList[ids.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 

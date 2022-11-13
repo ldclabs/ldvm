@@ -9,17 +9,17 @@ import (
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
-	"github.com/ava-labs/avalanchego/ids"
+	avaids "github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 
 	"github.com/ldclabs/ldvm/chain/acct"
-	"github.com/ldclabs/ldvm/chain/transactions"
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/chain/txn"
 	"github.com/ldclabs/ldvm/db"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 var (
@@ -67,16 +67,16 @@ type blockState struct {
 type BlockState interface {
 	VersionDB() *versiondb.Database
 	DeriveState() (BlockState, error)
-	LoadValidatorAccountByNodeID(ids.NodeID) (util.StakeSymbol, *acct.Account)
-	GetBlockIDAtHeight(uint64) (ids.ID, error)
+	LoadValidatorAccountByNodeID(avaids.NodeID) (ids.StakeSymbol, *acct.Account)
+	GetBlockIDAtHeight(uint64) (ids.ID32, error)
 	SaveBlock(*ld.Block) error
 	Commit() error
 	Free()
 
-	transactions.ChainState
+	txn.ChainState
 }
 
-func newBlockState(ctx *Context, height, timestamp uint64, parentState util.Hash, baseDB database.Database) *blockState {
+func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID32, baseDB database.Database) *blockState {
 	vdb := versiondb.New(baseDB)
 	pdb := db.NewPrefixDB(vdb, dbPrefix, 512)
 	bs := &blockState{
@@ -169,10 +169,10 @@ func (bs *blockState) VersionDB() *versiondb.Database {
 	return bs.vdb
 }
 
-func (bs *blockState) LoadAccount(id util.Address) (*acct.Account, error) {
+func (bs *blockState) LoadAccount(id ids.Address) (*acct.Account, error) {
 	acc := bs.accts[id]
 	if acc == nil {
-		errp := util.ErrPrefix("chain.BlockState.LoadAccount: ")
+		errp := erring.ErrPrefix("chain.BlockState.LoadAccount: ")
 		data, err := bs.accountDB.Get(id[:])
 		switch err {
 		case nil:
@@ -188,7 +188,7 @@ func (bs *blockState) LoadAccount(id util.Address) (*acct.Account, error) {
 
 		feeCfg := bs.ctx.ChainConfig().Fee(bs.height)
 		switch {
-		case id == constants.LDCAccount || id == constants.GenesisAccount:
+		case id == ids.LDCAccount || id == ids.GenesisAccount:
 			acc.Init(big.NewInt(0), big.NewInt(0), bs.height, bs.timestamp)
 
 		case acc.Type() == ld.TokenAccount:
@@ -218,28 +218,28 @@ func (bs *blockState) LoadLedger(acc *acct.Account) error {
 	})
 }
 
-func (bs *blockState) LoadValidatorAccountByNodeID(nodeID ids.NodeID) (util.StakeSymbol, *acct.Account) {
-	id := util.Address(nodeID).ToStakeSymbol()
-	acc, err := bs.LoadAccount(util.Address(id))
+func (bs *blockState) LoadValidatorAccountByNodeID(nodeID avaids.NodeID) (ids.StakeSymbol, *acct.Account) {
+	id := ids.Address(nodeID).ToStakeSymbol()
+	acc, err := bs.LoadAccount(ids.Address(id))
 	if err != nil || !acc.ValidValidator() {
-		return util.StakeEmpty, nil
+		return ids.StakeSymbol{}, nil
 	}
 	return id, acc
 }
 
-func (bs *blockState) LoadBuilder(id util.StakeSymbol) (*acct.Account, error) {
-	if id != util.StakeEmpty && id.Valid() {
-		acc, err := bs.LoadAccount(util.Address(id))
+func (bs *blockState) LoadBuilder(id ids.StakeSymbol) (*acct.Account, error) {
+	if id != ids.EmptyStake && id.Valid() {
+		acc, err := bs.LoadAccount(ids.Address(id))
 		if err == nil && acc.ValidValidator() {
 			return acc, nil
 		}
 	}
-	return bs.LoadAccount(constants.GenesisAccount)
+	return bs.LoadAccount(ids.GenesisAccount)
 }
 
 func (bs *blockState) SaveName(ns *service.Name) error {
-	errp := util.ErrPrefix("chain.BlockState.SaveName: ")
-	if ns.DataID == util.DataIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.SaveName: ")
+	if ns.DataID == ids.EmptyDataID {
 		return errp.Errorf("data ID is empty")
 	}
 
@@ -259,8 +259,8 @@ func (bs *blockState) SaveName(ns *service.Name) error {
 }
 
 func (bs *blockState) DeleteName(ns *service.Name) error {
-	errp := util.ErrPrefix("chain.BlockState.DeleteName: ")
-	if ns.DataID == util.DataIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.DeleteName: ")
+	if ns.DataID == ids.EmptyDataID {
 		return errp.Errorf("data ID is empty")
 	}
 
@@ -279,8 +279,8 @@ func (bs *blockState) DeleteName(ns *service.Name) error {
 	}
 }
 
-func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
-	errp := util.ErrPrefix("chain.BlockState.LoadModel: ")
+func (bs *blockState) LoadModel(id ids.ModelID) (*ld.ModelInfo, error) {
+	errp := erring.ErrPrefix("chain.BlockState.LoadModel: ")
 	data, err := bs.modelDB.Get(id[:])
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -298,8 +298,8 @@ func (bs *blockState) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 }
 
 func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
-	errp := util.ErrPrefix("chain.BlockState.SaveModel: ")
-	if mi.ID == util.ModelIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.SaveModel: ")
+	if mi.ID == ids.EmptyModelID {
 		return errp.Errorf("model id is empty")
 	}
 
@@ -310,8 +310,8 @@ func (bs *blockState) SaveModel(mi *ld.ModelInfo) error {
 	return errp.ErrorIf(bs.modelDB.Put(mi.ID[:], mi.Bytes()))
 }
 
-func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
-	errp := util.ErrPrefix("chain.BlockState.LoadData: ")
+func (bs *blockState) LoadData(id ids.DataID) (*ld.DataInfo, error) {
+	errp := erring.ErrPrefix("chain.BlockState.LoadData: ")
 	data, err := bs.dataDB.Get(id[:])
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -329,8 +329,8 @@ func (bs *blockState) LoadData(id util.DataID) (*ld.DataInfo, error) {
 }
 
 func (bs *blockState) SaveData(di *ld.DataInfo) error {
-	errp := util.ErrPrefix("chain.BlockState.SaveData: ")
-	if di.ID == util.DataIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.SaveData: ")
+	if di.ID == ids.EmptyDataID {
 		return errp.Errorf("data id is empty")
 	}
 
@@ -342,8 +342,8 @@ func (bs *blockState) SaveData(di *ld.DataInfo) error {
 }
 
 func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
-	errp := util.ErrPrefix("chain.BlockState.SavePrevData: ")
-	if di.ID == util.DataIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.SavePrevData: ")
+	if di.ID == ids.EmptyDataID {
 		return errp.Errorf("data id is empty")
 	}
 
@@ -355,8 +355,8 @@ func (bs *blockState) SavePrevData(di *ld.DataInfo) error {
 }
 
 func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
-	errp := util.ErrPrefix("chain.BlockState.DeleteData: ")
-	if di.ID == util.DataIDEmpty {
+	errp := erring.ErrPrefix("chain.BlockState.DeleteData: ")
+	if di.ID == ids.EmptyDataID {
 		return errp.Errorf("data id is empty")
 	}
 
@@ -374,17 +374,17 @@ func (bs *blockState) DeleteData(di *ld.DataInfo, message []byte) error {
 	return nil
 }
 
-func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
-	errp := util.ErrPrefix("chain.BlockState.GetBlockIDAtHeight: ")
+func (bs *blockState) GetBlockIDAtHeight(height uint64) (ids.ID32, error) {
+	errp := erring.ErrPrefix("chain.BlockState.GetBlockIDAtHeight: ")
 	data, err := bs.heightDB.Get(database.PackUInt64(height))
 	if err != nil {
-		return ids.Empty, errp.ErrorIf(err)
+		return ids.ID32{}, errp.ErrorIf(err)
 	}
-	return ids.ToID(data)
+	return ids.ID32FromBytes(data)
 }
 
 func (bs *blockState) SaveBlock(blk *ld.Block) error {
-	errp := util.ErrPrefix("chain.BlockState.SaveBlock: ")
+	errp := erring.ErrPrefix("chain.BlockState.SaveBlock: ")
 	for _, a := range bs.accts {
 		data, ledger, err := a.Marshal()
 		if err == nil {
@@ -426,7 +426,7 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 
 // Commit when accept
 func (bs *blockState) Commit() error {
-	errp := util.ErrPrefix("chain.BlockState.Commit: ")
+	errp := erring.ErrPrefix("chain.BlockState.Commit: ")
 	if err := bs.vdb.SetDatabase(bs.bc.DB()); err != nil {
 		return errp.ErrorIf(err)
 	}

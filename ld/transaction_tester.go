@@ -11,12 +11,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/unit"
 )
 
-func MustNewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, data []byte) *Transaction {
+func MustNewTestTx(signer1 *signer.SignerTester, ty TxType, to *ids.Address, data []byte) *Transaction {
 	tx, err := NewTestTx(signer1, ty, to, data)
 	if err != nil {
 		panic(err)
@@ -24,7 +24,7 @@ func MustNewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, da
 	return tx
 }
 
-func NewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, data []byte) (*Transaction, error) {
+func NewTestTx(signer1 *signer.SignerTester, ty TxType, to *ids.Address, data []byte) (*Transaction, error) {
 	var err error
 	tx := &Transaction{
 		Tx: TxData{
@@ -32,14 +32,14 @@ func NewTestTx(signer1 *signer.SignerTester, ty TxType, to *util.Address, data [
 			ChainID:   gChainID,
 			Nonce:     signer1.Nonce(),
 			GasTip:    0,
-			GasFeeCap: constants.LDC,
+			GasFeeCap: unit.LDC,
 			From:      signer1.Key().Address(),
 			To:        to,
 			Data:      data,
 		},
 	}
 	if to != nil {
-		tx.Tx.Amount = new(big.Int).SetUint64(constants.LDC)
+		tx.Tx.Amount = new(big.Int).SetUint64(unit.LDC)
 	}
 	if err := tx.SignWith(signer1); err != nil {
 		return nil, err
@@ -90,16 +90,16 @@ func GenJSONData(n int) []byte {
 	}
 }
 
-func MustNewToken(str string) util.TokenSymbol {
-	s, err := util.TokenFrom(str)
+func MustNewToken(str string) ids.TokenSymbol {
+	s, err := ids.TokenFromStr(str)
 	if err != nil {
 		panic(err)
 	}
 	return s
 }
 
-func MustNewStake(str string) util.StakeSymbol {
-	s, err := util.StakeFrom(str)
+func MustNewStake(str string) ids.StakeSymbol {
+	s, err := ids.StakeFromStr(str)
 	if err != nil {
 		panic(err)
 	}

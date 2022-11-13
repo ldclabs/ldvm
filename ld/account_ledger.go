@@ -6,8 +6,9 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type AccountLedger struct {
@@ -21,7 +22,7 @@ type AccountLedger struct {
 // SyntacticVerify verifies that a *AccountLedger is well-formed.
 func (a *AccountLedger) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("ld.AccountLedger.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.AccountLedger.SyntacticVerify: ")
 
 	if a == nil {
 		return errp.Errorf("nil pointer")
@@ -72,13 +73,13 @@ func (a *AccountLedger) Unmarshal(data []byte) error {
 		return nil
 	}
 
-	return util.ErrPrefix("ld.AccountLedger.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, a))
+	return erring.ErrPrefix("ld.AccountLedger.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, a))
 }
 
 func (a *AccountLedger) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.AccountLedger.Marshal: ").
-		ErrorMap(util.MarshalCBOR(a))
+	return erring.ErrPrefix("ld.AccountLedger.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(a))
 }
 
 type LendingEntry struct {

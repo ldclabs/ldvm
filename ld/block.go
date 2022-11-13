@@ -6,7 +6,9 @@ package ld
 import (
 	"time"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
@@ -15,41 +17,41 @@ const (
 )
 
 type Block struct {
-	Parent    util.Hash `cbor:"p" json:"parent"`     // The genesis block's parent ID is ids.Empty.
-	Height    uint64    `cbor:"h" json:"height"`     // The genesis block is at 0.
-	Timestamp uint64    `cbor:"ts" json:"timestamp"` // The genesis block is at 0.
-	State     util.Hash `cbor:"s" json:"state"`
-	Gas       uint64    `cbor:"g" json:"gas"`       // This block's total gas units.
-	GasPrice  uint64    `cbor:"gp" json:"gasPrice"` // This block's gas price
+	Parent    ids.ID32 `cbor:"p" json:"parent"` // The genesis block's parent ID is ids.Empty.
+	State     ids.ID32 `cbor:"s" json:"state"`
+	PCHeight  uint64   `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
+	Height    uint64   `cbor:"h" json:"height"`        // The genesis block is at 0.
+	Timestamp uint64   `cbor:"ts" json:"timestamp"`    // The genesis block is at 0.
+	Gas       uint64   `cbor:"g" json:"gas"`           // This block's total gas units.
+	GasPrice  uint64   `cbor:"gp" json:"gasPrice"`     // This block's gas price
 	// Gas rebate rate received by this block's miners, 0 ~ 1000, equal to 0～10 times.
 	GasRebateRate uint64 `cbor:"gr" json:"gasRebateRate"`
 	// The address of validator (convert to valid StakeAccount) who build this block.
 	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Builder util.StakeSymbol `cbor:"b" json:"builder"`
+	Builder ids.StakeSymbol `cbor:"b" json:"builder"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
-	Validators util.IDList[util.StakeSymbol] `cbor:"vs" json:"validators"`
-	PCHeight   uint64                        `cbor:"ph" json:"pChainHeight"` // AVAX P Chain Height
-	Txs        util.IDList[util.Hash]        `cbor:"txs" json:"txs"`
+	Validators ids.IDList[ids.StakeSymbol] `cbor:"vs" json:"validators"`
+	Txs        ids.IDList[ids.ID32]        `cbor:"txs" json:"txs"`
 
 	// external assignment fields
-	ID  util.Hash `cbor:"-" json:"id"`
-	raw []byte    `cbor:"-" json:"-"` // the block's raw bytes
+	ID  ids.ID32 `cbor:"-" json:"id"`
+	raw []byte   `cbor:"-" json:"-"` // the block's raw bytes
 }
 
 // SyntacticVerify verifies that a *Block is well-formed.
 func (b *Block) SyntacticVerify() error {
-	errp := util.ErrPrefix("Block.SyntacticVerify: ")
+	errp := erring.ErrPrefix("Block.SyntacticVerify: ")
 
 	switch {
 	case b == nil:
 		return errp.Errorf("nil pointer")
 
-	case b.Height > 0 && b.Parent == util.HashEmpty:
+	case b.Height > 0 && b.Parent == ids.EmptyID32:
 		return errp.Errorf("invalid parent %s", b.Parent)
 
-	case b.State == util.HashEmpty:
+	case b.State == ids.EmptyID32:
 		return errp.Errorf("invalid state %s", b.State)
 
 	case b.Timestamp > uint64(time.Now().Add(futureBound).Unix()):
@@ -61,7 +63,7 @@ func (b *Block) SyntacticVerify() error {
 	case b.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
-	case b.Builder != util.StakeEmpty && !b.Builder.Valid():
+	case b.Builder != ids.EmptyStake && !b.Builder.Valid():
 		return errp.Errorf("invalid builder address %s", b.Builder.GoString())
 
 	case b.Validators == nil:
@@ -96,7 +98,7 @@ func (b *Block) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
-	b.ID = util.HashFromData(b.raw)
+	b.ID = ids.ID32FromData(b.raw)
 	return nil
 }
 
@@ -108,11 +110,11 @@ func (b *Block) Bytes() []byte {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	return util.ErrPrefix("Block.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, b))
+	return erring.ErrPrefix("Block.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, b))
 }
 
 func (b *Block) Marshal() ([]byte, error) {
-	return util.ErrPrefix("Block.Marshal: ").
-		ErrorMap(util.MarshalCBOR(b))
+	return erring.ErrPrefix("Block.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(b))
 }

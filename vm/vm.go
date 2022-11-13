@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ava-labs/avalanchego/database/manager"
-	"github.com/ava-labs/avalanchego/ids"
+	avaids "github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
@@ -26,14 +26,20 @@ import (
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/httprpc"
+	"github.com/ldclabs/ldvm/rpc/httpcli"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
 	Name = "ldvm"
+)
+
+var (
+	// pjjsfTNAgQnP7zdpKfRcmicXGbk87xXznJmJZtqDAyRaNEhEL
+	LDVMID = avaids.ID{'l', 'd', 'v', 'm'}
 )
 
 var (
@@ -102,7 +108,7 @@ func (v *VM) Initialize(
 	v.name = fmt.Sprintf("%s@%s", Name, Version)
 	v.NewPushNetwork()
 
-	errp := util.ErrPrefix("LDVM.Initialize error: ")
+	errp := erring.ErrPrefix("LDVM.Initialize error: ")
 	var cfg *config.Config
 	cfg, err = config.New(configData)
 	if err != nil {
@@ -147,7 +153,7 @@ func (v *VM) initialize(
 		return fmt.Errorf("parse genesis data error, %v", err)
 	}
 
-	tr, err := httprpc.NewRoundTripper(&httprpc.TransportOptions{
+	tr, err := httpcli.NewRoundTripper(&httpcli.TransportOptions{
 		MaxIdleConnsPerHost:   10,
 		DialTimeout:           time.Second,
 		ResponseHeaderTimeout: time.Second,
@@ -242,7 +248,7 @@ func (v *VM) HealthCheck() (interface{}, error) {
 
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
-func (v *VM) Connected(id ids.NodeID, nodeVersion *version.Application) error {
+func (v *VM) Connected(id avaids.NodeID, nodeVersion *version.Application) error {
 	v.Log.Info("LDVM.Connected",
 		zap.Stringer("nodeID", id),
 		zap.Stringer("version", nodeVersion))
@@ -251,7 +257,7 @@ func (v *VM) Connected(id ids.NodeID, nodeVersion *version.Application) error {
 
 // Disconnected implements the common.VM Disconnected interface
 // Connector represents a handler that is called when a connection is marked as disconnected
-func (v *VM) Disconnected(id ids.NodeID) error {
+func (v *VM) Disconnected(id avaids.NodeID) error {
 	v.Log.Info("LDVM.Disconnected", zap.Stringer("nodeID", id))
 	return nil // noop
 }
@@ -270,7 +276,7 @@ func (v *VM) Disconnected(id ids.NodeID) error {
 // This node should typically send an AppResponse to [nodeID] in response to
 // a valid message using the same request ID before the deadline. However,
 // the VM may arbitrarily choose to not send a response to this request.
-func (v *VM) AppRequest(ctx context.Context, id ids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
+func (v *VM) AppRequest(ctx context.Context, id avaids.NodeID, requestID uint32, deadline time.Time, request []byte) error {
 	v.Log.Info("LDVM.AppRequest",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID),
@@ -299,7 +305,7 @@ func (v *VM) AppRequest(ctx context.Context, id ids.NodeID, requestID uint32, de
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another AppRequest, or it may give
 // up trying to get the requested information.
-func (v *VM) AppResponse(ctx context.Context, id ids.NodeID, requestID uint32, response []byte) error {
+func (v *VM) AppResponse(ctx context.Context, id avaids.NodeID, requestID uint32, response []byte) error {
 	v.Log.Info("LDVM.AppResponse",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID),
@@ -320,7 +326,7 @@ func (v *VM) AppResponse(ctx context.Context, id ids.NodeID, requestID uint32, r
 // * This engine sent a request to [nodeID] with ID [requestID].
 // * AppRequestFailed([nodeID], [requestID]) has not already been called.
 // * AppResponse([nodeID], [requestID]) has not already been called.
-func (v *VM) AppRequestFailed(ctx context.Context, id ids.NodeID, requestID uint32) error {
+func (v *VM) AppRequestFailed(ctx context.Context, id avaids.NodeID, requestID uint32) error {
 	v.Log.Info("LDVM.AppRequestFailed",
 		zap.Stringer("nodeID", id),
 		zap.Uint32("requestID", requestID))
@@ -342,7 +348,7 @@ func (v *VM) AppRequestFailed(ctx context.Context, id ids.NodeID, requestID uint
 // response to a valid message using the same request ID before the
 // deadline. However, the VM may arbitrarily choose to not send a response
 // to this request.
-func (v *VM) CrossChainAppRequest(ctx context.Context, chainID ids.ID, requestID uint32, deadline time.Time, request []byte) error {
+func (v *VM) CrossChainAppRequest(ctx context.Context, chainID avaids.ID, requestID uint32, deadline time.Time, request []byte) error {
 	v.Log.Info("LDVM.CrossChainAppRequest",
 		zap.Stringer("chainID", chainID),
 		zap.Uint32("requestID", requestID),
@@ -363,7 +369,7 @@ func (v *VM) CrossChainAppRequest(ctx context.Context, chainID ids.ID, requestID
 // called.
 // * CrossChainAppResponse([chainID], [requestID]) has not already been
 // called.
-func (v *VM) CrossChainAppRequestFailed(ctx context.Context, chainID ids.ID, requestID uint32) error {
+func (v *VM) CrossChainAppRequestFailed(ctx context.Context, chainID avaids.ID, requestID uint32) error {
 	v.Log.Info("LDVM.CrossChainAppRequestFailed",
 		zap.Stringer("chainID", chainID),
 		zap.Uint32("requestID", requestID))
@@ -391,7 +397,7 @@ func (v *VM) CrossChainAppRequestFailed(ctx context.Context, chainID ids.ID, req
 // If [response] is invalid or not the expected response, the VM chooses how
 // to react. For example, the VM may send another CrossChainAppRequest, or
 // it may give up trying to get the requested information.
-func (v *VM) CrossChainAppResponse(ctx context.Context, chainID ids.ID, requestID uint32, response []byte) error {
+func (v *VM) CrossChainAppResponse(ctx context.Context, chainID avaids.ID, requestID uint32, response []byte) error {
 	v.Log.Info("LDVM.CrossChainAppResponse",
 		zap.Stringer("chainID", chainID),
 		zap.Uint32("requestID", requestID),
@@ -403,11 +409,11 @@ func (v *VM) CrossChainAppResponse(ctx context.Context, chainID ids.ID, requestI
 //
 // GetBlock attempt to fetch a block by it's ID
 // If the block does not exist, an error should be returned.
-func (v *VM) GetBlock(id ids.ID) (blk snowman.Block, err error) {
+func (v *VM) GetBlock(id avaids.ID) (blk snowman.Block, err error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
-	blk, err = v.bc.GetBlock(util.Hash(id))
+	blk, err = v.bc.GetBlock(ids.ID32(id))
 	if err != nil {
 		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id), zap.Error(err))
 	} else {
@@ -425,7 +431,7 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	id := ids.ID(util.HashFromData(data))
+	id := avaids.ID(ids.ID32FromData(data))
 	err = ld.Recover("", func() error {
 		blk, err = v.bc.ParseBlock(data)
 		return err
@@ -464,12 +470,12 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 //
 // SetPreference notify the VM of the currently preferred block.
 // This should always be a block that has no children known to consensus.
-func (v *VM) SetPreference(id ids.ID) error {
+func (v *VM) SetPreference(id avaids.ID) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
 	v.Log.Info("LDVM.SetPreference %s", zap.Stringer("id", id))
-	err := v.bc.SetPreference(util.Hash(id))
+	err := v.bc.SetPreference(ids.ID32(id))
 	if err != nil {
 		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id), zap.Error(err))
 	}
@@ -482,7 +488,7 @@ func (v *VM) SetPreference(id ids.ID) error {
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (v *VM) LastAccepted() (ids.ID, error) {
+func (v *VM) LastAccepted() (avaids.ID, error) {
 	blk := v.bc.LastAcceptedBlock()
 	v.Log.Info("LDVM.LastAccepted",
 		zap.Stringer("id", blk.ID()),
@@ -502,7 +508,7 @@ func (v *VM) VerifyHeightIndex() error {
 
 // GetBlockIDAtHeight implements the block.HeightIndexedChainVM GetBlockIDAtHeight interface
 // GetBlockIDAtHeight returns the ID of the block that was accepted with [height].
-func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
+func (v *VM) GetBlockIDAtHeight(height uint64) (avaids.ID, error) {
 	id, err := v.bc.GetBlockIDAtHeight(height)
 	if err != nil {
 		v.Log.Error("LDVM.GetBlockIDAtHeight %d error %v",
@@ -513,5 +519,5 @@ func (v *VM) GetBlockIDAtHeight(height uint64) (ids.ID, error) {
 			zap.Stringer("id", id),
 			zap.Uint64("height", height))
 	}
-	return ids.ID(id), err
+	return avaids.ID(id), err
 }

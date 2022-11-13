@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 func (a *Account) TotalSupply() *big.Int {
@@ -22,16 +22,16 @@ func (a *Account) TotalSupply() *big.Int {
 	}
 
 	total.Set(a.ld.MaxTotalSupply)
-	return total.Sub(total, a.balanceOf(util.TokenSymbol(a.ld.ID), false))
+	return total.Sub(total, a.balanceOf(ids.TokenSymbol(a.ld.ID), false))
 }
 
 func (a *Account) CreateToken(data *ld.TxAccounter) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateToken: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateToken: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	token := util.TokenSymbol(a.ld.ID)
+	token := ids.TokenSymbol(a.ld.ID)
 	if !token.Valid() {
 		return errp.Errorf("invalid token %s", token.GoString())
 	}
@@ -43,7 +43,7 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 	a.ld.Type = ld.TokenAccount
 	a.ld.MaxTotalSupply = new(big.Int).Set(data.Amount)
 	switch token {
-	case constants.NativeToken: // NativeToken created by genesis tx
+	case ids.NativeToken: // NativeToken created by genesis tx
 		a.ld.Balance.Set(data.Amount)
 	default:
 		a.ld.Threshold = *data.Threshold
@@ -61,12 +61,12 @@ func (a *Account) CreateToken(data *ld.TxAccounter) error {
 }
 
 func (a *Account) DestroyToken(recipient *Account) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyToken: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyToken: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	token := util.TokenSymbol(a.ld.ID)
+	token := ids.TokenSymbol(a.ld.ID)
 	if !a.valid(ld.TokenAccount) {
 		return errp.Errorf("invalid token account %s", token.GoString())
 	}
@@ -83,7 +83,7 @@ func (a *Account) DestroyToken(recipient *Account) error {
 		return errp.ErrorIf(err)
 	}
 
-	recipient.Add(constants.NativeToken, a.ld.Balance)
+	recipient.Add(ids.NativeToken, a.ld.Balance)
 	a.ld.Type = 0
 	a.ld.Balance.SetUint64(0)
 	a.ld.Threshold = 0

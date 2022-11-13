@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 	"golang.org/x/net/idna"
 )
 
@@ -19,7 +19,7 @@ type DN struct {
 }
 
 func NewDN(name string) (*DN, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("service.NewDN(%q): ", name))
+	errp := erring.ErrPrefix(fmt.Sprintf("service.NewDN(%q): ", name))
 	if !utf8.ValidString(name) || name == "" {
 		return nil, errp.Errorf("invalid utf8 name")
 	}

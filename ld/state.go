@@ -4,34 +4,36 @@
 package ld
 
 import (
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type State struct {
-	Parent   util.Hash            `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
-	Accounts map[string]util.Hash `cbor:"a" json:"accounts"`
-	Ledgers  map[string]util.Hash `cbor:"l" json:"ledgers"`
-	Datas    map[string]util.Hash `cbor:"d" json:"datas"`
-	Models   map[string]util.Hash `cbor:"m" json:"models"`
+	Parent   ids.ID32            `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
+	Accounts map[string]ids.ID32 `cbor:"a" json:"accounts"`
+	Ledgers  map[string]ids.ID32 `cbor:"l" json:"ledgers"`
+	Datas    map[string]ids.ID32 `cbor:"d" json:"datas"`
+	Models   map[string]ids.ID32 `cbor:"m" json:"models"`
 
 	// external assignment fields
-	ID  util.Hash `cbor:"-" json:"id"`
-	raw []byte    `cbor:"-" json:"-"` // the block's raw bytes
+	ID  ids.ID32 `cbor:"-" json:"id"`
+	raw []byte   `cbor:"-" json:"-"` // the block's raw bytes
 }
 
-func NewState(parent util.Hash) *State {
+func NewState(parent ids.ID32) *State {
 	return &State{
 		Parent:   parent,
-		Accounts: make(map[string]util.Hash),
-		Ledgers:  make(map[string]util.Hash),
-		Datas:    make(map[string]util.Hash),
-		Models:   make(map[string]util.Hash),
+		Accounts: make(map[string]ids.ID32),
+		Ledgers:  make(map[string]ids.ID32),
+		Datas:    make(map[string]ids.ID32),
+		Models:   make(map[string]ids.ID32),
 	}
 }
 
 // SyntacticVerify verifies that a *State is well-formed.
 func (s *State) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.State.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.State.SyntacticVerify: ")
 
 	switch {
 	case s == nil:
@@ -55,33 +57,33 @@ func (s *State) SyntacticVerify() error {
 		return errp.ErrorIf(err)
 	}
 
-	s.ID = util.HashFromData(s.raw)
+	s.ID = ids.ID32FromData(s.raw)
 	return nil
 }
 
-func (s *State) UpdateAccount(id util.Address, data []byte) {
-	s.Accounts[string(id[:])] = util.HashFromData(data)
+func (s *State) UpdateAccount(id ids.Address, data []byte) {
+	s.Accounts[string(id[:])] = ids.ID32FromData(data)
 }
 
-func (s *State) UpdateLedger(id util.Address, data []byte) {
-	s.Ledgers[string(id[:])] = util.HashFromData(data)
+func (s *State) UpdateLedger(id ids.Address, data []byte) {
+	s.Ledgers[string(id[:])] = ids.ID32FromData(data)
 }
 
-func (s *State) UpdateData(id util.DataID, data []byte) {
-	s.Datas[string(id[:])] = util.HashFromData(data)
+func (s *State) UpdateData(id ids.DataID, data []byte) {
+	s.Datas[string(id[:])] = ids.ID32FromData(data)
 }
 
-func (s *State) UpdateModel(id util.ModelID, data []byte) {
-	s.Models[string(id[:])] = util.HashFromData(data)
+func (s *State) UpdateModel(id ids.ModelID, data []byte) {
+	s.Models[string(id[:])] = ids.ID32FromData(data)
 }
 
 func (s *State) Clone() *State {
 	ns := &State{
 		Parent:   s.Parent,
-		Accounts: make(map[string]util.Hash, len(s.Accounts)),
-		Ledgers:  make(map[string]util.Hash, len(s.Ledgers)),
-		Datas:    make(map[string]util.Hash, len(s.Datas)),
-		Models:   make(map[string]util.Hash, len(s.Models)),
+		Accounts: make(map[string]ids.ID32, len(s.Accounts)),
+		Ledgers:  make(map[string]ids.ID32, len(s.Ledgers)),
+		Datas:    make(map[string]ids.ID32, len(s.Datas)),
+		Models:   make(map[string]ids.ID32, len(s.Models)),
 	}
 
 	for k := range s.Accounts {
@@ -110,11 +112,11 @@ func (s *State) Bytes() []byte {
 }
 
 func (s *State) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.State.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, s))
+	return erring.ErrPrefix("ld.State.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, s))
 }
 
 func (s *State) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.State.Marshal: ").
-		ErrorMap(util.MarshalCBOR(s))
+	return erring.ErrPrefix("ld.State.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(s))
 }

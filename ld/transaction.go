@@ -10,14 +10,13 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
-	// gasTipPerSec: A delay of 1 seconds is equivalent to 1000 gasTip
-	gasTipPerSec  = constants.MicroLDC
 	maxTxDataSize = 1024 * 256
 )
 
@@ -34,16 +33,16 @@ func SetChainID(id uint64) {
 
 // TxData represents a complete transaction issued from client
 type TxData struct {
-	Type      TxType            `cbor:"t" json:"type"`
-	ChainID   uint64            `cbor:"c" json:"chainID"`
-	Nonce     uint64            `cbor:"n" json:"nonce"`
-	GasTip    uint64            `cbor:"gt" json:"gasTip"`
-	GasFeeCap uint64            `cbor:"gf" json:"gasFeeCap"`
-	From      util.Address      `cbor:"fr" json:"from"`                   // Address of the sender
-	To        *util.Address     `cbor:"to,omitempty" json:"to,omitempty"` // Address of the recipient
-	Token     *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
-	Amount    *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"`
-	Data      util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
+	Type      TxType           `cbor:"t" json:"type"`
+	ChainID   uint64           `cbor:"c" json:"chainID"`
+	Nonce     uint64           `cbor:"n" json:"nonce"`
+	GasTip    uint64           `cbor:"gt" json:"gasTip"`
+	GasFeeCap uint64           `cbor:"gf" json:"gasFeeCap"`
+	From      ids.Address      `cbor:"fr" json:"from"`                   // Address of the sender
+	To        *ids.Address     `cbor:"to,omitempty" json:"to,omitempty"` // Address of the recipient
+	Token     *ids.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"`
+	Amount    *big.Int         `cbor:"a,omitempty" json:"amount,omitempty"`
+	Data      encoding.RawData `cbor:"d,omitempty" json:"data,omitempty"`
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -51,7 +50,7 @@ type TxData struct {
 
 // SyntacticVerify verifies that a *TxData is well-formed.
 func (t *TxData) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TxData.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxData.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -94,13 +93,13 @@ func (t *TxData) Bytes() []byte {
 }
 
 func (t *TxData) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxData.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxData.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxData) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxData.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxData.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }
 
 func (t *TxData) ToTransaction() *Transaction {
@@ -113,17 +112,17 @@ type Transaction struct {
 	ExSignatures signer.Sigs `cbor:"es,omitempty" json:"exSigs,omitempty"`
 
 	// external assignment fields
-	ID        util.Hash `cbor:"-" json:"id"`
-	Err       error     `cbor:"-" json:"error,omitempty"`
-	Height    uint64    `cbor:"-" json:"-"` // block's timestamp
-	Timestamp uint64    `cbor:"-" json:"-"` // block's timestamp
-	priority  uint64    `cbor:"-" json:"-"`
-	dp        uint64    `cbor:"-" json:"-"` // dynamic priority for sorting
-	raw       []byte    `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
-	gas       uint64    `cbor:"-" json:"-"`
-	eth       *TxEth    `cbor:"-" json:"-"`
-	txHash    []byte    `cbor:"-" json:"-"`
-	exHash    []byte    `cbor:"-" json:"-"`
+	ID        ids.ID32 `cbor:"-" json:"id"`
+	Err       error    `cbor:"-" json:"error,omitempty"`
+	Height    uint64   `cbor:"-" json:"-"` // block's timestamp
+	Timestamp uint64   `cbor:"-" json:"-"` // block's timestamp
+	priority  uint64   `cbor:"-" json:"-"`
+	dp        uint64   `cbor:"-" json:"-"` // dynamic priority for sorting
+	raw       []byte   `cbor:"-" json:"-"` // the transaction's raw bytes, included id and sigs.
+	gas       uint64   `cbor:"-" json:"-"`
+	eth       *TxEth   `cbor:"-" json:"-"`
+	txHash    []byte   `cbor:"-" json:"-"`
+	exHash    []byte   `cbor:"-" json:"-"`
 	// support for batch transactions
 	// they are processed in the same block, one fail all fail
 	batch Txs `cbor:"-" json:"-"`
@@ -131,7 +130,7 @@ type Transaction struct {
 
 // SyntacticVerify verifies that a *Transaction is well-formed.
 func (t *Transaction) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.Transaction.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.Transaction.SyntacticVerify: ")
 	if t == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -183,8 +182,8 @@ func (t *Transaction) SyntacticVerify() error {
 		return errp.Errorf("size too large, expected <= %d, got %d", maxTxDataSize, size)
 	}
 
-	t.txHash = util.Sum256(t.Tx.Bytes())
-	t.ID = util.HashFromData(t.raw)
+	t.txHash = encoding.Sum256(t.Tx.Bytes())
+	t.ID = ids.ID32FromData(t.raw)
 	t.gas = t.Tx.Type.Gas() + uint64(math.Pow(float64(size), math.SqrtPhi))
 	t.priority = (t.Tx.GasTip + 1) * t.gas
 	return nil
@@ -203,26 +202,26 @@ func (t *Transaction) Bytes() []byte {
 
 func (t *Transaction) TxHash() []byte {
 	if len(t.txHash) == 0 {
-		t.txHash = util.Sum256(t.Tx.Bytes())
+		t.txHash = encoding.Sum256(t.Tx.Bytes())
 	}
 	return t.txHash
 }
 
 func (t *Transaction) ExHash() []byte {
 	if len(t.exHash) == 0 {
-		t.exHash = util.Sum256(t.Tx.Data)
+		t.exHash = encoding.Sum256(t.Tx.Data)
 	}
 	return t.exHash
 }
 
 func (t *Transaction) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.Transaction.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.Transaction.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *Transaction) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.Transaction.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.Transaction.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }
 
 func (t *Transaction) SignWith(signers ...signer.Signer) error {
@@ -231,7 +230,7 @@ func (t *Transaction) SignWith(signers ...signer.Signer) error {
 	for _, s := range signers {
 		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("ld.Transaction.SignWith: ").ErrorIf(err)
+			return erring.ErrPrefix("ld.Transaction.SignWith: ").ErrorIf(err)
 		}
 		t.Signatures = append(t.Signatures, sig)
 	}
@@ -244,7 +243,7 @@ func (t *Transaction) ExSignWith(signers ...signer.Signer) error {
 	for _, s := range signers {
 		sig, err := s.SignHash(datahash)
 		if err != nil {
-			return util.ErrPrefix("ld.Transaction.ExSignWith: ").ErrorIf(err)
+			return erring.ErrPrefix("ld.Transaction.ExSignWith: ").ErrorIf(err)
 		}
 		t.ExSignatures = append(t.ExSignatures, sig)
 	}
@@ -300,7 +299,7 @@ func (t *Transaction) Eth() *TxEth {
 }
 
 func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
-	errp := util.ErrPrefix("ld.NewBatchTx: ")
+	errp := erring.ErrPrefix("ld.NewBatchTx: ")
 
 	if len(txs) <= 1 {
 		return nil, errp.Errorf("not batch transactions")
@@ -336,13 +335,13 @@ func NewBatchTx(txs ...*Transaction) (*Transaction, error) {
 type Txs []*Transaction
 
 func (txs *Txs) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.Txs.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, txs))
+	return erring.ErrPrefix("ld.Txs.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, txs))
 }
 
 func (txs Txs) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.Txs.Marshal: ").
-		ErrorMap(util.MarshalCBOR(txs))
+	return erring.ErrPrefix("ld.Txs.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(txs))
 }
 
 func (txs Txs) To() (*Transaction, error) {
@@ -388,17 +387,17 @@ func (txs Txs) Size() int {
 	return s
 }
 
-func (t *Transaction) IDs() util.IDList[util.Hash] {
+func (t *Transaction) IDs() ids.IDList[ids.ID32] {
 	switch {
 	case t.IsBatched():
 		return t.batch.IDs()
 	default:
-		return util.IDList[util.Hash]{t.ID}
+		return ids.IDList[ids.ID32]{t.ID}
 	}
 }
 
-func (txs Txs) IDs() util.IDList[util.Hash] {
-	txIDs := util.NewIDList[util.Hash](txs.Size())
+func (txs Txs) IDs() ids.IDList[ids.ID32] {
+	txIDs := ids.NewIDList[ids.ID32](txs.Size())
 	for _, tx := range txs {
 		switch {
 		case tx.IsBatched():
@@ -416,7 +415,7 @@ type group struct {
 	dp uint64 // dynamic priority for sorting
 }
 
-type groupSet map[util.Address]*group
+type groupSet map[ids.Address]*group
 
 func (set groupSet) Add(txs ...*Transaction) {
 	for i := range txs {

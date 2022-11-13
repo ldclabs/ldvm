@@ -6,20 +6,22 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 // TxExchanger
 type TxExchanger struct {
-	Nonce     uint64           `cbor:"n" json:"nonce"`    // saler' account nonce
-	Sell      util.TokenSymbol `cbor:"st" json:"sell"`    // token symbol to sell
-	Receive   util.TokenSymbol `cbor:"rt" json:"receive"` // token symbol to receive
-	Quota     *big.Int         `cbor:"q" json:"quota"`    // token sales quota per a tx
-	Minimum   *big.Int         `cbor:"m" json:"minimum"`  // minimum amount to buy
-	Price     *big.Int         `cbor:"p" json:"price"`    // receive token amount = Quota * Price
-	Expire    uint64           `cbor:"e" json:"expire"`
-	Payee     util.Address     `cbor:"py" json:"payee"`
-	Purchaser *util.Address    `cbor:"to,omitempty" json:"purchaser,omitempty"` // optional designated purchaser
+	Nonce     uint64          `cbor:"n" json:"nonce"`    // saler' account nonce
+	Sell      ids.TokenSymbol `cbor:"st" json:"sell"`    // token symbol to sell
+	Receive   ids.TokenSymbol `cbor:"rt" json:"receive"` // token symbol to receive
+	Quota     *big.Int        `cbor:"q" json:"quota"`    // token sales quota per a tx
+	Minimum   *big.Int        `cbor:"m" json:"minimum"`  // minimum amount to buy
+	Price     *big.Int        `cbor:"p" json:"price"`    // receive token amount = Quota * Price
+	Expire    uint64          `cbor:"e" json:"expire"`
+	Payee     ids.Address     `cbor:"py" json:"payee"`
+	Purchaser *ids.Address    `cbor:"to,omitempty" json:"purchaser,omitempty"` // optional designated purchaser
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -27,7 +29,7 @@ type TxExchanger struct {
 
 // SyntacticVerify verifies that a *TxExchanger is well-formed.
 func (t *TxExchanger) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TxExchanger.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxExchanger.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -54,7 +56,7 @@ func (t *TxExchanger) SyntacticVerify() error {
 	case t.Price == nil || t.Price.Sign() < 1:
 		return errp.Errorf("invalid price")
 
-	case t.Payee == util.AddressEmpty:
+	case t.Payee == ids.EmptyAddress:
 		return errp.Errorf("invalid payee")
 	}
 
@@ -73,11 +75,11 @@ func (t *TxExchanger) Bytes() []byte {
 }
 
 func (t *TxExchanger) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxExchanger.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxExchanger.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxExchanger) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxExchanger.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxExchanger.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }

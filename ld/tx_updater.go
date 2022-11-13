@@ -6,8 +6,10 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 // TxUpdater is a hybrid data model for:
@@ -29,20 +31,20 @@ import (
 //
 // TxUpdateModelInfo{ModelID, Threshold, Keepers[, Approver]}
 type TxUpdater struct {
-	ID          *util.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
-	ModelID     *util.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
-	Version     uint64            `cbor:"v,omitempty" json:"version,omitempty"` // data version
-	Threshold   *uint16           `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers     *signer.Keys      `cbor:"kp,omitempty" json:"keepers,omitempty"`
-	Approver    *signer.Key       `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList *TxTypes          `cbor:"apl,omitempty" json:"approveList,omitempty"`
-	Token       *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
-	To          *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
-	Amount      *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
-	SigClaims   *SigClaims        `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
-	Sig         *signer.Sig       `cbor:"s,omitempty" json:"sig,omitempty"`
-	Expire      uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
-	Data        util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
+	ID          *ids.DataID      `cbor:"id,omitempty" json:"id,omitempty"`     // data id
+	ModelID     *ids.ModelID     `cbor:"mid,omitempty" json:"mid,omitempty"`   // model id
+	Version     uint64           `cbor:"v,omitempty" json:"version,omitempty"` // data version
+	Threshold   *uint16          `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Keepers     *signer.Keys     `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Approver    *signer.Key      `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList *TxTypes         `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Token       *ids.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
+	To          *ids.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // optional recipient
+	Amount      *big.Int         `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
+	SigClaims   *SigClaims       `cbor:"sc,omitempty" json:"sigClaims,omitempty"`
+	Sig         *signer.Sig      `cbor:"s,omitempty" json:"sig,omitempty"`
+	Expire      uint64           `cbor:"e,omitempty" json:"expire,omitempty"`
+	Data        encoding.RawData `cbor:"d,omitempty" json:"data,omitempty"`
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -51,7 +53,7 @@ type TxUpdater struct {
 // SyntacticVerify verifies that a *TxUpdater is well-formed.
 func (t *TxUpdater) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("ld.TxUpdater.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxUpdater.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -133,11 +135,11 @@ func (t *TxUpdater) Bytes() []byte {
 }
 
 func (t *TxUpdater) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxUpdater.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxUpdater.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxUpdater) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxUpdater.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxUpdater.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }

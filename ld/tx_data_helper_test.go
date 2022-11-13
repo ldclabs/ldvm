@@ -8,8 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,24 +26,24 @@ func TestSendOutputs(t *testing.T) {
 	so = SendOutputs{{}}
 	assert.ErrorContains(so.SyntacticVerify(), "invalid to address at 0")
 
-	so = SendOutputs{{To: util.AddressEmpty}}
+	so = SendOutputs{{To: ids.EmptyAddress}}
 	assert.ErrorContains(so.SyntacticVerify(), "invalid to address at 0")
 
-	so = SendOutputs{{To: util.Address{1, 2, 3}}}
+	so = SendOutputs{{To: ids.Address{1, 2, 3}}}
 	assert.ErrorContains(so.SyntacticVerify(), "invalid amount at 0")
 
-	so = SendOutputs{{To: util.Address{1, 2, 3}, Amount: big.NewInt(0)}}
+	so = SendOutputs{{To: ids.Address{1, 2, 3}, Amount: big.NewInt(0)}}
 	assert.ErrorContains(so.SyntacticVerify(), "invalid amount at 0")
 
-	so = SendOutputs{{To: util.Address{1, 2, 3}, Amount: big.NewInt(1)}}
+	so = SendOutputs{{To: ids.Address{1, 2, 3}, Amount: big.NewInt(1)}}
 	assert.NoError(so.SyntacticVerify())
 
-	so = SendOutputs{{To: util.Address{1, 2, 3}, Amount: big.NewInt(1)}, {}}
+	so = SendOutputs{{To: ids.Address{1, 2, 3}, Amount: big.NewInt(1)}, {}}
 	assert.ErrorContains(so.SyntacticVerify(), "invalid to address at 1")
 
 	so = SendOutputs{
-		{To: util.Address{1, 2, 3}, Amount: big.NewInt(1)},
-		{To: util.Address{1, 2, 3}, Amount: big.NewInt(1)}}
+		{To: ids.Address{1, 2, 3}, Amount: big.NewInt(1)},
+		{To: ids.Address{1, 2, 3}, Amount: big.NewInt(1)}}
 	assert.ErrorContains(so.SyntacticVerify(), "duplicate to address 0x0102030000000000000000000000000000000000 at 1")
 
 	so = SendOutputs{

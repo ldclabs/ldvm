@@ -8,12 +8,13 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).OpenLending: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).OpenLending: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -35,7 +36,7 @@ func (a *Account) OpenLending(cfg *ld.LendingConfig) error {
 }
 
 func (a *Account) CloseLending() error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CloseLending: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).CloseLending: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -63,12 +64,12 @@ func (a *Account) closeLending(ignoreNone bool) error {
 }
 
 func (a *Account) Borrow(
-	token util.TokenSymbol,
-	from util.Address,
+	token ids.TokenSymbol,
+	from ids.Address,
 	amount *big.Int,
 	dueTime uint64,
 ) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).Borrow: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).Borrow: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -117,11 +118,11 @@ func (a *Account) Borrow(
 }
 
 func (a *Account) Repay(
-	token util.TokenSymbol,
-	from util.Address,
+	token ids.TokenSymbol,
+	from ids.Address,
 	amount *big.Int,
 ) (*big.Int, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).Repay: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).Repay: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -158,7 +159,7 @@ func (a *Account) Repay(
 
 const daysecs = 3600 * 24
 
-func (a *Account) calcBorrowTotal(from util.Address) *big.Int {
+func (a *Account) calcBorrowTotal(from ids.Address) *big.Int {
 	cfg := a.ld.Lending
 	amount := new(big.Int)
 

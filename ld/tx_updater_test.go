@@ -8,9 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +20,7 @@ func TestTxUpdater(t *testing.T) {
 	var tx *TxUpdater
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxUpdater{Token: &util.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxUpdater{Token: &ids.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		`invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
@@ -40,7 +39,7 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{}}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid threshold, expected <= 0, got 1")
-	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(util.AddressEmpty[:])}}
+	tx = &TxUpdater{Threshold: Uint16Ptr(1), Keepers: &signer.Keys{signer.Key(ids.EmptyAddress[:])}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty Secp256k1 key")
 
 	tx = &TxUpdater{ApproveList: &TxTypes{TypeCreateData}}
@@ -68,25 +67,25 @@ func TestTxUpdater(t *testing.T) {
 	tx = &TxUpdater{
 		Sig: &sig,
 		SigClaims: &SigClaims{
-			Issuer:     util.DataID{1, 2, 3, 4},
-			Subject:    util.DataID{5, 6, 7, 8},
+			Issuer:     ids.DataID{1, 2, 3, 4},
+			Subject:    ids.DataID{5, 6, 7, 8},
 			Expiration: 100,
 		},
 	}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid issued time")
 
-	tx = &TxUpdater{Token: &util.NativeToken}
+	tx = &TxUpdater{Token: &ids.NativeToken}
 	assert.NoError(tx.SyntacticVerify())
 
 	tx = &TxUpdater{
-		ID:        &util.DataID{1, 2, 3},
+		ID:        &ids.DataID{1, 2, 3},
 		Version:   1,
 		Threshold: Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer1.Key()},
 		Approver:  &signer.Key{},
-		Token:     &util.NativeToken,
-		To:        constants.GenesisAccount.Ptr(),
+		Token:     &ids.NativeToken,
+		To:        ids.GenesisAccount.Ptr(),
 		Amount:    big.NewInt(1000),
 		Expire:    uint64(1000),
 		Data:      []byte(`"Hello, world!"`),
@@ -95,13 +94,13 @@ func TestTxUpdater(t *testing.T) {
 		"duplicate key jbl8fOziScK5i9wCJsxMKle_UvwKxwPH")
 
 	tx = &TxUpdater{
-		ID:        &util.DataID{1, 2, 3},
+		ID:        &ids.DataID{1, 2, 3},
 		Version:   1,
 		Threshold: Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
 		Approver:  &signer.Key{},
-		Token:     &util.NativeToken,
-		To:        constants.GenesisAccount.Ptr(),
+		Token:     &ids.NativeToken,
+		To:        ids.GenesisAccount.Ptr(),
 		Amount:    big.NewInt(1000),
 		Expire:    uint64(1000),
 		Data:      []byte(`"Hello, world!"`),

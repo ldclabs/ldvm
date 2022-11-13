@@ -7,22 +7,24 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type Name struct {
 	// name should be Unicode form
 	Name string `cbor:"n" json:"name"`
 	// optional, linked (ProfileService) data id
-	Linked     *util.DataID `cbor:"l,omitempty" json:"linked,omitempty"`
-	Records    []string     `cbor:"rs" json:"records"` // DNS resource records
-	Extensions Extensions   `cbor:"es" json:"extensions"`
+	Linked     *ids.DataID `cbor:"l,omitempty" json:"linked,omitempty"`
+	Records    []string    `cbor:"rs" json:"records"` // DNS resource records
+	Extensions Extensions  `cbor:"es" json:"extensions"`
 
 	// external assignment fields
-	DataID util.DataID `cbor:"-" json:"did"`
-	raw    []byte      `cbor:"-" json:"-"`
-	dn     *DN         `cbor:"-" json:"-"`
+	DataID ids.DataID `cbor:"-" json:"did"`
+	raw    []byte     `cbor:"-" json:"-"`
+	dn     *DN        `cbor:"-" json:"-"`
 }
 
 func NameModel() (*ld.IPLDModel, error) {
@@ -44,15 +46,15 @@ type lazyName struct {
 
 func GetName(data []byte) (string, error) {
 	n := &lazyName{}
-	if err := util.UnmarshalCBOR(data, n); err != nil {
-		return "", util.ErrPrefix("service.GetName: ").ErrorIf(err)
+	if err := encoding.UnmarshalCBOR(data, n); err != nil {
+		return "", erring.ErrPrefix("service.GetName: ").ErrorIf(err)
 	}
 	return n.Name, nil
 }
 
 // SyntacticVerify verifies that a *Name is well-formed.
 func (n *Name) SyntacticVerify() error {
-	errp := util.ErrPrefix("service.Name.SyntacticVerify: ")
+	errp := erring.ErrPrefix("service.Name.SyntacticVerify: ")
 	if n == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -103,11 +105,11 @@ func (n *Name) Bytes() []byte {
 }
 
 func (n *Name) Unmarshal(data []byte) error {
-	return util.ErrPrefix("service.Name.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, n))
+	return erring.ErrPrefix("service.Name.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, n))
 }
 
 func (n *Name) Marshal() ([]byte, error) {
-	return util.ErrPrefix("service.Name.Marshal: ").
-		ErrorMap(util.MarshalCBOR(n))
+	return erring.ErrPrefix("service.Name.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(n))
 }

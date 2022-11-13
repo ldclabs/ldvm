@@ -8,9 +8,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +20,7 @@ func TestStakeConfig(t *testing.T) {
 	var cfg *StakeConfig
 	assert.ErrorContains(cfg.SyntacticVerify(), "nil pointer")
 
-	cfg = &StakeConfig{Token: util.TokenSymbol{1, 2, 3}}
+	cfg = &StakeConfig{Token: ids.TokenSymbol{1, 2, 3}}
 	assert.ErrorContains(cfg.SyntacticVerify(), "invalid token")
 
 	cfg = &StakeConfig{Type: 3}
@@ -69,7 +68,7 @@ func TestLendingConfig(t *testing.T) {
 	var cfg *LendingConfig
 	assert.ErrorContains(cfg.SyntacticVerify(), "nil pointer")
 
-	cfg = &LendingConfig{Token: util.TokenSymbol{1, 2, 3}}
+	cfg = &LendingConfig{Token: ids.TokenSymbol{1, 2, 3}}
 	assert.ErrorContains(cfg.SyntacticVerify(), "invalid token")
 
 	cfg = &LendingConfig{DailyInterest: 0}
@@ -88,7 +87,7 @@ func TestLendingConfig(t *testing.T) {
 		MinAmount: new(big.Int).SetUint64(100), MaxAmount: new(big.Int).SetUint64(99)}
 	assert.ErrorContains(cfg.SyntacticVerify(), "invalid maxAmount")
 
-	token, _ := util.TokenFrom("$LDC")
+	token, _ := ids.TokenFromStr("$LDC")
 	cfg = &LendingConfig{
 		Token:           token,
 		DailyInterest:   10,
@@ -180,7 +179,7 @@ func TestAccount(t *testing.T) {
 		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
-		Approver:   signer.Key(ids.ShortEmpty[:]),
+		Approver:   signer.Key(ids.EmptyID20[:]),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
 
@@ -190,7 +189,7 @@ func TestAccount(t *testing.T) {
 		Keepers:    signer.Keys{},
 		Tokens:     make(map[string]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
-		Approver:   signer.Key(ids.Empty[:]),
+		Approver:   signer.Key(ids.EmptyID32[:]),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid approver")
 
