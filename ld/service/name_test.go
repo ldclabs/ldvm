@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,12 +32,12 @@ func TestName(t *testing.T) {
 	name = &Name{Name: "公信"}
 	assert.ErrorContains(name.SyntacticVerify(), `nil records`)
 
-	address := util.DataID{1, 2, 3, 4}
+	address := ids.DataID{1, 2, 3, 4}
 	name = &Name{
 		Name:    "公信.com.",
 		Linked:  &address,
 		Records: []string{},
-		DataID:  util.DataID{5, 6, 7, 8},
+		DataID:  ids.DataID{5, 6, 7, 8},
 	}
 	assert.ErrorContains(name.SyntacticVerify(), "nil extensions")
 
@@ -44,7 +45,7 @@ func TestName(t *testing.T) {
 		Name:       "公信.com.",
 		Linked:     &address,
 		Records:    []string{},
-		DataID:     util.DataID{5, 6, 7, 8},
+		DataID:     ids.DataID{5, 6, 7, 8},
 		Extensions: Extensions{},
 	}
 	assert.NoError(name.SyntacticVerify())
@@ -74,9 +75,9 @@ func TestName(t *testing.T) {
 	assert.NoError(nm.Valid(name.Bytes()))
 
 	ipldops := cborpatch.Patch{
-		{Op: "add", Path: "/rs/-", Value: util.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
+		{Op: "add", Path: "/rs/-", Value: encoding.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
 	}
-	data, err = nm.ApplyPatch(name.Bytes(), util.MustMarshalCBOR(ipldops))
+	data, err = nm.ApplyPatch(name.Bytes(), encoding.MustMarshalCBOR(ipldops))
 	require.NoError(t, err)
 
 	name2 = &Name{}

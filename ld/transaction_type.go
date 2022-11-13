@@ -8,7 +8,7 @@ import "fmt"
 const (
 	// The "test" transaction tests that a value of data at the target location
 	// is equal to a specified value.
-	// It should be in a batch transactions.
+	// It should be in a batch txn.
 	TypeTest TxType = iota
 
 	// Transfer

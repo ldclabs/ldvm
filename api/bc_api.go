@@ -10,11 +10,12 @@ import (
 	"strings"
 
 	"github.com/ldclabs/ldvm/chain"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/cborrpc"
+	"github.com/ldclabs/ldvm/rpc/cborrpc"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"go.uber.org/zap"
 )
 
@@ -120,7 +121,7 @@ func (api *API) getGenesisTxs(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getBlock(req *cborrpc.Req) *cborrpc.Res {
-	var id util.Hash
+	var id ids.ID32
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -157,7 +158,7 @@ func (api *API) getBlockAtHeight(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getState(req *cborrpc.Req) *cborrpc.Res {
-	var id util.Hash
+	var id ids.ID32
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -172,7 +173,7 @@ func (api *API) getState(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
-	var id util.Address
+	var id ids.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -187,7 +188,7 @@ func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getLedger(req *cborrpc.Req) *cborrpc.Res {
-	var id util.Address
+	var id ids.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -202,7 +203,7 @@ func (api *API) getLedger(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getModel(req *cborrpc.Req) *cborrpc.Res {
-	var id util.ModelID
+	var id ids.ModelID
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -217,7 +218,7 @@ func (api *API) getModel(req *cborrpc.Req) *cborrpc.Res {
 }
 
 func (api *API) getData(req *cborrpc.Req) *cborrpc.Res {
-	var id util.DataID
+	var id ids.DataID
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
 	}
@@ -233,7 +234,7 @@ func (api *API) getData(req *cborrpc.Req) *cborrpc.Res {
 
 type PrevDataParams struct {
 	_       struct{} `cbor:",toarray"`
-	ID      util.DataID
+	ID      ids.DataID
 	Version uint64
 }
 
@@ -355,11 +356,11 @@ func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func writeCBORRes(w http.ResponseWriter, code int, val interface{}) {
 	w.Header().Set("content-type", cborrpc.MIMEApplicationCBORCharsetUTF8)
-	data, err := util.MarshalCBOR(val)
+	data, err := encoding.MarshalCBOR(val)
 	if err != nil {
 		code = 500
 		val = &cborrpc.Err{Code: -32603, Message: err.Error()}
-		data, _ = util.MarshalCBOR(val)
+		data, _ = encoding.MarshalCBOR(val)
 	}
 
 	if code >= 500 {

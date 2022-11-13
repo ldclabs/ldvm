@@ -10,8 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
 )
 
 func TestState(t *testing.T) {
@@ -24,24 +23,24 @@ func TestState(t *testing.T) {
 	assert.ErrorContains(s.SyntacticVerify(), "nil accounts")
 
 	s = &State{
-		Accounts: make(map[string]util.Hash),
+		Accounts: make(map[string]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil ledgers")
 
 	s = &State{
-		Accounts: make(map[string]util.Hash),
-		Ledgers:  make(map[string]util.Hash),
+		Accounts: make(map[string]ids.ID32),
+		Ledgers:  make(map[string]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil datas")
 
 	s = &State{
-		Accounts: make(map[string]util.Hash),
-		Ledgers:  make(map[string]util.Hash),
-		Datas:    make(map[string]util.Hash),
+		Accounts: make(map[string]ids.ID32),
+		Ledgers:  make(map[string]ids.ID32),
+		Datas:    make(map[string]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil models")
 
-	s = NewState(util.HashEmpty)
+	s = NewState(ids.EmptyID32)
 	assert.NoError(s.SyntacticVerify())
 	cbordata, err := s.Marshal()
 	require.NoError(t, err)
@@ -62,7 +61,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s2.ID)
 	assert.Equal(cbordata, cbordata2)
 
-	s.Accounts[string(constants.GenesisAccount[:])] = util.Hash{1, 2, 3}
+	s.Accounts[string(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
 	assert.NoError(s.SyntacticVerify())
 	assert.NotEqual(s.ID, s2.ID)
 	assert.NotEqual(s.Bytes(), s2.Bytes())
@@ -72,7 +71,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s3.ID)
 	assert.Equal(s.Bytes(), s3.Bytes())
 
-	s3.Ledgers[string(constants.GenesisAccount[:])] = util.Hash{1, 2, 3}
+	s3.Ledgers[string(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
 	assert.NoError(s3.SyntacticVerify())
 	assert.NotEqual(s.ID, s3.ID)
 	assert.NotEqual(s.Bytes(), s3.Bytes())

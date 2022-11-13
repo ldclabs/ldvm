@@ -6,7 +6,9 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 // MaxSendOutputs is the maximum number of SendOutput that can be included in TransferMultiple tx.
@@ -15,14 +17,14 @@ const MaxSendOutputs = 1024
 
 // SendOutput specifies that [Amount] of token be sent to [To]
 type SendOutput struct {
-	To     util.Address `cbor:"to" json:"to"` // Address of the recipient
-	Amount *big.Int     `cbor:"a" json:"amount"`
+	To     ids.Address `cbor:"to" json:"to"` // Address of the recipient
+	Amount *big.Int    `cbor:"a" json:"amount"`
 }
 
 type SendOutputs []SendOutput
 
 func (so SendOutputs) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.SendOutputs.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.SendOutputs.SyntacticVerify: ")
 
 	if len(so) == 0 {
 		return errp.Errorf("empty SendOutputs")
@@ -32,11 +34,11 @@ func (so SendOutputs) SyntacticVerify() error {
 		return errp.Errorf("too many SendOutputs")
 	}
 
-	set := make(map[util.Address]struct{}, len(so))
+	set := make(map[ids.Address]struct{}, len(so))
 
 	for i, o := range so {
 		switch {
-		case o.To == util.AddressEmpty:
+		case o.To == ids.EmptyAddress:
 			return errp.Errorf("invalid to address at %d", i)
 
 		case o.Amount == nil || o.Amount.Sign() <= 0:
@@ -53,11 +55,11 @@ func (so SendOutputs) SyntacticVerify() error {
 }
 
 func (so *SendOutputs) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.SendOutputs.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, so))
+	return erring.ErrPrefix("ld.SendOutputs.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, so))
 }
 
 func (so SendOutputs) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.SendOutputs.Marshal: ").
-		ErrorMap(util.MarshalCBOR(so))
+	return erring.ErrPrefix("ld.SendOutputs.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(so))
 }

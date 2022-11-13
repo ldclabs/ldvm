@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,73 +25,73 @@ func TestAccountLedger(t *testing.T) {
 
 	al = &AccountLedger{
 		Lending: map[string]*LendingEntry{
-			constants.GenesisAccount.AsKey(): nil,
+			ids.GenesisAccount.AsKey(): nil,
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
 		Lending: map[string]*LendingEntry{
-			constants.GenesisAccount.AsKey(): {Amount: nil},
+			ids.GenesisAccount.AsKey(): {Amount: nil},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
 		Lending: map[string]*LendingEntry{
-			constants.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
+			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
 		Lending: map[string]*LendingEntry{
-			constants.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
+			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): nil,
+			ids.GenesisAccount.AsKey(): nil,
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {Amount: nil},
+			ids.GenesisAccount.AsKey(): {Amount: nil},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
+			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
+			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
-	key := signer.Key(constants.LDCAccount[:])
+	key := signer.Key(ids.LDCAccount[:])
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {
+			ids.GenesisAccount.AsKey(): {
 				Amount: big.NewInt(1), Approver: &key},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid approver on StakeEntry")
 
-	key = signer.Key(constants.GenesisAccount[:])
+	key = signer.Key(ids.GenesisAccount[:])
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {
+			ids.GenesisAccount.AsKey(): {
 				Amount: big.NewInt(0), Approver: &key},
 		},
 	}
@@ -99,14 +99,14 @@ func TestAccountLedger(t *testing.T) {
 
 	al = &AccountLedger{
 		Stake: map[string]*StakeEntry{
-			constants.GenesisAccount.AsKey(): {
+			ids.GenesisAccount.AsKey(): {
 				LockTime: 999,
 				Amount:   new(big.Int).SetUint64(100),
 				Approver: &key,
 			},
 		},
 		Lending: map[string]*LendingEntry{
-			constants.GenesisAccount.AsKey(): {
+			ids.GenesisAccount.AsKey(): {
 				Amount:   new(big.Int).SetUint64(100),
 				UpdateAt: 888,
 			},

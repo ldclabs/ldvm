@@ -12,9 +12,10 @@ import (
 	"github.com/ava-labs/avalanchego/snow/engine/common"
 	"go.uber.org/zap"
 
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 
 type BlockBuilder struct {
 	mu              sync.RWMutex
-	nodeID          util.Address
+	nodeID          ids.Address
 	lastBuildHeight uint64
 	status          builderStatus
 	txPool          *TxPool
@@ -42,7 +43,7 @@ type BlockBuilder struct {
 
 func NewBlockBuilder(txPool *TxPool, toEngine chan<- common.Message) *BlockBuilder {
 	return &BlockBuilder{
-		nodeID:   util.Address(txPool.nodeID),
+		nodeID:   ids.Address(txPool.nodeID),
 		txPool:   txPool,
 		toEngine: toEngine,
 	}
@@ -89,7 +90,7 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 
 	if err != nil {
 		b.status = dontBuild
-		return nil, util.ErrPrefix("chain.BlockBuilder.Build: ").ErrorIf(err)
+		return nil, erring.ErrPrefix("chain.BlockBuilder.Build: ").ErrorIf(err)
 	}
 
 	b.status = building
@@ -123,12 +124,12 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 
 	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
 	blk := &ld.Block{
-		Parent:        util.Hash(preferred.ID()),
+		Parent:        ids.ID32(preferred.ID()),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasPrice:      preferred.NextGasPrice(),
 		GasRebateRate: feeCfg.GasRebateRate,
-		Txs:           util.NewIDList[util.Hash](txs.Size()),
+		Txs:           ids.NewIDList[ids.ID32](txs.Size()),
 	}
 
 	nblk := NewBlock(blk, preferred.Context())

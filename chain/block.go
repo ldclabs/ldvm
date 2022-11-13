@@ -14,23 +14,23 @@ import (
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/memdb"
-	"github.com/ava-labs/avalanchego/ids"
+	avaids "github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 	"go.uber.org/zap"
 
 	"github.com/ldclabs/ldvm/chain/acct"
-	"github.com/ldclabs/ldvm/chain/transactions"
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/chain/txn"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 var (
-	_ snowman.Block             = &Block{}
-	_ transactions.ChainContext = &Block{}
+	_ snowman.Block    = &Block{}
+	_ txn.ChainContext = &Block{}
 
 	emptyBlock = &Block{ld: &ld.Block{}}
 )
@@ -60,23 +60,23 @@ func NewBlock(b *ld.Block, ctx *Context) *Block {
 }
 
 func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
-	errp := util.ErrPrefix("chain.NewGenesisBlock: ")
+	errp := erring.ErrPrefix("chain.NewGenesisBlock: ")
 	blk := NewBlock(&ld.Block{
 		GasPrice:      ctx.ChainConfig().FeeConfig.MinGasPrice,
 		GasRebateRate: ctx.ChainConfig().FeeConfig.GasRebateRate,
-		Validators:    []util.StakeSymbol{},
-		Txs:           util.NewIDList[util.Hash](len(txs)),
+		Validators:    []ids.StakeSymbol{},
+		Txs:           ids.NewIDList[ids.ID32](len(txs)),
 	}, ctx)
 
 	blk.InitState(blk, memdb.NewWithSize(0))
 	gas := uint64(0)
 	for i := range txs {
-		ntx, err := transactions.NewGenesisTx(txs[i])
+		ntx, err := txn.NewGenesisTx(txs[i])
 		if err != nil {
 			return nil, errp.ErrorIf(err)
 		}
 		gas += ntx.Gas()
-		if err := ntx.(transactions.GenesisTx).ApplyGenesis(blk, blk.bs); err != nil {
+		if err := ntx.(txn.GenesisTx).ApplyGenesis(blk, blk.bs); err != nil {
 			return nil, errp.ErrorIf(err)
 		}
 
@@ -94,7 +94,7 @@ func NewGenesisBlock(ctx *Context, txs ld.Txs) (*Block, error) {
 }
 
 func (b *Block) Unmarshal(data []byte) error {
-	errp := util.ErrPrefix("chain.Block.Unmarshal: ")
+	errp := erring.ErrPrefix("chain.Block.Unmarshal: ")
 	if b == nil {
 		return errp.Errorf("nil pointer")
 	}
@@ -127,15 +127,19 @@ func (b *Block) InitState(parent *Block, db database.Database) {
 
 func (b *Block) State() BlockState { return b.bs }
 
+// Parent implements the snowman.Block Parent interface
+// Parent returns the ID of this block's parent.
+func (b *Block) Parent() avaids.ID { return avaids.ID(b.ld.Parent) }
+
 // ID implements the snowman.Block choices.Decidable ID interface
 // ID returns a unique ID for this element.
-func (b *Block) ID() ids.ID { return ids.ID(b.ld.ID) }
+func (b *Block) ID() avaids.ID { return avaids.ID(b.ld.ID) }
 
-func (b *Block) Hash() util.Hash { return b.ld.ID }
+func (b *Block) Hash() ids.ID32 { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
 
-func (b *Block) Builder() util.StakeSymbol { return b.ld.Builder }
+func (b *Block) Builder() ids.StakeSymbol { return b.ld.Builder }
 
 func (b *Block) SetBuilder(vbs BlockState) {
 	b.ld.Builder, _ = vbs.LoadValidatorAccountByNodeID(b.ctx.NodeID)
@@ -147,7 +151,7 @@ func (b *Block) BuildTxs(vbs BlockState, txs ...*ld.Transaction) choices.Status 
 }
 
 func (b *Block) TryBuildTxs(txs ...*ld.Transaction) error {
-	errp := util.ErrPrefix("chain.Block.TryBuildTxs: ")
+	errp := erring.ErrPrefix("chain.Block.TryBuildTxs: ")
 	vbs, err := b.bs.DeriveState()
 	if err == nil {
 		_, err = b.tryBuildTxs(vbs, false, txs...)
@@ -174,7 +178,7 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 		}
 
 		gas += tx.Gas()
-		ntx, err := transactions.NewTx(tx)
+		ntx, err := txn.NewTx(tx)
 		if err != nil {
 			tx.Err = err
 			return choices.Rejected, tx.Err
@@ -200,9 +204,9 @@ func (b *Block) tryBuildTxs(vbs BlockState, add bool, txs ...*ld.Transaction) (c
 }
 
 func (b *Block) SetBuilderFee(vbs BlockState) error {
-	errp := util.ErrPrefix("chain.Block.SetBuilderFee: ")
+	errp := erring.ErrPrefix("chain.Block.SetBuilderFee: ")
 	shares := make([]*acct.Account, 0)
-	b.ld.Validators = []util.StakeSymbol{}
+	b.ld.Validators = []ids.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
 		var err error
 		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight()
@@ -213,7 +217,7 @@ func (b *Block) SetBuilderFee(vbs BlockState) error {
 		if err != nil {
 			return errp.ErrorIf(err)
 		}
-		b.ld.Validators = make([]util.StakeSymbol, 0, len(shares))
+		b.ld.Validators = make([]ids.StakeSymbol, 0, len(shares))
 		for _, acc := range shares {
 			b.ld.Validators = append(b.ld.Validators, acc.ID().ToStakeSymbol())
 		}
@@ -249,7 +253,7 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*acct.A
 		return nil, fmt.Errorf("ValidatorState.GetValidatorSet: %v", err)
 	}
 
-	vv := make([]ids.NodeID, 0, len(vs))
+	vv := make([]avaids.NodeID, 0, len(vs))
 	for nid := range vs {
 		vv = append(vv, nid)
 	}
@@ -276,11 +280,11 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*acct.A
 }
 
 func (b *Block) applyBuilderFee(shares []*acct.Account, vbs BlockState) error {
-	ldc, err := vbs.LoadAccount(constants.LDCAccount)
+	ldc, err := vbs.LoadAccount(ids.LDCAccount)
 	if err != nil {
 		return err
 	}
-	genesisAccount, err := vbs.LoadAccount(constants.GenesisAccount)
+	genesisAccount, err := vbs.LoadAccount(ids.GenesisAccount)
 	if err != nil {
 		return err
 	}
@@ -301,16 +305,16 @@ func (b *Block) applyBuilderFee(shares []*acct.Account, vbs BlockState) error {
 	fee = fee.Quo(fee, num)
 	total := new(big.Int).Mul(fee, num)
 	total = total.Add(total, gas20)
-	if err := ldc.Sub(constants.NativeToken, total); err != nil {
+	if err := ldc.Sub(ids.NativeToken, total); err != nil {
 		return err
 	}
 
 	for _, share := range shares {
-		if err = share.Add(constants.NativeToken, fee); err != nil {
+		if err = share.Add(ids.NativeToken, fee); err != nil {
 			return err
 		}
 	}
-	return builder.Add(constants.NativeToken, gas20)
+	return builder.Add(ids.NativeToken, gas20)
 }
 
 func (b *Block) BuildState(vbs BlockState) error {
@@ -323,7 +327,7 @@ func (b *Block) BuildState(vbs BlockState) error {
 // Verify that the state transition this block would make if accepted is valid.
 // It is guaranteed that the Parent has been successfully verified.
 func (b *Block) Verify() error {
-	errp := util.ErrPrefix("chain.Block.Verify: ")
+	errp := erring.ErrPrefix("chain.Block.Verify: ")
 	if err := b.verify(); err != nil {
 		logging.Log.Warn("Block.Verify",
 			zap.Stringer("id", b.Hash()),
@@ -343,7 +347,7 @@ func (b *Block) Verify() error {
 func (b *Block) verify() error {
 	b.status = choices.Processing
 	id := b.ld.ID
-	if id == util.HashEmpty {
+	if id == ids.EmptyID32 {
 		return fmt.Errorf("invalid block id")
 	}
 
@@ -376,7 +380,7 @@ func (b *Block) verify() error {
 		tx := txs[i]
 		tx.Height = b.ld.Height
 		tx.Timestamp = b.ld.Timestamp
-		ntx, err := transactions.NewTx(tx)
+		ntx, err := txn.NewTx(tx)
 		if err != nil {
 			return err
 		}
@@ -411,7 +415,7 @@ func (b *Block) verify() error {
 // Accept sets this block's status to Accepted and sets lastAccepted to this
 // block's ID and saves this info to stateDB.
 func (b *Block) Accept() error {
-	errp := util.ErrPrefix("chain.Block.Accept: ")
+	errp := erring.ErrPrefix("chain.Block.Accept: ")
 	logging.Log.Info("Block.Accept",
 		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()),
@@ -469,14 +473,10 @@ func (b *Block) SetStatus(s choices.Status) {
 	b.status = s
 }
 
-// Parent implements the snowman.Block Parent interface
-// Parent returns the ID of this block's parent.
-func (b *Block) Parent() ids.ID { return ids.ID(b.ld.Parent) }
-
 // AncestorBlocks returns this block's ancestors, from ancestorHeight to block' height,
 // not including this block. The ancestorHeight must >= LastAcceptedBlock's height.
 func (b *Block) AncestorBlocks(ancestorHeight uint64) ([]*Block, error) {
-	errp := util.ErrPrefix("chain.Block.AncestorBlocks: ")
+	errp := erring.ErrPrefix("chain.Block.AncestorBlocks: ")
 	if ancestorHeight >= b.ld.Height {
 		return nil, errp.Errorf("invalid height, should < %d", b.ld.Height)
 	}

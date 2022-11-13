@@ -6,7 +6,7 @@ package service
 import (
 	"testing"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,30 +31,30 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{1, 2, 3},
+		DataID:     &ids.DataID{1, 2, 3},
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `nil model id at 0`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		ModelID:    &util.ModelID{1, 2, 3},
+		ModelID:    &ids.ModelID{1, 2, 3},
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `no data id at 0, model id be nil`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataIDEmpty,
-		ModelID:    &util.ModelIDEmpty,
+		DataID:     &ids.EmptyDataID,
+		ModelID:    &ids.EmptyModelID,
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `invalid data id at 0`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{1, 2, 3},
-		ModelID:    &util.ModelIDEmpty,
+		DataID:     &ids.DataID{1, 2, 3},
+		ModelID:    &ids.EmptyModelID,
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `invalid model id at 0`)
 
@@ -67,8 +67,8 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{1, 2, 3},
-		ModelID:    &util.ModelID{1, 2, 3},
+		DataID:     &ids.DataID{1, 2, 3},
+		ModelID:    &ids.ModelID{1, 2, 3},
 	}}
 	assert.NoError(es.SyntacticVerify())
 
@@ -84,13 +84,13 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{1, 2, 3},
-		ModelID:    &util.ModelID{1, 2, 3},
+		DataID:     &ids.DataID{1, 2, 3},
+		ModelID:    &ids.ModelID{1, 2, 3},
 	}, {
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{4, 5, 6},
-		ModelID:    &util.ModelID{1, 2, 3},
+		DataID:     &ids.DataID{4, 5, 6},
+		ModelID:    &ids.ModelID{1, 2, 3},
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `"Test" exists in extensions at 1`)
 
@@ -100,8 +100,8 @@ func TestExtensions(t *testing.T) {
 	}, {
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &util.DataID{4, 5, 6},
-		ModelID:    &util.ModelID{1, 2, 3},
+		DataID:     &ids.DataID{4, 5, 6},
+		ModelID:    &ids.ModelID{1, 2, 3},
 	}}
 	assert.NoError(es.SyntacticVerify())
 }

@@ -7,24 +7,24 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 func (a *Account) CreateStake(
-	from util.Address,
+	from ids.Address,
 	pledge *big.Int,
 	acc *ld.TxAccounter,
 	cfg *ld.StakeConfig,
 ) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateStake: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).CreateStake: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	stake := util.StakeSymbol(a.ld.ID)
+	stake := ids.StakeSymbol(a.ld.ID)
 	if !stake.Valid() {
 		return errp.Errorf("invalid stake account")
 	}
@@ -52,7 +52,7 @@ func (a *Account) CreateStake(
 	a.ld.Stake = cfg
 	a.ld.MaxTotalSupply = nil
 	switch cfg.Token {
-	case constants.NativeToken:
+	case ids.NativeToken:
 		a.ledger.Stake[from.AsKey()] = &ld.StakeEntry{Amount: new(big.Int).Set(pledge)}
 	default:
 		if b := a.ld.Tokens[cfg.Token.AsKey()]; b == nil {
@@ -64,7 +64,7 @@ func (a *Account) CreateStake(
 }
 
 func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).ResetStake: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).ResetStake: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -114,7 +114,7 @@ func (a *Account) ResetStake(cfg *ld.StakeConfig) error {
 }
 
 func (a *Account) DestroyStake(recipient *Account) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyStake: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).DestroyStake: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -154,9 +154,9 @@ func (a *Account) DestroyStake(recipient *Account) error {
 		return errp.ErrorIf(err)
 	}
 
-	recipient.Add(constants.NativeToken, a.ld.Balance)
+	recipient.Add(ids.NativeToken, a.ld.Balance)
 	a.ld.Balance.SetUint64(0)
-	if a.ld.Stake.Token != constants.NativeToken {
+	if a.ld.Stake.Token != ids.NativeToken {
 		if b, ok := a.ld.Tokens[a.ld.Stake.Token.AsKey()]; ok && b.Sign() > 0 {
 			recipient.Add(a.ld.Stake.Token, b)
 			b.SetUint64(0)
@@ -174,11 +174,11 @@ func (a *Account) DestroyStake(recipient *Account) error {
 }
 
 func (a *Account) TakeStake(
-	token util.TokenSymbol,
-	from util.Address,
+	token ids.TokenSymbol,
+	from ids.Address,
 	amount *big.Int,
 	lockTime uint64) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).TakeStake: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).TakeStake: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -231,11 +231,11 @@ func (a *Account) TakeStake(
 }
 
 func (a *Account) UpdateStakeApprover(
-	from util.Address,
+	from ids.Address,
 	approver signer.Key,
 	txIsApprovedFn ld.TxIsApprovedFn,
 ) error {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).UpdateStakeApprover: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).UpdateStakeApprover: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -249,11 +249,11 @@ func (a *Account) UpdateStakeApprover(
 
 	v := a.ledger.Stake[from.AsKey()]
 	if v == nil {
-		return errp.Errorf("%s has no stake ledger to update", util.Address(from))
+		return errp.Errorf("%s has no stake ledger to update", ids.Address(from))
 	}
 
 	if v.Approver != nil && !txIsApprovedFn(*v.Approver, nil, false) {
-		return errp.Errorf("%s need approver signing", util.Address(from))
+		return errp.Errorf("%s need approver signing", ids.Address(from))
 	}
 
 	if len(approver) == 0 {
@@ -265,12 +265,12 @@ func (a *Account) UpdateStakeApprover(
 }
 
 func (a *Account) WithdrawStake(
-	token util.TokenSymbol,
-	from util.Address,
+	token ids.TokenSymbol,
+	from ids.Address,
 	amount *big.Int,
 	txIsApprovedFn ld.TxIsApprovedFn,
 ) (*big.Int, error) {
-	errp := util.ErrPrefix(fmt.Sprintf("acct.Account(%s).WithdrawStake: ", a.ld.ID.String()))
+	errp := erring.ErrPrefix(fmt.Sprintf("acct.Account(%s).WithdrawStake: ", a.ld.ID.String()))
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -324,7 +324,7 @@ func (a *Account) WithdrawStake(
 	return withdraw.Sub(amount, withdraw.Quo(withdraw, big.NewInt(1_000_000))), nil
 }
 
-func (a *Account) GetStakeAmount(token util.TokenSymbol, from util.Address) *big.Int {
+func (a *Account) GetStakeAmount(token ids.TokenSymbol, from ids.Address) *big.Int {
 	total := new(big.Int)
 	stake := a.ld.Stake
 	if a.valid(ld.StakeAccount) && a.ledger != nil && token == stake.Token {

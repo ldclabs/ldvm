@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/ids"
+	avaids "github.com/ava-labs/avalanchego/ids"
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
@@ -20,12 +20,12 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/ldclabs/ldvm/config"
-	"github.com/ldclabs/ldvm/constants"
 	"github.com/ldclabs/ldvm/db"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 var _ BlockChain = &blockChain{}
@@ -62,25 +62,25 @@ type BlockChain interface {
 	// blocks state
 	BuildBlock() (*Block, error)
 	ParseBlock([]byte) (*Block, error)
-	GetBlockIDAtHeight(uint64) (util.Hash, error)
+	GetBlockIDAtHeight(uint64) (ids.ID32, error)
 	GetBlockAtHeight(uint64) (*Block, error)
-	GetBlock(util.Hash) (*Block, error)
+	GetBlock(ids.ID32) (*Block, error)
 	LastAcceptedBlock() *Block
 	SetLastAccepted(*Block) error
 	PreferredBlock() *Block
-	SetPreference(util.Hash) error
+	SetPreference(ids.ID32) error
 	AddVerifiedBlock(*Block)
-	GetVerifiedBlock(util.Hash) *Block
+	GetVerifiedBlock(ids.ID32) *Block
 
 	// txs
 	GetGenesisTxs() ld.Txs
 	PreVerifyPdsTxs(...*ld.Transaction) (uint64, error)
-	LoadTxsByIDsFromPds(uint64, []util.Hash) (ld.Txs, error)
+	LoadTxsByIDsFromPds(uint64, []ids.ID32) (ld.Txs, error)
 
-	LoadAccount(util.Address) (*ld.Account, error)
-	LoadModel(util.ModelID) (*ld.ModelInfo, error)
-	LoadData(util.DataID) (*ld.DataInfo, error)
-	LoadPrevData(util.DataID, uint64) (*ld.DataInfo, error)
+	LoadAccount(ids.Address) (*ld.Account, error)
+	LoadModel(ids.ModelID) (*ld.ModelInfo, error)
+	LoadData(ids.DataID) (*ld.DataInfo, error)
+	LoadPrevData(ids.DataID, uint64) (*ld.DataInfo, error)
 	LoadRawData(rawType string, key []byte) ([]byte, error)
 }
 
@@ -115,7 +115,7 @@ type blockChain struct {
 	bb         *BlockBuilder
 	txPool     *TxPool // Proposed transactions that haven't been put into a block yet
 	rpcTimeout time.Duration
-	builder    util.StakeSymbol
+	builder    ids.StakeSymbol
 }
 
 func NewChain(
@@ -159,7 +159,7 @@ func NewChain(
 	s.preferred.StoreV(emptyBlock)
 	s.lastAcceptedBlock.StoreV(emptyBlock)
 	s.state.StoreV(0)
-	s.builder = util.Address(ctx.NodeID).ToStakeSymbol()
+	s.builder = ids.Address(ctx.NodeID).ToStakeSymbol()
 
 	// this data will not change, so we can cache it
 	s.recentBlocks = db.NewCacher(1_000, 60*10, func() db.Objecter {
@@ -183,7 +183,7 @@ func (bc *blockChain) Context() *Context {
 }
 
 func (bc *blockChain) Bootstrap() error {
-	errp := util.ErrPrefix("chain.BlockChain.Bootstrap: ")
+	errp := erring.ErrPrefix("chain.BlockChain.Bootstrap: ")
 	txs, err := bc.genesis.ToTxs()
 	if err != nil {
 		logging.Log.Error("BlockChain.Bootstrap", zap.Error(err))
@@ -196,8 +196,8 @@ func (bc *blockChain) Bootstrap() error {
 		return errp.ErrorIf(err)
 	}
 
-	if genesisBlock.Parent() != ids.Empty ||
-		genesisBlock.ID() == ids.Empty ||
+	if genesisBlock.Parent() != avaids.Empty ||
+		genesisBlock.ID() == avaids.Empty ||
 		genesisBlock.Height() != 0 ||
 		genesisBlock.Timestamp2() != 0 {
 		return errp.Errorf("invalid genesis block")
@@ -243,12 +243,12 @@ func (bc *blockChain) Bootstrap() error {
 	}
 
 	// load the last accepted block
-	lastAcceptedBlock, err := bc.GetBlock(util.Hash(lastAcceptedID))
+	lastAcceptedBlock, err := bc.GetBlock(ids.ID32(lastAcceptedID))
 	if err != nil {
 		return errp.Errorf("load last accepted block: %v", err)
 	}
 
-	parent, err := bc.GetBlock(util.Hash(lastAcceptedBlock.Parent()))
+	parent, err := bc.GetBlock(ids.ID32(lastAcceptedBlock.Parent()))
 	if err != nil {
 		return errp.Errorf("load last accepted block' parent: %v", err)
 	}
@@ -289,7 +289,7 @@ func (bc *blockChain) Bootstrap() error {
 }
 
 func (bc *blockChain) HealthCheck() (interface{}, error) {
-	errp := util.ErrPrefix("chain.BlockChain.HealthCheck: ")
+	errp := erring.ErrPrefix("chain.BlockChain.HealthCheck: ")
 	id, err := database.GetID(bc.lastAcceptedDB, lastAcceptedKey)
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -301,14 +301,14 @@ func (bc *blockChain) HealthCheck() (interface{}, error) {
 
 func (bc *blockChain) TotalSupply() *big.Int {
 	t := new(big.Int)
-	if acc, err := bc.LoadAccount(constants.LDCAccount); err == nil {
+	if acc, err := bc.LoadAccount(ids.LDCAccount); err == nil {
 		t.Sub(acc.MaxTotalSupply, acc.Balance)
 	}
 	return t
 }
 
 func (bc *blockChain) SetState(state snow.State) error {
-	errp := util.ErrPrefix("chain.BlockChain.SetState: ")
+	errp := erring.ErrPrefix("chain.BlockChain.SetState: ")
 	switch state {
 	case snow.Bootstrapping:
 		bc.state.StoreV(state)
@@ -340,7 +340,7 @@ func (bc *blockChain) AddVerifiedBlock(blk *Block) {
 	bc.verifiedBlocks.Store(blk.ID(), blk)
 }
 
-func (bc *blockChain) GetVerifiedBlock(id util.Hash) *Block {
+func (bc *blockChain) GetVerifiedBlock(id ids.ID32) *Block {
 	if v, ok := bc.verifiedBlocks.Load(id); ok {
 		return v.(*Block)
 	}
@@ -348,7 +348,7 @@ func (bc *blockChain) GetVerifiedBlock(id util.Hash) *Block {
 }
 
 func (bc *blockChain) SetLastAccepted(blk *Block) error {
-	errp := util.ErrPrefix("chain.BlockChain.SetLastAccepted: ")
+	errp := erring.ErrPrefix("chain.BlockChain.SetLastAccepted: ")
 	if parent := bc.lastAcceptedBlock.LoadV(); parent.ID() != blk.Parent() {
 		return errp.Errorf("invalid parent, expected %s:%d, got %s:%d",
 			parent.ID(), parent.Height(), blk.Parent(), blk.Height())
@@ -375,7 +375,7 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 			if err != nil {
 				return errp.ErrorIf(err)
 			}
-			if canonical != id {
+			if avaids.ID(canonical) != id {
 				if err := bc.setPreference(preferred, blk); err != nil {
 					return errp.ErrorIf(err)
 				}
@@ -415,10 +415,10 @@ func (bc *blockChain) PreferredBlock() *Block {
 
 // SetPreference persists the VM of the currently preferred block into database.
 // This should always be a block that has no children known to consensus.
-func (bc *blockChain) SetPreference(id util.Hash) error {
-	errp := util.ErrPrefix("chain.BlockChain.SetPreference: ")
+func (bc *blockChain) SetPreference(id ids.ID32) error {
+	errp := erring.ErrPrefix("chain.BlockChain.SetPreference: ")
 	preferred := bc.preferred.LoadV()
-	if preferred.ID() == ids.ID(id) {
+	if preferred.ID() == avaids.ID(id) {
 		return nil
 	}
 
@@ -454,7 +454,7 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 		return fmt.Errorf("reorg: new chain does not start with the last accepted block")
 	}
 
-	set := make(map[uint64]ids.ID, len(newChain))
+	set := make(map[uint64]avaids.ID, len(newChain))
 	for _, blk := range newChain {
 		set[blk.Height()] = blk.ID()
 	}
@@ -482,7 +482,7 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 }
 
 func (bc *blockChain) BuildBlock() (*Block, error) {
-	errp := util.ErrPrefix("chain.BlockChain.BuildBlock: ")
+	errp := erring.ErrPrefix("chain.BlockChain.BuildBlock: ")
 	if s := bc.State(); s != snow.NormalOp {
 		return nil, errp.Errorf("state not bootstrapped, expected %q, got %q", snow.NormalOp, s)
 	}
@@ -500,8 +500,8 @@ func (bc *blockChain) BuildBlock() (*Block, error) {
 }
 
 func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
-	errp := util.ErrPrefix("chain.BlockChain.ParseBlock: ")
-	id := util.HashFromData(data)
+	errp := erring.ErrPrefix("chain.BlockChain.ParseBlock: ")
+	id := ids.ID32FromData(data)
 	blk, err := bc.GetBlock(id)
 	if err == nil {
 		return blk, nil
@@ -512,12 +512,12 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 		return nil, errp.ErrorIf(err)
 	}
 
-	if id != util.Hash(blk.ID()) {
+	if id != ids.ID32(blk.ID()) {
 		return nil, errp.Errorf("blockChain.ParseBlock: invalid block id at %d, expected %s, got %s",
 			blk.Height(), id, blk.ID())
 	}
 
-	parent, err := bc.GetBlock(util.Hash(blk.Parent()))
+	parent, err := bc.GetBlock(ids.ID32(blk.Parent()))
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -529,14 +529,14 @@ func (bc *blockChain) ParseBlock(data []byte) (*Block, error) {
 	return blk, nil
 }
 
-func (bc *blockChain) GetBlock(id util.Hash) (*Block, error) {
-	errp := util.ErrPrefix("chain.BlockChain.GetBlock: ")
-	if util.Hash(bc.genesisBlock.ID()) == id {
+func (bc *blockChain) GetBlock(id ids.ID32) (*Block, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.GetBlock: ")
+	if ids.ID32(bc.genesisBlock.ID()) == id {
 		return bc.genesisBlock, nil
 	}
 
 	last := bc.lastAcceptedBlock.LoadV()
-	if util.Hash(last.ID()) == id {
+	if ids.ID32(last.ID()) == id {
 		return last, nil
 	}
 
@@ -559,7 +559,7 @@ func (bc *blockChain) GetBlock(id util.Hash) (*Block, error) {
 			id, err := bc.GetBlockIDAtHeight(blk.Height())
 			switch err {
 			case nil:
-				if id == util.Hash(blk.ID()) {
+				if id == ids.ID32(blk.ID()) {
 					blk.SetStatus(choices.Accepted)
 				} else {
 					blk.SetStatus(choices.Rejected)
@@ -574,19 +574,19 @@ func (bc *blockChain) GetBlock(id util.Hash) (*Block, error) {
 	return blk, nil
 }
 
-func (bc *blockChain) GetBlockIDAtHeight(height uint64) (util.Hash, error) {
-	errp := util.ErrPrefix("chain.BlockChain.GetBlockIDAtHeight: ")
+func (bc *blockChain) GetBlockIDAtHeight(height uint64) (ids.ID32, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.GetBlockIDAtHeight: ")
 	obj, err := bc.heightDB.LoadObject(database.PackUInt64(height), bc.recentHeights)
 	if err != nil {
-		return util.HashEmpty, errp.ErrorIf(err)
+		return ids.ID32{}, errp.ErrorIf(err)
 	}
 
 	data := obj.(*db.RawObject)
-	return util.HashFromBytes(*data)
+	return ids.ID32FromBytes(*data)
 }
 
 func (bc *blockChain) GetBlockAtHeight(height uint64) (*Block, error) {
-	errp := util.ErrPrefix("chain.BlockChain.GetBlockAtHeight: ")
+	errp := erring.ErrPrefix("chain.BlockChain.GetBlockAtHeight: ")
 	id, err := bc.GetBlockIDAtHeight(height)
 	if err != nil {
 		return nil, errp.ErrorIf(err)
@@ -600,7 +600,7 @@ func (bc *blockChain) GetGenesisTxs() ld.Txs {
 
 // PreVerifyPdsTxs pre-verify transactions from PDS server
 func (bc *blockChain) PreVerifyPdsTxs(txs ...*ld.Transaction) (uint64, error) {
-	errp := util.ErrPrefix("chain.BlockChain.PreVerifyPdsTxs: ")
+	errp := erring.ErrPrefix("chain.BlockChain.PreVerifyPdsTxs: ")
 	if len(txs) == 0 {
 		return 0, errp.Errorf("no tx")
 	}
@@ -627,12 +627,12 @@ func (bc *blockChain) PreVerifyPdsTxs(txs ...*ld.Transaction) (uint64, error) {
 	return blk.Height() + 1, nil
 }
 
-func (bc *blockChain) LoadTxsByIDsFromPds(height uint64, txIDs []util.Hash) (ld.Txs, error) {
+func (bc *blockChain) LoadTxsByIDsFromPds(height uint64, txIDs []ids.ID32) (ld.Txs, error) {
 	return bc.txPool.LoadByIDs(height, txIDs)
 }
 
-func (bc *blockChain) LoadAccount(id util.Address) (*ld.Account, error) {
-	errp := util.ErrPrefix("chain.BlockChain.LoadAccount: ")
+func (bc *blockChain) LoadAccount(id ids.Address) (*ld.Account, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.LoadAccount: ")
 	blk := bc.LastAcceptedBlock()
 	acc, err := blk.State().LoadAccount(id)
 	if err != nil {
@@ -649,8 +649,8 @@ func (bc *blockChain) LoadAccount(id util.Address) (*ld.Account, error) {
 	return rt, nil
 }
 
-func (bc *blockChain) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
-	errp := util.ErrPrefix("chain.BlockChain.LoadModel: ")
+func (bc *blockChain) LoadModel(id ids.ModelID) (*ld.ModelInfo, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.LoadModel: ")
 	blk := bc.LastAcceptedBlock()
 	mi, err := blk.State().LoadModel(id)
 	if err != nil {
@@ -665,8 +665,8 @@ func (bc *blockChain) LoadModel(id util.ModelID) (*ld.ModelInfo, error) {
 	return rt, nil
 }
 
-func (bc *blockChain) LoadData(id util.DataID) (*ld.DataInfo, error) {
-	errp := util.ErrPrefix("chain.BlockChain.LoadData: ")
+func (bc *blockChain) LoadData(id ids.DataID) (*ld.DataInfo, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.LoadData: ")
 	blk := bc.LastAcceptedBlock()
 	di, err := blk.State().LoadData(id)
 	if err != nil {
@@ -681,8 +681,8 @@ func (bc *blockChain) LoadData(id util.DataID) (*ld.DataInfo, error) {
 	return rt, nil
 }
 
-func (bc *blockChain) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo, error) {
-	errp := util.ErrPrefix("chain.BlockChain.LoadPrevData: ")
+func (bc *blockChain) LoadPrevData(id ids.DataID, version uint64) (*ld.DataInfo, error) {
+	errp := erring.ErrPrefix("chain.BlockChain.LoadPrevData: ")
 	if version == 0 {
 		return nil, errp.Errorf("invalid version %d", version)
 	}
@@ -697,7 +697,7 @@ func (bc *blockChain) LoadPrevData(id util.DataID, version uint64) (*ld.DataInfo
 }
 
 func (bc *blockChain) LoadRawData(rawType string, key []byte) ([]byte, error) {
-	errp := util.ErrPrefix("chain.BlockChain.LoadRawData: ")
+	errp := erring.ErrPrefix("chain.BlockChain.LoadRawData: ")
 	var pdb *db.PrefixDB
 	switch rawType {
 	case "block":

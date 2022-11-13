@@ -8,8 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +19,7 @@ func TestTxTransfer(t *testing.T) {
 	var tx *TxTransfer
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxTransfer{Token: &util.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxTransfer{Token: &ids.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(), `invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
 	tx = &TxTransfer{Amount: big.NewInt(-1)}
@@ -29,13 +28,13 @@ func TestTxTransfer(t *testing.T) {
 	tx = &TxTransfer{Amount: big.NewInt(0)}
 	assert.NoError(tx.SyntacticVerify())
 
-	tx = &TxTransfer{Token: &util.NativeToken}
+	tx = &TxTransfer{Token: &ids.NativeToken}
 	assert.NoError(tx.SyntacticVerify())
 
 	tx = &TxTransfer{
 		Nonce:  1,
-		Token:  &util.NativeToken,
-		To:     constants.GenesisAccount.Ptr(),
+		Token:  &ids.NativeToken,
+		To:     ids.GenesisAccount.Ptr(),
 		Amount: big.NewInt(1000),
 		Expire: uint64(1000),
 		Data:   []byte(`"👋"`),

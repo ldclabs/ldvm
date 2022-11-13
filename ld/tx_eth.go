@@ -10,14 +10,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type TxEth struct {
 	tx   *types.Transaction
-	from util.Address
-	to   util.Address
+	from ids.Address
+	to   ids.Address
 	sig  signer.Sig
 	raw  []byte
 }
@@ -31,7 +32,7 @@ func (t *TxEth) MarshalJSON() ([]byte, error) {
 
 // SyntacticVerify verifies that a *TxEth is well-formed.
 func (t *TxEth) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TxEth.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxEth.SyntacticVerify: ")
 
 	if t == nil || t.tx == nil {
 		return errp.Errorf("nil pointer")
@@ -49,14 +50,14 @@ func (t *TxEth) SyntacticVerify() error {
 	if err != nil {
 		return errp.ErrorIf(err)
 	}
-	t.from = util.Address(from)
+	t.from = ids.Address(from)
 
 	to := t.tx.To()
 	if to == nil {
 		return errp.Errorf("invalid to")
 	}
-	t.to = util.Address(*to)
-	if t.to == util.AddressEmpty {
+	t.to = ids.Address(*to)
+	if t.to == ids.EmptyAddress {
 		return errp.Errorf("invalid recipient")
 	}
 
@@ -80,12 +81,12 @@ func (t *TxEth) RawSignatureValues() (v, r, s *big.Int) {
 
 func (t *TxEth) Unmarshal(data []byte) error {
 	t.tx = new(types.Transaction)
-	return util.ErrPrefix("ld.TxEth.Unmarshal: ").
+	return erring.ErrPrefix("ld.TxEth.Unmarshal: ").
 		ErrorIf(t.tx.UnmarshalBinary(data))
 }
 
 func (t *TxEth) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxEth.Marshal: ").
+	return erring.ErrPrefix("ld.TxEth.Marshal: ").
 		ErrorMap(t.tx.MarshalBinary())
 }
 
@@ -110,7 +111,7 @@ func (t *TxEth) ToTransaction() *Transaction {
 }
 
 func (t *TxEth) Signers() (signer.Keys, error) {
-	if t.from == util.AddressEmpty {
+	if t.from == ids.EmptyAddress {
 		return nil, fmt.Errorf("ld.TxEth.Signers: invalid signature")
 	}
 	return signer.Keys{signer.Key(t.from[:])}, nil

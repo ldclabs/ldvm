@@ -6,19 +6,21 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
+	"github.com/ldclabs/ldvm/util/validating"
 )
 
 // TxAccounter
 type TxAccounter struct {
-	Threshold   *uint16      `cbor:"th,omitempty" json:"threshold,omitempty"`
-	Keepers     *signer.Keys `cbor:"kp,omitempty" json:"keepers,omitempty"`
-	Approver    *signer.Key  `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList *TxTypes     `cbor:"apl,omitempty" json:"approveList,omitempty"`
-	Amount      *big.Int     `cbor:"a,omitempty" json:"amount,omitempty"`
-	Name        string       `cbor:"n,omitempty" json:"name,omitempty"`
-	Data        util.RawData `cbor:"d,omitempty" json:"data,omitempty"`
+	Threshold   *uint16          `cbor:"th,omitempty" json:"threshold,omitempty"`
+	Keepers     *signer.Keys     `cbor:"kp,omitempty" json:"keepers,omitempty"`
+	Approver    *signer.Key      `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList *TxTypes         `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Amount      *big.Int         `cbor:"a,omitempty" json:"amount,omitempty"`
+	Name        string           `cbor:"n,omitempty" json:"name,omitempty"`
+	Data        encoding.RawData `cbor:"d,omitempty" json:"data,omitempty"`
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -27,13 +29,13 @@ type TxAccounter struct {
 // SyntacticVerify verifies that a *TxAccounter is well-formed.
 func (t *TxAccounter) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("ld.TxAccounter.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxAccounter.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
 		return errp.Errorf("nil pointer")
 
-	case t.Name != "" && !util.ValidName(t.Name):
+	case t.Name != "" && !validating.ValidName(t.Name):
 		return errp.Errorf("invalid name %q", t.Name)
 
 	case t.Amount != nil && t.Amount.Sign() < 0:
@@ -93,11 +95,11 @@ func (t *TxAccounter) Bytes() []byte {
 }
 
 func (t *TxAccounter) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxAccounter.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxAccounter.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxAccounter) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxAccounter.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxAccounter.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }

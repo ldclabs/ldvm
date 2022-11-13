@@ -8,9 +8,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +27,7 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: 1000}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid ChainID")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Token: &util.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Token: &ids.TokenSymbol{'a', 'b', 'c'}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid token symbol")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(-1)}
@@ -36,7 +36,7 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: util.RawData{}}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Data: encoding.RawData{}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
 
 	tx = &TxData{ChainID: gChainID}
@@ -74,7 +74,7 @@ func TestTransaction(t *testing.T) {
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: 1000}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid ChainID")
 
-	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Token: &util.TokenSymbol{'a', 'b', 'c'}}}
+	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Token: &ids.TokenSymbol{'a', 'b', 'c'}}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid token symbol")
 
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(-1)}}
@@ -83,7 +83,7 @@ func TestTransaction(t *testing.T) {
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(0)}}
 	assert.ErrorContains(tx.SyntacticVerify(), "nil \"to\" together with amount")
 
-	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Data: util.RawData{}}}
+	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Data: encoding.RawData{}}}
 	assert.ErrorContains(tx.SyntacticVerify(), "empty data")
 
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID}, Signatures: signer.Sigs{}}
@@ -144,7 +144,7 @@ func TestTransaction(t *testing.T) {
 	assert.Equal(1, tx.Size())
 	assert.Equal(uint64(638), tx.Gas())
 
-	approver := signer.Key(constants.GenesisAccount[:])
+	approver := signer.Key(ids.GenesisAccount[:])
 	assert.False(tx.IsBatched())
 	assert.False(tx.needApprove(nil, nil))
 	assert.False(tx.needApprove(signer.Key{}, nil))

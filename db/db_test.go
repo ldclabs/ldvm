@@ -9,7 +9,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/database/memdb"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

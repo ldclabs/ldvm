@@ -7,10 +7,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,22 +31,22 @@ func TestTokenAccount(t *testing.T) {
 		"Account(0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc).DestroyToken: invalid token account 0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc")
 
 	// create NativeToken
-	nativeToken := NewAccount(constants.LDCAccount)
+	nativeToken := NewAccount(ids.LDCAccount)
 	assert.NoError(nativeToken.CreateToken(&ld.TxAccounter{
 		Amount: amount,
 	}))
 	assert.Equal(true, nativeToken.valid(ld.TokenAccount))
 	assert.Equal(amount.Uint64(), nativeToken.Balance().Uint64())
-	assert.Equal(amount.Uint64(), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(amount.Uint64(), nativeToken.balanceOfAll(ids.NativeToken).Uint64())
 	assert.Equal(amount.Uint64(), nativeToken.ld.MaxTotalSupply.Uint64())
 	assert.Equal(uint16(0), nativeToken.Threshold())
 	assert.Equal(signer.Keys{}, nativeToken.Keepers())
 	assert.ErrorContains(nativeToken.DestroyToken(acc), "invalid token")
 
-	nativeToken.Sub(constants.NativeToken, big.NewInt(1000))
-	acc.Add(constants.NativeToken, big.NewInt(1000))
+	nativeToken.Sub(ids.NativeToken, big.NewInt(1000))
+	acc.Add(ids.NativeToken, big.NewInt(1000))
 	assert.Equal(uint64(999000), nativeToken.Balance().Uint64())
-	assert.Equal(uint64(999000), nativeToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(999000), nativeToken.balanceOfAll(ids.NativeToken).Uint64())
 	assert.Equal(uint64(1000), acc.Balance().Uint64())
 
 	// CheckAsFrom
@@ -77,15 +76,15 @@ func TestTokenAccount(t *testing.T) {
 	assert.Equal(nativeToken.ld.Bytes(), acc2.ld.Bytes())
 
 	token := ld.MustNewToken("$TEST")
-	testToken := NewAccount(util.Address(token))
+	testToken := NewAccount(ids.Address(token))
 	testToken.Init(big.NewInt(0), big.NewInt(100), 0, 0)
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
-	testToken.Add(constants.NativeToken, big.NewInt(100))
+	testToken.Add(ids.NativeToken, big.NewInt(100))
 	assert.Equal(true, testToken.valid(ld.TokenAccount))
 
 	assert.Equal(uint64(0), testToken.Balance().Uint64())
-	assert.Equal(uint64(100), testToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(100), testToken.balanceOfAll(ids.NativeToken).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOf(token, false).Uint64())
 	assert.Equal(amount.Uint64(), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(amount.Uint64(), testToken.ld.MaxTotalSupply.Uint64())
@@ -135,7 +134,7 @@ func TestTokenAccount(t *testing.T) {
 	testToken.Add(token, big.NewInt(2000))
 	assert.NoError(testToken.DestroyToken(acc))
 	assert.Equal(uint64(0), testToken.Balance().Uint64())
-	assert.Equal(uint64(0), testToken.balanceOfAll(constants.NativeToken).Uint64())
+	assert.Equal(uint64(0), testToken.balanceOfAll(ids.NativeToken).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOf(token, false).Uint64())
 	assert.Equal(uint64(0), testToken.balanceOfAll(token).Uint64())
 	assert.Equal(uint16(0), testToken.Threshold())
@@ -159,6 +158,6 @@ func TestTokenAccount(t *testing.T) {
 	// Create again
 	assert.NoError(testToken.CreateToken(cfg))
 	assert.Equal(false, testToken.valid(ld.TokenAccount))
-	testToken.Add(constants.NativeToken, big.NewInt(100))
+	testToken.Add(ids.NativeToken, big.NewInt(100))
 	assert.Equal(true, testToken.valid(ld.TokenAccount))
 }

@@ -6,10 +6,10 @@ package ld
 import (
 	"runtime/debug"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
-func Recover(errp util.ErrPrefix, fn func() error) (err error) {
+func Recover(errp erring.ErrPrefix, fn func() error) (err error) {
 	defer func() {
 		if re := recover(); re != nil {
 			buf := debug.Stack()

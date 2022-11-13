@@ -11,19 +11,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/cborrpc"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/rpc/cborrpc"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/erring"
+
+	avaids "github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 )
 
 type TxPool struct {
 	mu     sync.Mutex
 	cli    *cborrpc.Client
-	nodeID ids.NodeID
+	nodeID avaids.NodeID
 	cache  map[uint64]ld.Txs // cached processing Txs
 }
 
@@ -42,16 +44,16 @@ func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
 
 // TODO: Authorization
 type TxReqParams struct {
-	NodeID ids.NodeID  `cbor:"n"`
-	Height uint64      `cbor:"h"`
-	Params interface{} `cbor:"p,omitempty"`
+	NodeID avaids.NodeID `cbor:"n"`
+	Height uint64        `cbor:"h"`
+	Params interface{}   `cbor:"p,omitempty"`
 }
 
 type TxsBuildStatus struct {
-	Unknown    util.IDList[util.Hash] `cbor:"0,omitempty"`
-	Processing util.IDList[util.Hash] `cbor:"1,omitempty"`
-	Rejected   util.IDList[util.Hash] `cbor:"2,omitempty"`
-	Accepted   util.IDList[util.Hash] `cbor:"3,omitempty"`
+	Unknown    ids.IDList[ids.ID32] `cbor:"0,omitempty"`
+	Processing ids.IDList[ids.ID32] `cbor:"1,omitempty"`
+	Rejected   ids.IDList[ids.ID32] `cbor:"2,omitempty"`
+	Accepted   ids.IDList[ids.ID32] `cbor:"3,omitempty"`
 }
 
 type TxOrBatch struct {
@@ -78,8 +80,8 @@ func (t *TxOrBatch) toTransaction() (*ld.Transaction, error) {
 	}
 }
 
-func (p *TxPool) LoadByIDs(height uint64, txIDs util.IDList[util.Hash]) (ld.Txs, error) {
-	errp := util.ErrPrefix("chain.TxPool.LoadByIDs: ")
+func (p *TxPool) LoadByIDs(height uint64, txIDs ids.IDList[ids.ID32]) (ld.Txs, error) {
+	errp := erring.ErrPrefix("chain.TxPool.LoadByIDs: ")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -126,7 +128,7 @@ func (p *TxPool) SizeToBuild(height uint64) int {
 }
 
 func (p *TxPool) FetchToBuild(height uint64) (ld.Txs, error) {
-	errp := util.ErrPrefix("chain.TxPool.FetchToBuild: ")
+	errp := erring.ErrPrefix("chain.TxPool.FetchToBuild: ")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -179,7 +181,7 @@ func (p *TxPool) UpdateBuildStatus(height uint64, tbs *TxsBuildStatus) {
 	}
 }
 
-func (p *TxPool) loadByIDsFromCache(height uint64, txIDs util.IDList[util.Hash]) (txs ld.Txs, ok bool) {
+func (p *TxPool) loadByIDsFromCache(height uint64, txIDs ids.IDList[ids.ID32]) (txs ld.Txs, ok bool) {
 	p.mu.Lock()
 	if txs, ok = p.cache[height]; ok {
 		if !txs.IDs().Equal(txIDs) {

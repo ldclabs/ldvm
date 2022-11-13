@@ -11,9 +11,10 @@ import (
 
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ldclabs/ldvm/genesis"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
 
 	"github.com/ldclabs/ldvm/ld"
+	"github.com/ldclabs/ldvm/util/encoding"
 )
 
 type VMAPI struct{}
@@ -62,20 +63,20 @@ func (api *VMAPI) Genesis(_ *http.Request, args *NoArgs, reply *genesis.Genesis)
 }
 
 type TransactionArgs struct {
-	Type      uint16            `json:"type"`
-	ChainID   uint64            `json:"chainID"`
-	Nonce     uint64            `json:"nonce"`
-	GasTip    uint64            `json:"gasTip"`
-	GasFeeCap uint64            `json:"gasFeeCap"`
-	From      util.Address      `json:"from"`
-	To        *util.Address     `json:"to"`
-	Token     *util.TokenSymbol `json:"token"`
-	Amount    *big.Int          `json:"amount"`
-	Data      json.RawMessage   `json:"data"`
+	Type      uint16           `json:"type"`
+	ChainID   uint64           `json:"chainID"`
+	Nonce     uint64           `json:"nonce"`
+	GasTip    uint64           `json:"gasTip"`
+	GasFeeCap uint64           `json:"gasFeeCap"`
+	From      ids.Address      `json:"from"`
+	To        *ids.Address     `json:"to"`
+	Token     *ids.TokenSymbol `json:"token"`
+	Amount    *big.Int         `json:"amount"`
+	Data      json.RawMessage  `json:"data"`
 }
 
 func (api *VMAPI) EncodeTx(_ *http.Request, args *TransactionArgs, reply *EncodeReply) error {
-	data := util.UnmarshalJSONData(args.Data)
+	data := encoding.UnmarshalJSONData(args.Data)
 	tx := &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TxType(args.Type),
 		ChainID:   args.ChainID,

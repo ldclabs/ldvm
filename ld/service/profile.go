@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
+	"github.com/ldclabs/ldvm/util/validating"
 )
 
 type ProfileType uint16
@@ -38,14 +41,14 @@ type Profile struct {
 	Image string      `cbor:"i" json:"image"`       // Thing property, relay url
 	URL   string      `cbor:"u" json:"url"`         // Thing property, relay url
 	// follow other ProfileService data id
-	Follows util.IDList[util.DataID] `cbor:"fs" json:"follows"`
+	Follows ids.IDList[ids.DataID] `cbor:"fs" json:"follows"`
 	// optional, other ProfileService data id
-	Members    util.IDList[util.DataID] `cbor:"ms,omitempty" json:"members,omitempty"`
-	Extensions Extensions               `cbor:"es" json:"extensions"`
+	Members    ids.IDList[ids.DataID] `cbor:"ms,omitempty" json:"members,omitempty"`
+	Extensions Extensions             `cbor:"es" json:"extensions"`
 
 	// external assignment fields
-	DataID util.DataID `cbor:"-" json:"did"`
-	raw    []byte      `cbor:"-" json:"-"`
+	DataID ids.DataID `cbor:"-" json:"did"`
+	raw    []byte     `cbor:"-" json:"-"`
 }
 
 func ProfileModel() (*ld.IPLDModel, error) {
@@ -68,22 +71,22 @@ func ProfileModel() (*ld.IPLDModel, error) {
 // SyntacticVerify verifies that a *Profile is well-formed.
 func (p *Profile) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("service.Profile.SyntacticVerify: ")
+	errp := erring.ErrPrefix("service.Profile.SyntacticVerify: ")
 
 	switch {
 	case p == nil:
 		return errp.Errorf("nil pointer")
 
-	case !util.ValidName(p.Name):
+	case !validating.ValidName(p.Name):
 		return errp.Errorf("invalid name %q", p.Name)
 
-	case !util.ValidMessage(p.Desc):
+	case !validating.ValidMessage(p.Desc):
 		return errp.Errorf("invalid description %q", p.Desc)
 
-	case !util.ValidLink(p.Image):
+	case !validating.ValidLink(p.Image):
 		return errp.Errorf("invalid image %q", p.Image)
 
-	case !util.ValidLink(p.URL):
+	case !validating.ValidLink(p.URL):
 		return errp.Errorf("invalid url %q", p.URL)
 
 	case p.Follows == nil:
@@ -124,11 +127,11 @@ func (p *Profile) Bytes() []byte {
 }
 
 func (p *Profile) Unmarshal(data []byte) error {
-	return util.ErrPrefix("service.Profile.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, p))
+	return erring.ErrPrefix("service.Profile.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, p))
 }
 
 func (p *Profile) Marshal() ([]byte, error) {
-	return util.ErrPrefix("service.Profile.Marshal: ").
-		ErrorMap(util.MarshalCBOR(p))
+	return erring.ErrPrefix("service.Profile.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(p))
 }

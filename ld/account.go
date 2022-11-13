@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 const (
@@ -62,16 +63,16 @@ type Account struct {
 	Lending        *LendingConfig `cbor:"le,omitempty" json:"lending,omitempty"`
 
 	// external assignment fields
-	Height    uint64       `cbor:"-" json:"height"`    // block's timestamp
-	Timestamp uint64       `cbor:"-" json:"timestamp"` // block's timestamp
-	ID        util.Address `cbor:"-" json:"address"`
-	raw       []byte       `cbor:"-" json:"-"`
+	Height    uint64      `cbor:"-" json:"height"`    // block's timestamp
+	Timestamp uint64      `cbor:"-" json:"timestamp"` // block's timestamp
+	ID        ids.Address `cbor:"-" json:"address"`
+	raw       []byte      `cbor:"-" json:"-"`
 }
 
 // SyntacticVerify verifies that a *Account is well-formed.
 func (a *Account) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("ld.Account.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.Account.SyntacticVerify: ")
 
 	switch {
 	case a == nil:
@@ -164,7 +165,7 @@ func (a *Account) SyntacticVerify() error {
 }
 
 func (a *Account) CheckAsFrom(txType TxType) error {
-	errp := util.ErrPrefix("ld.Account.CheckAsFrom: ")
+	errp := erring.ErrPrefix("ld.Account.CheckAsFrom: ")
 
 	switch a.Type {
 	case TokenAccount:
@@ -213,7 +214,7 @@ func (a *Account) CheckAsFrom(txType TxType) error {
 }
 
 func (a *Account) CheckAsTo(txType TxType) error {
-	errp := util.ErrPrefix("ld.Account.CheckAsTo: ")
+	errp := erring.ErrPrefix("ld.Account.CheckAsTo: ")
 
 	switch a.Type {
 	case TokenAccount:
@@ -238,7 +239,7 @@ func (a *Account) CheckAsTo(txType TxType) error {
 
 func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
 	switch {
-	case a.ID == constants.LDCAccount:
+	case a.ID == ids.LDCAccount:
 		return false
 
 	case len(a.Keepers) == 0 && accountKey.IsAddress(a.ID):
@@ -251,7 +252,7 @@ func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.
 
 func (a *Account) VerifyPlus(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
 	switch {
-	case a.ID == constants.LDCAccount:
+	case a.ID == ids.LDCAccount:
 		return false
 
 	case len(a.Keepers) == 0 && accountKey.IsAddress(a.ID):
@@ -270,18 +271,18 @@ func (a *Account) Bytes() []byte {
 }
 
 func (a *Account) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.Account.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, a))
+	return erring.ErrPrefix("ld.Account.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, a))
 }
 
 func (a *Account) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.Account.Marshal: ").
-		ErrorMap(util.MarshalCBOR(a))
+	return erring.ErrPrefix("ld.Account.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(a))
 }
 
 type StakeConfig struct {
-	_     struct{}         `cbor:",toarray"`
-	Token util.TokenSymbol `json:"token"`
+	_     struct{}        `cbor:",toarray"`
+	Token ids.TokenSymbol `json:"token"`
 	// 0: account keepers can not use stake token
 	// 1: account keepers can take a stake in other stake account
 	// 2: in addition to 1, account keepers can transfer stake token to other account
@@ -294,7 +295,7 @@ type StakeConfig struct {
 
 // SyntacticVerify verifies that a *StakeConfig is well-formed.
 func (c *StakeConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.StakeConfig.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.StakeConfig.SyntacticVerify: ")
 
 	switch {
 	case c == nil:
@@ -319,28 +320,28 @@ func (c *StakeConfig) SyntacticVerify() error {
 }
 
 func (c *StakeConfig) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.StakeConfig.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, c))
+	return erring.ErrPrefix("ld.StakeConfig.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, c))
 }
 
 func (c *StakeConfig) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.StakeConfig.Marshal: ").
-		ErrorMap(util.MarshalCBOR(c))
+	return erring.ErrPrefix("ld.StakeConfig.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(c))
 }
 
 type LendingConfig struct {
 	_ struct{} `cbor:",toarray"`
 
-	Token           util.TokenSymbol `json:"token"`
-	DailyInterest   uint64           `json:"dailyInterest"`   // 1_000_000 == 100%, should be in [1, 10_000]
-	OverdueInterest uint64           `json:"overdueInterest"` // 1_000_000 == 100%, should be in [1, 10_000]
-	MinAmount       *big.Int         `json:"minAmount"`
-	MaxAmount       *big.Int         `json:"maxAmount"`
+	Token           ids.TokenSymbol `json:"token"`
+	DailyInterest   uint64          `json:"dailyInterest"`   // 1_000_000 == 100%, should be in [1, 10_000]
+	OverdueInterest uint64          `json:"overdueInterest"` // 1_000_000 == 100%, should be in [1, 10_000]
+	MinAmount       *big.Int        `json:"minAmount"`
+	MaxAmount       *big.Int        `json:"maxAmount"`
 }
 
 // SyntacticVerify verifies that a *LendingConfig is well-formed.
 func (c *LendingConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.LendingConfig.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.LendingConfig.SyntacticVerify: ")
 
 	switch {
 	case c == nil:
@@ -365,11 +366,11 @@ func (c *LendingConfig) SyntacticVerify() error {
 }
 
 func (c *LendingConfig) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.LendingConfig.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, c))
+	return erring.ErrPrefix("ld.LendingConfig.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, c))
 }
 
 func (c *LendingConfig) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.LendingConfig.Marshal: ").
-		ErrorMap(util.MarshalCBOR(c))
+	return erring.ErrPrefix("ld.LendingConfig.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(c))
 }

@@ -6,7 +6,9 @@ package ld
 import (
 	"math/big"
 
-	"github.com/ldclabs/ldvm/util"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 // TxTransfer is a hybrid data model for:
@@ -15,13 +17,13 @@ import (
 // TxTransferCash{Nonce, From, Amount, Expire[, Token, To, Data]}
 // TxTakeStake{Nonce, From, To, Amount, Expire[, Data]}
 type TxTransfer struct {
-	Nonce  uint64            `cbor:"n,omitempty" json:"nonce,omitempty"`  // sender's nonce
-	From   *util.Address     `cbor:"fr,omitempty" json:"from,omitempty"`  // amount sender
-	To     *util.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // amount recipient
-	Token  *util.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
-	Amount *big.Int          `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
-	Expire uint64            `cbor:"e,omitempty" json:"expire,omitempty"`
-	Data   util.RawData      `cbor:"d,omitempty" json:"data,omitempty"`
+	Nonce  uint64           `cbor:"n,omitempty" json:"nonce,omitempty"`  // sender's nonce
+	From   *ids.Address     `cbor:"fr,omitempty" json:"from,omitempty"`  // amount sender
+	To     *ids.Address     `cbor:"to,omitempty" json:"to,omitempty"`    // amount recipient
+	Token  *ids.TokenSymbol `cbor:"tk,omitempty" json:"token,omitempty"` // token symbol, default is NativeToken
+	Amount *big.Int         `cbor:"a,omitempty" json:"amount,omitempty"` // transfer amount
+	Expire uint64           `cbor:"e,omitempty" json:"expire,omitempty"`
+	Data   encoding.RawData `cbor:"d,omitempty" json:"data,omitempty"`
 
 	// external assignment fields
 	raw []byte `cbor:"-" json:"-"`
@@ -29,7 +31,7 @@ type TxTransfer struct {
 
 // SyntacticVerify verifies that a *TxTransfer is well-formed.
 func (t *TxTransfer) SyntacticVerify() error {
-	errp := util.ErrPrefix("ld.TxTransfer.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.TxTransfer.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -57,11 +59,11 @@ func (t *TxTransfer) Bytes() []byte {
 }
 
 func (t *TxTransfer) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.TxTransfer.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.TxTransfer.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *TxTransfer) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.TxTransfer.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.TxTransfer.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }

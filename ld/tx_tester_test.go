@@ -8,9 +8,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ldclabs/ldvm/constants"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/unit"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,12 +46,12 @@ func TestTxTester(t *testing.T) {
 	// AddressObject
 	tx = &TxTester{
 		ObjectType: AddressObject,
-		ObjectID:   constants.GenesisAccount.String(),
+		ObjectID:   ids.GenesisAccount.String(),
 		Tests: TestOps{
-			{Path: "/t", Value: util.MustMarshalCBOR(NativeAccount)},
-			{Path: "/n", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/b", Value: util.MustMarshalCBOR(new(big.Int).SetUint64(constants.LDC))},
-			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
+			{Path: "/t", Value: encoding.MustMarshalCBOR(NativeAccount)},
+			{Path: "/n", Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Path: "/b", Value: encoding.MustMarshalCBOR(new(big.Int).SetUint64(unit.LDC))},
+			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -75,7 +76,7 @@ func TestTxTester(t *testing.T) {
 
 	acc = &Account{
 		Nonce:      1,
-		Balance:    new(big.Int).SetUint64(constants.LDC),
+		Balance:    new(big.Int).SetUint64(unit.LDC),
 		Threshold:  1,
 		Keepers:    signer.Keys{signer.Signer1.Key()},
 		Tokens:     make(map[string]*big.Int),
@@ -96,10 +97,10 @@ func TestTxTester(t *testing.T) {
 		ObjectType: ModelObject,
 		ObjectID:   CBORModelID.String(),
 		Tests: TestOps{
-			{Path: "/n", Value: util.MustMarshalCBOR("NameService")},
-			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/kp/0", Value: util.MustMarshalCBOR(signer.Signer1.Key())},
-			{Path: "/ap", Value: util.MustMarshalCBOR(nil)},
+			{Path: "/n", Value: encoding.MustMarshalCBOR("NameService")},
+			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Path: "/kp/0", Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
+			{Path: "/ap", Value: encoding.MustMarshalCBOR(nil)},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -141,13 +142,13 @@ func TestTxTester(t *testing.T) {
 	// DataObject
 	tx = &TxTester{
 		ObjectType: DataObject,
-		ObjectID:   util.DataID{1, 2, 3}.String(),
+		ObjectID:   ids.DataID{1, 2, 3}.String(),
 		Tests: TestOps{
-			{Path: "/v", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/th", Value: util.MustMarshalCBOR(uint64(1))},
-			{Path: "/kp/0", Value: util.MustMarshalCBOR(signer.Signer1.Key())},
-			{Path: "/ap", Value: util.MustMarshalCBOR(signer.Signer2.Key())},
-			{Path: "/pl", Value: util.MustMarshalCBOR([]byte(`42`))},
+			{Path: "/v", Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Path: "/kp/0", Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
+			{Path: "/ap", Value: encoding.MustMarshalCBOR(signer.Signer2.Key())},
+			{Path: "/pl", Value: encoding.MustMarshalCBOR([]byte(`42`))},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -164,8 +165,8 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.Test(di.Bytes()))
 
 	tx.Tests = append(tx.Tests[:len(tx.Tests)-1],
-		TestOp{Path: "/pl/name", Value: util.MustMarshalCBOR("John")},
-		TestOp{Path: "/pl/age", Value: util.MustMarshalCBOR(42)},
+		TestOp{Path: "/pl/name", Value: encoding.MustMarshalCBOR("John")},
+		TestOp{Path: "/pl/age", Value: encoding.MustMarshalCBOR(42)},
 	)
 	assert.NoError(tx.SyntacticVerify())
 	assert.True(tx.maybeTestData())
@@ -187,7 +188,7 @@ func TestTxTester(t *testing.T) {
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
 		Approver:  signer.Signer2.Key(),
-		Payload:   util.MustMarshalCBOR(v),
+		Payload:   encoding.MustMarshalCBOR(v),
 	}
 	assert.NoError(di.SyntacticVerify())
 	assert.NoError(tx.Test(di.Bytes()))

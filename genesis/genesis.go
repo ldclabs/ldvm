@@ -8,17 +8,20 @@ import (
 	"math/big"
 	"strconv"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ldclabs/ldvm/constants"
+	// "github.com/ldclabs/ldvm/ids"
+
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/unit"
+	le "github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type Genesis struct {
-	Chain ChainConfig                  `json:"chain"`
-	Alloc map[util.Address]*Allocation `json:"alloc"`
+	Chain ChainConfig                 `json:"chain"`
+	Alloc map[ids.Address]*Allocation `json:"alloc"`
 }
 
 type Allocation struct {
@@ -35,11 +38,11 @@ type ChainConfig struct {
 
 	// external assignment fields
 	FeeConfigs    []*FeeConfig `json:"feeConfigs"`
-	FeeConfigID   util.DataID  `json:"feeConfigID"`
-	NameServiceID util.ModelID `json:"nameServiceID"`
+	FeeConfigID   ids.DataID   `json:"feeConfigID"`
+	NameServiceID ids.ModelID  `json:"nameServiceID"`
 }
 
-func (c *ChainConfig) IsNameService(id util.ModelID) bool {
+func (c *ChainConfig) IsNameService(id ids.ModelID) bool {
 	return c.NameServiceID == id
 }
 
@@ -55,9 +58,9 @@ func (c *ChainConfig) Fee(height uint64) *FeeConfig {
 
 func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 	fee := new(FeeConfig)
-	errp := util.ErrPrefix("ChainConfig.AppendFeeConfig: ")
+	errp := erring.ErrPrefix("ChainConfig.AppendFeeConfig: ")
 
-	if err := util.UnmarshalCBOR(data, fee); err != nil {
+	if err := le.UnmarshalCBOR(data, fee); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	if err := fee.SyntacticVerify(); err != nil {
@@ -68,19 +71,19 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight            uint64                        `json:"startHeight"`
-	MinGasPrice            uint64                        `json:"minGasPrice"`
-	MaxGasPrice            uint64                        `json:"maxGasPrice"`
-	MaxTxGas               uint64                        `json:"maxTxGas"`
-	GasRebateRate          uint64                        `json:"gasRebateRate"`
-	MinTokenPledge         *big.Int                      `json:"minTokenPledge"`
-	MinStakePledge         *big.Int                      `json:"minStakePledge"`
-	NonTransferableBalance *big.Int                      `json:"nonTransferableBalance"`
-	Builders               util.IDList[util.StakeSymbol] `json:"builders"`
+	StartHeight            uint64                      `json:"startHeight"`
+	MinGasPrice            uint64                      `json:"minGasPrice"`
+	MaxGasPrice            uint64                      `json:"maxGasPrice"`
+	MaxTxGas               uint64                      `json:"maxTxGas"`
+	GasRebateRate          uint64                      `json:"gasRebateRate"`
+	MinTokenPledge         *big.Int                    `json:"minTokenPledge"`
+	MinStakePledge         *big.Int                    `json:"minStakePledge"`
+	NonTransferableBalance *big.Int                    `json:"nonTransferableBalance"`
+	Builders               ids.IDList[ids.StakeSymbol] `json:"builders"`
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
-	errp := util.ErrPrefix("FeeConfig.SyntacticVerify: ")
+	errp := erring.ErrPrefix("FeeConfig.SyntacticVerify: ")
 
 	switch {
 	case cfg == nil:
@@ -98,10 +101,10 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	case cfg.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
-	case cfg.MinTokenPledge == nil || cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
+	case cfg.MinTokenPledge == nil || cfg.MinTokenPledge.Cmp(new(big.Int).SetUint64(unit.LDC)) < 0:
 		return errp.Errorf("invalid minTokenPledge")
 
-	case cfg.MinStakePledge == nil || cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(constants.LDC)) < 0:
+	case cfg.MinStakePledge == nil || cfg.MinStakePledge.Cmp(new(big.Int).SetUint64(unit.LDC)) < 0:
 		return errp.Errorf("invalid minStakePledge")
 
 	case cfg.NonTransferableBalance == nil || cfg.NonTransferableBalance.Cmp(new(big.Int).SetUint64(0)) < 0:
@@ -118,8 +121,8 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	return nil
 }
 
-func (cfg *FeeConfig) ValidBuilder(builder util.StakeSymbol) error {
-	errp := util.ErrPrefix("FeeConfig.ValidBuilder: ")
+func (cfg *FeeConfig) ValidBuilder(builder ids.StakeSymbol) error {
+	errp := erring.ErrPrefix("FeeConfig.ValidBuilder: ")
 
 	if len(cfg.Builders) > 0 && !cfg.Builders.Has(builder) {
 		return errp.Errorf("%s is not in the builder list", builder)
@@ -130,7 +133,7 @@ func (cfg *FeeConfig) ValidBuilder(builder util.StakeSymbol) error {
 
 func FromJSON(data []byte) (*Genesis, error) {
 	g := new(Genesis)
-	errp := util.ErrPrefix("FromJSON: ")
+	errp := erring.ErrPrefix("FromJSON: ")
 
 	if err := json.Unmarshal(data, g); err != nil {
 		return nil, errp.ErrorIf(err)
@@ -144,9 +147,9 @@ func FromJSON(data []byte) (*Genesis, error) {
 }
 
 func (g *Genesis) ToTxs() (ld.Txs, error) {
-	errp := util.ErrPrefix("Genesis.ToTxs: ")
+	errp := erring.ErrPrefix("Genesis.ToTxs: ")
 
-	genesisAccount, ok := g.Alloc[constants.GenesisAccount]
+	genesisAccount, ok := g.Alloc[ids.GenesisAccount]
 	if !ok {
 		return nil, errp.Errorf("genesis account not found")
 	}
@@ -165,8 +168,8 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Type:    ld.TypeCreateToken,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
-		From:    constants.GenesisAccount,
-		To:      &constants.LDCAccount,
+		From:    ids.GenesisAccount,
+		To:      &ids.LDCAccount,
 		Data:    ld.MustMarshal(token),
 	}}
 	if err = tx.SyntacticVerify(); err != nil {
@@ -177,19 +180,19 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 
 	// Alloc Txs
 	ldcNonce := uint64(0)
-	list := make([]ids.ShortID, 0, len(g.Alloc))
+	list := ids.NewIDList[ids.Address](len(g.Alloc))
 	for id := range g.Alloc {
-		list = append(list, ids.ShortID(id))
+		list = append(list, id)
 	}
-	ids.SortShortIDs(list)
+	list.Sort()
 	for _, id := range list {
-		v := g.Alloc[util.Address(id)]
-		to := util.Address(id)
+		v := g.Alloc[ids.Address(id)]
+		to := ids.Address(id)
 		tx := &ld.Transaction{Tx: ld.TxData{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
 			Nonce:   ldcNonce,
-			From:    constants.LDCAccount,
+			From:    ids.LDCAccount,
 			To:      &to,
 			Amount:  v.Balance,
 		}}
@@ -210,11 +213,11 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 				Type:    ld.TypeUpdateAccountInfo,
 				ChainID: g.Chain.ChainID,
 				Nonce:   nonce,
-				From:    util.Address(id),
+				From:    ids.Address(id),
 				Data:    ld.MustMarshal(update),
 			}}
 
-			if tx.Tx.From == constants.GenesisAccount {
+			if tx.Tx.From == ids.GenesisAccount {
 				tx.Tx.Nonce = genesisNonce
 				genesisNonce++
 			}
@@ -226,7 +229,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 
 	// config data tx
-	cfg, err := util.MarshalCBOR(g.Chain.FeeConfig)
+	cfg, err := le.MarshalCBOR(g.Chain.FeeConfig)
 	if err != nil {
 		return nil, errp.ErrorIf(err)
 	}
@@ -245,14 +248,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Type:    ld.TypeCreateData,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
-		From:    constants.GenesisAccount,
+		From:    ids.GenesisAccount,
 		Data:    ld.MustMarshal(cfgData),
 	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	genesisNonce++
-	g.Chain.FeeConfigID = util.DataID(tx.ID)
+	g.Chain.FeeConfigID = ids.DataID(tx.ID)
 	txs = append(txs, tx)
 
 	// name service tx
@@ -274,14 +277,14 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
-		From:    constants.GenesisAccount,
+		From:    ids.GenesisAccount,
 		Data:    ld.MustMarshal(ns),
 	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 	genesisNonce++
-	g.Chain.NameServiceID = util.ModelIDFromHash(tx.ID)
+	g.Chain.NameServiceID = ids.ModelIDFromHash(tx.ID)
 	txs = append(txs, tx)
 
 	// Profile service tx
@@ -303,7 +306,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		Type:    ld.TypeCreateModel,
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
-		From:    constants.GenesisAccount,
+		From:    ids.GenesisAccount,
 		Data:    ld.MustMarshal(ps),
 	}}
 	if err = tx.SyntacticVerify(); err != nil {

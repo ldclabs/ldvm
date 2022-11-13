@@ -7,8 +7,10 @@ import (
 	"regexp"
 	"unicode/utf8"
 
-	"github.com/ldclabs/ldvm/util"
-	"github.com/ldclabs/ldvm/util/signer"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 var ModelNameReg = regexp.MustCompile(`^[A-Z][0-9A-Za-z]{1,127}$`)
@@ -28,9 +30,9 @@ type ModelInfo struct {
 	Schema   string      `cbor:"sc" json:"schema"`
 
 	// external assignment fields
-	ID    util.ModelID `cbor:"-" json:"id"`
-	model *IPLDModel   `cbor:"-" json:"-"`
-	raw   []byte       `cbor:"-" json:"-"`
+	ID    ids.ModelID `cbor:"-" json:"id"`
+	model *IPLDModel  `cbor:"-" json:"-"`
+	raw   []byte      `cbor:"-" json:"-"`
 }
 
 func (t *ModelInfo) Model() *IPLDModel {
@@ -40,7 +42,7 @@ func (t *ModelInfo) Model() *IPLDModel {
 // SyntacticVerify verifies that a *ModelInfo is well-formed.
 func (t *ModelInfo) SyntacticVerify() error {
 	var err error
-	errp := util.ErrPrefix("ld.ModelInfo.SyntacticVerify: ")
+	errp := erring.ErrPrefix("ld.ModelInfo.SyntacticVerify: ")
 
 	switch {
 	case t == nil:
@@ -98,11 +100,11 @@ func (t *ModelInfo) Bytes() []byte {
 }
 
 func (t *ModelInfo) Unmarshal(data []byte) error {
-	return util.ErrPrefix("ld.ModelInfo.Unmarshal: ").
-		ErrorIf(util.UnmarshalCBOR(data, t))
+	return erring.ErrPrefix("ld.ModelInfo.Unmarshal: ").
+		ErrorIf(encoding.UnmarshalCBOR(data, t))
 }
 
 func (t *ModelInfo) Marshal() ([]byte, error) {
-	return util.ErrPrefix("ld.ModelInfo.Marshal: ").
-		ErrorMap(util.MarshalCBOR(t))
+	return erring.ErrPrefix("ld.ModelInfo.Marshal: ").
+		ErrorMap(encoding.MarshalCBOR(t))
 }
