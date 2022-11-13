@@ -11,7 +11,7 @@ import (
 )
 
 // StakeSymbol
-type StakeSymbol [20]byte
+type StakeSymbol ID20
 
 var EmptyStake = StakeSymbol{}
 

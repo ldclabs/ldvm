@@ -11,7 +11,7 @@ import (
 )
 
 // TokenSymbol
-type TokenSymbol [20]byte
+type TokenSymbol ID20
 
 var NativeToken = TokenSymbol{}
 

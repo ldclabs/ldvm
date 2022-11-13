@@ -9,7 +9,7 @@ import (
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
-type ModelID [20]byte
+type ModelID ID20
 
 var EmptyModelID = ModelID{}
 
