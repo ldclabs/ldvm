@@ -113,7 +113,7 @@ type mixRoundTripper struct {
 
 func (m *mixRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Don't use HTTP/2 if it is a connection upgrade
-	if httpguts.HeaderValuesContainsToken(req.Header["Connection"], "Upgrade") {
+	if httpguts.HeaderValuesContainsToken(req.Header.Values("connection"), "Upgrade") {
 		return m.http.RoundTrip(req)
 	}
 

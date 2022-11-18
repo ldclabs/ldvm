@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -211,7 +212,7 @@ func (bc *blockChain) Bootstrap() error {
 			zap.Stringer("id", genesisBlock.ID()))
 		bc.preferred.StoreV(genesisBlock)
 
-		if err := genesisBlock.Accept(); err != nil {
+		if err := genesisBlock.Accept(context.TODO()); err != nil {
 			logging.Log.Error("BlockChain.Bootstrap", zap.Error(err))
 			return errp.ErrorIf(err)
 		}
@@ -475,9 +476,9 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 		if set[blk.Height()] == blk.ID() {
 			continue
 		}
-		blk.Reject()
+		blk.Reject(context.TODO())
 	}
-	oldBlock.Reject()
+	oldBlock.Reject(context.TODO())
 	return nil
 }
 

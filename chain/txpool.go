@@ -14,7 +14,7 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/rpc/cborrpc"
+	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/util/erring"
 
@@ -24,7 +24,7 @@ import (
 
 type TxPool struct {
 	mu     sync.Mutex
-	cli    *cborrpc.Client
+	cli    *httprpc.CBORClient
 	nodeID avaids.NodeID
 	cache  map[uint64]ld.Txs // cached processing Txs
 }
@@ -36,7 +36,7 @@ func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
 		strings.Replace(ctx.Name(), "@v", "/", 1)+" (TxPool Client, CBOR-RPC)")
 
 	return &TxPool{
-		cli:    cborrpc.NewClient(pdsEndpoint+"/txs", rt, header),
+		cli:    httprpc.NewCBORClient(pdsEndpoint+"/txs", rt, header),
 		nodeID: ctx.NodeID,
 		cache:  make(map[uint64]ld.Txs, 10),
 	}
@@ -89,7 +89,7 @@ func (p *TxPool) LoadByIDs(height uint64, txIDs ids.IDList[ids.ID32]) (ld.Txs, e
 	if !ok {
 		txs = make(ld.Txs, 0, len(txIDs))
 		params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: txIDs}
-		res := p.cli.Req(ctx, "LoadByIDs", params, &txs)
+		res := p.cli.Request(ctx, "LoadByIDs", params, &txs)
 		if res.Error != nil {
 			return nil, errp.ErrorIf(res.Error)
 		}
@@ -118,7 +118,7 @@ func (p *TxPool) SizeToBuild(height uint64) int {
 
 	params := &TxReqParams{NodeID: p.nodeID, Height: height}
 	size := 0
-	res := p.cli.Req(ctx, "SizeToBuild", params, &size)
+	res := p.cli.Request(ctx, "SizeToBuild", params, &size)
 	if res.Error != nil {
 		logging.Log.Warn("TxPool.SizeToBuild",
 			zap.Uint64("height", height),
@@ -134,7 +134,7 @@ func (p *TxPool) FetchToBuild(height uint64) (ld.Txs, error) {
 
 	result := make([]TxOrBatch, 0)
 	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: ld.MaxBlockTxsSize}
-	res := p.cli.Req(ctx, "FetchToBuild", params, &result)
+	res := p.cli.Request(ctx, "FetchToBuild", params, &result)
 	if res.Error != nil {
 		return nil, errp.ErrorIf(res.Error)
 	}
@@ -169,7 +169,7 @@ func (p *TxPool) UpdateBuildStatus(height uint64, tbs *TxsBuildStatus) {
 	defer cancel()
 
 	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: tbs}
-	res := p.cli.Req(ctx, "UpdateBuildStatus", params, nil)
+	res := p.cli.Request(ctx, "UpdateBuildStatus", params, nil)
 	if res.Error != nil {
 		logging.Log.Warn("TxPool.UpdateBuildStatus",
 			zap.Uint64("height", height),

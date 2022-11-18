@@ -28,3 +28,11 @@ func (p ErrPrefix) ErrorMap(data []byte, err error) ([]byte, error) {
 	}
 	return data, nil
 }
+
+func (p ErrPrefix) Sprintf(format string, a ...any) string {
+	if len(a) == 0 {
+		return string(p) + format
+	}
+
+	return string(p) + fmt.Sprintf(format, a...)
+}
