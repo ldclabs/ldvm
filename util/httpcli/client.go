@@ -4,10 +4,11 @@
 package httpcli
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -36,10 +37,18 @@ func NewClient(rt http.RoundTripper) *Client {
 
 // Do ...
 func (c *Client) Do(req *http.Request) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := c.DoWith(req, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (c *Client) DoWith(req *http.Request, br BodyReader) error {
 	req.Header.Set("accept-encoding", "gzip")
 	resp, err := c.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do http request error, %v", err)
+		return &Error{Message: err.Error()}
 	}
 
 	defer resp.Body.Close()
@@ -47,20 +56,51 @@ func (c *Client) Do(req *http.Request) ([]byte, error) {
 	if resp.Header.Get("content-encoding") == "gzip" {
 		body, err = gzip.NewReader(body)
 		if err != nil {
-			return nil, fmt.Errorf("gzip reader error, %v", err)
+			return &Error{
+				Code:    resp.StatusCode,
+				Message: fmt.Sprintf("gzip.NewReader error, %v", err),
+				Header:  req.Header,
+			}
 		}
 		defer body.Close()
 	}
 
-	data, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, fmt.Errorf("read response error, %s, status code, %v", err.Error(), resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		errstr := http.StatusText(resp.StatusCode)
+		data, err := io.ReadAll(body)
+		if err != nil {
+			errstr += ", read body error, " + err.Error()
+		}
+
+		return &Error{
+			Code:    resp.StatusCode,
+			Message: errstr,
+			Header:  req.Header,
+			Body:    string(data),
+		}
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code, %v, response, %q", resp.StatusCode, string(data))
+	if g, ok := br.(Growable); ok && resp.ContentLength > 0 {
+		g.Grow(int(resp.ContentLength))
 	}
-	return data, nil
+
+	if _, err = br.ReadFrom(body); err != nil {
+		return &Error{
+			Code:    resp.StatusCode,
+			Message: err.Error(),
+			Header:  req.Header,
+		}
+	}
+
+	return nil
+}
+
+type Growable interface {
+	Grow(n int)
+}
+
+type BodyReader interface {
+	ReadFrom(r io.Reader) (n int64, err error)
 }
 
 func CtxWithHeader(ctx context.Context, header http.Header) context.Context {

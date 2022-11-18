@@ -29,8 +29,9 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/rpc/httpcli"
+	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/util/erring"
+	"github.com/ldclabs/ldvm/util/httpcli"
 )
 
 const (
@@ -92,6 +93,7 @@ type VM struct {
 // [toEngine]: The channel used to send messages to the consensus engine.
 // [fxs]: Feature extensions that attach to this VM.
 func (v *VM) Initialize(
+	cc context.Context,
 	ctx *snow.Context,
 	dbManager manager.Manager,
 	genesisData []byte,
@@ -177,7 +179,7 @@ func (v *VM) initialize(
 
 // SetState implements the common.VM SetState interface
 // SetState communicates to VM its next state it starts
-func (v *VM) SetState(state snow.State) error {
+func (v *VM) SetState(ctx context.Context, state snow.State) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -187,7 +189,7 @@ func (v *VM) SetState(state snow.State) error {
 
 // Shutdown implements the common.VM Shutdown interface
 // Shutdown is called when the node is shutting down.
-func (v *VM) Shutdown() error {
+func (v *VM) Shutdown(ctx context.Context) error {
 	v.Log.Info("LDVM.Shutdown")
 	// TODO graceful shutdown
 	v.dbManager.Close()
@@ -196,7 +198,7 @@ func (v *VM) Shutdown() error {
 
 // Version implements the common.VM Version interface
 // Version returns the version of the VM this node is running.
-func (v *VM) Version() (string, error) {
+func (v *VM) Version(ctx context.Context) (string, error) {
 	return Version.String(), nil
 }
 
@@ -206,7 +208,7 @@ func (v *VM) Version() (string, error) {
 // This exposes handlers that the outside world can use to communicate with
 // a static reference to the VM. Each handler has the path:
 // [Address of node]/ext/vm/[VM ID]/[extension]
-func (v *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
+func (v *VM) CreateStaticHandlers(ctx context.Context) (map[string]*common.HTTPHandler, error) {
 	server := rpc.NewServer()
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
@@ -228,8 +230,8 @@ func (v *VM) CreateStaticHandlers() (map[string]*common.HTTPHandler, error) {
 // This exposes handlers that the outside world can use to communicate with
 // the chain. Each handler has the path:
 // [Address of node]/ext/bc/[chain ID]/[extension]
-func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
-	cborAPI := api.NewAPI(v.bc, v.name)
+func (v *VM) CreateHandlers(ctx context.Context) (map[string]*common.HTTPHandler, error) {
+	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, v.name))
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
@@ -242,13 +244,13 @@ func (v *VM) CreateHandlers() (map[string]*common.HTTPHandler, error) {
 // HealthCheck implements the common.VM health.Checker HealthCheck interface
 // Returns nil if the VM is healthy.
 // Periodically called and reported via the node's Health API.
-func (v *VM) HealthCheck() (interface{}, error) {
+func (v *VM) HealthCheck(ctx context.Context) (interface{}, error) {
 	return v.bc.HealthCheck()
 }
 
 // Connected implements the common.VM validators.Connector Connected interface
 // Connector represents a handler that is called when a connection is marked as connected
-func (v *VM) Connected(id avaids.NodeID, nodeVersion *version.Application) error {
+func (v *VM) Connected(ctx context.Context, id avaids.NodeID, nodeVersion *version.Application) error {
 	v.Log.Info("LDVM.Connected",
 		zap.Stringer("nodeID", id),
 		zap.Stringer("version", nodeVersion))
@@ -257,7 +259,7 @@ func (v *VM) Connected(id avaids.NodeID, nodeVersion *version.Application) error
 
 // Disconnected implements the common.VM Disconnected interface
 // Connector represents a handler that is called when a connection is marked as disconnected
-func (v *VM) Disconnected(id avaids.NodeID) error {
+func (v *VM) Disconnected(ctx context.Context, id avaids.NodeID) error {
 	v.Log.Info("LDVM.Disconnected", zap.Stringer("nodeID", id))
 	return nil // noop
 }
@@ -409,7 +411,7 @@ func (v *VM) CrossChainAppResponse(ctx context.Context, chainID avaids.ID, reque
 //
 // GetBlock attempt to fetch a block by it's ID
 // If the block does not exist, an error should be returned.
-func (v *VM) GetBlock(id avaids.ID) (blk snowman.Block, err error) {
+func (v *VM) GetBlock(ctx context.Context, id avaids.ID) (blk snowman.Block, err error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
@@ -427,7 +429,7 @@ func (v *VM) GetBlock(id avaids.ID) (blk snowman.Block, err error) {
 // ParseBlock implements the block.ChainVM ParseBlock interface
 //
 // ParseBlock attempt to fetch a block by its bytes.
-func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
+func (v *VM) ParseBlock(ctx context.Context, data []byte) (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -451,7 +453,7 @@ func (v *VM) ParseBlock(data []byte) (blk snowman.Block, err error) {
 //
 // BuildBlock attempt to create a new block from data contained in the VM.
 // If the VM doesn't want to issue a new block, an error should be returned.
-func (v *VM) BuildBlock() (blk snowman.Block, err error) {
+func (v *VM) BuildBlock(ctx context.Context) (blk snowman.Block, err error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -470,7 +472,7 @@ func (v *VM) BuildBlock() (blk snowman.Block, err error) {
 //
 // SetPreference notify the VM of the currently preferred block.
 // This should always be a block that has no children known to consensus.
-func (v *VM) SetPreference(id avaids.ID) error {
+func (v *VM) SetPreference(ctx context.Context, id avaids.ID) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -488,7 +490,7 @@ func (v *VM) SetPreference(id avaids.ID) error {
 // If no blocks have been accepted by consensus yet, it is assumed there is
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
-func (v *VM) LastAccepted() (avaids.ID, error) {
+func (v *VM) LastAccepted(ctx context.Context) (avaids.ID, error) {
 	blk := v.bc.LastAcceptedBlock()
 	v.Log.Info("LDVM.LastAccepted",
 		zap.Stringer("id", blk.ID()),
@@ -502,13 +504,13 @@ func (v *VM) LastAccepted() (avaids.ID, error) {
 // - ErrHeightIndexedVMNotImplemented if the height index is not supported.
 // - ErrIndexIncomplete if the height index is not currently available.
 // - Any other non-standard error that may have occurred when verifying the index.
-func (v *VM) VerifyHeightIndex() error {
+func (v *VM) VerifyHeightIndex(ctx context.Context) error {
 	return nil
 }
 
 // GetBlockIDAtHeight implements the block.HeightIndexedChainVM GetBlockIDAtHeight interface
 // GetBlockIDAtHeight returns the ID of the block that was accepted with [height].
-func (v *VM) GetBlockIDAtHeight(height uint64) (avaids.ID, error) {
+func (v *VM) GetBlockIDAtHeight(ctx context.Context, height uint64) (avaids.ID, error) {
 	id, err := v.bc.GetBlockIDAtHeight(height)
 	if err != nil {
 		v.Log.Error("LDVM.GetBlockIDAtHeight %d error %v",

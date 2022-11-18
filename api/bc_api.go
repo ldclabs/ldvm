@@ -4,19 +4,13 @@
 package api
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strings"
+	"context"
 
 	"github.com/ldclabs/ldvm/chain"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
-	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/rpc/cborrpc"
-	"github.com/ldclabs/ldvm/util/encoding"
-	"go.uber.org/zap"
+	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 )
 
 type API struct {
@@ -28,9 +22,10 @@ func NewAPI(bc chain.BlockChain, name string) *API {
 	return &API{bc, name}
 }
 
-// RPC is the main entrypoint for the LDVM.
-// https://ethereum.org/en/developers/docs/apis/json-rpc
-func (api *API) RPC(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) OnError(ctx context.Context, err *cborrpc.Error) {}
+
+// ServeRPC is the main entrypoint for the LDVM.
+func (api *API) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
 	switch req.Method {
 	case "chainID":
 		chainID := api.bc.Context().ChainConfig().ChainID
@@ -92,7 +87,7 @@ func (api *API) RPC(req *cborrpc.Req) *cborrpc.Res {
 	}
 }
 
-func (api *API) preVerifyTxs(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) preVerifyTxs(req *cborrpc.Request) *cborrpc.Response {
 	txs := ld.Txs{}
 
 	var err error
@@ -108,11 +103,11 @@ func (api *API) preVerifyTxs(req *cborrpc.Req) *cborrpc.Res {
 	return req.Result(heigit)
 }
 
-func (api *API) getGenesisTxs(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getGenesisTxs(req *cborrpc.Request) *cborrpc.Response {
 	txs := api.bc.GetGenesisTxs()
 
 	if len(txs) == 0 {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: "no genesis transactions, blockchain not ready"})
 	}
@@ -120,7 +115,7 @@ func (api *API) getGenesisTxs(req *cborrpc.Req) *cborrpc.Res {
 	return req.Result(txs)
 }
 
-func (api *API) getBlock(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getBlock(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.ID32
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -128,14 +123,14 @@ func (api *API) getBlock(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("block", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getBlockAtHeight(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getBlockAtHeight(req *cborrpc.Request) *cborrpc.Response {
 	var height uint64
 	if err := req.DecodeParams(&height); err != nil {
 		return req.Error(err)
@@ -143,21 +138,21 @@ func (api *API) getBlockAtHeight(req *cborrpc.Req) *cborrpc.Res {
 
 	id, err := api.bc.GetBlockIDAtHeight(height)
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 
 	raw, err := api.bc.LoadRawData("block", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getState(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getState(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.ID32
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -165,14 +160,14 @@ func (api *API) getState(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("state", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getAccount(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -180,14 +175,14 @@ func (api *API) getAccount(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("account", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getLedger(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getLedger(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.Address
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -195,14 +190,14 @@ func (api *API) getLedger(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("ledger", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getModel(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getModel(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.ModelID
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -210,14 +205,14 @@ func (api *API) getModel(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("model", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getData(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getData(req *cborrpc.Request) *cborrpc.Response {
 	var id ids.DataID
 	if err := req.DecodeParams(&id); err != nil {
 		return req.Error(err)
@@ -225,7 +220,7 @@ func (api *API) getData(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("data", id[:])
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
@@ -238,7 +233,7 @@ type PrevDataParams struct {
 	Version uint64
 }
 
-func (api *API) getPrevData(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getPrevData(req *cborrpc.Request) *cborrpc.Response {
 	params := &PrevDataParams{}
 	if err := req.DecodeParams(params); err != nil {
 		return req.Error(err)
@@ -246,14 +241,14 @@ func (api *API) getPrevData(req *cborrpc.Req) *cborrpc.Res {
 
 	raw, err := api.bc.LoadRawData("prevdata", params.ID.VersionKey(params.Version))
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getNameID(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getNameID(req *cborrpc.Request) *cborrpc.Response {
 	var name string
 	if err := req.DecodeParams(name); err != nil {
 		return req.Error(err)
@@ -261,21 +256,21 @@ func (api *API) getNameID(req *cborrpc.Req) *cborrpc.Res {
 
 	dn, err := service.NewDN(name)
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeInvalidParams,
 			Message: err.Error()})
 	}
 
 	raw, err := api.bc.LoadRawData("name", []byte(dn.ASCII()))
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
 }
 
-func (api *API) getNameData(req *cborrpc.Req) *cborrpc.Res {
+func (api *API) getNameData(req *cborrpc.Request) *cborrpc.Response {
 	var name string
 	if err := req.DecodeParams(name); err != nil {
 		return req.Error(err)
@@ -283,91 +278,23 @@ func (api *API) getNameData(req *cborrpc.Req) *cborrpc.Res {
 
 	dn, err := service.NewDN(name)
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeInvalidParams,
 			Message: err.Error()})
 	}
 
 	raw, err := api.bc.LoadRawData("name", []byte(dn.ASCII()))
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 
 	raw, err = api.bc.LoadRawData("data", raw)
 	if err != nil {
-		return req.Error(&cborrpc.Err{
+		return req.Error(&cborrpc.Error{
 			Code:    cborrpc.CodeServerError,
 			Message: err.Error()})
 	}
 	return req.ResultRaw(raw)
-}
-
-func (api *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if id := r.Header.Get("x-request-id"); id != "" {
-		w.Header().Set("x-request-id", id)
-	}
-
-	if r.Method != "POST" {
-		writeCBORRes(w, http.StatusMethodNotAllowed, &cborrpc.Err{
-			Code:    -32600,
-			Message: fmt.Sprintf("POST method required, got %q", r.Method),
-		})
-		return
-	}
-
-	contentType := r.Header.Get("content-type")
-	if idx := strings.Index(contentType, ";"); idx != -1 {
-		contentType = contentType[:idx]
-	}
-	if contentType != cborrpc.MIMEApplicationCBOR {
-		writeCBORRes(w, http.StatusUnsupportedMediaType, &cborrpc.Err{
-			Code:    -32600,
-			Message: fmt.Sprintf("unsupported content-type, got %q", contentType),
-		})
-		return
-	}
-
-	buf, err := ioutil.ReadAll(r.Body)
-	r.Body.Close()
-	if err != nil {
-		writeCBORRes(w, http.StatusBadRequest, &cborrpc.Err{
-			Code:    -32600,
-			Message: fmt.Sprintf("read request body error, %v", err),
-		})
-	}
-
-	req, err := cborrpc.DecodeReq(buf)
-	if err != nil {
-		writeCBORRes(w, http.StatusBadRequest, err)
-		return
-	}
-
-	logging.Debug(func() string {
-		return fmt.Sprintf("Request: %s", req.String())
-	})
-	res := api.RPC(req)
-	logging.Debug(func() string {
-		return fmt.Sprintf("Response: %s", res.String())
-	})
-	writeCBORRes(w, http.StatusOK, res)
-}
-
-func writeCBORRes(w http.ResponseWriter, code int, val interface{}) {
-	w.Header().Set("content-type", cborrpc.MIMEApplicationCBORCharsetUTF8)
-	data, err := encoding.MarshalCBOR(val)
-	if err != nil {
-		code = 500
-		val = &cborrpc.Err{Code: -32603, Message: err.Error()}
-		data, _ = encoding.MarshalCBOR(val)
-	}
-
-	if code >= 500 {
-		logging.Log.Warn("writeCBORRes error",
-			zap.Int("code", code),
-			zap.String("res", fmt.Sprintf("%v", val)))
-	}
-	w.WriteHeader(code)
-	w.Write(data)
 }

@@ -5,6 +5,7 @@ package chain
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -209,7 +210,7 @@ func (b *Block) SetBuilderFee(vbs BlockState) error {
 	b.ld.Validators = []ids.StakeSymbol{}
 	if b.ctx.ValidatorState != nil {
 		var err error
-		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight()
+		b.ld.PCHeight, err = b.ctx.ValidatorState.GetCurrentHeight(context.TODO())
 		if err != nil {
 			return errp.Errorf("ValidatorState.GetCurrentHeight: %v", err)
 		}
@@ -248,7 +249,7 @@ func (b *Block) verifyBuilderFee() error {
 }
 
 func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*acct.Account, error) {
-	vs, err := b.ctx.ValidatorState.GetValidatorSet(pcHeight, b.ctx.SubnetID)
+	vs, err := b.ctx.ValidatorState.GetValidatorSet(context.TODO(), pcHeight, b.ctx.SubnetID)
 	if err != nil {
 		return nil, fmt.Errorf("ValidatorState.GetValidatorSet: %v", err)
 	}
@@ -326,7 +327,7 @@ func (b *Block) BuildState(vbs BlockState) error {
 // Verify implements the snowman.Block Verify interface
 // Verify that the state transition this block would make if accepted is valid.
 // It is guaranteed that the Parent has been successfully verified.
-func (b *Block) Verify() error {
+func (b *Block) Verify(ctx context.Context) error {
 	errp := erring.ErrPrefix("chain.Block.Verify: ")
 	if err := b.verify(); err != nil {
 		logging.Log.Warn("Block.Verify",
@@ -414,7 +415,7 @@ func (b *Block) verify() error {
 // This element will be accepted by every correct node in the network.
 // Accept sets this block's status to Accepted and sets lastAccepted to this
 // block's ID and saves this info to stateDB.
-func (b *Block) Accept() error {
+func (b *Block) Accept(ctx context.Context) error {
 	errp := erring.ErrPrefix("chain.Block.Accept: ")
 	logging.Log.Info("Block.Accept",
 		zap.Stringer("id", b.Hash()),
@@ -443,7 +444,7 @@ func (b *Block) Accept() error {
 
 // Reject implements the snowman.Block choices.Decidable Reject interface
 // This element will not be accepted by any correct node in the network.
-func (b *Block) Reject() error {
+func (b *Block) Reject(ctx context.Context) error {
 	logging.Log.Info("Block.Reject",
 		zap.Stringer("id", b.Hash()),
 		zap.Uint64("height", b.Height()))
