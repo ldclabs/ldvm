@@ -4,9 +4,9 @@
 package libp2prpc
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -15,49 +15,49 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/rs/xid"
 
-	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
-	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 )
 
 const (
-	CBORRPCProtocol     protocol.ID = "/cborrpc/v1"
-	CBORRPCGzipProtocol protocol.ID = "/cborrpc/v1gzip"
+	JSONRPCProtocol     protocol.ID = "/jsonrpc/v1"
+	JSONRPCGzipProtocol protocol.ID = "/jsonrpc/v1gzip"
 )
 
-type CBORClient struct {
+type JSONClient struct {
 	host     host.Host
 	endpoint peer.ID
 	compress bool
 }
 
-type CBORClientOptions struct {
+type JSONClientOptions struct {
 	Compress bool
 }
 
-var DefaultCBORClientOptions = CBORClientOptions{
+var DefaultJSONClientOptions = JSONClientOptions{
 	Compress: true,
 }
 
-func NewCBORClient(host host.Host, endpoint peer.ID, opts *CBORClientOptions) *CBORClient {
+func NewJSONClient(host host.Host, endpoint peer.ID, opts *JSONClientOptions) *JSONClient {
 	if opts == nil {
-		opts = &DefaultCBORClientOptions
+		opts = &DefaultJSONClientOptions
 	}
 
-	return &CBORClient{
+	return &JSONClient{
 		host:     host,
 		endpoint: endpoint,
 		compress: opts.Compress,
 	}
 }
 
-func (c *CBORClient) Request(ctx context.Context, method string, params, result interface{}) *cborrpc.Response {
+func (c *JSONClient) Request(
+	ctx context.Context, method string, params, result interface{}) *jsonrpc.Response {
 	var err error
 
-	req := &cborrpc.Request{ID: xid.New().String(), Method: method}
-	req.Params, err = encoding.MarshalCBOR(params)
+	req := &jsonrpc.Request{Version: "2.0", ID: xid.New().String(), Method: method}
+	req.Params, err = json.Marshal(params)
 	if err != nil {
-		return req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeInvalidParams,
+		return req.Error(&jsonrpc.Error{
+			Code:    jsonrpc.CodeInvalidParams,
 			Message: err.Error(),
 		})
 	}
@@ -70,7 +70,7 @@ func (c *CBORClient) Request(ctx context.Context, method string, params, result 
 	return res
 }
 
-func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
+func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Response {
 	err := ctx.Err()
 	if err != nil {
 		return req.Error(err)
@@ -80,18 +80,22 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 		return req.InvalidMethod()
 	}
 
+	if req.Version == "" {
+		req.Version = "2.0"
+	}
+
 	if req.ID == "" {
 		req.ID = xid.New().String()
 	}
 
-	data, err := encoding.MarshalCBOR(req)
+	data, err := json.Marshal(req)
 	if err != nil {
 		return req.Error(err)
 	}
 
-	proto := CBORRPCProtocol
+	proto := JSONRPCProtocol
 	if c.compress {
-		proto = CBORRPCGzipProtocol
+		proto = JSONRPCGzipProtocol
 		data, err = tryGzip(data)
 		if err != nil {
 			return req.Error(err)
@@ -104,7 +108,7 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 	}
 	defer s.Close()
 
-	res := &cborrpc.Response{ID: req.ID}
+	res := &jsonrpc.Response{Version: "2.0", ID: req.ID}
 	_, err = s.Write(data)
 	if err != nil {
 		return req.Error(fmt.Errorf("write data failed, %v", err))
@@ -126,16 +130,4 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 	}
 
 	return res
-}
-
-func tryGzip(data []byte) ([]byte, error) {
-	b := &bytes.Buffer{}
-	gw := gzip.NewWriter(b)
-	if _, err := gw.Write(data); err != nil {
-		return nil, err
-	}
-	if err := gw.Close(); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
 }

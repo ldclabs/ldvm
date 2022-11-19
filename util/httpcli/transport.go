@@ -13,6 +13,16 @@ import (
 	"golang.org/x/net/http2"
 )
 
+var DefaultTransport http.RoundTripper
+
+func init() {
+	var err error
+	DefaultTransport, err = NewRoundTripper(&TransportOptions{})
+	if err != nil {
+		panic(err)
+	}
+}
+
 type TransportOptions struct {
 	MaxIdleConnsPerHost   int
 	InsecureSkipVerify    bool
