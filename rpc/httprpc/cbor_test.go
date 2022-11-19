@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/httpcli"
@@ -22,7 +24,7 @@ import (
 
 type cborhandler struct {
 	snap bool
-	err  *cborrpc.Error
+	err  atomic.Value // *cborrpc.Error
 }
 
 type result struct {
@@ -48,21 +50,21 @@ func (h *cborhandler) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborr
 
 func (h *cborhandler) OnError(ctx context.Context, err *cborrpc.Error) {
 	if h.snap {
-		h.err = err
+		h.err.Store(err)
 	}
 }
 
 type httphandler struct {
 	handler http.Handler
 	snap    bool
-	r       *http.Request
-	wh      http.Header
+	r       atomic.Value // *http.Request
+	wh      atomic.Value // http.Header
 }
 
 func (h *httphandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.snap {
-		h.wh = w.Header()
-		h.r = r
+		h.wh.Store(w.Header())
+		h.r.Store(r)
 	}
 
 	h.handler.ServeHTTP(w, r)
@@ -84,28 +86,51 @@ func TestCBORRPC(t *testing.T) {
 	header.Set("user-agent", "TestCBORRPC")
 	cli := NewCBORClient(url, rt, header)
 
-	t.Run("Request should work", func(t *testing.T) {
+	t.Run("should work", func(t *testing.T) {
 		re := &result{}
 		res := cli.Request(context.Background(), "TestMethod", 1234, re)
 		require.Nil(t, res.Error)
 
-		assert.Nil(ch.err)
+		assert.Nil(ch.err.Load())
 		assert.Equal("TestMethod", re.Method)
 		assert.Equal(encoding.MustMarshalCBOR(1234), []byte(re.Params))
 
-		assert.NotNil(hh.r)
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Header.Get("Accept"))
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Header.Get("Content-Type"))
-		assert.Equal("gzip", hh.r.Header.Get("Accept-Encoding"))
-		assert.Equal("TestCBORRPC", hh.r.Header.Get("User-Agent"))
+		assert.NotNil(hh.r.Load())
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Accept"))
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Content-Type"))
+		assert.Equal("gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
+		assert.Equal("TestCBORRPC", hh.r.Load().(*http.Request).Header.Get("User-Agent"))
 
-		assert.Equal("HTTP/2.0", hh.r.Proto)
-		assert.Equal(res.ID, hh.r.Header.Get("X-Request-ID"))
+		assert.Equal("HTTP/2.0", hh.r.Load().(*http.Request).Proto)
+		assert.Equal(res.ID, hh.r.Load().(*http.Request).Header.Get("X-Request-ID"))
 
-		assert.NotNil(hh.wh)
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.wh.Get("Content-Type"))
-		assert.Equal("nosniff", hh.wh.Get("x-Content-Type-Options"))
-		assert.Equal(res.ID, hh.wh.Get("X-Request-ID"))
+		assert.NotNil(hh.wh.Load())
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.wh.Load().(http.Header).Get("Content-Type"))
+		assert.Equal("nosniff", hh.wh.Load().(http.Header).Get("x-Content-Type-Options"))
+		assert.Equal(res.ID, hh.wh.Load().(http.Header).Get("X-Request-ID"))
+
+		cases := []interface{}{
+			0,
+			123,
+			-123,
+			"",
+			"abc",
+			true,
+			false,
+			[]byte{255, 254, 253, 0},
+			[]ids.ID20{ids.EmptyID20, {1}, {2}},
+			[]string{"a", "b", "c"},
+			map[int]string{0: "a", 1: "b"},
+		}
+
+		for _, params := range cases {
+			re := &result{}
+			res := cli.Request(context.Background(), "Echo", params, re)
+			require.Nil(t, res.Error)
+
+			assert.Equal("Echo", re.Method)
+			assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
+		}
 	})
 
 	t.Run("error case", func(t *testing.T) {
@@ -130,7 +155,8 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.Equal(ch.err.Error(), res.Error.Error())
+		require.NotNil(t, ch.err.Load())
+		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
 		assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
 		req = &cborrpc.Request{ID: "abcd", Method: "Get"}
@@ -138,14 +164,13 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.Equal(ch.err.Error(), res.Error.Error())
+		require.NotNil(t, ch.err.Load())
+		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
 		assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
 	})
 }
 
 func TestCBORRPCChaos(t *testing.T) {
-	assert := assert.New(t)
-
 	ch := &cborhandler{snap: false}
 	hh := &httphandler{handler: NewCBORService(ch), snap: false}
 	server := httpcli.NewHTTPServer(hh)
@@ -154,35 +179,47 @@ func TestCBORRPCChaos(t *testing.T) {
 	rt, err := httpcli.NewRoundTripper(&httpcli.TransportOptions{})
 	require.NoError(t, err)
 
-	url := "h2c://" + server.Addr().String()
-	header := http.Header{}
-	cli := NewCBORClient(url, rt, header)
+	schemes := []string{"http", "h2c"}
 
-	wg := &sync.WaitGroup{}
-	for i := 0; i < 100000; i++ {
-		wg.Add(1)
-		go func(x int) {
-			defer wg.Done()
-			re := &result{}
-			res := cli.Request(context.Background(), "TestMethod", x, re)
-			require.Nil(t, res.Error)
-			assert.Equal("TestMethod", re.Method)
-			assert.Equal(encoding.MustMarshalCBOR(x), []byte(re.Params))
-			data := encoding.MustMarshalCBOR(re)
-			xid := res.ID
-			assert.Equal(data, []byte(res.Result))
+	for _, s := range schemes {
+		t.Run(s, func(t *testing.T) {
+			assert := assert.New(t)
+			url := s + "://" + server.Addr().String()
+			header := http.Header{}
+			cli := NewCBORClient(url, rt, header)
 
-			time.Sleep(time.Duration(rand.Int63n(int64(x%9999) + 1)))
-			req := &cborrpc.Request{Method: "TestMethod", Params: encoding.MustMarshalCBOR(x)}
-			res = cli.Do(context.Background(), req)
-			require.Nil(t, res.Error)
+			wg := &sync.WaitGroup{}
+			total := 100
+			if s == "h2c" {
+				total = 10000
+			}
 
-			assert.NotEqual("", req.ID)
-			assert.NotEqual(xid, res.ID)
-			assert.Equal(req.ID, res.ID)
-			assert.Equal(data, []byte(res.Result))
-		}(i)
+			for i := 0; i < total; i++ {
+				wg.Add(1)
+				go func(x int) {
+					defer wg.Done()
+					re := &result{}
+					res := cli.Request(context.Background(), "TestMethod", x, re)
+					require.Nil(t, res.Error)
+					assert.Equal("TestMethod", re.Method)
+					assert.Equal(encoding.MustMarshalCBOR(x), []byte(re.Params))
+					data := encoding.MustMarshalCBOR(re)
+					xid := res.ID
+					assert.Equal(data, []byte(res.Result))
+
+					time.Sleep(time.Duration(rand.Int63n(int64(x%999) + 1)))
+					req := &cborrpc.Request{Method: "TestMethod", Params: encoding.MustMarshalCBOR(x)}
+					res = cli.Do(context.Background(), req)
+					require.Nil(t, res.Error)
+
+					assert.NotEqual("", req.ID)
+					assert.NotEqual(xid, res.ID)
+					assert.Equal(req.ID, res.ID)
+					assert.Equal(data, []byte(res.Result))
+				}(i)
+			}
+
+			wg.Wait()
+		})
 	}
-
-	wg.Wait()
 }
