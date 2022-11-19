@@ -6,50 +6,50 @@ package httprpc
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/rs/xid"
 
-	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
-	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/httpcli"
 )
 
-type CBORClient struct {
+type JSONClient struct {
 	cli      *httpcli.Client
 	header   http.Header
 	endpoint string
 }
 
-type CBORClientOptions struct {
+type JSONClientOptions struct {
 	RoundTripper http.RoundTripper
 	Header       http.Header
 }
 
-var DefaultCBORClientOptions = CBORClientOptions{
+var DefaultJSONClientOptions = JSONClientOptions{
 	RoundTripper: httpcli.DefaultTransport,
 }
 
-func NewCBORClient(endpoint string, opts *CBORClientOptions) *CBORClient {
+func NewJSONClient(endpoint string, opts *JSONClientOptions) *JSONClient {
 	if opts == nil {
-		opts = &DefaultCBORClientOptions
+		opts = &DefaultJSONClientOptions
 	}
-	return &CBORClient{
+	return &JSONClient{
 		cli:      httpcli.NewClient(opts.RoundTripper),
 		endpoint: endpoint,
 		header:   opts.Header,
 	}
 }
 
-func (c *CBORClient) Request(
-	ctx context.Context, method string, params, result interface{}) *cborrpc.Response {
+func (c *JSONClient) Request(
+	ctx context.Context, method string, params, result interface{}) *jsonrpc.Response {
 	var err error
 
-	req := &cborrpc.Request{ID: xid.New().String(), Method: method}
-	req.Params, err = encoding.MarshalCBOR(params)
+	req := &jsonrpc.Request{Version: "2.0", ID: xid.New().String(), Method: method}
+	req.Params, err = json.Marshal(params)
 	if err != nil {
-		return req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeInvalidParams,
+		return req.Error(&jsonrpc.Error{
+			Code:    jsonrpc.CodeInvalidParams,
 			Message: err.Error(),
 		})
 	}
@@ -62,7 +62,7 @@ func (c *CBORClient) Request(
 	return res
 }
 
-func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
+func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Response {
 	err := ctx.Err()
 	if err != nil {
 		return req.Error(err)
@@ -72,11 +72,15 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 		return req.InvalidMethod()
 	}
 
+	if req.Version == "" {
+		req.Version = "2.0"
+	}
+
 	if req.ID == "" {
 		req.ID = xid.New().String()
 	}
 
-	data, err := encoding.MarshalCBOR(req)
+	data, err := json.Marshal(req)
 	if err != nil {
 		return req.Error(err)
 	}
@@ -86,13 +90,13 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 		return req.Error(err)
 	}
 
-	r.Header.Set("accept", cborrpc.MIMEApplicationCBOR)
-	r.Header.Set("content-type", cborrpc.MIMEApplicationCBOR)
+	r.Header.Set("accept", jsonrpc.MIMEApplicationJSON)
+	r.Header.Set("content-type", jsonrpc.MIMEApplicationJSONCharsetUTF8)
 	r.Header.Set("x-request-id", req.ID)
 	httpcli.CopyHeader(r.Header, c.header)
 	httpcli.CopyHeader(r.Header, httpcli.HeaderFromCtx(ctx))
 
-	res := &cborrpc.Response{ID: req.ID}
+	res := &jsonrpc.Response{Version: "2.0", ID: req.ID}
 	err = c.cli.DoWith(r, res)
 	if err != nil {
 		return req.Error(err)

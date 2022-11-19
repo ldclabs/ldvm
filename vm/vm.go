@@ -231,7 +231,7 @@ func (v *VM) CreateStaticHandlers(ctx context.Context) (map[string]*common.HTTPH
 // the chain. Each handler has the path:
 // [Address of node]/ext/bc/[chain ID]/[extension]
 func (v *VM) CreateHandlers(ctx context.Context) (map[string]*common.HTTPHandler, error) {
-	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, v.name))
+	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, v.name), nil)
 	v.Log.Info("CreateHandlers")
 	return map[string]*common.HTTPHandler{
 		"/rpc": {

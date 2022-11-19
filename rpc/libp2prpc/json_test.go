@@ -5,6 +5,7 @@ package libp2prpc
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand"
 	"strings"
 	"sync"
@@ -12,30 +13,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fxamacker/cbor/v2"
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p/core/crypto"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ldclabs/ldvm/ids"
-	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
-	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 )
 
-type cborhandler struct {
+type jsonhandler struct {
 	snap bool
-	err  atomic.Value // *cborrpc.Error
+	err  atomic.Value // *jsonrpc.Error
 }
 
-type result struct {
+type jsonresult struct {
 	Method string          `cbor:"method"`
-	Params cbor.RawMessage `cbor:"params"`
+	Params json.RawMessage `cbor:"params"`
 }
 
-func (h *cborhandler) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
+func (h *jsonhandler) ServeRPC(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Response {
 	switch {
 	case req.Method == "ErrorMethod":
 		return req.InvalidMethod()
@@ -44,29 +40,29 @@ func (h *cborhandler) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborr
 		return req.InvalidParams("no params")
 
 	default:
-		return req.Result(&result{
+		return req.Result(&jsonresult{
 			Method: req.Method,
 			Params: req.Params,
 		})
 	}
 }
 
-func (h *cborhandler) OnError(ctx context.Context, err *cborrpc.Error) {
+func (h *jsonhandler) OnError(ctx context.Context, err *jsonrpc.Error) {
 	if h.snap {
 		h.err.Store(err)
 	}
 }
 
-func TestCBORRPC(t *testing.T) {
+func TestJSONRPC(t *testing.T) {
 	paddrs := [][]string{
-		{"tcp/23571", "tcp/23572"},
-		{"udp/23571/quic", "udp/23572/quic"},
-		{"tcp/23573/ws", "tcp/23574/ws"},
+		{"tcp/23581", "tcp/23582"},
+		{"udp/23581/quic", "udp/23582/quic"},
+		{"tcp/23583/ws", "tcp/23584/ws"},
 	}
 
 	for _, pa := range paddrs {
 		t.Run(pa[0], func(t *testing.T) {
-			ch := &cborhandler{snap: true}
+			ch := &jsonhandler{snap: true}
 			ha1, err := makeBasicHost(pa[0])
 			require.NoError(t, err)
 
@@ -74,9 +70,9 @@ func TestCBORRPC(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewCBORService(ha1, ch, nil)
-			cli := NewCBORClient(ha2, ha1.ID(), &CBORClientOptions{Compress: false})
-			cli2 := NewCBORClient(ha2, ha1.ID(), &CBORClientOptions{Compress: true})
+			_ = NewJSONService(ha1, ch, nil)
+			cli := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: false})
+			cli2 := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: true})
 
 			defer ha1.Close()
 			defer ha2.Close()
@@ -88,21 +84,21 @@ func TestCBORRPC(t *testing.T) {
 				defer cancel()
 
 				params := strings.Repeat("test", 1024)
-				re := &result{}
+				re := &jsonresult{}
 				res := cli.Request(ctx, "TestMethod", params, re)
 				require.Nil(t, res.Error)
 
 				assert.Nil(ch.err.Load())
 				assert.Equal("TestMethod", re.Method)
-				assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
+				assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
-				re = &result{}
+				re = &jsonresult{}
 				res = cli2.Request(ctx, "TestMethod", params, re)
 				require.Nil(t, res.Error)
 
 				assert.Nil(ch.err.Load())
 				assert.Equal("TestMethod", re.Method)
-				assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
+				assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
 				cases := []interface{}{
 					0,
@@ -119,26 +115,26 @@ func TestCBORRPC(t *testing.T) {
 				}
 
 				for _, params := range cases {
-					re := &result{}
+					re := &jsonresult{}
 					res := cli.Request(ctx, "Echo", params, re)
 					require.Nil(t, res.Error)
 
 					assert.Equal("Echo", re.Method)
-					assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
+					assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
-					re = &result{}
+					re = &jsonresult{}
 					res = cli2.Request(ctx, "Echo", params, re)
 					require.Nil(t, res.Error)
 
 					assert.Equal("Echo", re.Method)
-					assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
+					assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 				}
 			})
 
 			t.Run("error case", func(t *testing.T) {
 				assert := assert.New(t)
 
-				req := &cborrpc.Request{ID: "abcd"}
+				req := &jsonrpc.Request{ID: "abcd"}
 				ctx, cancel := context.WithCancel(context.Background())
 				cancel()
 
@@ -154,7 +150,7 @@ func TestCBORRPC(t *testing.T) {
 				assert.Equal("abcd", res.ID)
 				assert.ErrorContains(res.Error, `{"code":-32601,"message":"method \"\" not found"}`)
 
-				req = &cborrpc.Request{ID: "abcd", Method: "ErrorMethod"}
+				req = &jsonrpc.Request{ID: "abcd", Method: "ErrorMethod"}
 				res = cli.Do(context.Background(), req)
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
@@ -163,7 +159,7 @@ func TestCBORRPC(t *testing.T) {
 				assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
 				assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
-				req = &cborrpc.Request{ID: "abcd", Method: "Get"}
+				req = &jsonrpc.Request{ID: "abcd", Method: "Get"}
 				res = cli.Do(context.Background(), req)
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
@@ -176,18 +172,18 @@ func TestCBORRPC(t *testing.T) {
 	}
 }
 
-func TestCBORRPCChaos(t *testing.T) {
+func TestJSONRPCChaos(t *testing.T) {
 	paddrs := [][]string{
-		{"tcp/23575", "tcp/23576"},
-		{"udp/23575/quic", "udp/23576/quic"},
-		{"tcp/23577/ws", "tcp/23578/ws"},
+		{"tcp/23585", "tcp/23586"},
+		{"udp/23585/quic", "udp/23586/quic"},
+		{"tcp/23587/ws", "tcp/23588/ws"},
 	}
 
 	for _, pa := range paddrs {
 		t.Run(pa[0], func(t *testing.T) {
 			assert := assert.New(t)
 
-			ch := &cborhandler{snap: false}
+			ch := &jsonhandler{snap: false}
 			ha1, err := makeBasicHost(pa[0])
 			require.NoError(t, err)
 			ha1.Network().ResourceManager().Close()
@@ -196,34 +192,30 @@ func TestCBORRPCChaos(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewCBORService(ha1, ch, nil)
-			cli := NewCBORClient(ha2, ha1.ID(), nil)
+			_ = NewJSONService(ha1, ch, nil)
+			cli := NewJSONClient(ha2, ha1.ID(), nil)
 
 			defer ha1.Close()
 			defer ha2.Close()
 
 			wg := &sync.WaitGroup{}
-			// "creating stream to 12D3K***VtZcM6, stream-55822: transient: cannot reserve outbound stream: resource limit exceeded"
 			total := 10
-			// if pa[0] == "udp/23575/quic" {
-			// 	total = 1000
-			// }
 
 			for i := 0; i < total; i++ {
 				wg.Add(1)
 				go func(x int) {
 					defer wg.Done()
-					re := &result{}
+					re := &jsonresult{}
 					res := cli.Request(context.Background(), "TestMethod", x, re)
 					require.Nil(t, res.Error)
 					assert.Equal("TestMethod", re.Method)
-					assert.Equal(encoding.MustMarshalCBOR(x), []byte(re.Params))
-					data := encoding.MustMarshalCBOR(re)
+					assert.Equal(mustMarshalJSON(x), []byte(re.Params))
+					data := mustMarshalJSON(re)
 					xid := res.ID
 					assert.Equal(data, []byte(res.Result))
 
 					time.Sleep(time.Duration(rand.Int63n(int64(x%999) + 1)))
-					req := &cborrpc.Request{Method: "TestMethod", Params: encoding.MustMarshalCBOR(x)}
+					req := &jsonrpc.Request{Method: "TestMethod", Params: mustMarshalJSON(x)}
 					res = cli.Do(context.Background(), req)
 					require.Nil(t, res.Error)
 
@@ -239,17 +231,10 @@ func TestCBORRPCChaos(t *testing.T) {
 	}
 }
 
-func makeBasicHost(paddr string) (host.Host, error) {
-	priv, _, err := crypto.GenerateKeyPairWithReader(crypto.Ed25519, 0, nil)
+func mustMarshalJSON(v interface{}) []byte {
+	data, err := json.Marshal(v)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-
-	opts := []libp2p.Option{
-		libp2p.ListenAddrStrings("/ip4/127.0.0.1/" + paddr),
-		libp2p.Identity(priv),
-		libp2p.DisableRelay(),
-	}
-
-	return libp2p.New(opts...)
+	return data
 }

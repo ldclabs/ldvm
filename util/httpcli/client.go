@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 )
 
 type ctxKey int
@@ -17,6 +18,10 @@ type ctxKey int
 const (
 	// CtxHeaderKey ...
 	ctxHeaderKey ctxKey = 0
+)
+
+const (
+	MaxContentLength int64 = 1024 * 1024 * 10
 )
 
 // Client ...
@@ -53,16 +58,31 @@ func (c *Client) DoWith(req *http.Request, br BodyReader) error {
 
 	defer resp.Body.Close()
 	body := resp.Body
+	cl := resp.ContentLength
 	if resp.Header.Get("content-encoding") == "gzip" {
 		body, err = gzip.NewReader(body)
 		if err != nil {
 			return &Error{
 				Code:    resp.StatusCode,
-				Message: fmt.Sprintf("gzip.NewReader error, %v", err),
+				Message: err.Error(),
 				Header:  req.Header,
 			}
 		}
+
+		if xcl := resp.Header.Get("x-content-length"); xcl != "" {
+			if x, _ := strconv.ParseInt(xcl, 10, 64); x > 0 {
+				cl = x
+			}
+		}
 		defer body.Close()
+	}
+
+	if cl > MaxContentLength {
+		return &Error{
+			Code:    resp.StatusCode,
+			Message: fmt.Sprintf("content length too large, expected <= %d", MaxContentLength),
+			Header:  req.Header,
+		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -80,8 +100,8 @@ func (c *Client) DoWith(req *http.Request, br BodyReader) error {
 		}
 	}
 
-	if g, ok := br.(Growable); ok && resp.ContentLength > 0 {
-		g.Grow(int(resp.ContentLength))
+	if g, ok := br.(Growable); ok && cl > 0 {
+		g.Grow(int(cl))
 	}
 
 	if _, err = br.ReadFrom(body); err != nil {

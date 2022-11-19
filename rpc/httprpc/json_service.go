@@ -7,48 +7,43 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
-	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/httpcli"
 )
 
-const (
-	gzipThreshold = 1024
-)
-
-type CBORService struct {
-	h    cborrpc.Handler
+type JSONService struct {
+	h    jsonrpc.Handler
 	name string
 }
 
-type CBORServiceOptions struct {
+type JSONServiceOptions struct {
 	ServiceName string
 }
 
-var DefaultCBORServiceOptions = CBORServiceOptions{
-	ServiceName: "ldc:cborrpc",
+var DefaultJSONServiceOptions = JSONServiceOptions{
+	ServiceName: "ldc:jsonrpc",
 }
 
-func NewCBORService(h cborrpc.Handler, opts *CBORServiceOptions) *CBORService {
+func NewJSONService(h jsonrpc.Handler, opts *JSONServiceOptions) *JSONService {
 	if opts == nil {
-		opts = &DefaultCBORServiceOptions
+		opts = &DefaultJSONServiceOptions
 	}
-	return &CBORService{h: h, name: opts.ServiceName}
+	return &JSONService{h: h, name: opts.ServiceName}
 }
 
-func (s *CBORService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	xid := r.Header.Get("x-request-id")
-	req := &cborrpc.Request{ID: xid}
+	req := &jsonrpc.Request{Version: "2.0", ID: r.Header.Get("x-request-id")}
 
 	if r.Method != "POST" {
-		s.writeCBOR(ctx, w, http.StatusMethodNotAllowed, req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeServerError - http.StatusMethodNotAllowed,
+		s.writeJSON(ctx, w, http.StatusMethodNotAllowed, req.Error(&jsonrpc.Error{
+			Code:    jsonrpc.CodeServerError - http.StatusMethodNotAllowed,
 			Message: fmt.Sprintf("expected POST method, got %s", r.Method),
 		}), false)
 		return
@@ -58,17 +53,17 @@ func (s *CBORService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if idx := strings.Index(contentType, ";"); idx != -1 {
 		contentType = contentType[:idx]
 	}
-	if contentType != cborrpc.MIMEApplicationCBOR {
-		s.writeCBOR(ctx, w, http.StatusUnsupportedMediaType, req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeServerError - http.StatusUnsupportedMediaType,
+	if contentType != jsonrpc.MIMEApplicationJSON {
+		s.writeJSON(ctx, w, http.StatusUnsupportedMediaType, req.Error(&jsonrpc.Error{
+			Code:    jsonrpc.CodeServerError - http.StatusUnsupportedMediaType,
 			Message: fmt.Sprintf("unsupported content-type, got %q", contentType),
 		}), false)
 		return
 	}
 
 	if r.ContentLength > httpcli.MaxContentLength {
-		s.writeCBOR(ctx, w, http.StatusBadRequest, req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeServerError - http.StatusBadRequest,
+		s.writeJSON(ctx, w, http.StatusBadRequest, req.Error(&jsonrpc.Error{
+			Code:    jsonrpc.CodeServerError - http.StatusBadRequest,
 			Message: fmt.Sprintf("content length too large, expected <= %d", httpcli.MaxContentLength),
 		}), false)
 	}
@@ -78,22 +73,19 @@ func (s *CBORService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err := req.ReadFrom(r.Body)
 	r.Body.Close()
-	if req.ID == "" {
-		req.ID = xid
-	}
 
 	if err != nil {
-		s.writeCBOR(ctx, w, http.StatusBadRequest, req.Error(err), false)
+		s.writeJSON(ctx, w, http.StatusBadRequest, req.Error(err), false)
 		return
 	}
 
 	res := s.h.ServeRPC(ctx, req)
-	s.writeCBOR(ctx, w, http.StatusOK, res, r.Header.Get("accept-encoding") == "gzip")
+	s.writeJSON(ctx, w, http.StatusOK, res, r.Header.Get("accept-encoding") == "gzip")
 }
 
-func (s *CBORService) writeCBOR(
-	ctx context.Context, w http.ResponseWriter, code int, res *cborrpc.Response, compress bool) {
-	w.Header().Set("content-type", cborrpc.MIMEApplicationCBOR)
+func (s *JSONService) writeJSON(
+	ctx context.Context, w http.ResponseWriter, code int, res *jsonrpc.Response, compress bool) {
+	w.Header().Set("content-type", jsonrpc.MIMEApplicationJSONCharsetUTF8)
 	w.Header().Set("x-content-type-options", "nosniff")
 	w.Header().Set("x-powered-by", s.name)
 
@@ -101,14 +93,15 @@ func (s *CBORService) writeCBOR(
 		w.Header().Set("x-request-id", res.ID)
 	}
 
-	data, err := encoding.MarshalCBOR(res)
+	data, err := json.Marshal(res)
 	if err != nil {
 		code = 500
-		res = &cborrpc.Response{
-			ID:    res.ID,
-			Error: &cborrpc.Error{Code: cborrpc.CodeServerError - code, Message: err.Error()},
+		res = &jsonrpc.Response{
+			Version: "2.0",
+			ID:      res.ID,
+			Error:   &jsonrpc.Error{Code: jsonrpc.CodeServerError - code, Message: err.Error()},
 		}
-		data, err = encoding.MarshalCBOR(res)
+		data, err = json.Marshal(res)
 	}
 
 	if err != nil {

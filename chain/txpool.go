@@ -35,8 +35,9 @@ func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
 	header.Set("user-agent",
 		strings.Replace(ctx.Name(), "@v", "/", 1)+" (TxPool Client, CBOR-RPC)")
 
+	opts := &httprpc.CBORClientOptions{RoundTripper: rt, Header: header}
 	return &TxPool{
-		cli:    httprpc.NewCBORClient(pdsEndpoint+"/txs", rt, header),
+		cli:    httprpc.NewCBORClient(pdsEndpoint+"/txs", opts),
 		nodeID: ctx.NodeID,
 		cache:  make(map[uint64]ld.Txs, 10),
 	}
