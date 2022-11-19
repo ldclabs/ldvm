@@ -101,7 +101,7 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(hh.r.Load())
 		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Accept"))
 		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Content-Type"))
-		assert.Equal("gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
+		assert.Equal("zstd,gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
 		assert.Equal("TestCBORRPC", hh.r.Load().(*http.Request).Header.Get("User-Agent"))
 
 		assert.Equal("HTTP/2.0", hh.r.Load().(*http.Request).Proto)
@@ -110,7 +110,7 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(hh.wh.Load())
 		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.wh.Load().(http.Header).Get("Content-Type"))
 		assert.Equal("nosniff", hh.wh.Load().(http.Header).Get("x-Content-Type-Options"))
-		assert.Equal("gzip", hh.wh.Load().(http.Header).Get("Content-Encoding"))
+		assert.Equal("zstd", hh.wh.Load().(http.Header).Get("Content-Encoding"))
 		assert.Equal("4157", hh.wh.Load().(http.Header).Get("X-Content-Length"))
 		assert.Equal(res.ID, hh.wh.Load().(http.Header).Get("X-Request-ID"))
 

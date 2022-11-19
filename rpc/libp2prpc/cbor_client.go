@@ -4,8 +4,6 @@
 package libp2prpc
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -16,12 +14,13 @@ import (
 	"github.com/rs/xid"
 
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
+	"github.com/ldclabs/ldvm/util/compress"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
 const (
 	CBORRPCProtocol     protocol.ID = "/cborrpc/v1"
-	CBORRPCGzipProtocol protocol.ID = "/cborrpc/v1gzip"
+	CBORRPCZstdProtocol protocol.ID = "/cborrpc/v1zstd"
 )
 
 type CBORClient struct {
@@ -91,11 +90,7 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 
 	proto := CBORRPCProtocol
 	if c.compress {
-		proto = CBORRPCGzipProtocol
-		data, err = tryGzip(data)
-		if err != nil {
-			return req.Error(err)
-		}
+		proto = CBORRPCZstdProtocol
 	}
 
 	s, err := c.host.NewStream(ctx, c.endpoint, proto)
@@ -104,8 +99,17 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 	}
 	defer s.Close()
 
+	switch {
+	case c.compress:
+		zw := &compress.ZstdWriter{W: s}
+		_, err = zw.Write(data)
+		zw.Reset()
+
+	default:
+		_, err = s.Write(data)
+	}
+
 	res := &cborrpc.Response{ID: req.ID}
-	_, err = s.Write(data)
 	if err != nil {
 		return req.Error(fmt.Errorf("write data failed, %v", err))
 	}
@@ -113,11 +117,9 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 
 	var rd io.ReadCloser = s
 	if c.compress {
-		rd, err = gzip.NewReader(s)
-		if err != nil {
-			return req.Error(err)
-		}
-		defer rd.Close()
+		zr := &compress.ZstdReader{R: s}
+		rd = zr
+		defer zr.Reset() // `defer s.Close()` exists above, just reset the zstd reader
 	}
 
 	_, err = res.ReadFrom(rd)
@@ -126,16 +128,4 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 	}
 
 	return res
-}
-
-func tryGzip(data []byte) ([]byte, error) {
-	b := &bytes.Buffer{}
-	gw := gzip.NewWriter(b)
-	if _, err := gw.Write(data); err != nil {
-		return nil, err
-	}
-	if err := gw.Close(); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
 }

@@ -4,7 +4,6 @@
 package libp2prpc
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,11 +15,12 @@ import (
 	"github.com/rs/xid"
 
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
+	"github.com/ldclabs/ldvm/util/compress"
 )
 
 const (
 	JSONRPCProtocol     protocol.ID = "/jsonrpc/v1"
-	JSONRPCGzipProtocol protocol.ID = "/jsonrpc/v1gzip"
+	JSONRPCZstdProtocol protocol.ID = "/jsonrpc/v1zstd"
 )
 
 type JSONClient struct {
@@ -95,11 +95,7 @@ func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Resp
 
 	proto := JSONRPCProtocol
 	if c.compress {
-		proto = JSONRPCGzipProtocol
-		data, err = tryGzip(data)
-		if err != nil {
-			return req.Error(err)
-		}
+		proto = JSONRPCZstdProtocol
 	}
 
 	s, err := c.host.NewStream(ctx, c.endpoint, proto)
@@ -108,8 +104,17 @@ func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Resp
 	}
 	defer s.Close()
 
+	switch {
+	case c.compress:
+		zw := &compress.ZstdWriter{W: s}
+		_, err = zw.Write(data)
+		zw.Reset()
+
+	default:
+		_, err = s.Write(data)
+	}
+
 	res := &jsonrpc.Response{Version: "2.0", ID: req.ID}
-	_, err = s.Write(data)
 	if err != nil {
 		return req.Error(fmt.Errorf("write data failed, %v", err))
 	}
@@ -117,11 +122,9 @@ func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Resp
 
 	var rd io.ReadCloser = s
 	if c.compress {
-		rd, err = gzip.NewReader(s)
-		if err != nil {
-			return req.Error(err)
-		}
-		defer rd.Close()
+		zr := &compress.ZstdReader{R: s}
+		rd = zr
+		defer zr.Reset() // `defer s.Close()` exists above, just reset the zstd reader
 	}
 
 	_, err = res.ReadFrom(rd)

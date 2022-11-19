@@ -101,7 +101,7 @@ func TestJSONRPC(t *testing.T) {
 		assert.NotNil(hh.r.Load())
 		assert.Equal(jsonrpc.MIMEApplicationJSON, hh.r.Load().(*http.Request).Header.Get("Accept"))
 		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.r.Load().(*http.Request).Header.Get("Content-Type"))
-		assert.Equal("gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
+		assert.Equal("zstd,gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
 		assert.Equal("TestJSONRPC", hh.r.Load().(*http.Request).Header.Get("User-Agent"))
 
 		assert.Equal("HTTP/2.0", hh.r.Load().(*http.Request).Proto)
@@ -110,7 +110,7 @@ func TestJSONRPC(t *testing.T) {
 		assert.NotNil(hh.wh.Load())
 		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.wh.Load().(http.Header).Get("Content-Type"))
 		assert.Equal("nosniff", hh.wh.Load().(http.Header).Get("x-Content-Type-Options"))
-		assert.Equal("gzip", hh.wh.Load().(http.Header).Get("Content-Encoding"))
+		assert.Equal("zstd", hh.wh.Load().(http.Header).Get("Content-Encoding"))
 		assert.Equal("4186", hh.wh.Load().(http.Header).Get("X-Content-Length"))
 		assert.Equal(res.ID, hh.wh.Load().(http.Header).Get("X-Request-ID"))
 

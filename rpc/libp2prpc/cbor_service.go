@@ -4,7 +4,6 @@
 package libp2prpc
 
 import (
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
+	"github.com/ldclabs/ldvm/util/compress"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
@@ -37,7 +37,7 @@ func NewCBORService(host host.Host, h cborrpc.Handler, opts *CBORServiceOptions)
 
 	srv := &CBORService{host: host, h: h, name: opts.ServiceName}
 	host.SetStreamHandler(CBORRPCProtocol, srv.handler)
-	host.SetStreamHandler(CBORRPCGzipProtocol, srv.handler)
+	host.SetStreamHandler(CBORRPCZstdProtocol, srv.handler)
 	return srv
 }
 
@@ -45,37 +45,40 @@ func (srv *CBORService) handler(s network.Stream) {
 	defer s.Close()
 
 	ctx := context.Background()
-	compress := s.Protocol() == CBORRPCGzipProtocol
+	cp := s.Protocol() == CBORRPCZstdProtocol
 
 	req := &cborrpc.Request{}
 	if srv.name != "" {
 		s.Scope().SetService(srv.name)
 	}
 
-	var err error
 	var rd io.ReadCloser = s
-	if compress {
-		rd, err = gzip.NewReader(s)
-		if err != nil {
-			srv.writeCBOR(ctx, s, req.Error(err), compress)
-			return
-		}
-
-		defer rd.Close()
+	var zr *compress.ZstdReader
+	if cp {
+		zr = &compress.ZstdReader{R: s}
+		rd = zr
 	}
 
-	_, err = req.ReadFrom(rd)
+	_, err := req.ReadFrom(rd)
+	if zr != nil {
+		zr.Reset()
+	}
+
 	if err != nil {
-		srv.writeCBOR(ctx, s, req.Error(err), compress)
+		srv.writeCBOR(ctx, s, req.Error(err), cp)
 		return
 	}
 
 	res := srv.h.ServeRPC(ctx, req)
-	srv.writeCBOR(ctx, s, res, compress)
+	srv.writeCBOR(ctx, s, res, cp)
 }
 
 func (srv *CBORService) writeCBOR(
-	ctx context.Context, w network.MuxedStream, res *cborrpc.Response, compress bool) {
+	ctx context.Context, w network.MuxedStream, res *cborrpc.Response, cp bool) {
+	if res.Error != nil {
+		srv.h.OnError(ctx, res.Error)
+	}
+
 	data, err := encoding.MarshalCBOR(res)
 	if err != nil {
 		res = &cborrpc.Response{
@@ -84,18 +87,29 @@ func (srv *CBORService) writeCBOR(
 		data, err = encoding.MarshalCBOR(res)
 	}
 
-	if compress {
-		data, err = tryGzip(data)
+	if err != nil {
+		srv.h.OnError(ctx, &cborrpc.Error{
+			Code:    cborrpc.CodeInternalError,
+			Message: fmt.Sprintf("impossible error, %v", err),
+		})
+	}
+
+	switch {
+	case cp:
+		zw := &compress.ZstdWriter{W: w}
+		_, err = zw.Write(data)
+		zw.Reset()
+
+	default:
+		_, err = w.Write(data)
 	}
 
 	if err != nil {
-		res.Error.Message = fmt.Sprintf("impossible error, %v", err)
+		srv.h.OnError(ctx, &cborrpc.Error{
+			Code:    cborrpc.CodeInternalError,
+			Message: fmt.Sprintf("impossible error, %v", err),
+		})
 	}
 
-	if res.Error != nil {
-		srv.h.OnError(ctx, res.Error)
-	}
-
-	w.Write(data)
 	w.CloseWrite()
 }

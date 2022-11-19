@@ -4,16 +4,18 @@
 package httprpc
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/klauspost/compress/gzip"
+
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
+	"github.com/ldclabs/ldvm/util/compress"
 	"github.com/ldclabs/ldvm/util/httpcli"
 )
 
@@ -45,7 +47,7 @@ func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(ctx, w, http.StatusMethodNotAllowed, req.Error(&jsonrpc.Error{
 			Code:    jsonrpc.CodeServerError - http.StatusMethodNotAllowed,
 			Message: fmt.Sprintf("expected POST method, got %s", r.Method),
-		}), false)
+		}), "")
 		return
 	}
 
@@ -57,7 +59,7 @@ func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(ctx, w, http.StatusUnsupportedMediaType, req.Error(&jsonrpc.Error{
 			Code:    jsonrpc.CodeServerError - http.StatusUnsupportedMediaType,
 			Message: fmt.Sprintf("unsupported content-type, got %q", contentType),
-		}), false)
+		}), "")
 		return
 	}
 
@@ -65,7 +67,7 @@ func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.writeJSON(ctx, w, http.StatusBadRequest, req.Error(&jsonrpc.Error{
 			Code:    jsonrpc.CodeServerError - http.StatusBadRequest,
 			Message: fmt.Sprintf("content length too large, expected <= %d", httpcli.MaxContentLength),
-		}), false)
+		}), "")
 	}
 
 	if r.ContentLength > 0 {
@@ -75,16 +77,16 @@ func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	r.Body.Close()
 
 	if err != nil {
-		s.writeJSON(ctx, w, http.StatusBadRequest, req.Error(err), false)
+		s.writeJSON(ctx, w, http.StatusBadRequest, req.Error(err), "")
 		return
 	}
 
 	res := s.h.ServeRPC(ctx, req)
-	s.writeJSON(ctx, w, http.StatusOK, res, r.Header.Get("accept-encoding") == "gzip")
+	s.writeJSON(ctx, w, http.StatusOK, res, r.Header.Get("accept-encoding"))
 }
 
 func (s *JSONService) writeJSON(
-	ctx context.Context, w http.ResponseWriter, code int, res *jsonrpc.Response, compress bool) {
+	ctx context.Context, w http.ResponseWriter, code int, res *jsonrpc.Response, ae string) {
 	w.Header().Set("content-type", jsonrpc.MIMEApplicationJSONCharsetUTF8)
 	w.Header().Set("x-content-type-options", "nosniff")
 	w.Header().Set("x-powered-by", s.name)
@@ -112,22 +114,27 @@ func (s *JSONService) writeJSON(
 		s.h.OnError(ctx, res.Error)
 	}
 
-	ol := len(data)
-	if compress && ol > gzipThreshold {
-		b := &bytes.Buffer{}
-		gw := gzip.NewWriter(b)
-		gw.Write(data)
-		gw.Close()
+	var ww io.Writer = w
+	if ol := len(data); ol > compressionThreshold && ae != "" {
+		switch {
+		case strings.Contains(ae, "zstd"):
+			zw := &compress.ZstdWriter{W: w}
+			ww = zw
+			w.Header().Add("vary", "accept-encoding")
+			w.Header().Set("content-encoding", "zstd")
+			w.Header().Set("x-content-length", strconv.Itoa(ol))
+			defer zw.Reset()
 
-		if l := b.Len(); l > 0 && l < int(0.8*float64(ol)) {
-			data = b.Bytes()
+		case strings.Contains(ae, "gzip"):
+			gw := gzip.NewWriter(w)
+			ww = gw
 			w.Header().Add("vary", "accept-encoding")
 			w.Header().Set("content-encoding", "gzip")
-			// set original data length
 			w.Header().Set("x-content-length", strconv.Itoa(ol))
+			defer gw.Close()
 		}
 	}
 
 	w.WriteHeader(code)
-	w.Write(data)
+	ww.Write(data)
 }

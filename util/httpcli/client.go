@@ -5,12 +5,13 @@ package httpcli
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/klauspost/compress/gzhttp"
 )
 
 type ctxKey int
@@ -34,7 +35,7 @@ type Client struct {
 func NewClient(rt http.RoundTripper) *Client {
 	httpClient := http.DefaultClient
 	if rt != nil {
-		httpClient = &http.Client{Transport: rt}
+		httpClient = &http.Client{Transport: gzhttp.Transport(rt)}
 	}
 
 	return &Client{Client: *httpClient, Header: http.Header{}}
@@ -50,31 +51,17 @@ func (c *Client) Do(req *http.Request) ([]byte, error) {
 }
 
 func (c *Client) DoWith(req *http.Request, br BodyReader) error {
-	req.Header.Set("accept-encoding", "gzip")
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return &Error{Message: err.Error()}
 	}
-
 	defer resp.Body.Close()
-	body := resp.Body
-	cl := resp.ContentLength
-	if resp.Header.Get("content-encoding") == "gzip" {
-		body, err = gzip.NewReader(body)
-		if err != nil {
-			return &Error{
-				Code:    resp.StatusCode,
-				Message: err.Error(),
-				Header:  req.Header,
-			}
-		}
 
-		if xcl := resp.Header.Get("x-content-length"); xcl != "" {
-			if x, _ := strconv.ParseInt(xcl, 10, 64); x > 0 {
-				cl = x
-			}
+	cl := resp.ContentLength
+	if xcl := resp.Header.Get("x-content-length"); xcl != "" {
+		if x, _ := strconv.ParseInt(xcl, 10, 64); x > 0 {
+			cl = x
 		}
-		defer body.Close()
 	}
 
 	if cl > MaxContentLength {
@@ -87,7 +74,7 @@ func (c *Client) DoWith(req *http.Request, br BodyReader) error {
 
 	if resp.StatusCode != http.StatusOK {
 		errstr := http.StatusText(resp.StatusCode)
-		data, err := io.ReadAll(body)
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			errstr += ", read body error, " + err.Error()
 		}
@@ -104,7 +91,7 @@ func (c *Client) DoWith(req *http.Request, br BodyReader) error {
 		g.Grow(int(cl))
 	}
 
-	if _, err = br.ReadFrom(body); err != nil {
+	if _, err = br.ReadFrom(resp.Body); err != nil {
 		return &Error{
 			Code:    resp.StatusCode,
 			Message: err.Error(),
