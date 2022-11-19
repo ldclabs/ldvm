@@ -4,7 +4,6 @@
 package libp2prpc
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
+	"github.com/ldclabs/ldvm/util/compress"
 )
 
 type JSONService struct {
@@ -37,7 +37,7 @@ func NewJSONService(host host.Host, h jsonrpc.Handler, opts *JSONServiceOptions)
 
 	srv := &JSONService{host: host, h: h, name: opts.ServiceName}
 	host.SetStreamHandler(JSONRPCProtocol, srv.handler)
-	host.SetStreamHandler(JSONRPCGzipProtocol, srv.handler)
+	host.SetStreamHandler(JSONRPCZstdProtocol, srv.handler)
 	return srv
 }
 
@@ -45,37 +45,39 @@ func (srv *JSONService) handler(s network.Stream) {
 	defer s.Close()
 
 	ctx := context.Background()
-	compress := s.Protocol() == JSONRPCGzipProtocol
+	cp := s.Protocol() == JSONRPCZstdProtocol
 
 	req := &jsonrpc.Request{}
 	if srv.name != "" {
 		s.Scope().SetService(srv.name)
 	}
 
-	var err error
 	var rd io.ReadCloser = s
-	if compress {
-		rd, err = gzip.NewReader(s)
-		if err != nil {
-			srv.writeJSON(ctx, s, req.Error(err), compress)
-			return
-		}
-
-		defer rd.Close()
+	var zr *compress.ZstdReader
+	if cp {
+		zr = &compress.ZstdReader{R: s}
+		rd = zr
 	}
 
-	_, err = req.ReadFrom(rd)
+	_, err := req.ReadFrom(rd)
+	if zr != nil {
+		zr.Reset()
+	}
 	if err != nil {
-		srv.writeJSON(ctx, s, req.Error(err), compress)
+		srv.writeJSON(ctx, s, req.Error(err), cp)
 		return
 	}
 
 	res := srv.h.ServeRPC(ctx, req)
-	srv.writeJSON(ctx, s, res, compress)
+	srv.writeJSON(ctx, s, res, cp)
 }
 
 func (srv *JSONService) writeJSON(
-	ctx context.Context, w network.MuxedStream, res *jsonrpc.Response, compress bool) {
+	ctx context.Context, w network.MuxedStream, res *jsonrpc.Response, cp bool) {
+	if res.Error != nil {
+		srv.h.OnError(ctx, res.Error)
+	}
+
 	data, err := json.Marshal(res)
 	if err != nil {
 		res = &jsonrpc.Response{
@@ -85,18 +87,34 @@ func (srv *JSONService) writeJSON(
 		data, err = json.Marshal(res)
 	}
 
-	if compress {
-		data, err = tryGzip(data)
+	if err != nil {
+		srv.h.OnError(ctx, &jsonrpc.Error{
+			Code:    jsonrpc.CodeInternalError,
+			Message: fmt.Sprintf("impossible error, %v", err),
+		})
+	}
+
+	er := res.Error
+	if er != nil {
+		srv.h.OnError(ctx, er)
+	}
+
+	switch {
+	case cp:
+		zw := &compress.ZstdWriter{W: w}
+		_, err = zw.Write(data)
+		zw.Reset()
+
+	default:
+		_, err = w.Write(data)
 	}
 
 	if err != nil {
-		res.Error.Message = fmt.Sprintf("impossible error, %v", err)
+		srv.h.OnError(ctx, &jsonrpc.Error{
+			Code:    jsonrpc.CodeInternalError,
+			Message: fmt.Sprintf("impossible error, %v", err),
+		})
 	}
 
-	if res.Error != nil {
-		srv.h.OnError(ctx, res.Error)
-	}
-
-	w.Write(data)
 	w.CloseWrite()
 }
