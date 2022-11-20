@@ -8,12 +8,14 @@ import (
 )
 
 // Pool is a generic version of sync.Pool
+// More info sees https://pkg.go.dev/sync#Pool
 type Pool[T any] struct {
 	p   ss.Pool
 	New func() T
 }
 
 // Get selects an arbitrary item from the pool, removes it from the pool, and returns it to the caller.
+// The ok result indicates whether value was found in the pool.
 // It returns (zero value of T, false) if there has nothing in the pool.
 func (p *Pool[T]) Get() (T, bool) {
 	v := p.p.Get()

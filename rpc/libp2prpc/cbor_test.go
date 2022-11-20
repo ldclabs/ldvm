@@ -7,7 +7,6 @@ import (
 	"context"
 	"math/rand"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,12 +21,12 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/encoding"
-	lsync "github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/sync"
 )
 
 type cborhandler struct {
 	snap bool
-	err  lsync.Value[*cborrpc.Error]
+	err  sync.Value[*cborrpc.Error]
 }
 
 type result struct {

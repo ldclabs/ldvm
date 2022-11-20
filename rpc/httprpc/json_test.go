@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -20,12 +19,12 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/httpcli"
-	lsync "github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/sync"
 )
 
 type jsonhandler struct {
 	snap bool
-	err  lsync.Value[*jsonrpc.Error]
+	err  sync.Value[*jsonrpc.Error]
 }
 
 type jsonResult struct {
@@ -58,8 +57,8 @@ func (h *jsonhandler) OnError(ctx context.Context, err *jsonrpc.Error) {
 type httpjsonhandler struct {
 	handler http.Handler
 	snap    bool
-	r       lsync.Value[*http.Request]
-	wh      lsync.Value[http.Header]
+	r       sync.Value[*http.Request]
+	wh      sync.Value[http.Header]
 }
 
 func (h *httpjsonhandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

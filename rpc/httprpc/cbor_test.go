@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -20,12 +19,12 @@ import (
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/httpcli"
-	lsync "github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/sync"
 )
 
 type cborhandler struct {
 	snap bool
-	err  lsync.Value[*cborrpc.Error]
+	err  sync.Value[*cborrpc.Error]
 }
 
 type result struct {
@@ -58,8 +57,8 @@ func (h *cborhandler) OnError(ctx context.Context, err *cborrpc.Error) {
 type httphandler struct {
 	handler http.Handler
 	snap    bool
-	r       lsync.Value[*http.Request]
-	wh      lsync.Value[http.Header]
+	r       sync.Value[*http.Request]
+	wh      sync.Value[http.Header]
 }
 
 func (h *httphandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
