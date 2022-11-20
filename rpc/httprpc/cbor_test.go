@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,11 +20,12 @@ import (
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/httpcli"
+	lsync "github.com/ldclabs/ldvm/util/sync"
 )
 
 type cborhandler struct {
 	snap bool
-	err  atomic.Value // *cborrpc.Error
+	err  lsync.Value[*cborrpc.Error]
 }
 
 type result struct {
@@ -58,8 +58,8 @@ func (h *cborhandler) OnError(ctx context.Context, err *cborrpc.Error) {
 type httphandler struct {
 	handler http.Handler
 	snap    bool
-	r       atomic.Value // *http.Request
-	wh      atomic.Value // http.Header
+	r       lsync.Value[*http.Request]
+	wh      lsync.Value[http.Header]
 }
 
 func (h *httphandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -99,20 +99,20 @@ func TestCBORRPC(t *testing.T) {
 		assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
 
 		assert.NotNil(hh.r.Load())
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Accept"))
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.Load().(*http.Request).Header.Get("Content-Type"))
-		assert.Equal("zstd,gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
-		assert.Equal("TestCBORRPC", hh.r.Load().(*http.Request).Header.Get("User-Agent"))
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.MustLoad().Header.Get("Accept"))
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.r.MustLoad().Header.Get("Content-Type"))
+		assert.Equal("zstd,gzip", hh.r.MustLoad().Header.Get("Accept-Encoding"))
+		assert.Equal("TestCBORRPC", hh.r.MustLoad().Header.Get("User-Agent"))
 
-		assert.Equal("HTTP/2.0", hh.r.Load().(*http.Request).Proto)
-		assert.Equal(res.ID, hh.r.Load().(*http.Request).Header.Get("X-Request-ID"))
+		assert.Equal("HTTP/2.0", hh.r.MustLoad().Proto)
+		assert.Equal(res.ID, hh.r.MustLoad().Header.Get("X-Request-ID"))
 
 		assert.NotNil(hh.wh.Load())
-		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.wh.Load().(http.Header).Get("Content-Type"))
-		assert.Equal("nosniff", hh.wh.Load().(http.Header).Get("x-Content-Type-Options"))
-		assert.Equal("zstd", hh.wh.Load().(http.Header).Get("Content-Encoding"))
-		assert.Equal("4157", hh.wh.Load().(http.Header).Get("X-Content-Length"))
-		assert.Equal(res.ID, hh.wh.Load().(http.Header).Get("X-Request-ID"))
+		assert.Equal(cborrpc.MIMEApplicationCBOR, hh.wh.MustLoad().Get("Content-Type"))
+		assert.Equal("nosniff", hh.wh.MustLoad().Get("x-Content-Type-Options"))
+		assert.Equal("zstd", hh.wh.MustLoad().Get("Content-Encoding"))
+		assert.Equal("4157", hh.wh.MustLoad().Get("X-Content-Length"))
+		assert.Equal(res.ID, hh.wh.MustLoad().Get("X-Request-ID"))
 
 		cases := []interface{}{
 			0,
@@ -160,8 +160,7 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		require.NotNil(t, ch.err.Load())
-		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 		assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
 		req = &cborrpc.Request{ID: "abcd", Method: "Get"}
@@ -169,8 +168,7 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		require.NotNil(t, ch.err.Load())
-		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 		assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
 	})
 }

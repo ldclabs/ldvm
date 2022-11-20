@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ava-labs/avalanchego/database"
@@ -27,6 +26,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util/erring"
+	lsync "github.com/ldclabs/ldvm/util/sync"
 )
 
 var _ BlockChain = &blockChain{}
@@ -104,9 +104,9 @@ type blockChain struct {
 	stateDB        *db.PrefixDB
 	nameDB         *db.PrefixDB
 
-	preferred         *atomicBlock
-	lastAcceptedBlock *atomicBlock
-	state             *atomicState
+	preferred         lsync.Value[*Block]
+	lastAcceptedBlock lsync.Value[*Block]
+	state             lsync.Value[snow.State]
 
 	verifiedBlocks *sync.Map
 	recentBlocks   *db.Cacher
@@ -135,9 +135,9 @@ func NewChain(
 		genesis:           gs,
 		db:                baseDB,
 		rpcTimeout:        3 * time.Second,
-		preferred:         new(atomicBlock),
-		lastAcceptedBlock: new(atomicBlock),
-		state:             new(atomicState),
+		preferred:         lsync.Value[*Block]{},
+		lastAcceptedBlock: lsync.Value[*Block]{},
+		state:             lsync.Value[snow.State]{},
 		verifiedBlocks:    new(sync.Map),
 		blockDB:           pdb.With(blockDBPrefix),
 		heightDB:          pdb.With(heightDBPrefix),
@@ -157,9 +157,9 @@ func NewChain(
 	txPool := NewTxPool(s.ctx, cfg.PdsEndpoint, transport)
 	s.bb = NewBlockBuilder(txPool, toEngine)
 	s.txPool = txPool
-	s.preferred.StoreV(emptyBlock)
-	s.lastAcceptedBlock.StoreV(emptyBlock)
-	s.state.StoreV(0)
+	s.preferred.Store(emptyBlock)
+	s.lastAcceptedBlock.Store(emptyBlock)
+	s.state.Store(0)
 	s.builder = ids.Address(ctx.NodeID).ToStakeSymbol()
 
 	// this data will not change, so we can cache it
@@ -210,7 +210,7 @@ func (bc *blockChain) Bootstrap() error {
 	if err == database.ErrNotFound {
 		logging.Log.Info("BlockChain.Bootstrap create genesis block",
 			zap.Stringer("id", genesisBlock.ID()))
-		bc.preferred.StoreV(genesisBlock)
+		bc.preferred.Store(genesisBlock)
 
 		if err := genesisBlock.Accept(context.TODO()); err != nil {
 			logging.Log.Error("BlockChain.Bootstrap", zap.Error(err))
@@ -238,8 +238,8 @@ func (bc *blockChain) Bootstrap() error {
 	if lastAcceptedID == genesisBlock.ID() {
 		logging.Log.Info("BlockChain.Bootstrap finished", zap.Stringer("id", lastAcceptedID))
 		genesisBlock.InitState(genesisBlock, bc.db)
-		bc.preferred.StoreV(genesisBlock)
-		bc.lastAcceptedBlock.StoreV(genesisBlock)
+		bc.preferred.Store(genesisBlock)
+		bc.lastAcceptedBlock.Store(genesisBlock)
 		return nil
 	}
 
@@ -256,8 +256,8 @@ func (bc *blockChain) Bootstrap() error {
 
 	lastAcceptedBlock.InitState(parent, bc.db)
 	lastAcceptedBlock.SetStatus(choices.Accepted)
-	bc.preferred.StoreV(lastAcceptedBlock)
-	bc.lastAcceptedBlock.StoreV(lastAcceptedBlock)
+	bc.preferred.Store(lastAcceptedBlock)
+	bc.lastAcceptedBlock.Store(lastAcceptedBlock)
 
 	// load latest fee config from chain.
 	var di *ld.DataInfo
@@ -312,13 +312,13 @@ func (bc *blockChain) SetState(state snow.State) error {
 	errp := erring.ErrPrefix("chain.BlockChain.SetState: ")
 	switch state {
 	case snow.Bootstrapping:
-		bc.state.StoreV(state)
+		bc.state.Store(state)
 		return nil
 	case snow.NormalOp:
-		if bc.preferred.LoadV() == emptyBlock {
+		if bc.preferred.MustLoad() == emptyBlock {
 			return errp.Errorf("bootstrap failed")
 		}
-		bc.state.StoreV(state)
+		bc.state.Store(state)
 		return nil
 	default:
 		return errp.ErrorIf(snow.ErrUnknownState)
@@ -326,7 +326,7 @@ func (bc *blockChain) SetState(state snow.State) error {
 }
 
 func (bc *blockChain) State() snow.State {
-	return bc.state.LoadV()
+	return bc.state.MustLoad()
 }
 
 // LastAccepted returns the ID of the last accepted block.
@@ -334,7 +334,7 @@ func (bc *blockChain) State() snow.State {
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
 func (bc *blockChain) LastAcceptedBlock() *Block {
-	return bc.lastAcceptedBlock.LoadV()
+	return bc.lastAcceptedBlock.MustLoad()
 }
 
 func (bc *blockChain) AddVerifiedBlock(blk *Block) {
@@ -350,14 +350,14 @@ func (bc *blockChain) GetVerifiedBlock(id ids.ID32) *Block {
 
 func (bc *blockChain) SetLastAccepted(blk *Block) error {
 	errp := erring.ErrPrefix("chain.BlockChain.SetLastAccepted: ")
-	if parent := bc.lastAcceptedBlock.LoadV(); parent.ID() != blk.Parent() {
+	if parent := bc.lastAcceptedBlock.MustLoad(); parent.ID() != blk.Parent() {
 		return errp.Errorf("invalid parent, expected %s:%d, got %s:%d",
 			parent.ID(), parent.Height(), blk.Parent(), blk.Height())
 	}
 
 	id := blk.ID()
 	height := blk.Height()
-	preferred := bc.preferred.LoadV()
+	preferred := bc.preferred.MustLoad()
 	if preferred.ID() != id {
 		logging.Log.Warn("BlockChain.SetLastAccepted accepting block in non-canonical chain",
 			zap.Stringer("expected id", preferred.ID()),
@@ -388,7 +388,7 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 		return errp.ErrorIf(err)
 	}
 
-	bc.lastAcceptedBlock.StoreV(blk)
+	bc.lastAcceptedBlock.Store(blk)
 	bc.recentBlocks.SetObject(id[:], blk)
 
 	if blk.LD().Builder == bc.builder {
@@ -411,14 +411,14 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 }
 
 func (bc *blockChain) PreferredBlock() *Block {
-	return bc.preferred.LoadV()
+	return bc.preferred.MustLoad()
 }
 
 // SetPreference persists the VM of the currently preferred block into database.
 // This should always be a block that has no children known to consensus.
 func (bc *blockChain) SetPreference(id ids.ID32) error {
 	errp := erring.ErrPrefix("chain.BlockChain.SetPreference: ")
-	preferred := bc.preferred.LoadV()
+	preferred := bc.preferred.MustLoad()
 	if preferred.ID() == avaids.ID(id) {
 		return nil
 	}
@@ -438,7 +438,7 @@ func (bc *blockChain) setPreference(preferred, blk *Block) error {
 		}
 	}
 
-	bc.preferred.StoreV(blk)
+	bc.preferred.Store(blk)
 	bc.bb.HandlePreferenceBlock(blk.Height())
 	logging.Log.Info("BlockChain.SetPreference", zap.Stringer("id", blk.ID()))
 	return nil
@@ -446,7 +446,7 @@ func (bc *blockChain) setPreference(preferred, blk *Block) error {
 
 // reorg takes two blocks, an old chain and a new chain and will reconstruct the blocks.
 func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
-	accepted := bc.lastAcceptedBlock.LoadV()
+	accepted := bc.lastAcceptedBlock.MustLoad()
 	newChain, err := newBlock.AncestorBlocks(accepted.Height())
 	if err != nil {
 		return err
@@ -487,7 +487,7 @@ func (bc *blockChain) BuildBlock() (*Block, error) {
 	if s := bc.State(); s != snow.NormalOp {
 		return nil, errp.Errorf("state not bootstrapped, expected %q, got %q", snow.NormalOp, s)
 	}
-	if err := bc.preferred.LoadV().FeeConfig().ValidBuilder(bc.builder); err != nil {
+	if err := bc.preferred.MustLoad().FeeConfig().ValidBuilder(bc.builder); err != nil {
 		return nil, errp.ErrorIf(err)
 	}
 
@@ -536,7 +536,7 @@ func (bc *blockChain) GetBlock(id ids.ID32) (*Block, error) {
 		return bc.genesisBlock, nil
 	}
 
-	last := bc.lastAcceptedBlock.LoadV()
+	last := bc.lastAcceptedBlock.MustLoad()
 	if ids.ID32(last.ID()) == id {
 		return last, nil
 	}
@@ -616,7 +616,7 @@ func (bc *blockChain) PreVerifyPdsTxs(txs ...*ld.Transaction) (uint64, error) {
 		return 0, errp.Errorf("TestTx should be in a batch transactions")
 	}
 
-	blk := bc.preferred.LoadV()
+	blk := bc.preferred.MustLoad()
 	if err := blk.FeeConfig().ValidBuilder(bc.builder); err != nil {
 		return 0, errp.ErrorIf(err)
 	}
@@ -722,27 +722,6 @@ func (bc *blockChain) LoadRawData(rawType string, key []byte) ([]byte, error) {
 	}
 
 	return errp.ErrorMap(pdb.Get(key))
-}
-
-type atomicBlock atomic.Value
-
-func (a *atomicBlock) LoadV() *Block {
-	return (*atomic.Value)(a).Load().(*Block)
-}
-
-func (a *atomicBlock) StoreV(v *Block) {
-	(*atomic.Value)(a).Store(v)
-}
-
-type atomicState atomic.Value
-
-func (a *atomicState) LoadV() snow.State {
-	v := (*atomic.Value)(a).Load().(*snow.State)
-	return *v
-}
-
-func (a *atomicState) StoreV(v snow.State) {
-	(*atomic.Value)(a).Store(&v)
 }
 
 func nameHashKey(key []byte) []byte {

@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,11 +22,12 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/encoding"
+	lsync "github.com/ldclabs/ldvm/util/sync"
 )
 
 type cborhandler struct {
 	snap bool
-	err  atomic.Value // *cborrpc.Error
+	err  lsync.Value[*cborrpc.Error]
 }
 
 type result struct {
@@ -159,8 +159,7 @@ func TestCBORRPC(t *testing.T) {
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				require.NotNil(t, ch.err.Load())
-				assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 				assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
 				req = &cborrpc.Request{ID: "abcd", Method: "Get"}
@@ -168,8 +167,7 @@ func TestCBORRPC(t *testing.T) {
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				require.NotNil(t, ch.err.Load())
-				assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 				assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
 			})
 		})

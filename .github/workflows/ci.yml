@@ -28,7 +28,7 @@ jobs:
       run: go get -v -t -d ./...
 
     - name: Run tests
-      run: ./scripts/build_test.sh
+      run: ./scripts/test_ci.sh
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
