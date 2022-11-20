@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,12 +17,12 @@ import (
 
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
-	lsync "github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/sync"
 )
 
 type jsonhandler struct {
 	snap bool
-	err  lsync.Value[*jsonrpc.Error]
+	err  sync.Value[*jsonrpc.Error]
 }
 
 type jsonresult struct {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ldclabs/ldvm/ids"
@@ -17,6 +16,7 @@ import (
 	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/util/erring"
+	"github.com/ldclabs/ldvm/util/sync"
 
 	avaids "github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"

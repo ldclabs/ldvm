@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/ava-labs/avalanchego/database"
@@ -26,7 +25,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/util/erring"
-	lsync "github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/sync"
 )
 
 var _ BlockChain = &blockChain{}
@@ -104,11 +103,11 @@ type blockChain struct {
 	stateDB        *db.PrefixDB
 	nameDB         *db.PrefixDB
 
-	preferred         lsync.Value[*Block]
-	lastAcceptedBlock lsync.Value[*Block]
-	state             lsync.Value[snow.State]
+	preferred         sync.Value[*Block]
+	lastAcceptedBlock sync.Value[*Block]
+	state             sync.Value[snow.State]
 
-	verifiedBlocks *sync.Map
+	verifiedBlocks sync.Map[ids.ID32, *Block]
 	recentBlocks   *db.Cacher
 	recentHeights  *db.Cacher
 	recentData     *db.Cacher
@@ -135,10 +134,10 @@ func NewChain(
 		genesis:           gs,
 		db:                baseDB,
 		rpcTimeout:        3 * time.Second,
-		preferred:         lsync.Value[*Block]{},
-		lastAcceptedBlock: lsync.Value[*Block]{},
-		state:             lsync.Value[snow.State]{},
-		verifiedBlocks:    new(sync.Map),
+		preferred:         sync.Value[*Block]{},
+		lastAcceptedBlock: sync.Value[*Block]{},
+		state:             sync.Value[snow.State]{},
+		verifiedBlocks:    sync.Map[ids.ID32, *Block]{},
 		blockDB:           pdb.With(blockDBPrefix),
 		heightDB:          pdb.With(heightDBPrefix),
 		lastAcceptedDB:    pdb.With(lastAcceptedDBPrefix),
@@ -338,14 +337,12 @@ func (bc *blockChain) LastAcceptedBlock() *Block {
 }
 
 func (bc *blockChain) AddVerifiedBlock(blk *Block) {
-	bc.verifiedBlocks.Store(blk.ID(), blk)
+	bc.verifiedBlocks.Store(blk.Hash(), blk)
 }
 
 func (bc *blockChain) GetVerifiedBlock(id ids.ID32) *Block {
-	if v, ok := bc.verifiedBlocks.Load(id); ok {
-		return v.(*Block)
-	}
-	return nil
+	v, _ := bc.verifiedBlocks.Load(id)
+	return v
 }
 
 func (bc *blockChain) SetLastAccepted(blk *Block) error {
@@ -397,12 +394,10 @@ func (bc *blockChain) SetLastAccepted(blk *Block) error {
 		})
 	}
 	go func() {
-		bc.verifiedBlocks.Range(func(key, value any) bool {
-			if b, ok := value.(*Block); ok {
-				if b.Height() < height {
-					b.Free()
-					bc.verifiedBlocks.Delete(key)
-				}
+		bc.verifiedBlocks.Range(func(key ids.ID32, b *Block) bool {
+			if b.Height() < height {
+				b.Free()
+				bc.verifiedBlocks.Delete(key)
 			}
 			return true
 		})

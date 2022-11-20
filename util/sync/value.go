@@ -6,6 +6,7 @@ package sync
 import "sync/atomic"
 
 // Value is a generic version of atomic.Value
+// More info sees https://pkg.go.dev/sync/atomic#Value
 type Value[T any] struct {
 	v atomic.Value
 }
