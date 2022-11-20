@@ -9,7 +9,6 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,11 +18,12 @@ import (
 
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
+	lsync "github.com/ldclabs/ldvm/util/sync"
 )
 
 type jsonhandler struct {
 	snap bool
-	err  atomic.Value // *jsonrpc.Error
+	err  lsync.Value[*jsonrpc.Error]
 }
 
 type jsonresult struct {
@@ -155,8 +155,7 @@ func TestJSONRPC(t *testing.T) {
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				require.NotNil(t, ch.err.Load())
-				assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 				assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
 				req = &jsonrpc.Request{ID: "abcd", Method: "Get"}
@@ -164,8 +163,7 @@ func TestJSONRPC(t *testing.T) {
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				require.NotNil(t, ch.err.Load())
-				assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 				assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
 			})
 		})

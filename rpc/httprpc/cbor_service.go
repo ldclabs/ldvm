@@ -126,7 +126,7 @@ func (s *CBORService) writeCBOR(
 	if ol := len(data); ol > compressionThreshold && ae != "" {
 		switch {
 		case strings.Contains(ae, "zstd"):
-			zw := &compress.ZstdWriter{W: w}
+			zw := compress.NewZstdWriter(w)
 			ww = zw
 			w.Header().Add("vary", "accept-encoding")
 			w.Header().Set("content-encoding", "zstd")

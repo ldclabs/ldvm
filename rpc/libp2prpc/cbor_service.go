@@ -55,7 +55,7 @@ func (srv *CBORService) handler(s network.Stream) {
 	var rd io.ReadCloser = s
 	var zr *compress.ZstdReader
 	if cp {
-		zr = &compress.ZstdReader{R: s}
+		zr = compress.NewZstdReader(s)
 		rd = zr
 	}
 
@@ -96,7 +96,7 @@ func (srv *CBORService) writeCBOR(
 
 	switch {
 	case cp:
-		zw := &compress.ZstdWriter{W: w}
+		zw := compress.NewZstdWriter(w)
 		_, err = zw.Write(data)
 		zw.Reset()
 

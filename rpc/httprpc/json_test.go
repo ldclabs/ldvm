@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,11 +20,12 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/httpcli"
+	lsync "github.com/ldclabs/ldvm/util/sync"
 )
 
 type jsonhandler struct {
 	snap bool
-	err  atomic.Value // *jsonrpc.Error
+	err  lsync.Value[*jsonrpc.Error]
 }
 
 type jsonResult struct {
@@ -58,8 +58,8 @@ func (h *jsonhandler) OnError(ctx context.Context, err *jsonrpc.Error) {
 type httpjsonhandler struct {
 	handler http.Handler
 	snap    bool
-	r       atomic.Value // *http.Request
-	wh      atomic.Value // http.Header
+	r       lsync.Value[*http.Request]
+	wh      lsync.Value[http.Header]
 }
 
 func (h *httpjsonhandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -99,20 +99,20 @@ func TestJSONRPC(t *testing.T) {
 		assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
 		assert.NotNil(hh.r.Load())
-		assert.Equal(jsonrpc.MIMEApplicationJSON, hh.r.Load().(*http.Request).Header.Get("Accept"))
-		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.r.Load().(*http.Request).Header.Get("Content-Type"))
-		assert.Equal("zstd,gzip", hh.r.Load().(*http.Request).Header.Get("Accept-Encoding"))
-		assert.Equal("TestJSONRPC", hh.r.Load().(*http.Request).Header.Get("User-Agent"))
+		assert.Equal(jsonrpc.MIMEApplicationJSON, hh.r.MustLoad().Header.Get("Accept"))
+		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.r.MustLoad().Header.Get("Content-Type"))
+		assert.Equal("zstd,gzip", hh.r.MustLoad().Header.Get("Accept-Encoding"))
+		assert.Equal("TestJSONRPC", hh.r.MustLoad().Header.Get("User-Agent"))
 
-		assert.Equal("HTTP/2.0", hh.r.Load().(*http.Request).Proto)
-		assert.Equal(res.ID, hh.r.Load().(*http.Request).Header.Get("X-Request-ID"))
+		assert.Equal("HTTP/2.0", hh.r.MustLoad().Proto)
+		assert.Equal(res.ID, hh.r.MustLoad().Header.Get("X-Request-ID"))
 
 		assert.NotNil(hh.wh.Load())
-		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.wh.Load().(http.Header).Get("Content-Type"))
-		assert.Equal("nosniff", hh.wh.Load().(http.Header).Get("x-Content-Type-Options"))
-		assert.Equal("zstd", hh.wh.Load().(http.Header).Get("Content-Encoding"))
-		assert.Equal("4186", hh.wh.Load().(http.Header).Get("X-Content-Length"))
-		assert.Equal(res.ID, hh.wh.Load().(http.Header).Get("X-Request-ID"))
+		assert.Equal(jsonrpc.MIMEApplicationJSONCharsetUTF8, hh.wh.MustLoad().Get("Content-Type"))
+		assert.Equal("nosniff", hh.wh.MustLoad().Get("x-Content-Type-Options"))
+		assert.Equal("zstd", hh.wh.MustLoad().Get("Content-Encoding"))
+		assert.Equal("4186", hh.wh.MustLoad().Get("X-Content-Length"))
+		assert.Equal(res.ID, hh.wh.MustLoad().Get("X-Request-ID"))
 
 		cases := []interface{}{
 			0,
@@ -160,8 +160,7 @@ func TestJSONRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		require.NotNil(t, ch.err.Load())
-		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 		fmt.Println(res.Error.Error())
 		assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
 
@@ -170,8 +169,7 @@ func TestJSONRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		require.NotNil(t, ch.err.Load())
-		assert.Equal(ch.err.Load().(error).Error(), res.Error.Error())
+		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
 		assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
 	})
 }

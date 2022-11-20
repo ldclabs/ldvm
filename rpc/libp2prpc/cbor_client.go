@@ -101,7 +101,7 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 
 	switch {
 	case c.compress:
-		zw := &compress.ZstdWriter{W: s}
+		zw := compress.NewZstdWriter(s)
 		_, err = zw.Write(data)
 		zw.Reset()
 
@@ -117,7 +117,7 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 
 	var rd io.ReadCloser = s
 	if c.compress {
-		zr := &compress.ZstdReader{R: s}
+		zr := compress.NewZstdReader(s)
 		rd = zr
 		defer zr.Reset() // `defer s.Close()` exists above, just reset the zstd reader
 	}

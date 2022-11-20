@@ -5,7 +5,6 @@ package chain
 
 import (
 	"math/big"
-	"sync"
 
 	"github.com/ava-labs/avalanchego/database"
 	"github.com/ava-labs/avalanchego/database/versiondb"
@@ -25,25 +24,6 @@ import (
 var (
 	_ BlockState = &blockState{}
 )
-
-var activeAccountsPool = sync.Pool{
-	New: func() any {
-		v := make(acct.ActiveAccounts, 256)
-		return &v
-	},
-}
-
-func getActiveAccounts() acct.ActiveAccounts {
-	ac := activeAccountsPool.Get().(*acct.ActiveAccounts)
-	return *ac
-}
-
-func putActiveAccounts(cc acct.ActiveAccounts) {
-	for k := range cc {
-		delete(cc, k)
-	}
-	activeAccountsPool.Put(&cc)
-}
 
 type blockState struct {
 	height, timestamp uint64
@@ -96,7 +76,7 @@ func newBlockState(ctx *Context, height, timestamp uint64, parentState ids.ID32,
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accts:          getActiveAccounts(),
+		accts:          make(acct.ActiveAccounts, 256),
 	}
 
 	bs.nameDB.SetHashKey(nameHashKey)
@@ -139,7 +119,7 @@ func (bs *blockState) DeriveState() (BlockState, error) {
 		prevDataDB:     pdb.With(prevDataDBPrefix),
 		stateDB:        pdb.With(stateDBPrefix),
 		nameDB:         pdb.With(nameDBPrefix),
-		accts:          getActiveAccounts(),
+		accts:          make(acct.ActiveAccounts, 256),
 	}
 
 	nbs.nameDB.SetHashKey(nameHashKey)
@@ -435,6 +415,4 @@ func (bs *blockState) Commit() error {
 
 func (bs *blockState) Free() {
 	logging.Log.Info("blockState.Free", zap.Uint64("height", bs.height))
-	putActiveAccounts(bs.accts)
-	bs.accts = nil
 }
