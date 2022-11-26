@@ -60,6 +60,7 @@ type BlockChain interface {
 	TotalSupply() *big.Int
 
 	// blocks state
+	IsBuilder() bool
 	BuildBlock() (*Block, error)
 	ParseBlock([]byte) (*Block, error)
 	GetBlockIDAtHeight(uint64) (ids.ID32, error)
@@ -477,11 +478,16 @@ func (bc *blockChain) reorg(oldBlock, newBlock *Block) error {
 	return nil
 }
 
+func (bc *blockChain) IsBuilder() bool {
+	return bc.preferred.MustLoad().FeeConfig().ValidBuilder(bc.builder) == nil
+}
+
 func (bc *blockChain) BuildBlock() (*Block, error) {
 	errp := erring.ErrPrefix("chain.BlockChain.BuildBlock: ")
 	if s := bc.State(); s != snow.NormalOp {
 		return nil, errp.Errorf("state not bootstrapped, expected %q, got %q", snow.NormalOp, s)
 	}
+
 	if err := bc.preferred.MustLoad().FeeConfig().ValidBuilder(bc.builder); err != nil {
 		return nil, errp.ErrorIf(err)
 	}

@@ -41,3 +41,11 @@ func (r *RawData) UnmarshalJSON(b []byte) error {
 	*r = append((*r)[0:0], data...)
 	return nil
 }
+
+func MustMarshalJSON(v interface{}) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}

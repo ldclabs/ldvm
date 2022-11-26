@@ -103,7 +103,7 @@ func TestTxUpdateData(t *testing.T) {
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
-	input = &ld.TxUpdater{ID: &ids.EmptyDataID}
+	input = &ld.TxUpdater{ID: ids.EmptyDataID.Ptr()}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateData,
 		ChainID:   ctx.ChainConfig().ChainID,

@@ -94,10 +94,10 @@ func (c *JSONClient) Do(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Resp
 	r.Header.Set("content-type", jsonrpc.MIMEApplicationJSONCharsetUTF8)
 	r.Header.Set("x-request-id", req.ID)
 	httpcli.CopyHeader(r.Header, c.header)
-	httpcli.CopyHeader(r.Header, httpcli.HeaderFromCtx(ctx))
+	httpcli.CopyHeader(r.Header, httpcli.HeaderCtxValue(ctx))
 
 	res := &jsonrpc.Response{Version: "2.0", ID: req.ID}
-	err = c.cli.DoWith(r, res)
+	err = c.cli.DoWithReader(r, res)
 	if err != nil {
 		return req.Error(err)
 	}

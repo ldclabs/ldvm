@@ -11,37 +11,65 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/klauspost/compress/gzip"
 
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/compress"
+	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/httpcli"
+	"github.com/ldclabs/ldvm/util/value"
 )
 
 type JSONService struct {
-	h    jsonrpc.Handler
-	name string
+	h              jsonrpc.Handler
+	name           string
+	loggingHeaders []string
 }
 
 type JSONServiceOptions struct {
-	ServiceName string
+	ServiceName    string
+	LoggingHeaders []string
 }
 
 var DefaultJSONServiceOptions = JSONServiceOptions{
-	ServiceName: "ldc:jsonrpc",
+	ServiceName:    "ldc:jsonrpc",
+	LoggingHeaders: []string{"user-agent", "x-request-id"},
 }
 
 func NewJSONService(h jsonrpc.Handler, opts *JSONServiceOptions) *JSONService {
 	if opts == nil {
 		opts = &DefaultJSONServiceOptions
 	}
-	return &JSONService{h: h, name: opts.ServiceName}
+	return &JSONService{h: h, name: opts.ServiceName, loggingHeaders: opts.LoggingHeaders}
 }
 
 func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	req := &jsonrpc.Request{Version: "2.0", ID: r.Header.Get("x-request-id")}
+
+	if log := value.CtxValue[value.Log](ctx); log.Valid() {
+		start := time.Now()
+		log.Set("start", value.Time(start))
+		defer func() {
+			log.Set("elapsed", value.Int64(int64(time.Since(start)/time.Millisecond)))
+		}()
+
+		log.Set("proto", value.String(r.Proto))
+		log.Set("method", value.String(r.Method))
+		log.Set("requestUri", value.String(r.RequestURI))
+		log.Set("remoteAddr", value.String(r.RemoteAddr))
+		log.Set("requestBytes", value.Int64(r.ContentLength))
+
+		if len(s.loggingHeaders) > 0 {
+			for _, h := range s.loggingHeaders {
+				if v := r.Header.Get(h); v != "" {
+					log.Set(h, value.String(v))
+				}
+			}
+		}
+	}
 
 	if r.Method != "POST" {
 		s.writeJSON(ctx, w, http.StatusMethodNotAllowed, req.Error(&jsonrpc.Error{
@@ -70,9 +98,6 @@ func (s *JSONService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}), "")
 	}
 
-	if r.ContentLength > 0 {
-		req.Grow(int(r.ContentLength))
-	}
 	_, err := req.ReadFrom(r.Body)
 	r.Body.Close()
 
@@ -95,8 +120,13 @@ func (s *JSONService) writeJSON(
 		w.Header().Set("x-request-id", res.ID)
 	}
 
+	exception := res.Error
+	if exception == nil {
+		exception = &erring.Error{}
+	}
+
 	data, err := json.Marshal(res)
-	if err != nil {
+	if exception.CatchIf(err) {
 		code = 500
 		res = &jsonrpc.Response{
 			Version: "2.0",
@@ -104,14 +134,11 @@ func (s *JSONService) writeJSON(
 			Error:   &jsonrpc.Error{Code: jsonrpc.CodeServerError - code, Message: err.Error()},
 		}
 		data, err = json.Marshal(res)
-	}
-
-	if err != nil {
-		res.Error.Message = fmt.Sprintf("impossible error, %v", err)
-	}
-
-	if res.Error != nil {
-		s.h.OnError(ctx, res.Error)
+		if exception.CatchIf(err) {
+			data, _ = json.Marshal(erring.RespondError{
+				Err: fmt.Sprintf("impossible error: %q", err.Error()),
+			})
+		}
 	}
 
 	var ww io.Writer = w
@@ -136,5 +163,19 @@ func (s *JSONService) writeJSON(
 	}
 
 	w.WriteHeader(code)
-	ww.Write(data)
+	_, err = ww.Write(data)
+	exception.CatchIf(err)
+
+	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
+		log.Set("status", value.Int(code))
+		log.Set("responseBytes", value.Int(len(data)))
+
+		if res.Error != nil {
+			log.Set("responseError", value.String(res.Error.Error()))
+		}
+
+		if exception.HasErrs() {
+			log.Set("error", value.String(exception.Error()))
+		}
+	})
 }

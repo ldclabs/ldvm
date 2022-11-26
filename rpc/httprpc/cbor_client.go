@@ -90,10 +90,10 @@ func (c *CBORClient) Do(ctx context.Context, req *cborrpc.Request) *cborrpc.Resp
 	r.Header.Set("content-type", cborrpc.MIMEApplicationCBOR)
 	r.Header.Set("x-request-id", req.ID)
 	httpcli.CopyHeader(r.Header, c.header)
-	httpcli.CopyHeader(r.Header, httpcli.HeaderFromCtx(ctx))
+	httpcli.CopyHeader(r.Header, httpcli.HeaderCtxValue(ctx))
 
 	res := &cborrpc.Response{ID: req.ID}
-	err = c.cli.DoWith(r, res)
+	err = c.cli.DoWithReader(r, res)
 	if err != nil {
 		return req.Error(err)
 	}

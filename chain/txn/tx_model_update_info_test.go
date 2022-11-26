@@ -125,7 +125,7 @@ func TestTxUpdateModelInfo(t *testing.T) {
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid mid")
 
-	input = ld.TxUpdater{ModelID: &ids.EmptyModelID}
+	input = ld.TxUpdater{ModelID: ids.EmptyModelID.Ptr()}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateModelInfo,

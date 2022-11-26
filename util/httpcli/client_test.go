@@ -30,10 +30,11 @@ func TestHTTPCli(t *testing.T) {
 
 	cli := NewClient(rt)
 	url := "http://" + server.Addr().String()
+
 	req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	require.NoError(t, err)
 
-	data, err := cli.Do(req)
+	data, err := cli.DoAndRead(req)
 	require.NoError(t, err)
 	assert.Equal("HTTP/1.1", string(data))
 
@@ -41,7 +42,7 @@ func TestHTTPCli(t *testing.T) {
 	req, err = http.NewRequestWithContext(context.Background(), "GET", url, nil)
 	require.NoError(t, err)
 
-	data, err = cli.Do(req)
+	data, err = cli.DoAndRead(req)
 	require.NoError(t, err)
 	assert.Equal("HTTP/2.0", string(data))
 }

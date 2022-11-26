@@ -20,12 +20,10 @@ import (
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/httpcli"
 	"github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/value"
 )
 
-type cborhandler struct {
-	snap bool
-	err  sync.Value[*cborrpc.Error]
-}
+type cborhandler struct{}
 
 type result struct {
 	Method string          `cbor:"method"`
@@ -33,6 +31,12 @@ type result struct {
 }
 
 func (h *cborhandler) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
+
+	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
+		log.Set("rpcId", value.String(req.ID))
+		log.Set("rpcMethod", value.String(req.Method))
+	})
+
 	switch {
 	case req.Method == "ErrorMethod":
 		return req.InvalidMethod()
@@ -48,23 +52,22 @@ func (h *cborhandler) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborr
 	}
 }
 
-func (h *cborhandler) OnError(ctx context.Context, err *cborrpc.Error) {
-	if h.snap {
-		h.err.Store(err)
-	}
-}
-
 type httphandler struct {
 	handler http.Handler
 	snap    bool
 	r       sync.Value[*http.Request]
 	wh      sync.Value[http.Header]
+	ctx     sync.Value[context.Context]
 }
 
 func (h *httphandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := value.CtxWith(r.Context(), &value.Log{Value: value.NewMap(16)})
+	r = r.WithContext(ctx)
+
 	if h.snap {
-		h.wh.Store(w.Header())
 		h.r.Store(r)
+		h.wh.Store(w.Header())
+		h.ctx.Store(ctx)
 	}
 
 	h.handler.ServeHTTP(w, r)
@@ -73,7 +76,7 @@ func (h *httphandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func TestCBORRPC(t *testing.T) {
 	assert := assert.New(t)
 
-	ch := &cborhandler{snap: true}
+	ch := &cborhandler{}
 	hh := &httphandler{handler: NewCBORService(ch, nil), snap: true}
 	server := httpcli.NewHTTPServer(hh)
 	defer server.Close()
@@ -93,7 +96,6 @@ func TestCBORRPC(t *testing.T) {
 		res := cli.Request(context.Background(), "TestMethod", params, re)
 		require.Nil(t, res.Error)
 
-		assert.Nil(ch.err.Load())
 		assert.Equal("TestMethod", re.Method)
 		assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
 
@@ -112,6 +114,9 @@ func TestCBORRPC(t *testing.T) {
 		assert.Equal("zstd", hh.wh.MustLoad().Get("Content-Encoding"))
 		assert.Equal("4157", hh.wh.MustLoad().Get("X-Content-Length"))
 		assert.Equal(res.ID, hh.wh.MustLoad().Get("X-Request-ID"))
+
+		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
+		assert.Equal([]string{"elapsed", "method", "proto", "remoteAddr", "requestBytes", "requestUri", "responseBytes", "rpcId", "rpcMethod", "start", "status", "user-agent", "x-request-id"}, log.Keys())
 
 		cases := []interface{}{
 			0,
@@ -146,34 +151,44 @@ func TestCBORRPC(t *testing.T) {
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.ErrorContains(res.Error, `{"code":-32000,"message":"context canceled"}`)
+		assert.Equal(
+			`{"code":-32000,"message":"context canceled","errors":[],"data":null}`,
+			res.Error.Error())
 
 		res = cli.Do(context.Background(), req)
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.ErrorContains(res.Error, `{"code":-32601,"message":"method \"\" not found"}`)
+		assert.Equal(
+			`{"code":-32601,"message":"method \"\" not found","errors":[],"data":null}`,
+			res.Error.Error())
 
 		req = &cborrpc.Request{ID: "abcd", Method: "ErrorMethod"}
 		res = cli.Do(context.Background(), req)
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
-		assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
+		assert.Equal(
+			`{"code":-32601,"message":"method \"ErrorMethod\" not found","errors":[],"data":null}`,
+			res.Error.Error())
+		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
+		assert.Equal(res.Error.Error(), log["responseError"].String())
 
 		req = &cborrpc.Request{ID: "abcd", Method: "Get"}
 		res = cli.Do(context.Background(), req)
 		assert.NotNil(res.Error)
 		assert.Nil(res.Result)
 		assert.Equal("abcd", res.ID)
-		assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
-		assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
+		assert.Equal(
+			`{"code":-32602,"message":"invalid parameter(s), no params","errors":[],"data":null}`,
+			res.Error.Error())
+		log = value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
+		assert.Equal(res.Error.Error(), log["responseError"].String())
 	})
 }
 
 func TestCBORRPCChaos(t *testing.T) {
-	ch := &cborhandler{snap: false}
+	ch := &cborhandler{}
 	hh := &httphandler{handler: NewCBORService(ch, nil), snap: false}
 	server := httpcli.NewHTTPServer(hh)
 	defer server.Close()

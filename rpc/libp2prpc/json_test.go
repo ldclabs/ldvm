@@ -18,12 +18,10 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/sync"
+	"github.com/ldclabs/ldvm/util/value"
 )
 
-type jsonhandler struct {
-	snap bool
-	err  sync.Value[*jsonrpc.Error]
-}
+type jsonhandler struct{}
 
 type jsonresult struct {
 	Method string          `cbor:"method"`
@@ -31,6 +29,11 @@ type jsonresult struct {
 }
 
 func (h *jsonhandler) ServeRPC(ctx context.Context, req *jsonrpc.Request) *jsonrpc.Response {
+	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
+		log.Set("rpcId", value.String(req.ID))
+		log.Set("rpcMethod", value.String(req.Method))
+	})
+
 	switch {
 	case req.Method == "ErrorMethod":
 		return req.InvalidMethod()
@@ -46,12 +49,6 @@ func (h *jsonhandler) ServeRPC(ctx context.Context, req *jsonrpc.Request) *jsonr
 	}
 }
 
-func (h *jsonhandler) OnError(ctx context.Context, err *jsonrpc.Error) {
-	if h.snap {
-		h.err.Store(err)
-	}
-}
-
 func TestJSONRPC(t *testing.T) {
 	paddrs := [][]string{
 		{"tcp/23581", "tcp/23582"},
@@ -61,7 +58,7 @@ func TestJSONRPC(t *testing.T) {
 
 	for _, pa := range paddrs {
 		t.Run(pa[0], func(t *testing.T) {
-			ch := &jsonhandler{snap: true}
+			ch := &jsonhandler{}
 			ha1, err := makeBasicHost(pa[0])
 			require.NoError(t, err)
 
@@ -69,7 +66,7 @@ func TestJSONRPC(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewJSONService(ha1, ch, nil)
+			_ = NewJSONService(context.Background(), ha1, ch, nil)
 			cli := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: false})
 			cli2 := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: true})
 
@@ -87,7 +84,6 @@ func TestJSONRPC(t *testing.T) {
 				res := cli.Request(ctx, "TestMethod", params, re)
 				require.Nil(t, res.Error)
 
-				assert.Nil(ch.err.Load())
 				assert.Equal("TestMethod", re.Method)
 				assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
@@ -95,7 +91,6 @@ func TestJSONRPC(t *testing.T) {
 				res = cli2.Request(ctx, "TestMethod", params, re)
 				require.Nil(t, res.Error)
 
-				assert.Nil(ch.err.Load())
 				assert.Equal("TestMethod", re.Method)
 				assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
@@ -141,29 +136,35 @@ func TestJSONRPC(t *testing.T) {
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				assert.ErrorContains(res.Error, `{"code":-32000,"message":"context canceled"}`)
+				assert.Equal(
+					`{"code":-32000,"message":"context canceled","errors":[],"data":null}`,
+					res.Error.Error())
 
 				res = cli.Do(context.Background(), req)
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				assert.ErrorContains(res.Error, `{"code":-32601,"message":"method \"\" not found"}`)
+				assert.Equal(
+					`{"code":-32601,"message":"method \"\" not found","errors":[],"data":null}`,
+					res.Error.Error())
 
 				req = &jsonrpc.Request{ID: "abcd", Method: "ErrorMethod"}
 				res = cli.Do(context.Background(), req)
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
-				assert.Equal(`{"code":-32601,"message":"method \"ErrorMethod\" not found"}`, res.Error.Error())
+				assert.Equal(
+					`{"code":-32601,"message":"method \"ErrorMethod\" not found","errors":[],"data":null}`,
+					res.Error.Error())
 
 				req = &jsonrpc.Request{ID: "abcd", Method: "Get"}
 				res = cli.Do(context.Background(), req)
 				assert.NotNil(res.Error)
 				assert.Nil(res.Result)
 				assert.Equal("abcd", res.ID)
-				assert.Equal(ch.err.MustLoad().Error(), res.Error.Error())
-				assert.Equal(`{"code":-32602,"message":"invalid parameter(s), no params"}`, res.Error.Error())
+				assert.Equal(
+					`{"code":-32602,"message":"invalid parameter(s), no params","errors":[],"data":null}`,
+					res.Error.Error())
 			})
 		})
 	}
@@ -180,7 +181,7 @@ func TestJSONRPCChaos(t *testing.T) {
 		t.Run(pa[0], func(t *testing.T) {
 			assert := assert.New(t)
 
-			ch := &jsonhandler{snap: false}
+			ch := &jsonhandler{}
 			ha1, err := makeBasicHost(pa[0])
 			require.NoError(t, err)
 			ha1.Network().ResourceManager().Close()
@@ -189,7 +190,7 @@ func TestJSONRPCChaos(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewJSONService(ha1, ch, nil)
+			_ = NewJSONService(context.Background(), ha1, ch, nil)
 			cli := NewJSONClient(ha2, ha1.ID(), nil)
 
 			defer ha1.Close()

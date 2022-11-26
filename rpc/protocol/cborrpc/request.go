@@ -6,6 +6,7 @@ package cborrpc
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -13,7 +14,6 @@ import (
 	cborpatch "github.com/ldclabs/cbor-patch"
 
 	"github.com/ldclabs/ldvm/util/encoding"
-	"github.com/ldclabs/ldvm/util/httpcli"
 )
 
 // This is a simple implementation of CBOR-RPC.
@@ -26,10 +26,12 @@ type Request struct {
 	buf bytes.Buffer `cbor:"-"`
 }
 
+// Grow grows the underlying buffer's capacity
 func (req *Request) Grow(n int) {
 	req.buf.Grow(n)
 }
 
+// ReadFrom implements io.ReaderFrom interface.
 func (req *Request) ReadFrom(r io.Reader) (int64, error) {
 	n, err := req.buf.ReadFrom(r)
 	if err != nil {
@@ -81,20 +83,12 @@ func (req *Request) Error(err error) *Response {
 	case *Error:
 		rpcErr = v
 
-	case *httpcli.Error:
-		rpcErr = &Error{
-			Code:    CodeServerError - v.Code,
-			Message: v.Message,
-			Data: map[string]interface{}{
-				"body":   v.Body,
-				"header": v.Header,
-			},
-		}
-
 	default:
-		rpcErr = &Error{
-			Code:    CodeServerError,
-			Message: err.Error(),
+		if !errors.As(err, &rpcErr) {
+			rpcErr = &Error{
+				Code:    CodeServerError,
+				Message: err.Error(),
+			}
 		}
 	}
 

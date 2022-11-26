@@ -71,15 +71,15 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight            uint64                      `json:"startHeight"`
-	MinGasPrice            uint64                      `json:"minGasPrice"`
-	MaxGasPrice            uint64                      `json:"maxGasPrice"`
-	MaxTxGas               uint64                      `json:"maxTxGas"`
-	GasRebateRate          uint64                      `json:"gasRebateRate"`
-	MinTokenPledge         *big.Int                    `json:"minTokenPledge"`
-	MinStakePledge         *big.Int                    `json:"minStakePledge"`
-	NonTransferableBalance *big.Int                    `json:"nonTransferableBalance"`
-	Builders               ids.IDList[ids.StakeSymbol] `json:"builders"`
+	StartHeight            uint64                      `cbor:"sh" json:"startHeight"`
+	MinGasPrice            uint64                      `cbor:"min" json:"minGasPrice"`
+	MaxGasPrice            uint64                      `cbor:"max" json:"maxGasPrice"`
+	MaxTxGas               uint64                      `cbor:"mtg" json:"maxTxGas"`
+	GasRebateRate          uint64                      `cbor:"grr" json:"gasRebateRate"`
+	MinTokenPledge         *big.Int                    `cbor:"mtp" json:"minTokenPledge"`
+	MinStakePledge         *big.Int                    `cbor:"msp" json:"minStakePledge"`
+	NonTransferableBalance *big.Int                    `cbor:"ntb" json:"nonTransferableBalance"`
+	Builders               ids.IDList[ids.StakeSymbol] `cbor:"bs" json:"builders"`
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
@@ -159,9 +159,9 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	txs := make([]*ld.Transaction, 0)
 	// The first transaction is issued by the Genesis account, to create native token.
 	// It has included ChainID, MaxTotalSupply and Genesis Message.
-	token := &ld.TxAccounter{
+	tokenInfo := &ld.TxAccounter{
 		Amount: g.Chain.MaxTotalSupply,
-		Name:   "Linked Data Chain",
+		Name:   "NativeToken",
 		Data:   []byte(strconv.Quote(g.Chain.Message)),
 	}
 	tx := &ld.Transaction{Tx: ld.TxData{
@@ -169,8 +169,8 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		ChainID: g.Chain.ChainID,
 		Nonce:   genesisNonce,
 		From:    ids.GenesisAccount,
-		To:      &ids.LDCAccount,
-		Data:    ld.MustMarshal(token),
+		To:      ids.LDCAccount.Ptr(),
+		Data:    ld.MustMarshal(tokenInfo),
 	}}
 	if err = tx.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)
@@ -186,14 +186,13 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 	list.Sort()
 	for _, id := range list {
-		v := g.Alloc[ids.Address(id)]
-		to := ids.Address(id)
+		v := g.Alloc[id]
 		tx := &ld.Transaction{Tx: ld.TxData{
 			Type:    ld.TypeTransfer,
 			ChainID: g.Chain.ChainID,
 			Nonce:   ldcNonce,
 			From:    ids.LDCAccount,
-			To:      &to,
+			To:      id.Ptr(),
 			Amount:  v.Balance,
 		}}
 		if err = tx.SyntacticVerify(); err != nil {
@@ -203,7 +202,7 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 		txs = append(txs, tx)
 
 		if le := len(v.Keepers); le > 0 {
-			update := &ld.TxAccounter{
+			accountInfo := &ld.TxAccounter{
 				Threshold: &v.Threshold,
 				Keepers:   &v.Keepers,
 			}
@@ -213,8 +212,8 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 				Type:    ld.TypeUpdateAccountInfo,
 				ChainID: g.Chain.ChainID,
 				Nonce:   nonce,
-				From:    ids.Address(id),
-				Data:    ld.MustMarshal(update),
+				From:    id,
+				Data:    ld.MustMarshal(accountInfo),
 			}}
 
 			if tx.Tx.From == ids.GenesisAccount {
@@ -229,16 +228,12 @@ func (g *Genesis) ToTxs() (ld.Txs, error) {
 	}
 
 	// config data tx
-	cfg, err := le.MarshalCBOR(g.Chain.FeeConfig)
-	if err != nil {
-		return nil, errp.ErrorIf(err)
-	}
 	cfgData := &ld.TxUpdater{
 		ModelID:   &ld.CBORModelID,
 		Version:   1,
 		Threshold: &genesisAccount.Threshold,
 		Keepers:   &genesisAccount.Keepers,
-		Data:      cfg,
+		Data:      le.MustMarshalCBOR(g.Chain.FeeConfig),
 	}
 	if err = cfgData.SyntacticVerify(); err != nil {
 		return nil, errp.ErrorIf(err)

@@ -118,7 +118,7 @@ func TestTxUpdateDataInfoByAuth(t *testing.T) {
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
-	input = &ld.TxUpdater{ID: &ids.EmptyDataID}
+	input = &ld.TxUpdater{ID: ids.EmptyDataID.Ptr()}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfoByAuth,
 		ChainID:   ctx.ChainConfig().ChainID,

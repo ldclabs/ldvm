@@ -467,7 +467,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		To:        &ids.LDCAccount,
+		To:        ids.LDCAccount.Ptr(),
 		Amount:    new(big.Int).SetUint64(10000000000000),
 		Data:      input.Bytes(),
 	}}
@@ -488,7 +488,7 @@ func TestTxCreateTokenGenesis(t *testing.T) {
 		Type:    ld.TypeCreateToken,
 		ChainID: ctx.ChainConfig().ChainID,
 		From:    ids.GenesisAccount,
-		To:      &ids.LDCAccount,
+		To:      ids.LDCAccount.Ptr(),
 		Data:    input.Bytes(),
 	}}
 	itx, err := NewGenesisTx(ltx)

@@ -66,6 +66,7 @@ type VM struct {
 	// State of this VM
 	bc      chain.BlockChain
 	network *PushNetwork
+	rpc     RPCServer
 	name    string
 }
 
@@ -134,6 +135,10 @@ func (v *VM) Initialize(
 		zap.String("configData", string(configData)))
 
 	err = v.initialize(cfg, genesisData, toEngine)
+	if err == nil && v.bc.IsBuilder() {
+		err = v.startRPCServer(cfg.RPCAddr)
+	}
+
 	if err != nil {
 		v.Log.Error("LDVM.Initialize failed", zap.Error(err))
 	}
