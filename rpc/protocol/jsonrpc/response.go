@@ -7,10 +7,22 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
-// This is a simple implementation of JSON-RPC 2.0.
-// https://www.jsonrpc.org/specification
+// refer to JSON-RPC 2.0. https://www.jsonrpc.org/specification
+const (
+	CodeParseError     = -32700
+	CodeInvalidRequest = -32600
+	CodeMethodNotFound = -32601
+	CodeInvalidParams  = -32602
+	CodeInternalError  = -32603
+	// -32000 to -32599	Server error, Reserved for implementation-defined server-errors.
+	CodeServerError = -32000
+)
+
+type Error = erring.Error
 
 type Response struct {
 	Version string          `json:"jsonrpc"`
@@ -18,8 +30,6 @@ type Response struct {
 	Error   *Error          `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 }
-
-func (res *Response) Grow(n int) {}
 
 func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 	jd := json.NewDecoder(r)

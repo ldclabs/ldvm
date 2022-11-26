@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPrefixErr(t *testing.T) {
+func TestErrPrefix(t *testing.T) {
 	assert := assert.New(t)
 
 	mocker := func(data []byte, err error) ([]byte, error) {

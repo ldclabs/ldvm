@@ -12,6 +12,8 @@ import (
 	"strconv"
 
 	"github.com/klauspost/compress/gzhttp"
+
+	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type ctxKey int
@@ -27,8 +29,7 @@ const (
 
 // Client ...
 type Client struct {
-	http.Client
-	Header http.Header
+	cli http.Client
 }
 
 // NewClient ...
@@ -38,83 +39,83 @@ func NewClient(rt http.RoundTripper) *Client {
 		httpClient = &http.Client{Transport: gzhttp.Transport(rt)}
 	}
 
-	return &Client{Client: *httpClient, Header: http.Header{}}
+	return &Client{cli: *httpClient}
 }
 
 // Do ...
-func (c *Client) Do(req *http.Request) ([]byte, error) {
+func (c *Client) Do(req *http.Request) (*http.Response, error) {
+	return c.cli.Do(req)
+}
+
+func (c *Client) DoAndRead(req *http.Request) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := c.DoWith(req, &buf); err != nil {
+	if err := c.DoWithReader(req, &buf); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
-func (c *Client) DoWith(req *http.Request, br BodyReader) error {
-	resp, err := c.Client.Do(req)
+func (c *Client) DoWithReader(req *http.Request, br io.ReaderFrom) error {
+	resp, err := c.cli.Do(req)
 	if err != nil {
-		return &Error{Message: err.Error()}
+		return &erring.Error{
+			Code:    499,
+			Message: fmt.Sprintf("http request failed, %v", err),
+		}
 	}
+
 	defer resp.Body.Close()
 
-	cl := resp.ContentLength
-	if xcl := resp.Header.Get("x-content-length"); xcl != "" {
-		if x, _ := strconv.ParseInt(xcl, 10, 64); x > 0 {
-			cl = x
-		}
-	}
-
-	if cl > MaxContentLength {
-		return &Error{
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		data, er := io.ReadAll(resp.Body)
+		err := &erring.Error{
 			Code:    resp.StatusCode,
-			Message: fmt.Sprintf("content length too large, expected <= %d", MaxContentLength),
-			Header:  req.Header,
+			Message: http.StatusText(resp.StatusCode),
+			Data: map[string]interface{}{
+				"reqHeader":  req.Header,
+				"respHeader": resp.Header,
+				"respBody":   string(data),
+			},
 		}
+		err.CatchIf(er)
+		return err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		errstr := http.StatusText(resp.StatusCode)
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			errstr += ", read body error, " + err.Error()
-		}
-
-		return &Error{
-			Code:    resp.StatusCode,
-			Message: errstr,
-			Header:  req.Header,
-			Body:    string(data),
-		}
+	if br == nil || req.Method == "HEAD" {
+		return nil
 	}
 
-	if g, ok := br.(Growable); ok && cl > 0 {
-		g.Grow(int(cl))
+	if g, ok := br.(interface{ Grow(n int) }); ok {
+		cl := resp.ContentLength
+		if xcl := resp.Header.Get("x-content-length"); xcl != "" {
+			if x, _ := strconv.ParseInt(xcl, 10, 64); x > 0 {
+				cl = x
+			}
+		}
+		if cl > 0 {
+			g.Grow(int(cl))
+		}
 	}
 
 	if _, err = br.ReadFrom(resp.Body); err != nil {
-		return &Error{
+		return &erring.Error{
 			Code:    resp.StatusCode,
 			Message: err.Error(),
-			Header:  req.Header,
+			Data: map[string]interface{}{
+				"reqHeader":  req.Header,
+				"respHeader": resp.Header,
+			},
 		}
 	}
 
 	return nil
 }
 
-type Growable interface {
-	Grow(n int)
-}
-
-type BodyReader interface {
-	ReadFrom(r io.Reader) (n int64, err error)
-}
-
 func CtxWithHeader(ctx context.Context, header http.Header) context.Context {
 	return context.WithValue(ctx, ctxHeaderKey, header)
 }
 
-func HeaderFromCtx(ctx context.Context) http.Header {
+func HeaderCtxValue(ctx context.Context) http.Header {
 	if val := ctx.Value(ctxHeaderKey); val != nil {
 		return val.(http.Header)
 	}

@@ -1,3 +1,4 @@
 {
+  "rpcAddr": ":2357",
   "pdsEndpoint": "h2c://localhost:8080/pds"
 }

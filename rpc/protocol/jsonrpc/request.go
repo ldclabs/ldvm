@@ -8,9 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/ldclabs/ldvm/util/httpcli"
 )
+
+// This is a simple implementation of JSON-RPC 2.0.
+// https://www.jsonrpc.org/specification
 
 type Request struct {
 	Version string          `json:"jsonrpc"`
@@ -18,8 +19,6 @@ type Request struct {
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
 }
-
-func (req *Request) Grow(n int) {}
 
 func (req *Request) ReadFrom(r io.Reader) (int64, error) {
 	jd := json.NewDecoder(r)
@@ -86,20 +85,12 @@ func (req *Request) Error(err error) *Response {
 	case *Error:
 		rpcErr = v
 
-	case *httpcli.Error:
-		rpcErr = &Error{
-			Code:    CodeServerError - v.Code,
-			Message: v.Message,
-			Data: map[string]interface{}{
-				"body":   v.Body,
-				"header": v.Header,
-			},
-		}
-
 	default:
-		rpcErr = &Error{
-			Code:    CodeServerError,
-			Message: err.Error(),
+		if !errors.As(err, &rpcErr) {
+			rpcErr = &Error{
+				Code:    CodeServerError,
+				Message: err.Error(),
+			}
 		}
 	}
 

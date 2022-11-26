@@ -219,8 +219,8 @@ func TestTxBorrow(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      borrower,
-		To:        &lender,
-		Token:     &ids.NativeToken,
+		To:        lender.Ptr(),
+		Token:     ids.NativeToken.Ptr(),
 		Data:      input.Bytes(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))

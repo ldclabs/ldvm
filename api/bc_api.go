@@ -11,6 +11,7 @@ import (
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/ld/service"
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
+	"github.com/ldclabs/ldvm/util/value"
 )
 
 type API struct {
@@ -22,10 +23,13 @@ func NewAPI(bc chain.BlockChain, name string) *API {
 	return &API{bc, name}
 }
 
-func (api *API) OnError(ctx context.Context, err *cborrpc.Error) {}
-
 // ServeRPC is the main entrypoint for the LDVM.
 func (api *API) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
+	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
+		log.Set("rpcId", value.String(req.ID))
+		log.Set("rpcMethod", value.String(req.Method))
+	})
+
 	switch req.Method {
 	case "chainID":
 		chainID := api.bc.Context().ChainConfig().ChainID

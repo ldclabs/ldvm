@@ -31,12 +31,14 @@ var (
 
 type Config struct {
 	Logger      logging.Config `json:"logger"`
+	RPCAddr     string         `json:"rpcAddr"`
 	PdsEndpoint string         `json:"pdsEndpoint"` // persistent data source endpoint
 }
 
 func New(data []byte) (*Config, error) {
 	cfg := &Config{
 		Logger:      DefaultLoggingConfig,
+		RPCAddr:     ":2357",
 		PdsEndpoint: "h2c://localhost:2357/pds",
 	}
 

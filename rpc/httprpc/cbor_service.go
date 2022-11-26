@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/klauspost/compress/gzhttp"
 	"github.com/klauspost/compress/gzip"
@@ -17,7 +18,9 @@ import (
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/compress"
 	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/httpcli"
+	"github.com/ldclabs/ldvm/util/value"
 )
 
 const (
@@ -25,29 +28,54 @@ const (
 )
 
 type CBORService struct {
-	h    cborrpc.Handler
-	name string
+	h              cborrpc.Handler
+	name           string
+	loggingHeaders []string
 }
 
 type CBORServiceOptions struct {
-	ServiceName string
+	ServiceName    string
+	LoggingHeaders []string
 }
 
 var DefaultCBORServiceOptions = CBORServiceOptions{
-	ServiceName: "ldc:cborrpc",
+	ServiceName:    "ldc:cborrpc",
+	LoggingHeaders: []string{"user-agent", "x-request-id"},
 }
 
 func NewCBORService(h cborrpc.Handler, opts *CBORServiceOptions) *CBORService {
 	if opts == nil {
 		opts = &DefaultCBORServiceOptions
 	}
-	return &CBORService{h: h, name: opts.ServiceName}
+	return &CBORService{h: h, name: opts.ServiceName, loggingHeaders: opts.LoggingHeaders}
 }
 
 func (s *CBORService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	xid := r.Header.Get("x-request-id")
 	req := &cborrpc.Request{ID: xid}
+
+	if log := value.CtxValue[value.Log](ctx); log.Valid() {
+		start := time.Now()
+		log.Set("start", value.Time(start))
+		defer func() {
+			log.Set("elapsed", value.Int64(int64(time.Since(start)/time.Millisecond)))
+		}()
+
+		log.Set("proto", value.String(r.Proto))
+		log.Set("method", value.String(r.Method))
+		log.Set("requestUri", value.String(r.RequestURI))
+		log.Set("remoteAddr", value.String(r.RemoteAddr))
+		log.Set("requestBytes", value.Int64(r.ContentLength))
+
+		if len(s.loggingHeaders) > 0 {
+			for _, h := range s.loggingHeaders {
+				if v := r.Header.Get(h); v != "" {
+					log.Set(h, value.String(v))
+				}
+			}
+		}
+	}
 
 	if r.Method != "POST" {
 		s.writeCBOR(ctx, w, http.StatusMethodNotAllowed, req.Error(&cborrpc.Error{
@@ -104,22 +132,24 @@ func (s *CBORService) writeCBOR(
 		w.Header().Set("x-request-id", res.ID)
 	}
 
+	exception := res.Error
+	if exception == nil {
+		exception = &erring.Error{}
+	}
+
 	data, err := encoding.MarshalCBOR(res)
-	if err != nil {
+	if exception.CatchIf(err) {
 		code = 500
 		res = &cborrpc.Response{
 			ID:    res.ID,
 			Error: &cborrpc.Error{Code: cborrpc.CodeServerError - code, Message: err.Error()},
 		}
-		data, err = encoding.MarshalCBOR(res)
-	}
-
-	if err != nil {
-		res.Error.Message = fmt.Sprintf("impossible error, %v", err)
-	}
-
-	if res.Error != nil {
-		s.h.OnError(ctx, res.Error)
+		data, err = encoding.MarshalCBOR(exception)
+		if exception.CatchIf(err) {
+			data, _ = encoding.MarshalCBOR(erring.RespondError{
+				Err: fmt.Sprintf("impossible error: %q", err.Error()),
+			})
+		}
 	}
 
 	var ww io.Writer = w
@@ -144,5 +174,19 @@ func (s *CBORService) writeCBOR(
 	}
 
 	w.WriteHeader(code)
-	ww.Write(data)
+	_, err = ww.Write(data)
+	exception.CatchIf(err)
+
+	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
+		log.Set("status", value.Int(code))
+		log.Set("responseBytes", value.Int(len(data)))
+
+		if res.Error != nil {
+			log.Set("responseError", value.String(res.Error.Error()))
+		}
+
+		if exception.HasErrs() {
+			log.Set("error", value.String(exception.Error()))
+		}
+	})
 }

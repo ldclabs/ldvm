@@ -80,7 +80,7 @@ func TestTxPunish(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      from.ID(),
-		Token:     &ids.NativeToken,
+		Token:     ids.NativeToken.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -142,7 +142,7 @@ func TestTxPunish(t *testing.T) {
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
-	input = ld.TxUpdater{ID: &ids.EmptyDataID}
+	input = ld.TxUpdater{ID: ids.EmptyDataID.Ptr()}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypePunish,

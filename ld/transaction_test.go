@@ -27,7 +27,7 @@ func TestTxData(t *testing.T) {
 	tx = &TxData{Type: TypeTransfer, ChainID: 1000}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid ChainID")
 
-	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Token: &ids.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Token: ids.TokenSymbol{'a', 'b', 'c'}.Ptr()}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid token symbol")
 
 	tx = &TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(-1)}
@@ -74,7 +74,7 @@ func TestTransaction(t *testing.T) {
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: 1000}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid ChainID")
 
-	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Token: &ids.TokenSymbol{'a', 'b', 'c'}}}
+	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Token: ids.TokenSymbol{'a', 'b', 'c'}.Ptr()}}
 	assert.ErrorContains(tx.SyntacticVerify(), "invalid token symbol")
 
 	tx = &Transaction{Tx: TxData{Type: TypeTransfer, ChainID: gChainID, Amount: big.NewInt(-1)}}

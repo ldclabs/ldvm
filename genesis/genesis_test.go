@@ -60,61 +60,57 @@ func TestGenesis(t *testing.T) {
 	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig: EOF")
 
 	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":     0,
-		"minGasPrice":     10000,
-		"maxGasPrice":     100000,
-		"maxTxGas":        42000000,
-		"maxBlockTxsSize": 4200000,
-		"gasRebateRate":   1000,
-		"minTokenPledge":  1000000,
-		"minStakePledge":  1000000,
+		"sh":  0,
+		"min": 10000,
+		"max": 100000,
+		"mtg": 42000000,
+		"grr": 1000,
+		"mtp": 1000000,
+		"msp": 1000000,
 	}))
 	assert.ErrorContains(err, "invalid minTokenPledge")
 
 	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":            1000,
-		"minGasPrice":            10000,
-		"maxGasPrice":            100000,
-		"maxTxGas":               42000000,
-		"maxBlockTxsSize":        4200000,
-		"gasRebateRate":          1000,
-		"minTokenPledge":         10000000000000,
-		"minStakePledge":         1000000000000,
-		"nonTransferableBalance": 1000000000,
+		"sh":  1000,
+		"min": 10000,
+		"max": 100000,
+		"mtg": 42000000,
+		"grr": 1000,
+		"mtp": 10000000000000,
+		"msp": 1000000000000,
+		"ntb": 1000000000,
 	}))
 	assert.ErrorContains(err, "nil builders")
 
 	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":            1000,
-		"minGasPrice":            10000,
-		"maxGasPrice":            100000,
-		"maxTxGas":               42000000,
-		"maxBlockTxsSize":        4200000,
-		"gasRebateRate":          1000,
-		"minTokenPledge":         10000000000000,
-		"minStakePledge":         1000000000000,
-		"nonTransferableBalance": 1000000000,
-		"builders":               ids.IDList[ids.StakeSymbol]{},
+		"sh":  1000,
+		"min": 10000,
+		"max": 100000,
+		"mtg": 42000000,
+		"grr": 1000,
+		"mtp": 10000000000000,
+		"msp": 1000000000000,
+		"ntb": 1000000000,
+		"bs":  ids.IDList[ids.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 
 	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
-		"startHeight":            100,
-		"minGasPrice":            10000,
-		"maxGasPrice":            100000,
-		"maxTxGas":               42000000,
-		"maxBlockTxsSize":        4200000,
-		"gasRebateRate":          1000,
-		"minTokenPledge":         10000000000000,
-		"minStakePledge":         1000000000000,
-		"nonTransferableBalance": 1000000000,
-		"builders":               ids.IDList[ids.StakeSymbol]{},
+		"sh":  100,
+		"min": 10000,
+		"max": 100000,
+		"mtg": 42000000,
+		"grr": 1000,
+		"mtp": 10000000000000,
+		"msp": 1000000000000,
+		"ntb": 1000000000,
+		"bs":  ids.IDList[ids.StakeSymbol]{},
 	}))
 	require.NoError(t, err)
 
 	txs, err := gs.ToTxs()
 	require.NoError(t, err)
-	assert.Equal("ktMplll6Im13sEJfeL2KkJGj1cBS_UAtILcTkzEX1vP7tOPR", gs.Chain.FeeConfigID.String())
+	assert.Equal("NjPrZ2HQrGzFRBb6GOaKz3QCE6TQq0BiupDA5Y809W29P0mX", gs.Chain.FeeConfigID.String())
 	assert.Equal("b8onI5zOwqPZO9jxMBBgZWnnCUzd-187", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 

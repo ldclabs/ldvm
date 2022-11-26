@@ -31,30 +31,30 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{1, 2, 3},
+		DataID:     ids.DataID{1, 2, 3}.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `nil model id at 0`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		ModelID:    &ids.ModelID{1, 2, 3},
+		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `no data id at 0, model id be nil`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.EmptyDataID,
-		ModelID:    &ids.EmptyModelID,
+		DataID:     ids.EmptyDataID.Ptr(),
+		ModelID:    ids.EmptyModelID.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `invalid data id at 0`)
 
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{1, 2, 3},
-		ModelID:    &ids.EmptyModelID,
+		DataID:     ids.DataID{1, 2, 3}.Ptr(),
+		ModelID:    ids.EmptyModelID.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `invalid model id at 0`)
 
@@ -67,8 +67,8 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{1, 2, 3},
-		ModelID:    &ids.ModelID{1, 2, 3},
+		DataID:     ids.DataID{1, 2, 3}.Ptr(),
+		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
 	assert.NoError(es.SyntacticVerify())
 
@@ -84,13 +84,13 @@ func TestExtensions(t *testing.T) {
 	es = Extensions{{
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{1, 2, 3},
-		ModelID:    &ids.ModelID{1, 2, 3},
+		DataID:     ids.DataID{1, 2, 3}.Ptr(),
+		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}, {
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{4, 5, 6},
-		ModelID:    &ids.ModelID{1, 2, 3},
+		DataID:     ids.DataID{4, 5, 6}.Ptr(),
+		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `"Test" exists in extensions at 1`)
 
@@ -100,8 +100,8 @@ func TestExtensions(t *testing.T) {
 	}, {
 		Title:      "Test",
 		Properties: map[string]interface{}{},
-		DataID:     &ids.DataID{4, 5, 6},
-		ModelID:    &ids.ModelID{1, 2, 3},
+		DataID:     ids.DataID{4, 5, 6}.Ptr(),
+		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
 	assert.NoError(es.SyntacticVerify())
 }

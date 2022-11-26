@@ -63,7 +63,7 @@ func TestTxTest(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      sender,
-		Token:     &ids.NativeToken,
+		Token:     ids.NativeToken.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())

@@ -49,8 +49,8 @@ func TestProfile(t *testing.T) {
 		Name:    "LDC",
 		Follows: ids.IDList[ids.DataID]{},
 		Extensions: Extensions{{
-			DataID:  &ids.DataID{1, 2, 3},
-			ModelID: &ld.JSONModelID,
+			DataID:  ids.DataID{1, 2, 3}.Ptr(),
+			ModelID: ld.JSONModelID.Ptr(),
 			Title:   "test",
 			Properties: map[string]interface{}{
 				"age": 23,

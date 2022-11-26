@@ -61,7 +61,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 		GasTip:    100,
 		GasFeeCap: ctx.Price,
 		From:      owner,
-		Token:     &ids.NativeToken,
+		Token:     ids.NativeToken.Ptr(),
 	}}
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
@@ -110,7 +110,7 @@ func TestTxUpdateDataInfo(t *testing.T) {
 	_, err = NewTx(ltx)
 	assert.ErrorContains(err, "invalid data id")
 
-	input = &ld.TxUpdater{ID: &ids.EmptyDataID}
+	input = &ld.TxUpdater{ID: ids.EmptyDataID.Ptr()}
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeUpdateDataInfo,
 		ChainID:   ctx.ChainConfig().ChainID,

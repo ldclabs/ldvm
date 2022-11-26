@@ -20,7 +20,7 @@ func TestTxUpdater(t *testing.T) {
 	var tx *TxUpdater
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxUpdater{Token: &ids.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxUpdater{Token: ids.TokenSymbol{'a', 'b', 'c'}.Ptr()}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		`invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
@@ -75,16 +75,16 @@ func TestTxUpdater(t *testing.T) {
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid issued time")
 
-	tx = &TxUpdater{Token: &ids.NativeToken}
+	tx = &TxUpdater{Token: ids.NativeToken.Ptr()}
 	assert.NoError(tx.SyntacticVerify())
 
 	tx = &TxUpdater{
-		ID:        &ids.DataID{1, 2, 3},
+		ID:        ids.DataID{1, 2, 3}.Ptr(),
 		Version:   1,
 		Threshold: Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer1.Key()},
-		Approver:  &signer.Key{},
-		Token:     &ids.NativeToken,
+		Approver:  signer.Key{}.Ptr(),
+		Token:     ids.NativeToken.Ptr(),
 		To:        ids.GenesisAccount.Ptr(),
 		Amount:    big.NewInt(1000),
 		Expire:    uint64(1000),
@@ -94,12 +94,12 @@ func TestTxUpdater(t *testing.T) {
 		"duplicate key jbl8fOziScK5i9wCJsxMKle_UvwKxwPH")
 
 	tx = &TxUpdater{
-		ID:        &ids.DataID{1, 2, 3},
+		ID:        ids.DataID{1, 2, 3}.Ptr(),
 		Version:   1,
 		Threshold: Uint16Ptr(1),
 		Keepers:   &signer.Keys{signer.Signer1.Key(), signer.Signer2.Key()},
-		Approver:  &signer.Key{},
-		Token:     &ids.NativeToken,
+		Approver:  signer.Key{}.Ptr(),
+		Token:     ids.NativeToken.Ptr(),
 		To:        ids.GenesisAccount.Ptr(),
 		Amount:    big.NewInt(1000),
 		Expire:    uint64(1000),

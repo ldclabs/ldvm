@@ -11,7 +11,21 @@ import (
 	"github.com/fxamacker/cbor/v2"
 
 	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 )
+
+// refer to JSON-RPC 2.0. https://www.jsonrpc.org/specification
+const (
+	CodeParseError     = -32700
+	CodeInvalidRequest = -32600
+	CodeMethodNotFound = -32601
+	CodeInvalidParams  = -32602
+	CodeInternalError  = -32603
+	// -32000 to -32599	Server error, Reserved for implementation-defined server-errors.
+	CodeServerError = -32000
+)
+
+type Error = erring.Error
 
 // This is a simple implementation of CBOR-RPC.
 // Full reference to https://www.jsonrpc.org/specification

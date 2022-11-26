@@ -19,7 +19,7 @@ func TestTxTransfer(t *testing.T) {
 	var tx *TxTransfer
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxTransfer{Token: &ids.TokenSymbol{'a', 'b', 'c'}}
+	tx = &TxTransfer{Token: ids.TokenSymbol{'a', 'b', 'c'}.Ptr()}
 	assert.ErrorContains(tx.SyntacticVerify(), `invalid token symbol "0x6162630000000000000000000000000000000000"`)
 
 	tx = &TxTransfer{Amount: big.NewInt(-1)}
@@ -28,12 +28,12 @@ func TestTxTransfer(t *testing.T) {
 	tx = &TxTransfer{Amount: big.NewInt(0)}
 	assert.NoError(tx.SyntacticVerify())
 
-	tx = &TxTransfer{Token: &ids.NativeToken}
+	tx = &TxTransfer{Token: ids.NativeToken.Ptr()}
 	assert.NoError(tx.SyntacticVerify())
 
 	tx = &TxTransfer{
 		Nonce:  1,
-		Token:  &ids.NativeToken,
+		Token:  ids.NativeToken.Ptr(),
 		To:     ids.GenesisAccount.Ptr(),
 		Amount: big.NewInt(1000),
 		Expire: uint64(1000),

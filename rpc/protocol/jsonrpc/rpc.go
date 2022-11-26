@@ -12,5 +12,4 @@ const (
 
 type Handler interface {
 	ServeRPC(context.Context, *Request) *Response
-	OnError(context.Context, *Error)
 }

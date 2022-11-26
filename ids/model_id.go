@@ -28,10 +28,9 @@ func ModelIDFromStr(str string) (ModelID, error) {
 	return id, nil
 }
 
-func ModelIDFromHash(id ID32) ModelID {
-	var modelID ModelID
-	copy(modelID[:], id[:])
-	return modelID
+func ModelIDFromHash(id ID32) (mid ModelID) {
+	copy(mid[:], id[:])
+	return
 }
 
 func (id ModelID) Bytes() []byte {
