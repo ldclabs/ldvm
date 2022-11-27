@@ -132,9 +132,9 @@ func (s *CBORService) writeCBOR(
 		w.Header().Set("x-request-id", res.ID)
 	}
 
-	exception := res.Error
-	if exception == nil {
-		exception = &erring.Error{}
+	exception := &erring.Error{}
+	if res.Error != nil && res.Error.HasErrs() {
+		exception = res.Error
 	}
 
 	data, err := encoding.MarshalCBOR(res)
@@ -186,7 +186,7 @@ func (s *CBORService) writeCBOR(
 		}
 
 		if exception.HasErrs() {
-			log.Set("error", value.String(exception.Error()))
+			log.Err = exception
 		}
 	})
 }

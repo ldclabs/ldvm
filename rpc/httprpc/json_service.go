@@ -120,9 +120,9 @@ func (s *JSONService) writeJSON(
 		w.Header().Set("x-request-id", res.ID)
 	}
 
-	exception := res.Error
-	if exception == nil {
-		exception = &erring.Error{}
+	exception := &erring.Error{}
+	if res.Error != nil && res.Error.HasErrs() {
+		exception = res.Error
 	}
 
 	data, err := json.Marshal(res)
@@ -175,7 +175,7 @@ func (s *JSONService) writeJSON(
 		}
 
 		if exception.HasErrs() {
-			log.Set("error", value.String(exception.Error()))
+			log.Err = exception
 		}
 	})
 }

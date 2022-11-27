@@ -130,9 +130,9 @@ func (v *Value) Is(k Kind) bool {
 	return v.kind == k
 }
 
-// List returns the List value.
+// ToList returns the List value.
 // If Kind is not List, it returns nil.
-func (v *Value) List() List {
+func (v *Value) ToList() List {
 	if v == nil {
 		return nil
 	}
@@ -143,9 +143,9 @@ func (v *Value) List() List {
 	return *x
 }
 
-// Map returns the Map value.
+// ToMap returns the Map value.
 // If Kind is not Map, it returns nil.
-func (v *Value) Map() Map {
+func (v *Value) ToMap() Map {
 	if v == nil {
 		return nil
 	}
@@ -153,46 +153,46 @@ func (v *Value) Map() Map {
 	return x
 }
 
-// Bool returns the bool value.
+// ToBool returns the bool value.
 // If Kind is not Bool, it returns false.
-func (v Value) Bool() bool {
+func (v Value) ToBool() bool {
 	x, _ := v.v.(bool)
 	return x
 }
 
-// Int64 returns the int64 value.
+// ToInt64 returns the int64 value.
 // If Kind is not Int64, it returns 0.
-func (v Value) Int64() int64 {
+func (v Value) ToInt64() int64 {
 	x, _ := v.v.(int64)
 	return x
 }
 
-// Float64 returns the float64 value.
+// ToFloat64 returns the float64 value.
 // If Kind is not Float64, it returns 0.
-func (v Value) Float64() float64 {
+func (v Value) ToFloat64() float64 {
 	x, _ := v.v.(float64)
 	return x
 }
 
-// String returns the string value.
+// ToString returns the string value.
 // If Kind is not String, it returns "".
-func (v Value) String() string {
+func (v Value) ToString() string {
 	x, _ := v.v.(string)
 	return x
 }
 
-// BigInt returns the *big.Int value.
+// ToBigInt returns the *big.Int value.
 // If Kind is not BigInt, it returns &big.Int{}.
-func (v Value) BigInt() *big.Int {
+func (v Value) ToBigInt() *big.Int {
 	if x, ok := v.v.(*big.Int); ok {
 		return x
 	}
 	return &big.Int{}
 }
 
-// Array returns the Array value.
+// ToArray returns the Array value.
 // If Kind is not Array, it returns time.Time{}.
-func (v Value) Time() time.Time {
+func (v Value) ToTime() time.Time {
 	x, _ := v.v.(time.Time)
 	return x
 }
@@ -230,39 +230,39 @@ func (v *Value) Merge(m Map) {
 	}
 }
 
-// Interface returns the Value as interface{}.
-func (v Value) Interface() interface{} {
+// ToAny returns the Value as any.
+func (v Value) ToAny() any {
 	if v.kind == Vlist {
-		return v.List()
+		return v.ToList()
 	}
 	return v.v
 }
 
 // GoString returns a string representation of Value's data.
 func (v Value) GoString() string {
-	return fmt.Sprintf("%#v", v.Interface())
+	return fmt.Sprintf("%#v", v.ToAny())
 }
 
 // MarshalJSON returns the JSON encoding of the Value.
 func (v Value) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.Interface())
+	return json.Marshal(v.ToAny())
 }
 
 // MarshalCBOR returns the CBOR encoding of the Value.
 func (v Value) MarshalCBOR() ([]byte, error) {
-	return encoding.MarshalCBOR(v.Interface())
+	return encoding.MarshalCBOR(v.ToAny())
 }
 
-// Value returns then List as a Value.
-func (v *List) Value() Value {
+// ToValue returns then List as a Value.
+func (v *List) ToValue() Value {
 	if *v == nil {
 		*v = make(List, 0)
 	}
 	return Value{kind: Vlist, v: v}
 }
 
-// Value returns the Map as a Value.
-func (v *Map) Value() Value {
+// ToValue returns the Map as a Value.
+func (v *Map) ToValue() Value {
 	if *v == nil {
 		*v = make(Map)
 	}
@@ -285,8 +285,8 @@ func (v Map) Keys() []string {
 	return keys
 }
 
-// Values returns a list of Values in the Set, which are sorted by keys.
-func (v Map) Values() List {
+// ToValues returns a list of Values in the Set, which are sorted by keys.
+func (v Map) ToValues() List {
 	values := make(List, len(v))
 	for i, k := range v.Keys() {
 		values[i] = v[k]

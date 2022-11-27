@@ -15,36 +15,49 @@ import (
 
 	"github.com/ldclabs/ldvm/rpc/protocol/jsonrpc"
 	"github.com/ldclabs/ldvm/util/compress"
+	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/value"
 )
 
 type JSONService struct {
-	ctx     context.Context
-	host    host.Host
-	h       jsonrpc.Handler
-	name    string
-	timeout time.Duration
+	ctx       context.Context
+	host      host.Host
+	h         jsonrpc.Handler
+	name      string
+	timeout   time.Duration
+	handleLog func(log *value.Log)
 }
 
 type JSONServiceOptions struct {
 	ServiceName string
 	Timeout     time.Duration
+	HandleLog   func(log *value.Log)
 }
 
 var DefaultJSONServiceOptions = JSONServiceOptions{
 	ServiceName: "ldc:jsonrpc",
 	Timeout:     5 * time.Second,
+	HandleLog:   value.DefaultLogHandler,
 }
 
-func NewJSONService(ctx context.Context, host host.Host, h jsonrpc.Handler, opts *JSONServiceOptions) *JSONService {
+func NewJSONService(
+	ctx context.Context, host host.Host, h jsonrpc.Handler, opts *JSONServiceOptions) *JSONService {
 	if opts == nil {
 		opts = &DefaultJSONServiceOptions
 	}
 	if opts.Timeout <= 0 {
 		opts.Timeout = DefaultCBORServiceOptions.Timeout
 	}
+	if opts.HandleLog == nil {
+		opts.HandleLog = DefaultCBORServiceOptions.HandleLog
+	}
 
-	srv := &JSONService{ctx: ctx, host: host, h: h, name: opts.ServiceName, timeout: opts.Timeout}
+	srv := &JSONService{
+		ctx: ctx, host: host, h: h,
+		name:      opts.ServiceName,
+		timeout:   opts.Timeout,
+		handleLog: opts.HandleLog,
+	}
 	host.SetStreamHandler(JSONRPCProtocol, srv.handler)
 	host.SetStreamHandler(JSONRPCZstdProtocol, srv.handler)
 	return srv
@@ -101,36 +114,43 @@ func (srv *JSONService) handler(s network.Stream) {
 
 	res := srv.h.ServeRPC(ctx, req)
 	srv.writeJSON(ctx, s, res, cp)
+	go srv.handleLog(&log)
 }
 
 func (srv *JSONService) writeJSON(
 	ctx context.Context, w network.MuxedStream, res *jsonrpc.Response, cp bool) {
-
-	data, err := json.Marshal(res)
-	var exception *jsonrpc.Response
-	if err != nil {
-		exception = &jsonrpc.Response{
-			Version: "2.0",
-			ID:      res.ID,
-			Error:   &jsonrpc.Error{Code: jsonrpc.CodeServerError, Message: err.Error()}}
-		data, err = json.Marshal(res)
+	exception := &erring.Error{}
+	if res.Error != nil && res.Error.HasErrs() {
+		exception = res.Error
 	}
 
-	if err != nil {
-		exception.Error.Message = fmt.Sprintf("impossible error, %v", err)
+	data, err := json.Marshal(res)
+	if exception.CatchIf(err) {
+		res = &jsonrpc.Response{
+			Version: "2.0",
+			ID:      res.ID,
+			Error:   &jsonrpc.Error{Code: jsonrpc.CodeServerError, Message: err.Error()},
+		}
+		data, err = json.Marshal(res)
+		if exception.CatchIf(err) {
+			data, _ = json.Marshal(erring.RespondError{
+				Err: fmt.Sprintf("impossible error: %q", err.Error()),
+			})
+		}
 	}
 
 	switch {
 	case cp:
 		zw := compress.NewZstdWriter(w)
-		zw.Write(data)
+		_, err = zw.Write(data)
 		zw.Reset()
 
 	default:
-		w.Write(data)
+		_, err = w.Write(data)
 	}
 
-	w.CloseWrite()
+	exception.CatchIf(err)
+	exception.CatchIf(w.CloseWrite())
 
 	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
 		log.Set("responseBytes", value.Int(len(data)))
@@ -139,8 +159,8 @@ func (srv *JSONService) writeJSON(
 			log.Set("responseError", value.String(res.Error.Error()))
 		}
 
-		if exception != nil {
-			log.Set("error", value.String(exception.Error.Error()))
+		if exception.HasErrs() {
+			log.Err = exception
 		}
 	})
 }
