@@ -66,7 +66,9 @@ func TestJSONRPC(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewJSONService(context.Background(), ha1, ch, nil)
+			opts := DefaultJSONServiceOptions
+			opts.HandleLog = func(*value.Log) {}
+			_ = NewJSONService(context.Background(), ha1, ch, &opts)
 			cli := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: false})
 			cli2 := NewJSONClient(ha2, ha1.ID(), &JSONClientOptions{Compress: true})
 
@@ -190,7 +192,9 @@ func TestJSONRPCChaos(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewJSONService(context.Background(), ha1, ch, nil)
+			opts := DefaultJSONServiceOptions
+			opts.HandleLog = func(*value.Log) {}
+			_ = NewJSONService(context.Background(), ha1, ch, &opts)
 			cli := NewJSONClient(ha2, ha1.ID(), nil)
 
 			defer ha1.Close()

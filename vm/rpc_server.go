@@ -44,7 +44,7 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			r.Method+" "+r.URL.Path)))
 	}
 
-	m.log.Info("ServeHTTP", mapToFields(log.Map())...)
+	m.log.Info("ServeHTTP", mapToFields(log.ToMap())...)
 }
 
 func (v *VM) WithRPCServer(s RPCServer) {
@@ -68,7 +68,7 @@ func (v *VM) startRPCServer(addr string) error {
 func mapToFields(m value.Map) []zapcore.Field {
 	res := make([]zapcore.Field, 0, len(m))
 	for _, k := range m.Keys() {
-		res = append(res, zap.Any(k, m[k].Interface()))
+		res = append(res, zap.Any(k, m[k].ToAny()))
 	}
 	return res
 }

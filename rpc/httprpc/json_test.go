@@ -114,7 +114,7 @@ func TestJSONRPC(t *testing.T) {
 		assert.Equal("4186", hh.wh.MustLoad().Get("X-Content-Length"))
 		assert.Equal(res.ID, hh.wh.MustLoad().Get("X-Request-ID"))
 
-		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
+		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).ToMap()
 		assert.Equal([]string{"elapsed", "method", "proto", "remoteAddr", "requestBytes", "requestUri", "responseBytes", "rpcId", "rpcMethod", "start", "status", "user-agent", "x-request-id"}, log.Keys())
 
 		cases := []interface{}{
@@ -170,8 +170,8 @@ func TestJSONRPC(t *testing.T) {
 		assert.Equal(
 			`{"code":-32601,"message":"method \"ErrorMethod\" not found","errors":[],"data":null}`,
 			res.Error.Error())
-		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
-		assert.Equal(res.Error.Error(), log["responseError"].String())
+		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).ToMap()
+		assert.Equal(res.Error.Error(), log["responseError"].ToString())
 
 		req = &jsonrpc.Request{ID: "abcd", Method: "Get"}
 		res = cli.Do(context.Background(), req)
@@ -181,8 +181,8 @@ func TestJSONRPC(t *testing.T) {
 		assert.Equal(
 			`{"code":-32602,"message":"invalid parameter(s), no params","errors":[],"data":null}`,
 			res.Error.Error())
-		log = value.CtxValue[value.Log](hh.ctx.MustLoad()).Map()
-		assert.Equal(res.Error.Error(), log["responseError"].String())
+		log = value.CtxValue[value.Log](hh.ctx.MustLoad()).ToMap()
+		assert.Equal(res.Error.Error(), log["responseError"].ToString())
 	})
 }
 

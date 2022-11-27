@@ -24,7 +24,7 @@ func TestLog(t *testing.T) {
 	t.Run("String", func(t *testing.T) {
 		assert := assert.New(t)
 
-		v0 := Log{String("hello")}
+		v0 := Log{Value: String("hello")}
 		ctx := CtxWith(context.Background(), &v0)
 
 		v1 := CtxValue[Log](context.Background())
@@ -35,7 +35,7 @@ func TestLog(t *testing.T) {
 		assert.True(v1.Is(Vstring))
 		assert.Equal(v0, *v1)
 
-		*v1 = Log{String("world")}
+		*v1 = Log{Value: String("world")}
 		assert.Equal(v0, *v1)
 
 		v2 := CtxValue[Log](ctx)
@@ -56,20 +56,20 @@ func TestLog(t *testing.T) {
 		assert := assert.New(t)
 
 		list := List{Bool(true), Int64(-1), String("hello")}
-		log := Log{list.Value()}
+		log := Log{Value: list.ToValue()}
 		ctx := CtxWith(context.Background(), &log)
 
 		v1 := CtxValue[Log](ctx)
-		assert.Equal(list, v1.List())
+		assert.Equal(list, v1.ToList())
 
-		l := append(v1.List(), String("world"))
+		l := append(v1.ToList(), String("world"))
 		assert.NotEqual(list, l)
 
-		v1.Value = l.Value()
+		v1.Value = l.ToValue()
 		v2 := CtxValue[Log](ctx)
-		assert.Equal(l, v2.List())
+		assert.Equal(l, v2.ToList())
 
-		data := encoding.MustMarshalJSON(v2.List())
+		data := encoding.MustMarshalJSON(v2.ToList())
 		assert.Equal(`[true,-1,"hello","world"]`, string(data))
 
 		called := false
@@ -84,23 +84,23 @@ func TestLog(t *testing.T) {
 		assert := assert.New(t)
 
 		m := Map{"a": Bool(true), "b": BigInt(big.NewInt(123)), "c": String("hello")}
-		log := Log{m.Value()}
+		log := Log{Value: m.ToValue()}
 		ctx := CtxWith(context.Background(), &log)
 
 		v1 := CtxValue[Log](ctx)
-		assert.Equal(m, v1.Map())
+		assert.Equal(m, v1.ToMap())
 
-		v1.Map()["d"] = String("world")
-		assert.Equal(m, v1.Map())
+		v1.ToMap()["d"] = String("world")
+		assert.Equal(m, v1.ToMap())
 
 		v2 := CtxValue[Log](ctx)
-		assert.Equal(m, v2.Map())
+		assert.Equal(m, v2.ToMap())
 
-		data := encoding.MustMarshalJSON(v2.Map())
+		data := encoding.MustMarshalJSON(v2.ToMap())
 		assert.Equal(`{"a":true,"b":123,"c":"hello","d":"world"}`, string(data))
 
 		list := List{Bool(true), Bool(false)}
-		v2.Set("list", list.Value())
+		v2.Set("list", list.ToValue())
 		data = encoding.MustMarshalJSON(m)
 		assert.Equal(`{"a":true,"b":123,"c":"hello","d":"world","list":[true,false]}`, string(data))
 
@@ -112,10 +112,14 @@ func TestLog(t *testing.T) {
 		assert.True(v3 == nil)
 
 		var mv Map
-		ctx = CtxWith(context.Background(), &Log{Value: mv.Value()})
+		log = Log{Value: mv.ToValue()}
+		ctx = CtxWith(context.Background(), &log)
 		called = false
 		DoIfCtxValueValid(ctx, func(v *Log) { v.Set("key", Bool(true)) })
 		assert.True(mv.Has("key"))
-		assert.True(mv["key"].Bool())
+		assert.True(mv["key"].ToBool())
+
+		assert.True(log.ToMap().Has("key"))
+		assert.True(log.ToMap()["key"].ToBool())
 	})
 }

@@ -15,36 +15,49 @@ import (
 	"github.com/ldclabs/ldvm/rpc/protocol/cborrpc"
 	"github.com/ldclabs/ldvm/util/compress"
 	"github.com/ldclabs/ldvm/util/encoding"
+	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/value"
 )
 
 type CBORService struct {
-	ctx     context.Context
-	host    host.Host
-	h       cborrpc.Handler
-	name    string
-	timeout time.Duration
+	ctx       context.Context
+	host      host.Host
+	h         cborrpc.Handler
+	name      string
+	timeout   time.Duration
+	handleLog func(log *value.Log)
 }
 
 type CBORServiceOptions struct {
 	ServiceName string
 	Timeout     time.Duration
+	HandleLog   func(log *value.Log)
 }
 
 var DefaultCBORServiceOptions = CBORServiceOptions{
 	ServiceName: "ldc:cborrpc",
 	Timeout:     5 * time.Second,
+	HandleLog:   value.DefaultLogHandler,
 }
 
-func NewCBORService(ctx context.Context, host host.Host, h cborrpc.Handler, opts *CBORServiceOptions) *CBORService {
+func NewCBORService(
+	ctx context.Context, host host.Host, h cborrpc.Handler, opts *CBORServiceOptions) *CBORService {
 	if opts == nil {
 		opts = &DefaultCBORServiceOptions
 	}
 	if opts.Timeout <= 0 {
 		opts.Timeout = DefaultCBORServiceOptions.Timeout
 	}
+	if opts.HandleLog == nil {
+		opts.HandleLog = DefaultCBORServiceOptions.HandleLog
+	}
 
-	srv := &CBORService{ctx: ctx, host: host, h: h, name: opts.ServiceName, timeout: opts.Timeout}
+	srv := &CBORService{
+		ctx: ctx, host: host, h: h,
+		name:      opts.ServiceName,
+		timeout:   opts.Timeout,
+		handleLog: opts.HandleLog,
+	}
 	host.SetStreamHandler(CBORRPCProtocol, srv.handler)
 	host.SetStreamHandler(CBORRPCZstdProtocol, srv.handler)
 	return srv
@@ -101,35 +114,43 @@ func (srv *CBORService) handler(s network.Stream) {
 
 	res := srv.h.ServeRPC(ctx, req)
 	srv.writeCBOR(ctx, s, res, cp)
+	go srv.handleLog(&log)
 }
 
 func (srv *CBORService) writeCBOR(
 	ctx context.Context, w network.MuxedStream, res *cborrpc.Response, cp bool) {
-
-	data, err := encoding.MarshalCBOR(res)
-	var exception *cborrpc.Response
-	if err != nil {
-		exception = &cborrpc.Response{
-			ID:    res.ID,
-			Error: &cborrpc.Error{Code: cborrpc.CodeServerError, Message: err.Error()}}
-		data, err = encoding.MarshalCBOR(res)
+	exception := &erring.Error{}
+	if res.Error != nil && res.Error.HasErrs() {
+		exception = res.Error
 	}
 
-	if err != nil {
-		exception.Error.Message = fmt.Sprintf("impossible error, %v", err)
+	data, err := encoding.MarshalCBOR(res)
+	if exception.CatchIf(err) {
+		res = &cborrpc.Response{
+			ID:    res.ID,
+			Error: &cborrpc.Error{Code: cborrpc.CodeServerError, Message: err.Error()},
+		}
+
+		data, err = encoding.MarshalCBOR(res)
+		if exception.CatchIf(err) {
+			data, _ = encoding.MarshalCBOR(erring.RespondError{
+				Err: fmt.Sprintf("impossible error: %q", err.Error()),
+			})
+		}
 	}
 
 	switch {
 	case cp:
 		zw := compress.NewZstdWriter(w)
-		zw.Write(data)
+		_, err = zw.Write(data)
 		zw.Reset()
 
 	default:
-		w.Write(data)
+		_, err = w.Write(data)
 	}
 
-	w.CloseWrite()
+	exception.CatchIf(err)
+	exception.CatchIf(w.CloseWrite())
 
 	value.DoIfCtxValueValid(ctx, func(log *value.Log) {
 		log.Set("responseBytes", value.Int(len(data)))
@@ -138,8 +159,8 @@ func (srv *CBORService) writeCBOR(
 			log.Set("responseError", value.String(res.Error.Error()))
 		}
 
-		if exception != nil {
-			log.Set("error", value.String(exception.Error.Error()))
+		if exception.HasErrs() {
+			log.Err = exception
 		}
 	})
 }

@@ -4,11 +4,9 @@
 package erring
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 )
 
 // RespondError represents a response with error that can be sent to the client.
@@ -26,31 +24,34 @@ type Error struct {
 	errs []error
 }
 
+// fullError is used to marshal the full error information for logging.
+type fullError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Errs    []string    `json:"errors"`
+	Data    interface{} `json:"data"`
+}
+
 // Error returns the full error information as a JSON string, used as error log.
 func (e *Error) Error() string {
-	errs := &bytes.Buffer{}
-	errs.WriteRune('[')
-	for i, err := range e.errs {
-		if i > 0 {
-			errs.WriteRune(',')
-		}
-		errs.WriteString(strconv.Quote(err.Error()))
+	fe := fullError{
+		Code:    e.Code,
+		Message: e.Message,
+		Errs:    make([]string, len(e.errs)),
+		Data:    e.Data,
+	}
+	for i, er := range e.errs {
+		fe.Errs[i] = er.Error()
 	}
 
-	data, err := json.Marshal(e.Data)
-	if err != nil {
-		if errs.Len() > 1 {
-			errs.WriteRune(',')
-		}
-		errs.WriteString(strconv.Quote(err.Error()))
-	}
-	errs.WriteRune(']')
-	if data == nil {
-		data = []byte("null")
+	data, err := json.Marshal(fe)
+	if err == nil {
+		return string(data)
 	}
 
-	return fmt.Sprintf(`{"code":%d,"message":%q,"errors":%s,"data":%s}`,
-		e.Code, e.Message, errs.String(), data)
+	fe.Errs = append(fe.Errs, err.Error())
+	return fmt.Sprintf(`{"code":%d,"message":%q,"errors":%q,"data":%q}`,
+		e.Code, e.Message, fmt.Sprintf("%#v", fe.Errs), fmt.Sprintf("%#v", fe.Data))
 }
 
 // HasErrs return true if the Error has underlying errors.
@@ -99,8 +100,8 @@ func (e *Error) As(target any) bool {
 		return false
 	}
 
-	if er, ok := target.(**Error); ok {
-		*er = e
+	if er, ok := target.(*Error); ok {
+		*er = *e
 		return true
 	}
 

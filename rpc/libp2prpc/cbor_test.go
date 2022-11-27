@@ -70,7 +70,9 @@ func TestCBORRPC(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewCBORService(context.Background(), ha1, ch, nil)
+			opts := DefaultCBORServiceOptions
+			opts.HandleLog = func(*value.Log) {}
+			_ = NewCBORService(context.Background(), ha1, ch, &opts)
 			cli := NewCBORClient(ha2, ha1.ID(), &CBORClientOptions{Compress: false})
 			cli2 := NewCBORClient(ha2, ha1.ID(), &CBORClientOptions{Compress: true})
 
@@ -193,7 +195,9 @@ func TestCBORRPCChaos(t *testing.T) {
 			require.NoError(t, err)
 			ha2.Peerstore().AddAddrs(ha1.ID(), ha1.Addrs(), peerstore.PermanentAddrTTL)
 
-			_ = NewCBORService(context.Background(), ha1, ch, nil)
+			opts := DefaultCBORServiceOptions
+			opts.HandleLog = func(*value.Log) {}
+			_ = NewCBORService(context.Background(), ha1, ch, &opts)
 			cli := NewCBORClient(ha2, ha1.ID(), nil)
 
 			defer ha1.Close()

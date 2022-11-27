@@ -20,16 +20,16 @@ func TestValue(t *testing.T) {
 	assert.Equal(Invalid, v.Kind())
 	assert.True(v.Is(Invalid))
 	assert.False(v.Is(Vmap))
-	assert.True(v.List() == nil)
-	assert.True(v.Map() == nil)
+	assert.True(v.ToList() == nil)
+	assert.True(v.ToMap() == nil)
 
 	var pv *Value
 	assert.True(pv == nil)
 	assert.Equal(Invalid, pv.Kind())
 	assert.False(pv.Is(Invalid))
 	assert.False(pv.Is(Vmap))
-	assert.Nil(pv.List())
-	assert.True(pv.Map() == nil)
+	assert.Nil(pv.ToList())
+	assert.True(pv.ToMap() == nil)
 
 	for _, tc := range []struct {
 		kind    Kind
@@ -116,7 +116,7 @@ func TestValue(t *testing.T) {
 		assert.True(tc.value.Is(tc.kind))
 		assert.Equal(tc.kind, tc.value.Kind())
 		assert.Equal(tc.value, *tc.value.Ptr())
-		assert.Equal(tc.i, tc.value.Interface())
+		assert.Equal(tc.i, tc.value.ToAny())
 		assert.Equal(tc.goStr, tc.value.GoString())
 
 		assert.Equal(tc.jsonStr, string(encoding.MustMarshalJSON(tc.value)))
@@ -124,94 +124,94 @@ func TestValue(t *testing.T) {
 
 		switch tc.kind {
 		case Invalid:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vbool:
-			assert.Equal(tc.i.(bool), tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(tc.i.(bool), tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vint64:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(tc.i.(int64), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(tc.i.(int64), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vfloat64:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(tc.i.(float64), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(tc.i.(float64), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vstring:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal(tc.i.(string), tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal(tc.i.(string), tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case VbigInt:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(tc.i.(*big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(tc.i.(*big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vtime:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(tc.i.(time.Time), tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(tc.i.(time.Time), tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vlist:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal(tc.i.(List), tc.value.List())
-			assert.Equal((Map)(nil), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal(tc.i.(List), tc.value.ToList())
+			assert.Equal((Map)(nil), tc.value.ToMap())
 
 		case Vmap:
-			assert.Equal(false, tc.value.Bool())
-			assert.Equal(int64(0), tc.value.Int64())
-			assert.Equal(float64(0), tc.value.Float64())
-			assert.Equal("", tc.value.String())
-			assert.Equal(new(big.Int), tc.value.BigInt())
-			assert.Equal(time.Time{}, tc.value.Time())
-			assert.Equal((List)(nil), tc.value.List())
-			assert.Equal(tc.i.(Map), tc.value.Map())
+			assert.Equal(false, tc.value.ToBool())
+			assert.Equal(int64(0), tc.value.ToInt64())
+			assert.Equal(float64(0), tc.value.ToFloat64())
+			assert.Equal("", tc.value.ToString())
+			assert.Equal(new(big.Int), tc.value.ToBigInt())
+			assert.Equal(time.Time{}, tc.value.ToTime())
+			assert.Equal((List)(nil), tc.value.ToList())
+			assert.Equal(tc.i.(Map), tc.value.ToMap())
 		}
 	}
 }
@@ -225,27 +225,27 @@ func TestList(t *testing.T) {
 
 	assert.Equal(`[true,-1,"hello"]`, jsonStr)
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(list)))
-	v := list.Value()
+	v := list.ToValue()
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v)))
 
 	v.Append(String("world"))
 	jsonStr = `[true,-1,"hello","world"]`
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v)))
-	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.List())))
+	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.ToList())))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(list)))
 
 	data := encoding.MustMarshalCBOR([]interface{}{
 		true, -1, "hello", "world",
 	})
 	assert.Equal(data, encoding.MustMarshalCBOR(v))
-	assert.Equal(data, encoding.MustMarshalCBOR(v.List()))
+	assert.Equal(data, encoding.MustMarshalCBOR(v.ToList()))
 	assert.Equal(data, encoding.MustMarshalCBOR(list))
 
 	var l List
 	assert.True(l == nil)
 	assert.Equal(`null`, string(encoding.MustMarshalJSON(l)))
-	v2 := l.Value()
-	v2.Append(v.List()...)
+	v2 := l.ToValue()
+	v2.Append(v.ToList()...)
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v2)))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(l)))
 
@@ -266,26 +266,26 @@ func TestMap(t *testing.T) {
 
 	assert.Equal(`{"a":true,"b":18446744073709551615000,"c":"hello"}`, jsonStr)
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(m)))
-	v := m.Value()
+	v := m.ToValue()
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v)))
 
 	v.Merge(Map{"d": String("world")})
 	jsonStr = `{"a":true,"b":18446744073709551615000,"c":"hello","d":"world"}`
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v)))
-	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.Map())))
+	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.ToMap())))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(m)))
 
 	data := encoding.MustMarshalCBOR(map[string]interface{}{
 		"a": true, "b": bigInt, "c": "hello", "d": "world",
 	})
 	assert.Equal(data, encoding.MustMarshalCBOR(v))
-	assert.Equal(data, encoding.MustMarshalCBOR(v.Map()))
+	assert.Equal(data, encoding.MustMarshalCBOR(v.ToMap()))
 	assert.Equal(data, encoding.MustMarshalCBOR(m))
 
 	var m2 Map
 	assert.True(m2 == nil)
-	v2 := m2.Value()
-	v2.Merge(v.Map())
+	v2 := m2.ToValue()
+	v2.Merge(v.ToMap())
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v)))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v2)))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(m2)))
@@ -297,7 +297,7 @@ func TestMap(t *testing.T) {
 
 	m["aa"] = Int64(2)
 	assert.Equal([]string{"a", "aa", "aaa", "b", "c", "d"}, m.Keys())
-	assert.Equal(List{Bool(true), Int64(2), Int64(1), BigInt(bigInt), String("hello"), String("world")}, m.Values())
+	assert.Equal(List{Bool(true), Int64(2), Int64(1), BigInt(bigInt), String("hello"), String("world")}, m.ToValues())
 
 	v = Value{}
 	assert.Panics(func() {
