@@ -6,6 +6,7 @@ package jsonrpc
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/ldclabs/ldvm/util/erring"
@@ -22,8 +23,10 @@ const (
 	CodeServerError = -32000
 )
 
+// Error is a JSON-RPC error.
 type Error = erring.Error
 
+// Response represents a JSON-RPC response.
 type Response struct {
 	Version string          `json:"jsonrpc"`
 	ID      string          `json:"id,omitempty"`
@@ -31,6 +34,8 @@ type Response struct {
 	Result  json.RawMessage `json:"result,omitempty"`
 }
 
+// ReadFrom decodes the JSON-RPC response from the given reader.
+// ReadFrom implements io.ReaderFrom interface.
 func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 	jd := json.NewDecoder(r)
 
@@ -43,18 +48,23 @@ func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 		return n, errors.New("json: unexpected following extraneous data")
 	}
 
+	if res.Version != "2.0" || res.ID == "" || (res.Error == nil && len(res.Result) == 0) {
+		return n, fmt.Errorf("invalid response, %q", res.String())
+	}
+
 	return n, nil
 }
 
 func (res *Response) String() string {
 	b, err := json.Marshal(res)
 	if err != nil {
-		return err.Error()
+		b, _ = json.Marshal(erring.RespondError{Err: err.Error()})
 	}
 
 	return string(b)
 }
 
+// DecodeResult decodes the result into the given value.
 func (res *Response) DecodeResult(result interface{}) error {
 	if res.Error != nil {
 		return res.Error
