@@ -5,13 +5,10 @@ package cborrpc
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 
 	"github.com/fxamacker/cbor/v2"
-	cborpatch "github.com/ldclabs/cbor-patch"
 
 	"github.com/ldclabs/ldvm/util/encoding"
 )
@@ -46,8 +43,8 @@ func (req *Request) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (req *Request) String() string {
-	return fmt.Sprintf(`{"id":%q,"method":%q,"params":"%x"}`,
-		req.ID, req.Method, encoding.EncodeToQuoteString(req.Params))
+	return fmt.Sprintf(`{"id":%q,"method":%q,"params":%s}`,
+		req.ID, req.Method, string(ToJSON(req.Params)))
 }
 
 func (req *Request) DecodeParams(params interface{}) error {
@@ -58,60 +55,4 @@ func (req *Request) DecodeParams(params interface{}) error {
 		}
 	}
 	return nil
-}
-
-func (req *Request) Result(result interface{}) *Response {
-	data, err := encoding.MarshalCBOR(result)
-	if err != nil {
-		return req.Error(&Error{
-			Code:    CodeInternalError,
-			Message: fmt.Sprintf("internal error, %v", err),
-		})
-	}
-
-	return &Response{ID: req.ID, Result: data}
-}
-
-func (req *Request) ResultRaw(result cbor.RawMessage) *Response {
-	return &Response{ID: req.ID, Result: result}
-}
-
-func (req *Request) Error(err error) *Response {
-	var rpcErr *Error
-
-	switch v := err.(type) {
-	case *Error:
-		rpcErr = v
-
-	default:
-		if !errors.As(err, &rpcErr) {
-			rpcErr = &Error{
-				Code:    CodeServerError,
-				Message: err.Error(),
-			}
-		}
-	}
-
-	return &Response{ID: req.ID, Error: rpcErr}
-}
-
-func (req *Request) InvalidParams(msg string) *Response {
-	return req.Error(&Error{
-		Code:    CodeInvalidParams,
-		Message: fmt.Sprintf("invalid parameter(s), %s", msg),
-	})
-}
-
-func (req *Request) InvalidMethod() *Response {
-	return req.Error(&Error{
-		Code:    CodeMethodNotFound,
-		Message: fmt.Sprintf("method %q not found", req.Method),
-	})
-}
-
-func ToJSON(data cborpatch.RawMessage) json.RawMessage {
-	if data, err := cborpatch.ToJSON(data, nil); err == nil {
-		return data
-	}
-	return []byte(encoding.EncodeToQuoteString(data))
 }

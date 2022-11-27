@@ -8,6 +8,8 @@ import (
 	"io"
 	"testing"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,6 +26,12 @@ func TestError(t *testing.T) {
 		assert.Equal(
 			`{"code":0,"message":"","errors":[],"data":null}`,
 			err.Error())
+		assert.Equal(
+			`{"code":0,"message":""}`,
+			string(encoding.MustMarshalJSON(err)))
+		assert.Equal(
+			cborpatch.MustFromJSON(string(encoding.MustMarshalJSON(err))),
+			encoding.MustMarshalCBOR(err))
 
 		var er error
 		assert.False((err.As(&er)))
@@ -45,6 +53,12 @@ func TestError(t *testing.T) {
 		assert.Equal(
 			`{"code":0,"message":"","errors":["EOF"],"data":null}`,
 			err.Error())
+		assert.Equal(
+			`{"code":0,"message":""}`,
+			string(encoding.MustMarshalJSON(err)))
+		assert.Equal(
+			cborpatch.MustFromJSON(string(encoding.MustMarshalJSON(err))),
+			encoding.MustMarshalCBOR(err))
 	})
 
 	t.Run("some Error", func(t *testing.T) {
@@ -64,6 +78,12 @@ func TestError(t *testing.T) {
 		assert.Equal(
 			`{"code":500,"message":"Internal server error","errors":[],"data":{"foo":"bar"}}`,
 			err.Error())
+		assert.Equal(
+			`{"code":500,"message":"Internal server error","data":{"foo":"bar"}}`,
+			string(encoding.MustMarshalJSON(err)))
+		assert.Equal(
+			cborpatch.MustFromJSON(string(encoding.MustMarshalJSON(err))),
+			encoding.MustMarshalCBOR(err))
 
 		assert.True(err.CatchIf(io.ErrUnexpectedEOF))
 		assert.True(err.HasErrs())
@@ -94,5 +114,11 @@ func TestError(t *testing.T) {
 		assert.Equal(
 			`{"code":0,"message":"","errors":["{\"code\":500,\"message\":\"Internal server error\",\"errors\":[\"unexpected EOF\"],\"data\":{\"foo\":\"bar\"}}"],"data":null}`,
 			err2.Error())
+		assert.Equal(
+			`{"code":0,"message":""}`,
+			string(encoding.MustMarshalJSON(err2)))
+		assert.Equal(
+			cborpatch.MustFromJSON(string(encoding.MustMarshalJSON(err))),
+			encoding.MustMarshalCBOR(err))
 	})
 }
