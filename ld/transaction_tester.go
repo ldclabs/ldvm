@@ -106,7 +106,7 @@ func MustNewStake(str string) ids.StakeSymbol {
 	return s
 }
 
-func MustMarshalJSON(v interface{}) []byte {
+func MustMarshalJSON(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
 		panic(err)

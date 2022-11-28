@@ -96,7 +96,7 @@ func TestJSONRPC(t *testing.T) {
 				assert.Equal("TestMethod", re.Method)
 				assert.Equal(mustMarshalJSON(params), []byte(re.Params))
 
-				cases := []interface{}{
+				cases := []any{
 					0,
 					123,
 					-123,
@@ -233,7 +233,7 @@ func TestJSONRPCChaos(t *testing.T) {
 	}
 }
 
-func mustMarshalJSON(v interface{}) []byte {
+func mustMarshalJSON(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
 		panic(err)

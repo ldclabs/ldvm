@@ -58,7 +58,7 @@ func (m *Map[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 // If f returns false, range stops the iteration.
 // More info sees https://pkg.go.dev/sync#Map.Range
 func (m *Map[K, V]) Range(f func(key K, value V) bool) {
-	m.m.Range(func(key, value interface{}) bool {
+	m.m.Range(func(key, value any) bool {
 		return f(key.(K), value.(V))
 	})
 }

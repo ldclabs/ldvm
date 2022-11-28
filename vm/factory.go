@@ -14,6 +14,6 @@ var _ vms.Factory = &Factory{}
 type Factory struct{}
 
 // New ...
-func (f *Factory) New(*snow.Context) (interface{}, error) {
+func (f *Factory) New(*snow.Context) (any, error) {
 	return &VM{}, nil
 }

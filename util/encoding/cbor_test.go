@@ -35,7 +35,7 @@ func TestCBOR(t *testing.T) {
 	_, err = UnmarshalCBORWithLen(data, 32)
 	assert.ErrorContains(err, "invalid bytes length, expected 32, got 20")
 
-	data, err = MarshalCBOR(map[string]interface{}{
+	data, err = MarshalCBOR(map[string]any{
 		"a":     "a",
 		"aa":    "aa",
 		"hello": "world",
@@ -43,7 +43,7 @@ func TestCBOR(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	data2, err = MarshalCBOR(map[string]interface{}{
+	data2, err = MarshalCBOR(map[string]any{
 		"hello": "world",
 		"ab":    "ab",
 		"a":     "a",

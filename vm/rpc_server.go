@@ -10,11 +10,11 @@ import (
 	"time"
 
 	avalogging "github.com/ava-labs/avalanchego/utils/logging"
+
 	"github.com/ldclabs/ldvm/api"
+	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/util/value"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type RPCServer interface {
@@ -44,7 +44,7 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			r.Method+" "+r.URL.Path)))
 	}
 
-	m.log.Info("ServeHTTP", mapToFields(log.ToMap())...)
+	m.log.Info("ServeHTTP", logging.MapToFields(log.ToMap())...)
 }
 
 func (v *VM) WithRPCServer(s RPCServer) {
@@ -52,8 +52,7 @@ func (v *VM) WithRPCServer(s RPCServer) {
 }
 
 func (v *VM) startRPCServer(addr string) error {
-	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, v.name), nil)
-	v.Log.Info("startRPCServer")
+	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, Name, Version.String()), nil)
 	v.rpc.Start(&mux{log: v.Log, cborrpc: cborAPI}, addr)
 
 	time.Sleep(time.Second)
@@ -63,12 +62,4 @@ func (v *VM) startRPCServer(addr string) error {
 	default:
 		return nil
 	}
-}
-
-func mapToFields(m value.Map) []zapcore.Field {
-	res := make([]zapcore.Field, 0, len(m))
-	for _, k := range m.Keys() {
-		res = append(res, zap.Any(k, m[k].ToAny()))
-	}
-	return res
 }

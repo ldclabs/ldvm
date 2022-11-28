@@ -75,7 +75,7 @@ func (req *Request) String() string {
 }
 
 // DecodeParams decodes the request parameters into the given value.
-func (req *Request) DecodeParams(params interface{}) error {
+func (req *Request) DecodeParams(params any) error {
 	if err := encoding.UnmarshalCBOR(req.Params, params); err != nil {
 		return &Error{
 			Code:    CodeInvalidParams,

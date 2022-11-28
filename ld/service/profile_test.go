@@ -52,7 +52,7 @@ func TestProfile(t *testing.T) {
 			DataID:  ids.DataID{1, 2, 3}.Ptr(),
 			ModelID: ld.JSONModelID.Ptr(),
 			Title:   "test",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"age": 23,
 			},
 		}},

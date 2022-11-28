@@ -1003,7 +1003,7 @@ func TestTxCreateNameModelData(t *testing.T) {
 		Records: []string{"ldc.to. IN A 10.0.0.1"},
 		Extensions: service.Extensions{{
 			Title: "Test",
-			Properties: map[string]interface{}{
+			Properties: map[string]any{
 				"desc": "desc",
 			},
 		}},
@@ -1215,7 +1215,7 @@ func TestTxCreateDataGenesis(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000,"nonTransferableBalance":1000000000,"builders":[]}}},"id":"TAOe8Sy4GJUGGFV-cnQxY77kmdv_DhmQHzTid2GJiSLGFh2c"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeCreateData","chainID":2357,"nonce":0,"gasTip":0,"gasFeeCap":0,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw","version":1,"threshold":1,"keepers":["jbl8fOziScK5i9wCJsxMKle_UvwKxwPH"],"data":{"startHeight":0,"minGasPrice":10000,"maxGasPrice":100000,"maxTxGas":42000000,"gasRebateRate":1000,"minTokenPledge":10000000000000,"minStakePledge":1000000000000,"nonTransferableBalance":1000000000,"builders":["#WN5NAOFSNZKD2LDHKUB"]}}},"id":"LKgqZv8iBDKS0Q5hIZUo4tBYYC2RULP9PaaNN9EXS-_uCDw6"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }

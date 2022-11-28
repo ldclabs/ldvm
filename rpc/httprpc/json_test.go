@@ -117,7 +117,7 @@ func TestJSONRPC(t *testing.T) {
 		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).ToMap()
 		assert.Equal([]string{"elapsed", "method", "proto", "remoteAddr", "requestBytes", "requestUri", "responseBytes", "rpcId", "rpcMethod", "start", "status", "user-agent", "x-request-id"}, log.Keys())
 
-		cases := []interface{}{
+		cases := []any{
 			0,
 			123,
 			-123,
@@ -236,7 +236,7 @@ func TestJSONRPCChaos(t *testing.T) {
 	}
 }
 
-func mustMarshalJSON(v interface{}) []byte {
+func mustMarshalJSON(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
 		panic(err)

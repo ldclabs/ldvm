@@ -59,7 +59,7 @@ func (c *Client) DoWithReader(req *http.Request, br io.ReaderFrom) error {
 	resp, err := c.cli.Do(req)
 	if err != nil {
 		return &erring.Error{
-			Code:    499,
+			Code:    http.StatusServiceUnavailable,
 			Message: fmt.Sprintf("http request failed, %v", err),
 		}
 	}
@@ -71,7 +71,7 @@ func (c *Client) DoWithReader(req *http.Request, br io.ReaderFrom) error {
 		err := &erring.Error{
 			Code:    resp.StatusCode,
 			Message: http.StatusText(resp.StatusCode),
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"reqHeader":  req.Header,
 				"respHeader": resp.Header,
 				"respBody":   string(data),
@@ -101,7 +101,7 @@ func (c *Client) DoWithReader(req *http.Request, br io.ReaderFrom) error {
 		return &erring.Error{
 			Code:    resp.StatusCode,
 			Message: err.Error(),
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"reqHeader":  req.Header,
 				"respHeader": resp.Header,
 			},

@@ -47,7 +47,7 @@ func TestRequest(t *testing.T) {
 	assert.Equal(int64(19), n)
 	assert.Equal(str, req.String())
 
-	var r0 map[string]interface{}
+	var r0 map[string]any
 	err = req.DecodeParams(&r0)
 	assert.Equal(CodeInvalidParams, err.(*Error).Code)
 	assert.ErrorContains(err, `invalid parameter(s), EOF`)
@@ -60,7 +60,7 @@ func TestRequest(t *testing.T) {
 	assert.Equal(int64(34), n)
 	assert.Equal(str, req.String())
 
-	r0 = map[string]interface{}{}
+	r0 = map[string]any{}
 	err = req.DecodeParams(&r0)
 	assert.NoError(err)
 	assert.Equal("abc", r0["tx"].(string))

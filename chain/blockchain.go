@@ -50,10 +50,11 @@ var (
 type BlockChain interface {
 	// global context
 	Context() *Context
+	Info() map[string]any
 	DB() database.Database
 
 	// global state
-	HealthCheck() (interface{}, error)
+	HealthCheck() (any, error)
 	Bootstrap() error
 	State() snow.State
 	SetState(snow.State) error
@@ -175,6 +176,16 @@ func NewChain(
 	return s
 }
 
+func (bc *blockChain) Info() map[string]any {
+	return map[string]any{
+		"networkID": bc.ctx.NetworkID,
+		"subnetID":  bc.ctx.SubnetID.String(),
+		"nodeID":    bc.ctx.NodeID.String(),
+		"builderID": bc.builder.String(),
+		"state":     bc.State().String(),
+	}
+}
+
 func (bc *blockChain) DB() database.Database {
 	return bc.db
 }
@@ -184,14 +195,15 @@ func (bc *blockChain) Context() *Context {
 }
 
 func (bc *blockChain) Bootstrap() error {
+	var err error
 	errp := erring.ErrPrefix("chain.BlockChain.Bootstrap: ")
-	txs, err := bc.genesis.ToTxs()
+	bc.genesisTxs, err = bc.genesis.ToTxs()
 	if err != nil {
 		logging.Log.Error("BlockChain.Bootstrap", zap.Error(err))
 		return errp.ErrorIf(err)
 	}
 
-	genesisBlock, err := NewGenesisBlock(bc.ctx, txs)
+	genesisBlock, err := NewGenesisBlock(bc.ctx, bc.genesisTxs)
 	if err != nil {
 		logging.Log.Error("BlockChain.Bootstrap", zap.Error(err))
 		return errp.ErrorIf(err)
@@ -233,7 +245,6 @@ func (bc *blockChain) Bootstrap() error {
 		return errp.Errorf("invalid genesis data, expected genesis id %s", genesisID)
 	}
 
-	bc.genesisTxs = txs
 	// genesis block is the last accepted block.
 	if lastAcceptedID == genesisBlock.ID() {
 		logging.Log.Info("BlockChain.Bootstrap finished", zap.Stringer("id", lastAcceptedID))
@@ -289,7 +300,7 @@ func (bc *blockChain) Bootstrap() error {
 	return nil
 }
 
-func (bc *blockChain) HealthCheck() (interface{}, error) {
+func (bc *blockChain) HealthCheck() (any, error) {
 	errp := erring.ErrPrefix("chain.BlockChain.HealthCheck: ")
 	id, err := database.GetID(bc.lastAcceptedDB, lastAcceptedKey)
 	if err != nil {

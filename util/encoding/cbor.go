@@ -34,11 +34,11 @@ func init() {
 	cborpatch.SetCBOR(EncMode.Marshal, DecMode.Unmarshal)
 }
 
-func MarshalCBOR(v interface{}) ([]byte, error) {
+func MarshalCBOR(v any) ([]byte, error) {
 	return EncMode.Marshal(v)
 }
 
-func MustMarshalCBOR(v interface{}) []byte {
+func MustMarshalCBOR(v any) []byte {
 	data, err := EncMode.Marshal(v)
 	if err != nil {
 		panic(err)
@@ -46,7 +46,7 @@ func MustMarshalCBOR(v interface{}) []byte {
 	return data
 }
 
-func UnmarshalCBOR(data []byte, v interface{}) error {
+func UnmarshalCBOR(data []byte, v any) error {
 	return DecMode.Unmarshal(data, v)
 }
 

@@ -17,6 +17,21 @@ type ID20 [20]byte
 var EmptyID32 = ID32{}
 var EmptyID20 = ID20{}
 
+func ID32FromStr(str string) (ID32, error) {
+	var id ID32
+	if str == "" {
+		return id, nil
+	}
+
+	b, err := encoding.DecodeStringWithLen(str, 32)
+	if err != nil {
+		return id, errors.New("ids.ID32FromStr: " + err.Error())
+	}
+
+	copy(id[:], b)
+	return id, nil
+}
+
 func ID32FromBytes(data []byte) (ID32, error) {
 	var id ID32
 	if bytesLen := len(data); bytesLen != 32 {
