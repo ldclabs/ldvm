@@ -5,6 +5,7 @@ package cborrpc
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -25,22 +26,27 @@ const (
 	CodeServerError = -32000
 )
 
+// Error is a CBOR-RPC error.
 type Error = erring.Error
 
 // This is a simple implementation of CBOR-RPC.
 // Full reference to https://www.jsonrpc.org/specification
+// Response represents a CBOR-RPC response.
 type Response struct {
-	ID     string          `cbor:"id,omitempty"`
+	ID     string          `cbor:"id"`
 	Error  *Error          `cbor:"error,omitempty"`
 	Result cbor.RawMessage `cbor:"result,omitempty"`
 
 	buf bytes.Buffer `cbor:"-"`
 }
 
+// Grow grows the underlying buffer's capacity
 func (res *Response) Grow(n int) {
 	res.buf.Grow(n)
 }
 
+// ReadFrom decodes the CBOR-RPC response from the given reader.
+// ReadFrom implements io.ReaderFrom interface.
 func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 	n, err := res.buf.ReadFrom(r)
 	if err != nil {
@@ -51,22 +57,49 @@ func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 		return n, err
 	}
 
+	if res.ID == "" || (res.Error == nil && len(res.Result) == 0) {
+		return n, fmt.Errorf("invalid response, %q", res.String())
+	}
+
 	return n, nil
 }
 
-func (res *Response) String() string {
-	if res.Error != nil {
-		return fmt.Sprintf(`{"id":%q,"error":%q}`, res.ID, res.Error.Error())
-	}
-
-	return fmt.Sprintf(`{"id":%q,"result":%s}`, res.ID, string(ToJSON(res.Result)))
+type jsonResponse struct {
+	ID     string          `json:"id"`
+	Error  *Error          `json:"error,omitempty"`
+	Result json.RawMessage `json:"result,omitempty"`
 }
 
-func (res *Response) DecodeResult(result interface{}) error {
+// String returns the string representation of the response.
+func (res *Response) String() string {
+	var err error
+	var b []byte
+
 	if res.Error == nil {
-		if err := encoding.UnmarshalCBOR(res.Result, result); err != nil {
-			res.Error = &Error{Code: CodeParseError, Message: err.Error()}
-		}
+		b, err = ToJSONRaw(res.Result)
 	}
-	return res.Error
+	if err == nil {
+		b, err = json.Marshal(jsonResponse{
+			ID:     res.ID,
+			Error:  res.Error,
+			Result: b,
+		})
+	}
+	if err != nil {
+		b, _ = json.Marshal(erring.RespondError{Err: err.Error()})
+	}
+
+	return string(b)
+}
+
+// DecodeResult decodes the result into the given value.
+func (res *Response) DecodeResult(result interface{}) error {
+	if res.Error != nil {
+		return res.Error
+	}
+
+	if err := encoding.UnmarshalCBOR(res.Result, result); err != nil {
+		return &Error{Code: CodeParseError, Message: err.Error()}
+	}
+	return nil
 }

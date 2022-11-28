@@ -16,7 +16,7 @@ func TestRequest(t *testing.T) {
 	req := &Request{}
 	str := `{"jsonrpc":"2.0","id":1,"method":"getTx"}`
 	n, err := req.ReadFrom(bytes.NewBufferString(str))
-	assert.ErrorContains(err, `son: cannot unmarshal number`)
+	assert.ErrorContains(err, `json: cannot unmarshal number`)
 	assert.Equal(int64(0), n)
 
 	req = &Request{}
