@@ -16,7 +16,7 @@ func TestResponse(t *testing.T) {
 	res := &Response{}
 	str := `{"jsonrpc":"2.0","id":1,"result":true}`
 	n, err := res.ReadFrom(bytes.NewBufferString(str))
-	assert.ErrorContains(err, `son: cannot unmarshal number`)
+	assert.ErrorContains(err, `json: cannot unmarshal number`)
 	assert.Equal(int64(0), n)
 
 	res = &Response{}

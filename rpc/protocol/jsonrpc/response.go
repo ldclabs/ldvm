@@ -29,7 +29,7 @@ type Error = erring.Error
 // Response represents a JSON-RPC response.
 type Response struct {
 	Version string          `json:"jsonrpc"`
-	ID      string          `json:"id,omitempty"`
+	ID      string          `json:"id"`
 	Error   *Error          `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 }
@@ -55,6 +55,7 @@ func (res *Response) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
+// String returns the string representation of the response.
 func (res *Response) String() string {
 	b, err := json.Marshal(res)
 	if err != nil {
