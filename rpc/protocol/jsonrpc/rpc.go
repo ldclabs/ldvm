@@ -21,7 +21,7 @@ type Handler interface {
 }
 
 // Result returns a response from the request with the given result.
-func (req *Request) Result(result interface{}) *Response {
+func (req *Request) Result(result any) *Response {
 	data, err := json.Marshal(result)
 	if err != nil {
 		return req.Error(&Error{

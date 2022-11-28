@@ -42,15 +42,15 @@ func NewCacher(capacity, ttlsecs int, fn func() Objecter) *Cacher {
 	return &Cacher{collections.NewTTLMap(int(capacity)), ttlsecs, fn}
 }
 
-func (c *Cacher) GetObject(key []byte) (interface{}, bool) {
+func (c *Cacher) GetObject(key []byte) (any, bool) {
 	return c.cache.Get(string(key))
 }
 
-func (c *Cacher) SetObject(key []byte, value interface{}) error {
+func (c *Cacher) SetObject(key []byte, value any) error {
 	return c.cache.Set(string(key), value, c.ttl)
 }
 
-func (c *Cacher) UnmarshalObject(data []byte) (interface{}, error) {
+func (c *Cacher) UnmarshalObject(data []byte) (any, error) {
 	if c.new == nil {
 		return nil, errors.New("db.Cacher.Unmarshal: no function to create object")
 	}

@@ -10,10 +10,10 @@ import (
 )
 
 type Extension struct {
-	Title      string                 `cbor:"t" json:"title"` // extension title
-	Properties map[string]interface{} `cbor:"ps" json:"properties"`
-	DataID     *ids.DataID            `cbor:"id,omitempty" json:"did,omitempty"` // optional data id
-	ModelID    *ids.ModelID           `cbor:"m,omitempty" json:"mid,omitempty"`  // optional model id
+	Title      string         `cbor:"t" json:"title"` // extension title
+	Properties map[string]any `cbor:"ps" json:"properties"`
+	DataID     *ids.DataID    `cbor:"id,omitempty" json:"did,omitempty"` // optional data id
+	ModelID    *ids.ModelID   `cbor:"m,omitempty" json:"mid,omitempty"`  // optional model id
 }
 
 type Extensions []*Extension

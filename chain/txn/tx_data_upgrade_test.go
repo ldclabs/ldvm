@@ -640,7 +640,7 @@ func TestTxUpgradeData(t *testing.T) {
 		Version:   1,
 		Threshold: 1,
 		Keepers:   signer.Keys{signer.Signer1.Key()},
-		Payload:   encoding.MustMarshalCBOR(map[string]interface{}{"n": "LDVM"}),
+		Payload:   encoding.MustMarshalCBOR(map[string]any{"n": "LDVM"}),
 		ID:        did,
 	}
 	assert.NoError(di.SyntacticVerify())
@@ -702,10 +702,10 @@ func TestTxUpgradeData(t *testing.T) {
 	assert.Equal(uint64(2), di2.Version)
 	assert.Equal(ld.CBORModelID, di.ModelID)
 	assert.Equal(modelID, di2.ModelID)
-	assert.Equal(encoding.MustMarshalCBOR(map[string]interface{}{
+	assert.Equal(encoding.MustMarshalCBOR(map[string]any{
 		"n": "LDVM",
 	}), []byte(di.Payload))
-	assert.Equal(encoding.MustMarshalCBOR(map[string]interface{}{
+	assert.Equal(encoding.MustMarshalCBOR(map[string]any{
 		"n": "LDVM",
 		"v": 2,
 	}), []byte(di2.Payload))

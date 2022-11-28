@@ -66,7 +66,7 @@ func (res *Response) String() string {
 }
 
 // DecodeResult decodes the result into the given value.
-func (res *Response) DecodeResult(result interface{}) error {
+func (res *Response) DecodeResult(result any) error {
 	if res.Error != nil {
 		return res.Error
 	}

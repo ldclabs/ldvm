@@ -100,7 +100,7 @@ func TestCBORRPC(t *testing.T) {
 				assert.Equal("TestMethod", re.Method)
 				assert.Equal(encoding.MustMarshalCBOR(params), []byte(re.Params))
 
-				cases := []interface{}{
+				cases := []any{
 					0,
 					123,
 					-123,

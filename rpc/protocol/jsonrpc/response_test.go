@@ -50,7 +50,7 @@ func TestResponse(t *testing.T) {
 	assert.Equal(int64(40), n)
 	assert.Equal(str, res.String())
 
-	var r0 map[string]interface{}
+	var r0 map[string]any
 	err = res.DecodeResult(&r0)
 	assert.Equal(CodeParseError, err.(*Error).Code)
 	assert.ErrorContains(err, `json: cannot unmarshal bool`)
@@ -67,7 +67,7 @@ func TestResponse(t *testing.T) {
 	assert.Equal(int64(71), n)
 	assert.Equal(str, res.String())
 
-	r0 = map[string]interface{}{}
+	r0 = map[string]any{}
 	err = res.DecodeResult(&r0)
 	assert.Equal(400, err.(*Error).Code)
 	assert.ErrorContains(err, `bad request`)

@@ -29,7 +29,6 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
-	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/httpcli"
 )
@@ -130,13 +129,18 @@ func (v *VM) Initialize(
 		zap.Uint32("networkID", ctx.NetworkID),
 		zap.Stringer("subnetID", ctx.SubnetID),
 		zap.Stringer("chainID", ctx.ChainID),
+		zap.Stringer("nodeID", ctx.NodeID),
 		zap.String("genesisData", string(genesisData)),
 		zap.String("upgradeData", string(upgradeData)),
 		zap.String("configData", string(configData)))
 
 	err = v.initialize(cfg, genesisData, toEngine)
 	if err == nil && v.bc.IsBuilder() {
-		err = v.startRPCServer(cfg.RPCAddr)
+		if err = v.startRPCServer(cfg.RPCAddr); err == nil {
+			v.Log.Info("startRPCServer on",
+				zap.Stringer("nodeID", ctx.NodeID),
+				zap.String("rpcAddr", cfg.RPCAddr))
+		}
 	}
 
 	if err != nil {
@@ -188,7 +192,7 @@ func (v *VM) SetState(ctx context.Context, state snow.State) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.Log.Info("LDVM.SetState %v", zap.Stringer("state", state))
+	v.Log.Info("LDVM.SetState", zap.Stringer("state", state))
 	return v.bc.SetState(state)
 }
 
@@ -196,8 +200,8 @@ func (v *VM) SetState(ctx context.Context, state snow.State) error {
 // Shutdown is called when the node is shutting down.
 func (v *VM) Shutdown(ctx context.Context) error {
 	v.Log.Info("LDVM.Shutdown")
-	// TODO graceful shutdown
 	v.dbManager.Close()
+	v.rpc.Shutdown(ctx)
 	return nil
 }
 
@@ -217,12 +221,12 @@ func (v *VM) CreateStaticHandlers(ctx context.Context) (map[string]*common.HTTPH
 	server := rpc.NewServer()
 	server.RegisterCodec(json.NewCodec(), "application/json")
 	server.RegisterCodec(json.NewCodec(), "application/json;charset=UTF-8")
-	if err := server.RegisterService(api.NewVMAPI(), Name); err != nil {
+	if err := server.RegisterService(api.NewVMAPI(Name, Version.String()), Name); err != nil {
 		return nil, err
 	}
 
 	return map[string]*common.HTTPHandler{
-		"rpc": {
+		"/rpc": {
 			LockOptions: common.NoLock,
 			Handler:     server,
 		},
@@ -236,12 +240,11 @@ func (v *VM) CreateStaticHandlers(ctx context.Context) (map[string]*common.HTTPH
 // the chain. Each handler has the path:
 // [Address of node]/ext/bc/[chain ID]/[extension]
 func (v *VM) CreateHandlers(ctx context.Context) (map[string]*common.HTTPHandler, error) {
-	cborAPI := httprpc.NewCBORService(api.NewAPI(v.bc, v.name), nil)
-	v.Log.Info("CreateHandlers")
+	api := api.NewChainAPI(v.bc, Name, Version.String())
 	return map[string]*common.HTTPHandler{
 		"/rpc": {
 			LockOptions: common.WriteLock,
-			Handler:     cborAPI,
+			Handler:     api,
 		},
 	}, nil
 }
@@ -249,7 +252,7 @@ func (v *VM) CreateHandlers(ctx context.Context) (map[string]*common.HTTPHandler
 // HealthCheck implements the common.VM health.Checker HealthCheck interface
 // Returns nil if the VM is healthy.
 // Periodically called and reported via the node's Health API.
-func (v *VM) HealthCheck(ctx context.Context) (interface{}, error) {
+func (v *VM) HealthCheck(ctx context.Context) (any, error) {
 	return v.bc.HealthCheck()
 }
 
@@ -420,12 +423,13 @@ func (v *VM) GetBlock(ctx context.Context, id avaids.ID) (blk snowman.Block, err
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 
-	blk, err = v.bc.GetBlock(ids.ID32(id))
+	id32 := ids.ID32(id)
+	blk, err = v.bc.GetBlock(id32)
 	if err != nil {
-		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id), zap.Error(err))
+		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id32), zap.Error(err))
 	} else {
 		v.Log.Info("LDVM.GetBlock",
-			zap.Stringer("id", id),
+			zap.Stringer("id", id32),
 			zap.Uint64("height", blk.Height()))
 	}
 	return
@@ -438,17 +442,17 @@ func (v *VM) ParseBlock(ctx context.Context, data []byte) (blk snowman.Block, er
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	id := avaids.ID(ids.ID32FromData(data))
+	id32 := ids.ID32FromData(data)
 	err = ld.Recover("", func() error {
 		blk, err = v.bc.ParseBlock(data)
 		return err
 	})
 
 	if err != nil {
-		v.Log.Error("LDVM.ParseBlock", zap.Stringer("id", id), zap.Error(err))
+		v.Log.Error("LDVM.ParseBlock", zap.Stringer("id", id32), zap.Error(err))
 	} else {
 		v.Log.Info("LDVM.ParseBlock",
-			zap.Stringer("id", id),
+			zap.Stringer("id", id32),
 			zap.Uint64("height", blk.Height()))
 	}
 	return
@@ -458,19 +462,19 @@ func (v *VM) ParseBlock(ctx context.Context, data []byte) (blk snowman.Block, er
 //
 // BuildBlock attempt to create a new block from data contained in the VM.
 // If the VM doesn't want to issue a new block, an error should be returned.
-func (v *VM) BuildBlock(ctx context.Context) (blk snowman.Block, err error) {
+func (v *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	blk, err = v.bc.BuildBlock()
+	blk, err := v.bc.BuildBlock()
 	if err != nil {
 		v.Log.Error("LDVM.BuildBlock", zap.Error(err))
 	} else {
 		v.Log.Info("LDVM.BuildBlock",
-			zap.Stringer("id", blk.ID()),
+			zap.Stringer("id", blk.Hash()),
 			zap.Uint64("height", blk.Height()))
 	}
-	return
+	return blk, err
 }
 
 // SetPreference implements the block.ChainVM SetPreference interface
@@ -481,10 +485,11 @@ func (v *VM) SetPreference(ctx context.Context, id avaids.ID) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	v.Log.Info("LDVM.SetPreference %s", zap.Stringer("id", id))
-	err := v.bc.SetPreference(ids.ID32(id))
+	id32 := ids.ID32(id)
+	v.Log.Info("LDVM.SetPreference", zap.Stringer("id", id32))
+	err := v.bc.SetPreference(id32)
 	if err != nil {
-		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id), zap.Error(err))
+		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id32), zap.Error(err))
 	}
 	return err
 }
@@ -498,7 +503,7 @@ func (v *VM) SetPreference(ctx context.Context, id avaids.ID) error {
 func (v *VM) LastAccepted(ctx context.Context) (avaids.ID, error) {
 	blk := v.bc.LastAcceptedBlock()
 	v.Log.Info("LDVM.LastAccepted",
-		zap.Stringer("id", blk.ID()),
+		zap.Stringer("id", blk.Hash()),
 		zap.Uint64("height", blk.Height()))
 	return blk.ID(), nil
 }

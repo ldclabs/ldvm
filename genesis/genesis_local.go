@@ -18,7 +18,7 @@ var LocalGenesisConfigJSON = `
       "minTokenPledge": 10000000000000,
       "minStakePledge": 1000000000000,
       "nonTransferableBalance": 1000000000,
-      "builders": []
+      "builders": ["#WN5NAOFSNZKD2LDHKUB"]
     }
   },
   "alloc": {

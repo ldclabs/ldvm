@@ -43,11 +43,11 @@ func TestIPLDModel(t *testing.T) {
 	assert.Equal(sc, string(im.Schema()))
 	assert.Equal("map", im.Type().TypeKind().String())
 
-	data, err := encoding.MarshalCBOR(map[string]interface{}{"a": 1, "b": "a"})
+	data, err := encoding.MarshalCBOR(map[string]any{"a": 1, "b": "a"})
 	require.NoError(t, err)
 	assert.NoError(im.Valid(data))
 
-	data, err = encoding.MarshalCBOR([]interface{}{"a", "b", 1})
+	data, err = encoding.MarshalCBOR([]any{"a", "b", 1})
 	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `IPLDModel("SomeModel").Valid: decode:`)
 
@@ -61,15 +61,15 @@ func TestIPLDModel(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal("struct", im.Type().TypeKind().String())
 
-	data, err = encoding.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}})
+	data, err = encoding.MarshalCBOR(map[string]any{"n": "test", "rs": []string{"AAA"}})
 	require.NoError(t, err)
 	assert.NoError(im.Valid(data))
 
-	data, err = encoding.MarshalCBOR(map[string]interface{}{"n": "test", "rs": []string{"AAA"}, "x": 1})
+	data, err = encoding.MarshalCBOR(map[string]any{"n": "test", "rs": []string{"AAA"}, "x": 1})
 	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `invalid key: "x"`)
 
-	data, err = encoding.MarshalCBOR(map[string]interface{}{"n": "test"})
+	data, err = encoding.MarshalCBOR(map[string]any{"n": "test"})
 	require.NoError(t, err)
 	assert.ErrorContains(im.Valid(data), `missing required fields`)
 }

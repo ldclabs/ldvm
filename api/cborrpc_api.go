@@ -15,12 +15,12 @@ import (
 )
 
 type API struct {
-	bc   chain.BlockChain
-	name string
+	bc            chain.BlockChain
+	name, version string
 }
 
-func NewAPI(bc chain.BlockChain, name string) *API {
-	return &API{bc, name}
+func NewAPI(bc chain.BlockChain, name, version string) *API {
+	return &API{bc, name, version}
 }
 
 // ServeRPC is the main entrypoint for the LDVM.
@@ -31,12 +31,21 @@ func (api *API) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Res
 	})
 
 	switch req.Method {
+	case "version":
+		return req.Result(map[string]string{
+			"name":    api.name,
+			"version": api.version,
+		})
+
+	case "info":
+		return req.Result(api.bc.Info())
+
 	case "chainID":
 		chainID := api.bc.Context().ChainConfig().ChainID
 		return req.Result(chainID)
 
 	case "chainState":
-		return req.Result(api.bc.State().String())
+		return req.Result(api.bc.State())
 
 	case "lastAccepted":
 		blk := api.bc.LastAcceptedBlock()

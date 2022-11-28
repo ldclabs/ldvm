@@ -11,14 +11,14 @@ import (
 
 // RespondError represents a response with error that can be sent to the client.
 type RespondError struct {
-	Err interface{} `json:"error" cbor:"error"`
+	Err any `json:"error" cbor:"error"`
 }
 
 // Error represents a error with more information, can be used as response error.
 type Error struct {
-	Code    int         `json:"code" cbor:"code"`
-	Message string      `json:"message" cbor:"message"`
-	Data    interface{} `json:"data,omitempty" cbor:"data,omitempty"`
+	Code    int    `json:"code" cbor:"code"`
+	Message string `json:"message" cbor:"message"`
+	Data    any    `json:"data,omitempty" cbor:"data,omitempty"`
 
 	// underlying errors that should not reponsed to client.
 	errs []error
@@ -26,10 +26,10 @@ type Error struct {
 
 // fullError is used to marshal the full error information for logging.
 type fullError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Errs    []string    `json:"errors"`
-	Data    interface{} `json:"data"`
+	Code    int      `json:"code"`
+	Message string   `json:"message"`
+	Errs    []string `json:"errors"`
+	Data    any      `json:"data"`
 }
 
 // Error returns the full error information as a JSON string, used as error log.

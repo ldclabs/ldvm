@@ -55,7 +55,7 @@ func (req *Request) String() string {
 }
 
 // DecodeParams decodes the request parameters into the given value.
-func (req *Request) DecodeParams(params interface{}) error {
+func (req *Request) DecodeParams(params any) error {
 	if err := json.Unmarshal(req.Params, params); err != nil {
 		return &Error{
 			Code:    CodeInvalidParams,

@@ -66,7 +66,7 @@ func TestError(t *testing.T) {
 		err := &Error{
 			Code:    500,
 			Message: "Internal server error",
-			Data:    map[string]interface{}{"foo": "bar"},
+			Data:    map[string]any{"foo": "bar"},
 		}
 
 		assert.False(err.HasErrs())

@@ -4,6 +4,8 @@
 package ld
 
 import (
+	"encoding/json"
+
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/erring"
@@ -59,6 +61,43 @@ func (s *State) SyntacticVerify() error {
 
 	s.ID = ids.ID32FromData(s.raw)
 	return nil
+}
+
+type jsonState struct {
+	Parent   ids.ID32            `json:"parent"`
+	Accounts map[string]ids.ID32 `json:"accounts"`
+	Ledgers  map[string]ids.ID32 `json:"ledgers"`
+	Datas    map[string]ids.ID32 `json:"datas"`
+	Models   map[string]ids.ID32 `json:"models"`
+	ID       ids.ID32            `json:"id"`
+}
+
+func (s *State) MarshalJSON() ([]byte, error) {
+	js := &jsonState{
+		Parent:   s.Parent,
+		Accounts: make(map[string]ids.ID32, len(s.Accounts)),
+		Ledgers:  make(map[string]ids.ID32, len(s.Ledgers)),
+		Datas:    make(map[string]ids.ID32, len(s.Datas)),
+		Models:   make(map[string]ids.ID32, len(s.Models)),
+		ID:       s.ID,
+	}
+
+	for k := range s.Accounts {
+		js.Accounts[encoding.CheckSumHex([]byte(k))] = s.Accounts[k]
+	}
+
+	for k := range s.Ledgers {
+		js.Ledgers[encoding.CheckSumHex([]byte(k))] = s.Ledgers[k]
+	}
+
+	for k := range s.Datas {
+		js.Datas[encoding.EncodeToString([]byte(k))] = s.Datas[k]
+	}
+
+	for k := range s.Models {
+		js.Models[encoding.EncodeToString([]byte(k))] = s.Models[k]
+	}
+	return json.Marshal(js)
 }
 
 func (s *State) UpdateAccount(id ids.Address, data []byte) {

@@ -49,16 +49,18 @@ func NewCBORClient(host host.Host, endpoint peer.ID, opts *CBORClientOptions) *C
 	}
 }
 
-func (c *CBORClient) Request(ctx context.Context, method string, params, result interface{}) *cborrpc.Response {
+func (c *CBORClient) Request(ctx context.Context, method string, params, result any) *cborrpc.Response {
 	var err error
 
 	req := &cborrpc.Request{ID: xid.New().String(), Method: method}
-	req.Params, err = encoding.MarshalCBOR(params)
-	if err != nil {
-		return req.Error(&cborrpc.Error{
-			Code:    cborrpc.CodeInvalidParams,
-			Message: err.Error(),
-		})
+	if params != nil {
+		req.Params, err = encoding.MarshalCBOR(params)
+		if err != nil {
+			return req.Error(&cborrpc.Error{
+				Code:    cborrpc.CodeInvalidParams,
+				Message: err.Error(),
+			})
+		}
 	}
 
 	res := c.Do(ctx, req)

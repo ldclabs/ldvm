@@ -42,16 +42,18 @@ func NewJSONClient(endpoint string, opts *JSONClientOptions) *JSONClient {
 }
 
 func (c *JSONClient) Request(
-	ctx context.Context, method string, params, result interface{}) *jsonrpc.Response {
+	ctx context.Context, method string, params, result any) *jsonrpc.Response {
 	var err error
 
 	req := &jsonrpc.Request{Version: "2.0", ID: xid.New().String(), Method: method}
-	req.Params, err = json.Marshal(params)
-	if err != nil {
-		return req.Error(&jsonrpc.Error{
-			Code:    jsonrpc.CodeInvalidParams,
-			Message: err.Error(),
-		})
+	if params != nil {
+		req.Params, err = json.Marshal(params)
+		if err != nil {
+			return req.Error(&jsonrpc.Error{
+				Code:    jsonrpc.CodeInvalidParams,
+				Message: err.Error(),
+			})
+		}
 	}
 
 	res := c.Do(ctx, req)

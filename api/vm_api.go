@@ -9,13 +9,24 @@ import (
 	"github.com/ldclabs/ldvm/genesis"
 )
 
-type VMAPI struct{}
+type VMAPI struct {
+	name, version string
+}
 
-func NewVMAPI() *VMAPI {
-	return &VMAPI{}
+func NewVMAPI(name, version string) *VMAPI {
+	return &VMAPI{name, version}
 }
 
 type NoArgs struct{}
+
+// Version returns VM's name and version
+func (api *VMAPI) Version(_ *http.Request, args *NoArgs, reply *map[string]string) error {
+	*reply = map[string]string{
+		"name":    api.name,
+		"version": api.version,
+	}
+	return nil
+}
 
 // Genesis returns the genesis data
 func (api *VMAPI) Genesis(_ *http.Request, args *NoArgs, reply *genesis.Genesis) error {

@@ -220,7 +220,7 @@ func TestList(t *testing.T) {
 	assert := assert.New(t)
 
 	list := List{Bool(true), Int64(-1), String("hello")}
-	ilist := []interface{}{true, -1, "hello"}
+	ilist := []any{true, -1, "hello"}
 	jsonStr := string(encoding.MustMarshalJSON(ilist))
 
 	assert.Equal(`[true,-1,"hello"]`, jsonStr)
@@ -234,7 +234,7 @@ func TestList(t *testing.T) {
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.ToList())))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(list)))
 
-	data := encoding.MustMarshalCBOR([]interface{}{
+	data := encoding.MustMarshalCBOR([]any{
 		true, -1, "hello", "world",
 	})
 	assert.Equal(data, encoding.MustMarshalCBOR(v))
@@ -259,7 +259,7 @@ func TestMap(t *testing.T) {
 	assert := assert.New(t)
 
 	bigInt := new(big.Int).Mul(new(big.Int).SetUint64(math.MaxUint64), big.NewInt(1000))
-	im := map[string]interface{}{"a": true, "b": bigInt, "c": "hello"}
+	im := map[string]any{"a": true, "b": bigInt, "c": "hello"}
 	m := Map{"a": Bool(true), "b": BigInt(bigInt), "c": String("hello")}
 
 	jsonStr := string(encoding.MustMarshalJSON(im))
@@ -275,7 +275,7 @@ func TestMap(t *testing.T) {
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(v.ToMap())))
 	assert.Equal(jsonStr, string(encoding.MustMarshalJSON(m)))
 
-	data := encoding.MustMarshalCBOR(map[string]interface{}{
+	data := encoding.MustMarshalCBOR(map[string]any{
 		"a": true, "b": bigInt, "c": "hello", "d": "world",
 	})
 	assert.Equal(data, encoding.MustMarshalCBOR(v))

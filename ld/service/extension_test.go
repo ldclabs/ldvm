@@ -30,21 +30,21 @@ func TestExtensions(t *testing.T) {
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{1, 2, 3}.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `nil model id at 0`)
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `no data id at 0, model id be nil`)
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.EmptyDataID.Ptr(),
 		ModelID:    ids.EmptyModelID.Ptr(),
 	}}
@@ -52,7 +52,7 @@ func TestExtensions(t *testing.T) {
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{1, 2, 3}.Ptr(),
 		ModelID:    ids.EmptyModelID.Ptr(),
 	}}
@@ -60,13 +60,13 @@ func TestExtensions(t *testing.T) {
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}}
 	assert.NoError(es.SyntacticVerify())
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{1, 2, 3}.Ptr(),
 		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
@@ -74,21 +74,21 @@ func TestExtensions(t *testing.T) {
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}, {
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}}
 	assert.ErrorContains(es.SyntacticVerify(), `"Test" exists in extensions at 1`)
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{1, 2, 3}.Ptr(),
 		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}, {
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{4, 5, 6}.Ptr(),
 		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}
@@ -96,10 +96,10 @@ func TestExtensions(t *testing.T) {
 
 	es = Extensions{{
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}, {
 		Title:      "Test",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 		DataID:     ids.DataID{4, 5, 6}.Ptr(),
 		ModelID:    ids.ModelID{1, 2, 3}.Ptr(),
 	}}

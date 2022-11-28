@@ -118,7 +118,7 @@ func TestCBORRPC(t *testing.T) {
 		log := value.CtxValue[value.Log](hh.ctx.MustLoad()).ToMap()
 		assert.Equal([]string{"elapsed", "method", "proto", "remoteAddr", "requestBytes", "requestUri", "responseBytes", "rpcId", "rpcMethod", "start", "status", "user-agent", "x-request-id"}, log.Keys())
 
-		cases := []interface{}{
+		cases := []any{
 			0,
 			123,
 			-123,

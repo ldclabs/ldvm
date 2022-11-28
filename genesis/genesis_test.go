@@ -59,7 +59,7 @@ func TestGenesis(t *testing.T) {
 	_, err = gs.Chain.AppendFeeConfig([]byte{})
 	assert.ErrorContains(err, "ChainConfig.AppendFeeConfig: EOF")
 
-	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]any{
 		"sh":  0,
 		"min": 10000,
 		"max": 100000,
@@ -70,7 +70,7 @@ func TestGenesis(t *testing.T) {
 	}))
 	assert.ErrorContains(err, "invalid minTokenPledge")
 
-	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]any{
 		"sh":  1000,
 		"min": 10000,
 		"max": 100000,
@@ -82,7 +82,7 @@ func TestGenesis(t *testing.T) {
 	}))
 	assert.ErrorContains(err, "nil builders")
 
-	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]any{
 		"sh":  1000,
 		"min": 10000,
 		"max": 100000,
@@ -95,7 +95,7 @@ func TestGenesis(t *testing.T) {
 	}))
 	require.NoError(t, err)
 
-	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]interface{}{
+	_, err = gs.Chain.AppendFeeConfig(encoding.MustMarshalCBOR(map[string]any{
 		"sh":  100,
 		"min": 10000,
 		"max": 100000,
@@ -110,7 +110,7 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	require.NoError(t, err)
-	assert.Equal("NjPrZ2HQrGzFRBb6GOaKz3QCE6TQq0BiupDA5Y809W29P0mX", gs.Chain.FeeConfigID.String())
+	assert.Equal("QouAozxQAthLBGZ7_NCo9ycpN-5Q0eBKVsMxe15w8ROOVDt4", gs.Chain.FeeConfigID.String())
 	assert.Equal("b8onI5zOwqPZO9jxMBBgZWnnCUzd-187", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 

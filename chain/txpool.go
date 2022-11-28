@@ -47,7 +47,7 @@ func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
 type TxReqParams struct {
 	NodeID avaids.NodeID `cbor:"n"`
 	Height uint64        `cbor:"h"`
-	Params interface{}   `cbor:"p,omitempty"`
+	Params any           `cbor:"p,omitempty"`
 }
 
 type TxsBuildStatus struct {

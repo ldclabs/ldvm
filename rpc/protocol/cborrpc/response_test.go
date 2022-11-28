@@ -49,7 +49,7 @@ func TestResponse(t *testing.T) {
 	assert.Equal(int64(14), n)
 	assert.Equal(str, res.String())
 
-	var r0 map[string]interface{}
+	var r0 map[string]any
 	err = res.DecodeResult(&r0)
 	assert.Equal(CodeParseError, err.(*Error).Code)
 	assert.ErrorContains(err, `cbor: cannot unmarshal primitives`)
@@ -69,7 +69,7 @@ func TestResponse(t *testing.T) {
 	assert.Equal(int64(41), n)
 	assert.Equal(str, res.String())
 
-	r0 = map[string]interface{}{}
+	r0 = map[string]any{}
 	err = res.DecodeResult(&r0)
 	assert.Equal(400, err.(*Error).Code)
 	assert.ErrorContains(err, `bad request`)

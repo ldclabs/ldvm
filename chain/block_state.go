@@ -387,6 +387,10 @@ func (bs *blockState) SaveBlock(blk *ld.Block) error {
 		return errp.ErrorIf(err)
 	}
 
+	if err := bs.stateDB.Put(bs.ls.ID[:], bs.ls.Bytes()); err != nil {
+		return errp.ErrorIf(err)
+	}
+
 	// will update block's state and id
 	blk.State = bs.ls.ID
 	if err := blk.SyntacticVerify(); err != nil {
