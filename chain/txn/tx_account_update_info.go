@@ -99,7 +99,7 @@ func (tx *TxUpdateAccountInfo) ApplyGenesis(ctx ChainContext, cs ChainState) err
 	if tx.ldc, err = cs.LoadAccount(ids.LDCAccount); err != nil {
 		return errp.ErrorIf(err)
 	}
-	if tx.miner, err = cs.LoadBuilder(ctx.Builder()); err != nil {
+	if tx.miner, err = cs.LoadAccount(ctx.Builder()); err != nil {
 		return errp.ErrorIf(err)
 	}
 	if tx.from, err = cs.LoadAccount(tx.ld.Tx.From); err != nil {

@@ -332,7 +332,7 @@ func TestTxCreateStake(t *testing.T) {
 
 	stakeAcc := cs.MustAccount(stakeid)
 	ldc := cs.MustAccount(ids.LDCAccount)
-	miner, err := cs.LoadBuilder(ctx.Builder())
+	miner, err := cs.LoadAccount(ctx.Builder())
 	require.NoError(t, err)
 
 	assert.Equal(ltx.Gas()*ctx.Price,

@@ -110,7 +110,7 @@ func TestGenesis(t *testing.T) {
 
 	txs, err := gs.ToTxs()
 	require.NoError(t, err)
-	assert.Equal("QouAozxQAthLBGZ7_NCo9ycpN-5Q0eBKVsMxe15w8ROOVDt4", gs.Chain.FeeConfigID.String())
+	assert.Equal("SInVTCakmkru9ymxdaIrR4R0S0i_9El1p39szAQtvqP414se", gs.Chain.FeeConfigID.String())
 	assert.Equal("b8onI5zOwqPZO9jxMBBgZWnnCUzd-187", gs.Chain.NameServiceID.String())
 	assert.True(gs.Chain.IsNameService(gs.Chain.NameServiceID))
 

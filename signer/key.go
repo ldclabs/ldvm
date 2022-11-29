@@ -229,6 +229,25 @@ func (ks Keys) Has(key Key) bool {
 	return false
 }
 
+func (ks Keys) HasKeys(keys Keys, threshold uint16) bool {
+	if len(keys) == 0 || threshold == 0 || len(ks) < int(threshold) || len(keys) < int(threshold) {
+		return false
+	}
+	if keys.Valid() != nil {
+		return false
+	}
+	i := uint16(0)
+	for _, k := range keys {
+		if ks.Has(k) {
+			i++
+			if i >= threshold {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (ks Keys) HasAddress(addr ids.Address) bool {
 	s := string(addr[:])
 	for _, k := range ks {

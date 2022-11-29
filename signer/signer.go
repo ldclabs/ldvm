@@ -20,4 +20,5 @@ type Signer interface {
 	PrivateSeed() []byte
 	SignHash(digestHash []byte) (Sig, error)
 	SignData(message []byte) (Sig, error)
+	Sign(message []byte) (Sig, error)
 }

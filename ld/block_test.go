@@ -33,22 +33,22 @@ func TestBlock(t *testing.T) {
 	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, GasRebateRate: 1001}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid gasRebateRate")
 
-	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, Builder: ids.StakeSymbol{1, 2, 3}}
+	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid builder address")
 
-	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100}
+	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, Builder: ids.Address{1, 2, 3}}
 	assert.ErrorContains(blk.SyntacticVerify(), "nil validators")
 
-	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100,
+	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, Builder: ids.Address{1, 2, 3},
 		Validators: ids.IDList[ids.StakeSymbol]{}}
 	assert.ErrorContains(blk.SyntacticVerify(), "no txs")
 
-	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100,
+	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, Builder: ids.Address{1, 2, 3},
 		Validators: ids.IDList[ids.StakeSymbol]{{1, 2, 3}},
 		Txs:        ids.IDList[ids.ID32]{{1, 2, 3}}}
 	assert.ErrorContains(blk.SyntacticVerify(), "invalid validator address")
 
-	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100,
+	blk = &Block{State: ids.ID32{1, 2, 3}, GasPrice: 100, Builder: ids.Address{1, 2, 3},
 		Validators: ids.IDList[ids.StakeSymbol]{},
 		Txs:        ids.IDList[ids.ID32]{{}}}
 	assert.ErrorContains(blk.SyntacticVerify(), "empty id exists")
@@ -75,6 +75,7 @@ func TestBlock(t *testing.T) {
 		GasRebateRate: 200,
 		Validators:    ids.IDList[ids.StakeSymbol]{},
 		Txs:           ids.IDList[ids.ID32]{tx.ID},
+		Builder:       ids.Address{1, 2, 3},
 	}
 
 	assert.NoError(blk.SyntacticVerify())
@@ -84,7 +85,7 @@ func TestBlock(t *testing.T) {
 	jsondata, err := json.Marshal(blk)
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","state":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","pChainHeight":0,"height":0,"timestamp":0,"gas":638,"gasPrice":1000,"gasRebateRate":200,"builder":"","validators":[],"txs":["aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"],"id":"YazT1E6_dY1V6m3OAPQYdxmm86crUGm7VVPddkAKwUX-bsbE"}`, string(jsondata))
+	assert.Equal(`{"parent":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX","state":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","pChainHeight":0,"height":0,"timestamp":0,"gas":638,"gasPrice":1000,"gasRebateRate":200,"builder":"0x0102030000000000000000000000000000000000","validators":[],"txs":["aLokjgaVT95weTdJmhe2T1VjnvqfqaDNx7JHtRuo8TAsHAps"],"id":"ty9fpeZpmz-s8jrcXW8-OSQ9sPue7auw6_8-B-nUeBZYdzPn"}`, string(jsondata))
 
 	blk2 := &Block{}
 	assert.NoError(blk2.Unmarshal(cbordata))

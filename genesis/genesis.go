@@ -71,15 +71,15 @@ func (c *ChainConfig) AppendFeeConfig(data []byte) (*FeeConfig, error) {
 }
 
 type FeeConfig struct {
-	StartHeight            uint64                      `cbor:"sh" json:"startHeight"`
-	MinGasPrice            uint64                      `cbor:"min" json:"minGasPrice"`
-	MaxGasPrice            uint64                      `cbor:"max" json:"maxGasPrice"`
-	MaxTxGas               uint64                      `cbor:"mtg" json:"maxTxGas"`
-	GasRebateRate          uint64                      `cbor:"grr" json:"gasRebateRate"`
-	MinTokenPledge         *big.Int                    `cbor:"mtp" json:"minTokenPledge"`
-	MinStakePledge         *big.Int                    `cbor:"msp" json:"minStakePledge"`
-	NonTransferableBalance *big.Int                    `cbor:"ntb" json:"nonTransferableBalance"`
-	Builders               ids.IDList[ids.StakeSymbol] `cbor:"bs" json:"builders"`
+	StartHeight            uint64                  `cbor:"sh" json:"startHeight"`
+	MinGasPrice            uint64                  `cbor:"min" json:"minGasPrice"`
+	MaxGasPrice            uint64                  `cbor:"max" json:"maxGasPrice"`
+	MaxTxGas               uint64                  `cbor:"mtg" json:"maxTxGas"`
+	GasRebateRate          uint64                  `cbor:"grr" json:"gasRebateRate"`
+	MinTokenPledge         *big.Int                `cbor:"mtp" json:"minTokenPledge"`
+	MinStakePledge         *big.Int                `cbor:"msp" json:"minStakePledge"`
+	NonTransferableBalance *big.Int                `cbor:"ntb" json:"nonTransferableBalance"`
+	Builders               ids.IDList[ids.Address] `cbor:"bs" json:"builders"`
 }
 
 func (cfg *FeeConfig) SyntacticVerify() error {
@@ -121,7 +121,7 @@ func (cfg *FeeConfig) SyntacticVerify() error {
 	return nil
 }
 
-func (cfg *FeeConfig) ValidBuilder(builder ids.StakeSymbol) error {
+func (cfg *FeeConfig) ValidBuilder(builder ids.Address) error {
 	errp := erring.ErrPrefix("FeeConfig.ValidBuilder: ")
 
 	if len(cfg.Builders) > 0 && !cfg.Builders.Has(builder) {

@@ -5,7 +5,7 @@ package chain
 
 import (
 	"context"
-	"fmt"
+	"encoding/binary"
 	"net/http"
 	"strings"
 	"time"
@@ -15,82 +15,83 @@ import (
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/rpc/httprpc"
 	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/txpool"
+	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/erring"
 	"github.com/ldclabs/ldvm/util/sync"
 
-	avaids "github.com/ava-labs/avalanchego/ids"
 	"go.uber.org/zap"
 )
 
 type TxPool struct {
-	mu     sync.Mutex
-	cli    *httprpc.CBORClient
-	nodeID avaids.NodeID
-	cache  map[uint64]ld.Txs // cached processing Txs
+	mu        sync.Mutex
+	ctx       *Context
+	cli       *httprpc.CBORClient
+	requester string
+	cwtExData []byte
+	cache     map[uint64]ld.Txs // cached processing Txs
 }
 
-func NewTxPool(ctx *Context, pdsEndpoint string, rt http.RoundTripper) *TxPool {
+func NewTxPool(ctx *Context, posEndpoint string, rt http.RoundTripper) *TxPool {
 	header := http.Header{}
 	header.Set("x-node-id", ctx.NodeID.String())
 	header.Set("user-agent",
 		strings.Replace(ctx.Name(), "@v", "/", 1)+" (TxPool Client, CBOR-RPC)")
 
 	opts := &httprpc.CBORClientOptions{RoundTripper: rt, Header: header}
+	exData := make([]byte, 8)
+	binary.BigEndian.PutUint64(exData, ctx.genesis.Chain.ChainID)
 	return &TxPool{
-		cli:    httprpc.NewCBORClient(pdsEndpoint+"/txs", opts),
-		nodeID: ctx.NodeID,
-		cache:  make(map[uint64]ld.Txs, 10),
+		ctx:       ctx,
+		cli:       httprpc.NewCBORClient(posEndpoint+"/txs", opts),
+		requester: ctx.Builder().String(),
+		cwtExData: exData,
+		cache:     make(map[uint64]ld.Txs, 10),
 	}
 }
 
-// TODO: Authorization
-type TxReqParams struct {
-	NodeID avaids.NodeID `cbor:"n"`
-	Height uint64        `cbor:"h"`
-	Params any           `cbor:"p,omitempty"`
-}
+func (p *TxPool) genParams(params any, withSigs bool) (*txpool.RequestParams, error) {
+	rp := &txpool.RequestParams{}
 
-type TxsBuildStatus struct {
-	Unknown    ids.IDList[ids.ID32] `cbor:"0,omitempty"`
-	Processing ids.IDList[ids.ID32] `cbor:"1,omitempty"`
-	Rejected   ids.IDList[ids.ID32] `cbor:"2,omitempty"`
-	Accepted   ids.IDList[ids.ID32] `cbor:"3,omitempty"`
-}
-
-type TxOrBatch struct {
-	Tx           *ld.TxData  `cbor:"tx,omitempty"`
-	Signatures   signer.Sigs `cbor:"ss,omitempty"`
-	ExSignatures signer.Sigs `cbor:"es,omitempty"`
-	Batch        ld.Txs      `cbor:"ba,omitempty"`
-}
-
-func (t *TxOrBatch) toTransaction() (*ld.Transaction, error) {
-	switch {
-	case t.Tx != nil:
-		tx := &ld.Transaction{Tx: *t.Tx, Signatures: t.Signatures, ExSignatures: t.ExSignatures}
-		if err := tx.SyntacticVerify(); err != nil {
+	var err error
+	if params != nil {
+		if rp.Payload, err = encoding.MarshalCBOR(params); err != nil {
 			return nil, err
 		}
-		return tx, nil
-
-	case len(t.Batch) > 1:
-		return ld.NewBatchTx(t.Batch...)
-
-	default:
-		return nil, fmt.Errorf("invalid TxOrBatch")
 	}
+
+	if withSigs {
+		now := uint64(time.Now().Unix())
+		rp.CWT = &signer.CWT{
+			ExData: p.cwtExData,
+			Claims: signer.Claims{
+				Subject:    p.requester,
+				Audience:   "ldc:txpool",
+				Expiration: now + 10,
+				IssuedAt:   now,
+				CWTID:      ids.ID32FromData(rp.Payload),
+			},
+		}
+		if err := rp.CWT.WithSign(p.ctx.BuilderSigner()); err != nil {
+			return nil, err
+		}
+	}
+
+	return rp, nil
 }
 
-func (p *TxPool) LoadByIDs(height uint64, txIDs ids.IDList[ids.ID32]) (ld.Txs, error) {
+func (p *TxPool) LoadByIDs(ctx context.Context, height uint64, txIDs ids.IDList[ids.ID32]) (ld.Txs, error) {
 	errp := erring.ErrPrefix("chain.TxPool.LoadByIDs: ")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	txs, ok := p.loadByIDsFromCache(height, txIDs)
 	if !ok {
 		txs = make(ld.Txs, 0, len(txIDs))
-		params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: txIDs}
-		res := p.cli.Request(ctx, "LoadByIDs", params, &txs)
+		params, err := p.genParams(txIDs, false)
+		if err != nil {
+			return nil, errp.ErrorIf(err)
+		}
+
+		res := p.cli.Request(ctx, "loadByIDs", params, &txs)
 		if res.Error != nil {
 			return nil, errp.ErrorIf(res.Error)
 		}
@@ -113,36 +114,39 @@ func (p *TxPool) LoadByIDs(height uint64, txIDs ids.IDList[ids.ID32]) (ld.Txs, e
 	return txs, nil
 }
 
-func (p *TxPool) SizeToBuild(height uint64) int {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	params := &TxReqParams{NodeID: p.nodeID, Height: height}
+func (p *TxPool) SizeToBuild(ctx context.Context, height uint64) int {
 	size := 0
-	res := p.cli.Request(ctx, "SizeToBuild", params, &size)
-	if res.Error != nil {
+	params, err := p.genParams(nil, false)
+	if err == nil {
+		res := p.cli.Request(ctx, "sizeToBuild", params, &size)
+		err = res.Error
+	}
+
+	if err != nil {
 		logging.Log.Warn("TxPool.SizeToBuild",
 			zap.Uint64("height", height),
-			zap.Error(res.Error))
+			zap.Error(err))
 	}
 	return size
 }
 
-func (p *TxPool) FetchToBuild(height uint64) (ld.Txs, error) {
+func (p *TxPool) FetchToBuild(ctx context.Context, height uint64) (ld.Txs, error) {
 	errp := erring.ErrPrefix("chain.TxPool.FetchToBuild: ")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
-	result := make([]TxOrBatch, 0)
-	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: ld.MaxBlockTxsSize}
-	res := p.cli.Request(ctx, "FetchToBuild", params, &result)
+	params, err := p.genParams(ld.MaxBlockTxsSize, true)
+	if err != nil {
+		return nil, errp.ErrorIf(err)
+	}
+
+	result := make([]txpool.TxOrBatch, 0)
+	res := p.cli.Request(ctx, "fetchToBuild", params, &result)
 	if res.Error != nil {
 		return nil, errp.ErrorIf(res.Error)
 	}
 
 	txs := make(ld.Txs, 0, len(result))
 	for _, v := range result {
-		tx, err := v.toTransaction()
+		tx, err := v.ToTransaction()
 		if err != nil {
 			return nil, errp.ErrorIf(err)
 		}
@@ -165,47 +169,68 @@ func (p *TxPool) FetchToBuild(height uint64) (ld.Txs, error) {
 	return txs, nil
 }
 
-func (p *TxPool) UpdateBuildStatus(height uint64, tbs *TxsBuildStatus) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+func (p *TxPool) UpdateBuildStatus(ctx context.Context, height uint64, tbs *txpool.TxsBuildStatus) {
+	params, err := p.genParams(tbs, true)
+	if err == nil {
+		res := p.cli.Request(ctx, "updateBuildStatus", params, nil)
+		if res.Error != nil {
+			err = res.Error
+		}
+	}
 
-	params := &TxReqParams{NodeID: p.nodeID, Height: height, Params: tbs}
-	res := p.cli.Request(ctx, "UpdateBuildStatus", params, nil)
-	if res.Error != nil {
-		logging.Log.Warn("TxPool.UpdateBuildStatus",
+	if err != nil {
+		logging.Log.Warn("chain.TxPool.UpdateBuildStatus",
 			zap.Uint64("height", height),
-			zap.Error(res.Error))
+			zap.Error(err))
+	}
+}
+
+func (p *TxPool) AcceptByBlock(ctx context.Context, blk *ld.Block) error {
+	params, err := p.genParams(blk, true)
+	if err == nil {
+		res := p.cli.Request(ctx, "acceptByBlock", params, nil)
+		if res.Error != nil {
+			err = res.Error
+		}
 	}
 
-	if len(tbs.Accepted) > 0 {
-		p.freeCache(height)
+	if err != nil {
+		logging.Log.Warn("chain.TxPool.AcceptByBlock",
+			zap.Uint64("height", blk.Height),
+			zap.Error(err))
 	}
+	p.freeCache(blk.Height)
+	return err
 }
 
 func (p *TxPool) loadByIDsFromCache(height uint64, txIDs ids.IDList[ids.ID32]) (txs ld.Txs, ok bool) {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if txs, ok = p.cache[height]; ok {
 		if !txs.IDs().Equal(txIDs) {
 			delete(p.cache, height)
 			ok = false
 		}
 	}
-	p.mu.Unlock()
+
 	return
 }
 
 func (p *TxPool) SetCache(height uint64, txs ld.Txs) {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.cache[height] = txs
-	p.mu.Unlock()
 }
 
 func (p *TxPool) freeCache(acceptedHeight uint64) {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	for k := range p.cache {
 		if k <= acceptedHeight {
 			delete(p.cache, k)
 		}
 	}
-	p.mu.Unlock()
 }

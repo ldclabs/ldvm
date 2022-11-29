@@ -112,7 +112,7 @@ func (v *VM) Initialize(
 
 	errp := erring.ErrPrefix("LDVM.Initialize error: ")
 	var cfg *config.Config
-	cfg, err = config.New(configData)
+	cfg, err = config.New(cc, configData)
 	if err != nil {
 		return errp.Errorf("failed to get config, %v", err)
 	}
@@ -134,7 +134,7 @@ func (v *VM) Initialize(
 		zap.String("upgradeData", string(upgradeData)),
 		zap.String("configData", string(configData)))
 
-	err = v.initialize(cfg, genesisData, toEngine)
+	err = v.initialize(cc, cfg, genesisData, toEngine)
 	if err == nil && v.bc.IsBuilder() {
 		if err = v.startRPCServer(cfg.RPCAddr); err == nil {
 			v.Log.Info("startRPCServer on",
@@ -150,6 +150,7 @@ func (v *VM) Initialize(
 }
 
 func (v *VM) initialize(
+	cc context.Context,
 	cfg *config.Config,
 	genesisData []byte,
 	toEngine chan<- common.Message,
@@ -179,7 +180,7 @@ func (v *VM) initialize(
 
 	chaindb := v.dbManager.Current().Database
 	v.bc = chain.NewChain(v.name, v.ctx, cfg, gs, chaindb, toEngine, tr)
-	if err = v.bc.Bootstrap(); err != nil {
+	if err = v.bc.Bootstrap(cc); err != nil {
 		return err
 	}
 
@@ -193,7 +194,7 @@ func (v *VM) SetState(ctx context.Context, state snow.State) error {
 	defer v.mu.Unlock()
 
 	v.Log.Info("LDVM.SetState", zap.Stringer("state", state))
-	return v.bc.SetState(state)
+	return v.bc.SetState(ctx, state)
 }
 
 // Shutdown implements the common.VM Shutdown interface
@@ -253,7 +254,7 @@ func (v *VM) CreateHandlers(ctx context.Context) (map[string]*common.HTTPHandler
 // Returns nil if the VM is healthy.
 // Periodically called and reported via the node's Health API.
 func (v *VM) HealthCheck(ctx context.Context) (any, error) {
-	return v.bc.HealthCheck()
+	return v.bc.HealthCheck(ctx)
 }
 
 // Connected implements the common.VM validators.Connector Connected interface
@@ -424,7 +425,7 @@ func (v *VM) GetBlock(ctx context.Context, id avaids.ID) (blk snowman.Block, err
 	defer v.mu.RUnlock()
 
 	id32 := ids.ID32(id)
-	blk, err = v.bc.GetBlock(id32)
+	blk, err = v.bc.GetBlock(ctx, id32)
 	if err != nil {
 		v.Log.Error("LDVM.GetBlock", zap.Stringer("id", id32), zap.Error(err))
 	} else {
@@ -444,7 +445,7 @@ func (v *VM) ParseBlock(ctx context.Context, data []byte) (blk snowman.Block, er
 
 	id32 := ids.ID32FromData(data)
 	err = ld.Recover("", func() error {
-		blk, err = v.bc.ParseBlock(data)
+		blk, err = v.bc.ParseBlock(ctx, data)
 		return err
 	})
 
@@ -466,7 +467,7 @@ func (v *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	blk, err := v.bc.BuildBlock()
+	blk, err := v.bc.BuildBlock(ctx)
 	if err != nil {
 		v.Log.Error("LDVM.BuildBlock", zap.Error(err))
 	} else {
@@ -487,7 +488,7 @@ func (v *VM) SetPreference(ctx context.Context, id avaids.ID) error {
 
 	id32 := ids.ID32(id)
 	v.Log.Info("LDVM.SetPreference", zap.Stringer("id", id32))
-	err := v.bc.SetPreference(id32)
+	err := v.bc.SetPreference(ctx, id32)
 	if err != nil {
 		v.Log.Error("LDVM.SetPreference", zap.Stringer("id", id32), zap.Error(err))
 	}
@@ -501,7 +502,7 @@ func (v *VM) SetPreference(ctx context.Context, id avaids.ID) error {
 // a definitionally accepted block, the Genesis block, that will be
 // returned.
 func (v *VM) LastAccepted(ctx context.Context) (avaids.ID, error) {
-	blk := v.bc.LastAcceptedBlock()
+	blk := v.bc.LastAcceptedBlock(ctx)
 	v.Log.Info("LDVM.LastAccepted",
 		zap.Stringer("id", blk.Hash()),
 		zap.Uint64("height", blk.Height()))
@@ -521,7 +522,7 @@ func (v *VM) VerifyHeightIndex(ctx context.Context) error {
 // GetBlockIDAtHeight implements the block.HeightIndexedChainVM GetBlockIDAtHeight interface
 // GetBlockIDAtHeight returns the ID of the block that was accepted with [height].
 func (v *VM) GetBlockIDAtHeight(ctx context.Context, height uint64) (avaids.ID, error) {
-	id, err := v.bc.GetBlockIDAtHeight(height)
+	id, err := v.bc.GetBlockIDAtHeight(ctx, height)
 	if err != nil {
 		v.Log.Error("LDVM.GetBlockIDAtHeight %d error %v",
 			zap.Uint64("height", height),

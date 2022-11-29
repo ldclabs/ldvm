@@ -29,7 +29,7 @@ type Block struct {
 	// The address of validator (convert to valid StakeAccount) who build this block.
 	// All tips and 20% of total gas rebate are distributed to this stakeAccount.
 	// Total gas rebate = Gas * GasRebateRate * GasPrice / 100
-	Builder ids.StakeSymbol `cbor:"b" json:"builder"`
+	Builder ids.Address `cbor:"b" json:"builder"`
 	// All validators (convert to valid StakeAccounts), sorted by Stake Balance.
 	// 80% of total gas rebate are distributed to these stakeAccounts
 	Validators ids.IDList[ids.StakeSymbol] `cbor:"vs" json:"validators"`
@@ -63,7 +63,7 @@ func (b *Block) SyntacticVerify() error {
 	case b.GasRebateRate > 1000:
 		return errp.Errorf("invalid gasRebateRate")
 
-	case b.Builder != ids.EmptyStake && !b.Builder.Valid():
+	case b.Builder == ids.EmptyAddress:
 		return errp.Errorf("invalid builder address %s", b.Builder.GoString())
 
 	case b.Validators == nil:

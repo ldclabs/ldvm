@@ -7,6 +7,8 @@ import (
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
 )
 
 type Context struct {
@@ -15,6 +17,8 @@ type Context struct {
 	config  *config.Config
 	genesis *genesis.Genesis
 	name    string
+	builder ids.Address
+	signer  signer.Signer
 }
 
 func NewContext(
@@ -24,7 +28,12 @@ func NewContext(
 	config *config.Config,
 	genesis *genesis.Genesis,
 ) *Context {
-	return &Context{ctx, bc, config, genesis, name}
+	cc := &Context{ctx, bc, config, genesis, name, ids.Address(ctx.NodeID), nil}
+	if config.Builder != nil {
+		cc.builder = config.Builder.Address
+		cc.signer = config.Builder.Signer
+	}
+	return cc
 }
 
 func (c *Context) Name() string {
@@ -41,4 +50,12 @@ func (c *Context) Config() *config.Config {
 
 func (c *Context) ChainConfig() *genesis.ChainConfig {
 	return &c.genesis.Chain
+}
+
+func (c *Context) Builder() ids.Address {
+	return c.builder
+}
+
+func (c *Context) BuilderSigner() signer.Signer {
+	return c.signer
 }

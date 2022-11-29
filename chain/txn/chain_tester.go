@@ -23,7 +23,7 @@ type MockChainContext struct {
 	cfg               *genesis.ChainConfig
 	height, timestamp uint64
 	Price             uint64
-	BuilderID         ids.StakeSymbol
+	BuilderID         ids.Address
 }
 
 func NewMockChainContext() *MockChainContext {
@@ -40,7 +40,7 @@ func NewMockChainContext() *MockChainContext {
 		height:    1,
 		timestamp: 1000,
 		Price:     1000,
-		BuilderID: ld.MustNewStake("#LDC"),
+		BuilderID: ids.Address(ld.MustNewStake("#LDC")),
 	}
 }
 
@@ -56,7 +56,7 @@ func (m *MockChainContext) GasPrice() *big.Int {
 	return new(big.Int).SetUint64(m.Price)
 }
 
-func (m *MockChainContext) Builder() ids.StakeSymbol {
+func (m *MockChainContext) Builder() ids.Address {
 	return m.BuilderID
 }
 
@@ -194,16 +194,6 @@ func (m *MockChainState) CheckoutAccounts() {
 			}
 		}
 	}
-}
-
-func (m *MockChainState) LoadBuilder(id ids.StakeSymbol) (*acct.Account, error) {
-	if id != ids.EmptyStake && id.Valid() {
-		acc, err := m.LoadAccount(ids.Address(id))
-		if err == nil || acc.ValidValidator() {
-			return acc, nil
-		}
-	}
-	return m.LoadAccount(ids.GenesisAccount)
 }
 
 func (m *MockChainState) LoadDataByName(name string) (*ld.DataInfo, error) {

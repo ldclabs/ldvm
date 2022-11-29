@@ -71,3 +71,8 @@ func (s *bls12381Signer) SignHash(digestHash []byte) (Sig, error) {
 func (s *bls12381Signer) SignData(message []byte) (Sig, error) {
 	return s.SignHash(encoding.Sum256(message))
 }
+
+func (s *bls12381Signer) Sign(message []byte) (Sig, error) {
+	sig := bls.Sign(s.priv, message)
+	return bls.SignatureToBytes(sig), nil
+}

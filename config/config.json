@@ -1,4 +1,13 @@
 {
   "rpcAddr": ":2357",
-  "pdsEndpoint": "h2c://localhost:8080/pds"
+  "posEndpoint": "h2c://localhost:8080/pos",
+  "builder": {
+    "nodeId": "NodeID-7Xhw2mDxuDS44j42TCB6U5579esbSt3Lg",
+    "address": "0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc",
+    "privateSeed": "56289e99c94b6912bfc12adc093c9b51124f0dc54ac7a766b2bc5ccf558d8027",
+    "kesEndpoint": "",
+    "kesKeyName": "",
+    "kesCipherText": "",
+    "kesSignature": ""
+  }
 }

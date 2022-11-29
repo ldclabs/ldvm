@@ -4,6 +4,7 @@
 package chain
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
+	"github.com/ldclabs/ldvm/txpool"
 	"github.com/ldclabs/ldvm/util/erring"
 )
 
@@ -34,24 +36,24 @@ const (
 
 type BlockBuilder struct {
 	mu              sync.RWMutex
-	nodeID          ids.Address
 	lastBuildHeight uint64
 	status          builderStatus
+	ctx             *Context
 	txPool          *TxPool
 	toEngine        chan<- common.Message
 }
 
 func NewBlockBuilder(txPool *TxPool, toEngine chan<- common.Message) *BlockBuilder {
 	return &BlockBuilder{
-		nodeID:   ids.Address(txPool.nodeID),
+		ctx:      txPool.ctx,
 		txPool:   txPool,
 		toEngine: toEngine,
 	}
 }
 
 // HandlePreferenceBlock should be called immediately after [VM.SetPreference].
-func (b *BlockBuilder) HandlePreferenceBlock(height uint64) {
-	size := b.txPool.SizeToBuild(height + 1)
+func (b *BlockBuilder) HandlePreferenceBlock(ctx context.Context, height uint64) {
+	size := b.txPool.SizeToBuild(ctx, height+1)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -82,11 +84,11 @@ func (b *BlockBuilder) markBuilding() {
 	}
 }
 
-func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
+func (b *BlockBuilder) Build(ctx context.Context, builder ids.Address) (*Block, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	blk, err := b.build(ctx)
+	blk, err := b.build(ctx, builder)
 
 	if err != nil {
 		b.status = dontBuild
@@ -97,9 +99,9 @@ func (b *BlockBuilder) Build(ctx *Context) (*Block, error) {
 	return blk, nil
 }
 
-func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
+func (b *BlockBuilder) build(ctx context.Context, builder ids.Address) (*Block, error) {
 	ts := uint64(time.Now().UTC().Unix())
-	preferred := ctx.Chain().PreferredBlock()
+	preferred := b.ctx.Chain().PreferredBlock()
 	parentHeight := preferred.Height()
 
 	if b.lastBuildHeight > parentHeight {
@@ -112,7 +114,7 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		ts = pts
 	}
 
-	txs, err := b.txPool.FetchToBuild(parentHeight + 1)
+	txs, err := b.txPool.FetchToBuild(ctx, parentHeight+1)
 	if err != nil {
 		return nil, err
 	}
@@ -122,13 +124,14 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		return nil, fmt.Errorf("wait txs to build, expected >= %d, got %d", minTxsWhenBuild, size)
 	}
 
-	feeCfg := ctx.ChainConfig().Fee(parentHeight + 1)
+	feeCfg := b.ctx.ChainConfig().Fee(parentHeight + 1)
 	blk := &ld.Block{
 		Parent:        ids.ID32(preferred.ID()),
 		Height:        parentHeight + 1,
 		Timestamp:     ts,
 		GasPrice:      preferred.NextGasPrice(),
 		GasRebateRate: feeCfg.GasRebateRate,
+		Builder:       builder,
 		Txs:           ids.NewIDList[ids.ID32](txs.Size()),
 	}
 
@@ -139,12 +142,9 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		return nil, err
 	}
 
-	// 1. SetBuilder
-	nblk.SetBuilder(vbs)
-
-	// 2. TryBuildTxs
+	// 1. TryBuildTxs
 	var status choices.Status
-	tbs := &TxsBuildStatus{}
+	tbs := &txpool.TxsBuildStatus{}
 	processingTxs := make(ld.Txs, 0, txs.Size())
 	for i := range txs {
 		nvbs, err := vbs.DeriveState()
@@ -168,23 +168,22 @@ func (b *BlockBuilder) build(ctx *Context) (*Block, error) {
 		case choices.Rejected:
 			tbs.Rejected = append(tbs.Rejected, tx.IDs()...)
 		default:
-			tbs.Processing = append(tbs.Processing, tx.IDs()...)
 			processingTxs = append(processingTxs, tx.Txs()...)
 			vbs = nvbs
 		}
 	}
 
-	go b.txPool.UpdateBuildStatus(blk.Height, tbs)
+	go b.txPool.UpdateBuildStatus(ctx, blk.Height, tbs)
 	if len(blk.Txs) == 0 {
 		return nil, fmt.Errorf("no txs to build")
 	}
 
-	// 3. SetBuilderFee
+	// 2. SetBuilderFee
 	if err := nblk.SetBuilderFee(vbs); err != nil {
 		return nil, err
 	}
 
-	// 4. BuildState and Verify block
+	// 3. BuildState and Verify block
 	if err := nblk.BuildState(vbs); err != nil {
 		return nil, err
 	}

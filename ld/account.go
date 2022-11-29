@@ -237,6 +237,19 @@ func (a *Account) CheckAsTo(txType TxType) error {
 	return nil
 }
 
+// func (a *Account) VerifyOne(digestHash []byte, sigs signer.Sigs) bool {
+// 	switch {
+// 	case a.ID == ids.LDCAccount:
+// 		return false
+
+// 	case len(a.Keepers) == 0:
+// 		return false
+
+// 	default:
+// 		return a.Keepers.Verify(digestHash, sigs, 1)
+// 	}
+// }
+
 func (a *Account) Verify(digestHash []byte, sigs signer.Sigs, accountKey signer.Key) bool {
 	switch {
 	case a.ID == ids.LDCAccount:

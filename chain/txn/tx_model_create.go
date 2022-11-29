@@ -91,7 +91,7 @@ func (tx *TxCreateModel) ApplyGenesis(ctx ChainContext, cs ChainState) error {
 		return errp.ErrorIf(err)
 	}
 
-	if tx.miner, err = cs.LoadBuilder(ctx.Builder()); err != nil {
+	if tx.miner, err = cs.LoadAccount(ctx.Builder()); err != nil {
 		return errp.ErrorIf(err)
 	}
 
