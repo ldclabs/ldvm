@@ -13,7 +13,7 @@
       "minTokenPledge": 10000000000000,
       "minStakePledge": 1000000000000,
       "nonTransferableBalance": 1000000000,
-      "builders": ["#WN5NAOFSNZKD2LDHKUB"]
+      "builders": ["0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc"]
     }
   },
   "alloc": {

@@ -17,7 +17,7 @@ type ChainContext interface {
 	ChainConfig() *genesis.ChainConfig
 	FeeConfig() *genesis.FeeConfig
 	GasPrice() *big.Int
-	Builder() ids.StakeSymbol
+	Builder() ids.Address
 }
 
 type ChainState interface {
@@ -25,7 +25,6 @@ type ChainState interface {
 	Timestamp() uint64
 	LoadAccount(ids.Address) (*acct.Account, error)
 	LoadLedger(*acct.Account) error
-	LoadBuilder(ids.StakeSymbol) (*acct.Account, error)
 	LoadModel(ids.ModelID) (*ld.ModelInfo, error)
 	SaveModel(*ld.ModelInfo) error
 	LoadData(ids.DataID) (*ld.DataInfo, error)

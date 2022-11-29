@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/ldclabs/ldvm/util/value"
 )
 
 type orderedT interface {
@@ -73,6 +75,14 @@ func (list IDList[T]) Valid() error {
 	return nil
 }
 
+func (list IDList[T]) ToValue() value.Value {
+	v := value.NewList(len(list))
+	for _, id := range list {
+		v.Append(value.String(id.String()))
+	}
+	return v
+}
+
 func (list IDList[T]) Equal(target IDList[T]) bool {
 	if len(list) != len(target) {
 		return false
@@ -105,6 +115,10 @@ func (s Set[T]) Has(v T) bool {
 	return ok
 }
 
+func (s Set[T]) Del(v T) {
+	delete(s, v)
+}
+
 func (s Set[T]) Add(vv ...T) {
 	for _, v := range vv {
 		s[v] = struct{}{}
@@ -119,6 +133,10 @@ func (s Set[T]) CheckAdd(vv ...T) error {
 		s[v] = struct{}{}
 	}
 	return nil
+}
+
+func (s Set[T]) Len() int {
+	return len(s)
 }
 
 func (s Set[T]) List() List[T] {

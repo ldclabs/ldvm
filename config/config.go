@@ -4,13 +4,20 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	avaids "github.com/ava-labs/avalanchego/ids"
+
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/units"
+
+	"github.com/ldclabs/ldvm/ids"
+	"github.com/ldclabs/ldvm/signer"
+	"github.com/ldclabs/ldvm/util/encoding"
 )
 
 var (
@@ -32,14 +39,43 @@ var (
 type Config struct {
 	Logger      logging.Config `json:"logger"`
 	RPCAddr     string         `json:"rpcAddr"`
-	PdsEndpoint string         `json:"pdsEndpoint"` // persistent data source endpoint
+	POSEndpoint string         `json:"posEndpoint"` // persistent data source endpoint
+	Builder     *Builder       `json:"builder"`
 }
 
-func New(data []byte) (*Config, error) {
+type Builder struct {
+	Node          avaids.NodeID `json:"nodeId"`
+	Address       ids.Address   `json:"address"`
+	PrivateSeed   string        `json:"privateSeed"` // optional, only for local test
+	KesEndpoint   string        `json:"kesEndpoint"`
+	KesKeyName    string        `json:"kesKeyName"`
+	KesCipherText string        `json:"kesCipherText"`
+	KesSignature  string        `json:"kesSignature"`
+
+	Signer signer.Signer `json:"-"`
+}
+
+func (b *Builder) Valid(ctx context.Context) error {
+	if b.PrivateSeed != "" {
+		privateSeed, err := encoding.DecodeString(b.PrivateSeed)
+		if err != nil {
+			return err
+		}
+		b.Signer, err = signer.Ed25519From(privateSeed)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO: read private seed from KES
+	return nil
+}
+
+func New(ctx context.Context, data []byte) (*Config, error) {
 	cfg := &Config{
 		Logger:      DefaultLoggingConfig,
 		RPCAddr:     ":2357",
-		PdsEndpoint: "h2c://localhost:2357/pds",
+		POSEndpoint: "h2c://localhost:2357/pos",
 	}
 
 	if len(data) > 0 {
@@ -47,5 +83,12 @@ func New(data []byte) (*Config, error) {
 			return nil, err
 		}
 	}
+
+	if cfg.Builder != nil {
+		if err := cfg.Builder.Valid(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	return cfg, nil
 }

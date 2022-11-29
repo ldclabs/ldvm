@@ -140,10 +140,10 @@ func (b *Block) Hash() ids.ID32 { return b.ld.ID }
 
 func (b *Block) LD() *ld.Block { return b.ld }
 
-func (b *Block) Builder() ids.StakeSymbol { return b.ld.Builder }
+func (b *Block) Builder() ids.Address { return b.ld.Builder }
 
-func (b *Block) SetBuilder(vbs BlockState) {
-	b.ld.Builder, _ = vbs.LoadValidatorAccountByNodeID(b.ctx.NodeID)
+func (b *Block) SetBuilder(builder ids.Address) {
+	b.ld.Builder = builder
 }
 
 func (b *Block) BuildTxs(vbs BlockState, txs ...*ld.Transaction) choices.Status {
@@ -290,7 +290,7 @@ func (b *Block) applyBuilderFee(shares []*acct.Account, vbs BlockState) error {
 		return err
 	}
 
-	builder, err := vbs.LoadBuilder(b.ld.Builder)
+	builder, err := vbs.LoadAccount(b.ld.Builder)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (b *Block) BuildState(vbs BlockState) error {
 // It is guaranteed that the Parent has been successfully verified.
 func (b *Block) Verify(ctx context.Context) error {
 	errp := erring.ErrPrefix("chain.Block.Verify: ")
-	if err := b.verify(); err != nil {
+	if err := b.verify(ctx); err != nil {
 		logging.Log.Warn("Block.Verify",
 			zap.Stringer("id", b.Hash()),
 			zap.Uint64("height", b.Height()),
@@ -345,7 +345,7 @@ func (b *Block) Verify(ctx context.Context) error {
 	return nil
 }
 
-func (b *Block) verify() error {
+func (b *Block) verify(ctx context.Context) error {
 	b.status = choices.Processing
 	id := b.ld.ID
 	if id == ids.EmptyID32 {
@@ -371,7 +371,7 @@ func (b *Block) verify() error {
 		return err
 	}
 
-	txs, err := b.ctx.Chain().LoadTxsByIDsFromPds(b.Height(), b.ld.Txs)
+	txs, err := b.ctx.Chain().LoadTxsByIDsFromPOS(ctx, b.Height(), b.ld.Txs)
 	if err != nil {
 		return err
 	}
@@ -426,7 +426,7 @@ func (b *Block) Accept(ctx context.Context) error {
 		return errp.Errorf("%s not verified", b.Hash())
 	}
 
-	if err := b.ctx.Chain().SetLastAccepted(b); err != nil {
+	if err := b.ctx.Chain().SetLastAccepted(ctx, b); err != nil {
 		return errp.Errorf("set last accepted: %v", err)
 	}
 

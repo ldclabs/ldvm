@@ -73,3 +73,7 @@ func (s *secp256k1Signer) SignHash(digestHash []byte) (Sig, error) {
 func (s *secp256k1Signer) SignData(message []byte) (Sig, error) {
 	return s.SignHash(encoding.Sum256(message))
 }
+
+func (s *secp256k1Signer) Sign(message []byte) (Sig, error) {
+	return s.SignHash(encoding.Sum256(message))
+}

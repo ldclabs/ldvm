@@ -50,11 +50,11 @@ func (api *ChainAPI) ServeRPC(ctx context.Context, req *jsonrpc.Request) *jsonrp
 		return req.Result(api.bc.State())
 
 	case "lastAccepted":
-		blk := api.bc.LastAcceptedBlock()
+		blk := api.bc.LastAcceptedBlock(ctx)
 		return req.Result(blk.Hash())
 
 	case "lastAcceptedHeight":
-		blk := api.bc.LastAcceptedBlock()
+		blk := api.bc.LastAcceptedBlock(ctx)
 		return req.Result(blk.Height())
 
 	default:

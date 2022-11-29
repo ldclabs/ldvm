@@ -65,3 +65,7 @@ func (s *ed25519Signer) SignHash(digestHash []byte) (Sig, error) {
 func (s *ed25519Signer) SignData(message []byte) (Sig, error) {
 	return s.SignHash(encoding.Sum256(message))
 }
+
+func (s *ed25519Signer) Sign(message []byte) (Sig, error) {
+	return ed25519.Sign(s.priv, message), nil
+}

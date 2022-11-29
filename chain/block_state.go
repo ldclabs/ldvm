@@ -207,16 +207,6 @@ func (bs *blockState) LoadValidatorAccountByNodeID(nodeID avaids.NodeID) (ids.St
 	return id, acc
 }
 
-func (bs *blockState) LoadBuilder(id ids.StakeSymbol) (*acct.Account, error) {
-	if id != ids.EmptyStake && id.Valid() {
-		acc, err := bs.LoadAccount(ids.Address(id))
-		if err == nil && acc.ValidValidator() {
-			return acc, nil
-		}
-	}
-	return bs.LoadAccount(ids.GenesisAccount)
-}
-
 func (bs *blockState) SaveName(ns *service.Name) error {
 	errp := erring.ErrPrefix("chain.BlockState.SaveName: ")
 	if ns.DataID == ids.EmptyDataID {
