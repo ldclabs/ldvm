@@ -10,11 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ldclabs/cose/cose"
+	"github.com/ldclabs/cose/cwt"
+
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/logging"
 	"github.com/ldclabs/ldvm/rpc/httprpc"
-	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/txpool"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/erring"
@@ -62,17 +64,16 @@ func (p *TxPool) genParams(params any, withSigs bool) (*txpool.RequestParams, er
 
 	if withSigs {
 		now := uint64(time.Now().Unix())
-		rp.CWT = &signer.CWT{
-			ExData: p.cwtExData,
-			Claims: signer.Claims{
+		rp.CWT = &cose.Sign1Message[cwt.Claims]{
+			Payload: cwt.Claims{
 				Subject:    p.requester,
 				Audience:   "ldc:txpool",
 				Expiration: now + 10,
 				IssuedAt:   now,
-				CWTID:      ids.ID32FromData(rp.Payload),
+				CWTID:      ids.ID32FromData(rp.Payload).Bytes(),
 			},
 		}
-		if err := rp.CWT.WithSign(p.ctx.BuilderSigner()); err != nil {
+		if err := rp.CWT.WithSign(p.ctx.BuilderSigner(), p.cwtExData); err != nil {
 			return nil, err
 		}
 	}

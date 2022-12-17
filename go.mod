@@ -10,6 +10,7 @@ require (
 	github.com/ipld/go-ipld-prime v0.19.0
 	github.com/klauspost/compress v1.15.12
 	github.com/ldclabs/cbor-patch v1.1.3
+	github.com/ldclabs/cose v0.4.1
 	github.com/ldclabs/json-patch v1.3.0
 	github.com/libp2p/go-libp2p v0.23.4
 	github.com/mailgun/holster/v4 v4.9.3

@@ -5,10 +5,11 @@ package chain
 
 import (
 	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ldclabs/cose/key"
+
 	"github.com/ldclabs/ldvm/config"
 	"github.com/ldclabs/ldvm/genesis"
 	"github.com/ldclabs/ldvm/ids"
-	"github.com/ldclabs/ldvm/signer"
 )
 
 type Context struct {
@@ -18,7 +19,7 @@ type Context struct {
 	genesis *genesis.Genesis
 	name    string
 	builder ids.Address
-	signer  signer.Signer
+	signer  key.Signer
 }
 
 func NewContext(
@@ -56,6 +57,6 @@ func (c *Context) Builder() ids.Address {
 	return c.builder
 }
 
-func (c *Context) BuilderSigner() signer.Signer {
+func (c *Context) BuilderSigner() key.Signer {
 	return c.signer
 }
