@@ -4,11 +4,16 @@
 package txpool
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/ldclabs/cose/cose"
+	"github.com/ldclabs/cose/cwt"
+	"github.com/ldclabs/cose/key"
+	"github.com/ldclabs/cose/key/ed25519"
 
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
@@ -20,8 +25,8 @@ import (
 )
 
 type RequestParams struct {
-	Payload cbor.RawMessage `cbor:"p,omitempty"`
-	CWT     *signer.CWT     `cbor:"t,omitempty"`
+	Payload cbor.RawMessage                `cbor:"p,omitempty"`
+	CWT     *cose.Sign1Message[cwt.Claims] `cbor:"t,omitempty"`
 }
 
 func (p *TxPool) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Response {
@@ -34,7 +39,7 @@ func (p *TxPool) ServeRPC(ctx context.Context, req *cborrpc.Request) *cborrpc.Re
 		log.Set("rpcId", value.String(req.ID))
 		log.Set("rpcMethod", value.String(req.Method))
 		if params.CWT != nil {
-			log.Set("subject", value.String(params.CWT.Claims.Subject))
+			log.Set("subject", value.String(params.CWT.Payload.Subject))
 		}
 	})
 
@@ -173,41 +178,61 @@ func (p *TxPool) auth(reqParams *RequestParams) error {
 		}
 	}
 
-	if reqParams.CWT.Claims.Audience != p.cwtAudience {
+	if reqParams.CWT.Payload.Audience != p.cwtAudience {
 		return &erring.Error{
 			Code:    cborrpc.CodeInvalidRequest,
 			Message: "txpool: invalid CWT audience",
 		}
 	}
 
-	if reqParams.CWT.Claims.Subject != p.builder {
+	if reqParams.CWT.Payload.Subject != p.builder {
 		return &erring.Error{
 			Code:    cborrpc.CodeInvalidRequest,
 			Message: "txpool: invalid CWT subject",
 		}
 	}
 
-	if reqParams.CWT.Claims.CWTID != ids.ID32FromData(reqParams.Payload) {
+	if !bytes.Equal(reqParams.CWT.Payload.CWTID, ids.ID32FromData(reqParams.Payload).Bytes()) {
 		return &erring.Error{
 			Code:    cborrpc.CodeInvalidRequest,
 			Message: "txpool: invalid CWT ID",
 		}
 	}
 
-	reqParams.CWT.ExData = p.cwtExData
-	if err := reqParams.CWT.Verify(); err != nil {
+	kid, err := reqParams.CWT.Unprotected.GetBytes(cose.HeaderLabelKeyID)
+	if err != nil {
+		return &erring.Error{
+			Code:    cborrpc.CodeInvalidRequest,
+			Message: "txpool: invalid CWT key ID",
+		}
+	}
+	verifier := FindCOSEVerifier(p.builderKeepers, kid)
+	if verifier == nil {
+		return &erring.Error{
+			Code:    cborrpc.CodeServerError - http.StatusUnauthorized,
+			Message: "txpool: signatures verify failed",
+		}
+	}
+	if err := reqParams.CWT.Verify(verifier, p.cwtExData); err != nil {
 		return &erring.Error{
 			Code:    cborrpc.CodeServerError - http.StatusUnauthorized,
 			Message: "txpool: " + err.Error(),
 		}
 	}
 
-	if !p.builderKeepers.HasKeys(signer.Keys{reqParams.CWT.Key}, 1) {
-		return &erring.Error{
-			Code:    cborrpc.CodeServerError - http.StatusUnauthorized,
-			Message: "txpool: signatures verify failed",
+	return nil
+}
+
+func FindCOSEVerifier(ks signer.Keys, kid []byte) key.Verifier {
+	for _, k := range ks {
+		if bytes.Equal(k.Address().Bytes(), kid) && k.Kind() == signer.Ed25519 {
+			pubKey, err := ed25519.KeyFromPublic(k.Bytes())
+			if err != nil {
+				return nil
+			}
+			verifier, _ := pubKey.Verifier()
+			return verifier
 		}
 	}
-
 	return nil
 }

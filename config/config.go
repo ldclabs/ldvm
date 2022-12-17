@@ -10,13 +10,13 @@ import (
 	"os"
 
 	avaids "github.com/ava-labs/avalanchego/ids"
-
 	"github.com/ava-labs/avalanchego/utils/constants"
 	"github.com/ava-labs/avalanchego/utils/logging"
 	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ldclabs/cose/key"
+	"github.com/ldclabs/cose/key/ed25519"
 
 	"github.com/ldclabs/ldvm/ids"
-	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
@@ -52,7 +52,7 @@ type Builder struct {
 	KesCipherText string        `json:"kesCipherText"`
 	KesSignature  string        `json:"kesSignature"`
 
-	Signer signer.Signer `json:"-"`
+	Signer key.Signer `json:"-"`
 }
 
 func (b *Builder) Valid(ctx context.Context) error {
@@ -61,7 +61,11 @@ func (b *Builder) Valid(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		b.Signer, err = signer.Ed25519From(privateSeed)
+		key, err := ed25519.KeyFromSeed(privateSeed)
+		if err != nil {
+			return err
+		}
+		b.Signer, err = key.Signer()
 		if err != nil {
 			return err
 		}

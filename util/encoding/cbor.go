@@ -22,7 +22,7 @@ var EncOpts = cbor.EncOptions{
 }
 var EncMode, _ = EncOpts.EncMode()
 var DecOpts = cbor.DecOptions{
-	DupMapKey:        cbor.DupMapKeyQuiet,
+	DupMapKey:        cbor.DupMapKeyEnforcedAPF,
 	IndefLength:      cbor.IndefLengthForbidden,
 	MaxArrayElements: 100_000,
 	MaxMapPairs:      1_000_000,
