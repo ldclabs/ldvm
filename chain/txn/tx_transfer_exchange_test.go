@@ -114,7 +114,7 @@ func TestTxExchange(t *testing.T) {
 	assert.NoError(ltx.ExSignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
+	assert.ErrorContains(err, "extraneous data")
 
 	input := ld.TxExchanger{
 		Nonce:   1,

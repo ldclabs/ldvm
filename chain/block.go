@@ -259,10 +259,10 @@ func (b *Block) getValidatorAccounts(pcHeight uint64, vbs BlockState) ([]*acct.A
 		vv = append(vv, nid)
 	}
 	sort.SliceStable(vv, func(i, j int) bool {
-		if vs[vv[i]] == vs[vv[j]] {
+		if vs[vv[i]].Weight == vs[vv[j]].Weight {
 			return bytes.Compare(vv[i][:], vv[j][:]) == 1
 		}
-		return vs[vv[i]] > vs[vv[j]]
+		return vs[vv[i]].Weight > vs[vv[j]].Weight
 	})
 
 	accs := make([]*acct.Account, 0, len(vv))

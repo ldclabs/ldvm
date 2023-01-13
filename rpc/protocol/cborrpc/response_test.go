@@ -24,7 +24,7 @@ func TestResponse(t *testing.T) {
 	data = cborpatch.MustFromJSON(`{"id":"1","result":true}`)
 	data = append(data, byte(254))
 	n, err = res.ReadFrom(bytes.NewBuffer(data))
-	assert.ErrorContains(err, `cbor: unexpected following extraneous data`)
+	assert.ErrorContains(err, `extraneous data`)
 	assert.Equal(int64(15), n)
 
 	res = &Response{}

@@ -132,7 +132,7 @@ func TestTxWithdrawStake(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
+	assert.ErrorContains(err, "extraneous data")
 
 	input := &ld.TxTransfer{Nonce: 1}
 	ltx = &ld.Transaction{Tx: ld.TxData{

@@ -106,7 +106,7 @@ func TestTxUpdateAccountInfo(t *testing.T) {
 	assert.NoError(ltx.SignWith(signer.Signer1))
 	assert.NoError(ltx.SyntacticVerify())
 	_, err = NewTx(ltx)
-	assert.ErrorContains(err, "cbor: unexpected following extraneous data")
+	assert.ErrorContains(err, "extraneous data")
 
 	input := ld.TxAccounter{}
 	assert.NoError(input.SyntacticVerify())
