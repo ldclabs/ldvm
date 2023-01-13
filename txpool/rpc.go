@@ -12,6 +12,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/cose/cose"
 	"github.com/ldclabs/cose/cwt"
+	"github.com/ldclabs/cose/iana"
 	"github.com/ldclabs/cose/key"
 	"github.com/ldclabs/cose/key/ed25519"
 
@@ -199,7 +200,7 @@ func (p *TxPool) auth(reqParams *RequestParams) error {
 		}
 	}
 
-	kid, err := reqParams.CWT.Unprotected.GetBytes(cose.HeaderLabelKeyID)
+	kid, err := reqParams.CWT.Unprotected.GetBytes(iana.HeaderParameterKid)
 	if err != nil {
 		return &erring.Error{
 			Code:    cborrpc.CodeInvalidRequest,

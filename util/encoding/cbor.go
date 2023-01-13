@@ -12,7 +12,7 @@ import (
 )
 
 var EncOpts = cbor.EncOptions{
-	Sort:          cbor.SortLengthFirst,
+	Sort:          cbor.SortBytewiseLexical,
 	Time:          cbor.TimeRFC3339Nano,
 	ShortestFloat: cbor.ShortestFloat16,
 	NaNConvert:    cbor.NaNConvert7e00,

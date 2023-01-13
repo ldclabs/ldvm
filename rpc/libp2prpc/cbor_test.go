@@ -250,6 +250,8 @@ func makeBasicHost(paddr string) (host.Host, error) {
 		libp2p.ListenAddrStrings("/ip4/127.0.0.1/" + paddr),
 		libp2p.Identity(priv),
 		libp2p.DisableRelay(),
+		libp2p.DefaultResourceManager,
+		libp2p.DefaultConnectionManager,
 	}
 
 	return libp2p.New(opts...)
