@@ -13,7 +13,7 @@ require (
 	github.com/ldclabs/cose v1.0.0
 	github.com/ldclabs/json-patch v1.3.0
 	github.com/libp2p/go-libp2p v0.24.2
-	github.com/mailgun/holster/v4 v4.10.0
+	github.com/mailgun/holster/v4 v4.10.1
 	github.com/rivo/uniseg v0.4.3
 	github.com/rs/xid v1.4.0
 	github.com/spf13/pflag v1.0.5
