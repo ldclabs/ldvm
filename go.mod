@@ -8,7 +8,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.5.0-beta
 	github.com/gorilla/rpc v1.2.0
 	github.com/ipld/go-ipld-prime v0.19.0
-	github.com/klauspost/compress v1.15.14
+	github.com/klauspost/compress v1.15.15
 	github.com/ldclabs/cbor-patch v1.1.3
 	github.com/ldclabs/cose v1.0.0
 	github.com/ldclabs/json-patch v1.3.0
