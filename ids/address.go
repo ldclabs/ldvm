@@ -142,7 +142,7 @@ func (id Address) ToStakeSymbol() (s StakeSymbol) {
 func addressFromStr(str string, id *Address) error {
 	str = strings.TrimPrefix(str, "0x")
 	if str == "" {
-		return nil
+		return errors.New("empty address")
 	}
 
 	if l := hex.DecodedLen(len(str)); l != 20 {

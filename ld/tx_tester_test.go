@@ -4,10 +4,11 @@
 package ld
 
 import (
-	"encoding/json"
 	"math/big"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/unit"
@@ -24,43 +25,48 @@ func TestTxTester(t *testing.T) {
 	assert.Equal("Data", DataObject.String())
 	assert.Equal("UnknownObjectType(9)", ObjectType(9).String())
 
-	ops := TestOps{{}}
-	assert.ErrorContains(ops.SyntacticVerify(), "invalid path")
-
-	ops = TestOps{{Path: "/", Value: nil}}
-	assert.ErrorContains(ops.SyntacticVerify(), "invalid value")
-
 	var tx *TxTester
 	assert.ErrorContains(tx.SyntacticVerify(), "nil pointer")
 
-	tx = &TxTester{ObjectType: AddressObject, Tests: TestOps{}}
-	assert.ErrorContains(tx.SyntacticVerify(), "empty tests")
+	tx = &TxTester{
+		ObjectType: AddressObject,
+		Tests:      cborpatch.Patch{},
+	}
+	assert.ErrorContains(tx.SyntacticVerify(), "empty objectID")
 
-	tx = &TxTester{ObjectType: ObjectType(4), Tests: TestOps{{Path: "/"}}}
+	tx = &TxTester{
+		ObjectType: AddressObject,
+		ObjectID:   ids.GenesisAccount.String(),
+		Tests:      cborpatch.Patch{},
+	}
+	assert.ErrorContains(tx.SyntacticVerify(), "empty test")
+
+	tx = &TxTester{
+		ObjectType: ObjectType(4),
+		ObjectID:   ids.GenesisAccount.String(),
+		Tests:      cborpatch.Patch{{Op: cborpatch.OpTest, Path: cborpatch.Path{}}},
+	}
 	assert.ErrorContains(tx.SyntacticVerify(),
 		"invalid objectType UnknownObjectType(4)")
-
-	tx = &TxTester{ObjectType: AddressObject, Tests: TestOps{{Path: "/"}}}
-	assert.ErrorContains(tx.SyntacticVerify(), "invalid value")
 
 	// AddressObject
 	tx = &TxTester{
 		ObjectType: AddressObject,
 		ObjectID:   ids.GenesisAccount.String(),
-		Tests: TestOps{
-			{Path: "/t", Value: encoding.MustMarshalCBOR(NativeAccount)},
-			{Path: "/n", Value: encoding.MustMarshalCBOR(uint64(1))},
-			{Path: "/b", Value: encoding.MustMarshalCBOR(new(big.Int).SetUint64(unit.LDC))},
-			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
+		Tests: cborpatch.Patch{
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("t"), Value: encoding.MustMarshalCBOR(NativeAccount)},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("b"), Value: encoding.MustMarshalCBOR(new(big.Int).SetUint64(unit.LDC))},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("th"), Value: encoding.MustMarshalCBOR(uint64(1))},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
 	assert.False(tx.maybeTestData())
 
-	data, err := json.Marshal(tx)
+	data, err := cbor.Diag(tx.Bytes(), nil)
 	require.NoError(t, err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Address","objectID":"0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff","tests":[{"path":"/t","value":"AF1TRp8"},{"path":"/n","value":"ASdn8Vw"},{"path":"/b","value":"wkQ7msoAEtHq1g"},{"path":"/th","value":"ASdn8Vw"}]}`, string(data))
+	assert.Equal(`{"ot": 0, "ts": [{1: 6, 3: ["t"], 4: 0}, {1: 6, 3: ["n"], 4: 1}, {1: 6, 3: ["b"], 4: 1000000000}, {1: 6, 3: ["th"], 4: 1}], "oid": "0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff"}`, string(data))
 
 	acc := &Account{
 		Nonce:      0,
@@ -72,7 +78,7 @@ func TestTxTester(t *testing.T) {
 	}
 	assert.NoError(acc.SyntacticVerify())
 	assert.ErrorContains(tx.Test(acc.Bytes()),
-		`test operation for path "/n" failed, expected "1", got "0"`)
+		`test operation for path ["n"] failed, expected 1, got 0`)
 
 	acc = &Account{
 		Nonce:      1,
@@ -88,7 +94,7 @@ func TestTxTester(t *testing.T) {
 	acc.Balance.Add(acc.Balance, big.NewInt(1))
 	assert.NoError(acc.SyntacticVerify())
 	assert.ErrorContains(tx.Test(acc.Bytes()),
-		`test operation for path "/b" failed, expected "{false [1000000000]}", got "{false [1000000001]}"`)
+		`test operation for path ["b"] failed, expected 1000000000, got 1000000001`)
 
 	// TODO test LedgerObject
 
@@ -96,20 +102,20 @@ func TestTxTester(t *testing.T) {
 	tx = &TxTester{
 		ObjectType: ModelObject,
 		ObjectID:   CBORModelID.String(),
-		Tests: TestOps{
-			{Path: "/n", Value: encoding.MustMarshalCBOR("NameService")},
-			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
-			{Path: "/kp/0", Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
-			{Path: "/ap", Value: encoding.MustMarshalCBOR(nil)},
+		Tests: cborpatch.Patch{
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("NameService")},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("th"), Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("kp", 0), Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("ap"), Value: encoding.MustMarshalCBOR(nil)},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
 	assert.False(tx.maybeTestData())
 
-	data, err = json.Marshal(tx)
+	data, err = cbor.Diag(tx.Bytes(), nil)
 	require.NoError(t, err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Model","objectID":"AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah","tests":[{"path":"/n","value":"a05hbWVTZXJ2aWNlEFh-6A"},{"path":"/th","value":"ASdn8Vw"},{"path":"/kp/0","value":"VI25fHzs4knCuYvcAibMTCpXv1L8tEv5Hg"},{"path":"/ap","value":"9kV6peQ"}]}`, string(data))
+	assert.Equal(`{"ot": 2, "ts": [{1: 6, 3: ["n"], 4: "NameService"}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: null}], "oid": "AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah"}`, string(data))
 
 	sch := `
 	type ID20 bytes
@@ -128,7 +134,7 @@ func TestTxTester(t *testing.T) {
 	}
 	assert.NoError(mi.SyntacticVerify())
 	assert.ErrorContains(tx.Test(mi.Bytes()),
-		`test operation for path "/th" failed, expected "1", got "0"`)
+		`test operation for path ["th"] failed, expected 1, got 0`)
 
 	mi = &ModelInfo{
 		Name:      "NameService",
@@ -143,12 +149,12 @@ func TestTxTester(t *testing.T) {
 	tx = &TxTester{
 		ObjectType: DataObject,
 		ObjectID:   ids.DataID{1, 2, 3}.String(),
-		Tests: TestOps{
-			{Path: "/v", Value: encoding.MustMarshalCBOR(uint64(1))},
-			{Path: "/th", Value: encoding.MustMarshalCBOR(uint64(1))},
-			{Path: "/kp/0", Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
-			{Path: "/ap", Value: encoding.MustMarshalCBOR(signer.Signer2.Key())},
-			{Path: "/pl", Value: encoding.MustMarshalCBOR([]byte(`42`))},
+		Tests: cborpatch.Patch{
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("v"), Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("th"), Value: encoding.MustMarshalCBOR(uint64(1))},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("kp", 0), Value: encoding.MustMarshalCBOR(signer.Signer1.Key())},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("ap"), Value: encoding.MustMarshalCBOR(signer.Signer2.Key())},
+			{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("pl"), Value: encoding.MustMarshalCBOR([]byte(`42`))},
 		},
 	}
 	assert.NoError(tx.SyntacticVerify())
@@ -165,16 +171,16 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.Test(di.Bytes()))
 
 	tx.Tests = append(tx.Tests[:len(tx.Tests)-1],
-		TestOp{Path: "/pl/name", Value: encoding.MustMarshalCBOR("John")},
-		TestOp{Path: "/pl/age", Value: encoding.MustMarshalCBOR(42)},
+		&cborpatch.Operation{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("pl", "name"), Value: encoding.MustMarshalCBOR("John")},
+		&cborpatch.Operation{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("pl", "age"), Value: encoding.MustMarshalCBOR(42)},
 	)
 	assert.NoError(tx.SyntacticVerify())
 	assert.True(tx.maybeTestData())
 
-	data, err = json.Marshal(tx)
+	data, err = cbor.Diag(tx.Bytes(), nil)
 	require.NoError(t, err)
 	// fmt.Println(string(data))
-	assert.Equal(`{"objectType":"Data","objectID":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","tests":[{"path":"/v","value":"ASdn8Vw"},{"path":"/th","value":"ASdn8Vw"},{"path":"/kp/0","value":"VI25fHzs4knCuYvcAibMTCpXv1L8tEv5Hg"},{"path":"/ap","value":"VEQXHDf_XXt7uNytXIHxYoSiKeZBrSD8AA"},{"path":"/pl/name","value":"ZEpvaG7CssqR"},{"path":"/pl/age","value":"GCpEY_8t"}]}`, string(data))
+	assert.Equal(`{"ot": 3, "ts": [{1: 6, 3: ["v"], 4: 1}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: h'44171c37ff5d7b7bb8dcad5c81f16284a229e641'}, {1: 6, 3: ["pl", "name"], 4: "John"}, {1: 6, 3: ["pl", "age"], 4: 42}], "oid": "AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"}`, string(data))
 
 	type person struct {
 		Name string `cbor:"name" json:"name"`

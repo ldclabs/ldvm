@@ -324,8 +324,8 @@ func TestDataInfoPatch(t *testing.T) {
 	assert.ErrorContains(err, "invalid CBOR patch")
 
 	cborops := cborpatch.Patch{
-		{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("John X")},
-		{Op: "replace", Path: "/a", Value: encoding.MustMarshalCBOR(uint(18))},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("John X")},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("a"), Value: encoding.MustMarshalCBOR(uint(18))},
 	}
 	data, err = di.Patch(encoding.MustMarshalCBOR(cborops))
 	require.NoError(t, err)

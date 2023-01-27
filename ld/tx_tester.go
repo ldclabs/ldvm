@@ -5,7 +5,6 @@ package ld
 
 import (
 	"fmt"
-	"strings"
 
 	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/ids"
@@ -44,48 +43,14 @@ func (t ObjectType) MarshalJSON() ([]byte, error) {
 
 // TxTester
 type TxTester struct {
-	ObjectType ObjectType `cbor:"ot" json:"objectType"`
-	ObjectID   string     `cbor:"oid" json:"objectID"`
-	Tests      TestOps    `cbor:"ts" json:"tests"`
+	ObjectType ObjectType      `cbor:"ot" json:"objectType"`
+	ObjectID   string          `cbor:"oid" json:"objectID"`
+	Tests      cborpatch.Patch `cbor:"ts" json:"tests"`
 
 	// external assignment fields
 	ID32 ids.ID32 `cbor:"-" json:"-"`
 	ID20 ids.ID20 `cbor:"-" json:"-"`
 	raw  []byte   `cbor:"-" json:"-"`
-}
-
-type TestOp struct {
-	_ struct{} `cbor:",toarray"`
-
-	Path  string           `json:"path"`
-	Value encoding.RawData `json:"value"`
-}
-
-type TestOps []TestOp
-
-func (ts TestOps) SyntacticVerify() error {
-	errp := erring.ErrPrefix("ld.TestOps.SyntacticVerify: ")
-	for _, t := range ts {
-		switch {
-		case t.Path == "":
-			return errp.Errorf("invalid path")
-		case len(t.Value) == 0:
-			return errp.Errorf("invalid value")
-		}
-	}
-	return nil
-}
-
-func (ts TestOps) ToPatch() cborpatch.Patch {
-	p := make(cborpatch.Patch, len(ts))
-	for i, t := range ts {
-		p[i] = cborpatch.Operation{
-			Op:    "test",
-			Path:  t.Path,
-			Value: cborpatch.RawMessage(t.Value),
-		}
-	}
-	return p
 }
 
 // SyntacticVerify verifies that a *TxTester is well-formed.
@@ -95,6 +60,9 @@ func (t *TxTester) SyntacticVerify() error {
 	switch {
 	case t == nil:
 		return errp.Errorf("nil pointer")
+
+	case t.ObjectID == "":
+		return errp.Errorf("empty objectID")
 
 	case len(t.Tests) == 0:
 		return errp.Errorf("empty tests")
@@ -127,8 +95,14 @@ func (t *TxTester) SyntacticVerify() error {
 	}
 
 	var err error
-	if err = t.Tests.SyntacticVerify(); err != nil {
-		return errp.ErrorIf(err)
+	for _, op := range t.Tests {
+		if err = op.Valid(); err != nil {
+			return errp.ErrorIf(err)
+		}
+
+		if op.Op != cborpatch.OpTest {
+			return errp.Errorf("invalid op %q", op.Op.String())
+		}
 	}
 
 	if t.raw, err = t.Marshal(); err != nil {
@@ -139,8 +113,8 @@ func (t *TxTester) SyntacticVerify() error {
 
 func (t *TxTester) maybeTestData() bool {
 	if t.ObjectType == DataObject {
-		for _, te := range t.Tests {
-			if strings.HasPrefix(te.Path, "/pl/") {
+		for _, op := range t.Tests {
+			if len(op.Path) > 1 && op.Path[0].Is("pl") {
 				return true
 			}
 		}
@@ -150,6 +124,8 @@ func (t *TxTester) maybeTestData() bool {
 
 var rawRawModelID = string(encoding.MustMarshalCBOR(RawModelID))
 var rawJSONModelID = string(encoding.MustMarshalCBOR(JSONModelID))
+var dataModelIDPath = cborpatch.PathMustFrom("m")
+var dataPayloadPath = cborpatch.PathMustFrom("pl")
 
 func (t *TxTester) Test(doc []byte) error {
 	var err error
@@ -159,8 +135,8 @@ func (t *TxTester) Test(doc []byte) error {
 	opts := cborpatch.NewOptions()
 
 	if t.maybeTestData() {
-		if rawModelID, _ := node.GetValue("/m", opts); rawModelID != nil {
-			if rawData, _ := node.GetValue("/pl", opts); rawData != nil {
+		if rawModelID, _ := node.GetValue(dataModelIDPath, opts); len(rawModelID) > 0 {
+			if rawData, _ := node.GetValue(dataPayloadPath, opts); len(rawData) > 0 {
 				var data []byte
 				err = encoding.UnmarshalCBOR(rawData, &data)
 				if err == nil {
@@ -171,10 +147,10 @@ func (t *TxTester) Test(doc []byte) error {
 					case rawJSONModelID:
 						data, err = cborpatch.FromJSON(data, nil)
 						if err == nil {
-							err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/pl", Value: data}}, opts)
+							err = node.Patch(cborpatch.Patch{{Op: cborpatch.OpReplace, Path: dataPayloadPath, Value: data}}, opts)
 						}
 					default:
-						err = node.Patch(cborpatch.Patch{{Op: "replace", Path: "/pl", Value: data}}, opts)
+						err = node.Patch(cborpatch.Patch{{Op: cborpatch.OpReplace, Path: dataPayloadPath, Value: data}}, opts)
 					}
 				}
 
@@ -185,7 +161,7 @@ func (t *TxTester) Test(doc []byte) error {
 		}
 	}
 
-	return errp.ErrorIf(node.Patch(t.Tests.ToPatch(), opts))
+	return errp.ErrorIf(node.Patch(t.Tests, opts))
 }
 
 func (t *TxTester) Bytes() []byte {

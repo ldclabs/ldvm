@@ -74,7 +74,6 @@ func TestAddressID(t *testing.T) {
 	assert.Equal(EmptyAddress, *ptrIDs[2])
 	assert.Nil(ptrIDs[3])
 
-	addr2, err = AddressFromStr("")
-	assert.Nil(err)
-	assert.Equal(EmptyAddress, addr2)
+	_, err = AddressFromStr("")
+	assert.ErrorContains(err, "empty address")
 }

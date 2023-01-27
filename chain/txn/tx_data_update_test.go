@@ -516,9 +516,11 @@ func TestTxUpdateCBORData(t *testing.T) {
 	assert.ErrorContains(itx.Apply(ctx, cs), "invalid CBOR patch")
 	cs.CheckoutAccounts()
 
-	patch := cborpatch.Patch{
-		{Op: "add", Path: "/no/-", Value: encoding.MustMarshalCBOR(4)},
-	}
+	patch := cborpatch.Patch{{
+		Op:    cborpatch.OpAdd,
+		Path:  cborpatch.PathMustFrom("no", "-"),
+		Value: encoding.MustMarshalCBOR(4),
+	}}
 	patchdata := encoding.MustMarshalCBOR(patch)
 
 	input = &ld.TxUpdater{ID: &di.ID, Version: 2,
@@ -560,12 +562,13 @@ func TestTxUpdateCBORData(t *testing.T) {
 
 	var nc cborData
 	assert.NoError(encoding.UnmarshalCBOR(di2.Payload, &nc))
+	assert.Equal("test", nc.Name)
 	assert.Equal([]int{1, 2, 3, 4}, nc.Nonces)
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"data":"gaNib3BjYWRkZHBhdGhlL25vLy1ldmFsdWUEaHzLug"}},"sigs":["fxDq5biu1_omEOmiYwC5xqc1pVHPX0s2voMEqWBOqlh3PcsIk-zbRA_ZHg45_xwMPuo2_0zJG1Yw0fPhI5k4-wAcJyJU"],"id":"NZ1QxDxvX2MQXCPUqW-bHCWVzqDzjK-1WhnZKlsgiPcS91sa"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpdateData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","version":2,"data":"gaMBAQOCYm5vYS0EBIXv9uI"}},"sigs":["wgoyFE9DndlKYwR13dYCSjgCgINtLr8zstlPyVwl9BgyWYGncVjSNeVUV2IYfhVOZBYKd9IDyxIWb_mF4aFhKQAMD6e5"],"id":"CNd8SqAKQzs2e04wFMMvZs6qgvO6kJqUBqiRFRK-x3lPap8-"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -742,7 +745,7 @@ func TestTxUpdateNameServiceData(t *testing.T) {
 	assert.Equal(mi.ID, di.ModelID)
 
 	patchDoc := cborpatch.Patch{
-		{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("ld.to.")},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("ld.to.")},
 	}
 	input = &ld.TxUpdater{ID: &di.ID, Version: 1,
 		Data:   encoding.MustMarshalCBOR(patchDoc),

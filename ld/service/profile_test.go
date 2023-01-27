@@ -93,9 +93,9 @@ func TestProfile(t *testing.T) {
 	assert.Equal(`{"type":"Person","name":"LDC","description":"","image":"","url":"","follows":[],"members":["AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"],"extensions":[{"title":"test","properties":{"age":23,"email":"ldc@example.com"},"did":"AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv","mid":"AAAAAAAAAAAAAAAAAAAAAAAAAALZFhrw"}],"did":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACeYpGX"}`, string(data))
 
 	ipldops := cborpatch.Patch{
-		{Op: "replace", Path: "/u", Value: encoding.MustMarshalCBOR("https://ldclabs.org")},
-		{Op: "add", Path: "/fs/-", Value: encoding.MustMarshalCBOR(ids.DataID{1, 2, 3})},
-		{Op: "remove", Path: "/ms/0"},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("u"), Value: encoding.MustMarshalCBOR("https://ldclabs.org")},
+		{Op: cborpatch.OpAdd, Path: cborpatch.PathMustFrom("fs", "-"), Value: encoding.MustMarshalCBOR(ids.DataID{1, 2, 3})},
+		{Op: cborpatch.OpRemove, Path: cborpatch.PathMustFrom("ms", 0)},
 	}
 	data, err = pm.ApplyPatch(p.Bytes(), encoding.MustMarshalCBOR(ipldops))
 	require.NoError(t, err)

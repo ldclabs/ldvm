@@ -75,7 +75,7 @@ func TestName(t *testing.T) {
 	assert.NoError(nm.Valid(name.Bytes()))
 
 	ipldops := cborpatch.Patch{
-		{Op: "add", Path: "/rs/-", Value: encoding.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
+		{Op: cborpatch.OpAdd, Path: cborpatch.PathMustFrom("rs", "-"), Value: encoding.MustMarshalCBOR("xn--vuq70b.com. IN AAAA ::1")},
 	}
 	data, err = nm.ApplyPatch(name.Bytes(), encoding.MustMarshalCBOR(ipldops))
 	require.NoError(t, err)
