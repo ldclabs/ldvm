@@ -109,8 +109,8 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 
 	od := encoding.MustMarshalCBOR(v1)
 	ipldops := cborpatch.Patch{
-		{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("John")},
-		{Op: "replace", Path: "/t", Value: encoding.MustMarshalCBOR(uint16(1))},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("John")},
+		{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("t"), Value: encoding.MustMarshalCBOR(uint16(1))},
 	}
 
 	data, err := mo.ApplyPatch(od, encoding.MustMarshalCBOR(ipldops))
@@ -122,7 +122,7 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 	assert.Equal(uint16(1), v2.Type)
 
 	ipldops = cborpatch.Patch{
-		{Op: "test", Path: "/n", Value: encoding.MustMarshalCBOR("Test")},
+		{Op: cborpatch.OpTest, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("Test")},
 	}
 
 	_, err = mo.ApplyPatch(od, encoding.MustMarshalCBOR(ipldops))
@@ -130,10 +130,10 @@ func TestIPLDModelApplyPatch(t *testing.T) {
 
 	_, err = mo.ApplyPatch(data, encoding.MustMarshalCBOR(ipldops))
 	assert.ErrorContains(err,
-		`IPLDModel("ProfileService").ApplyPatch: test operation for path "/n" failed, expected "Test", got "John"`)
+		`IPLDModel("ProfileService").ApplyPatch: test operation for path ["n"] failed, expected "Test", got "John"`)
 
 	ipldops = cborpatch.Patch{
-		{Op: "add", Path: "/x", Value: encoding.MustMarshalCBOR("Test")},
+		{Op: cborpatch.OpAdd, Path: cborpatch.PathMustFrom("x"), Value: encoding.MustMarshalCBOR("Test")},
 	}
 
 	_, err = mo.ApplyPatch(data, encoding.MustMarshalCBOR(ipldops))

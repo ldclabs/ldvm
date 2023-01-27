@@ -541,7 +541,7 @@ func TestTxUpgradeData(t *testing.T) {
 	cs.CheckoutAccounts()
 
 	patchDoc := cborpatch.Patch{
-		{Op: "add", Path: "/v", Value: encoding.MustMarshalCBOR(2)},
+		{Op: cborpatch.OpAdd, Path: cborpatch.PathMustFrom("v"), Value: encoding.MustMarshalCBOR(2)},
 	}
 	input = &ld.TxUpdater{ID: &did, ModelID: &modelID, Version: 1,
 		Data:   encoding.MustMarshalCBOR(patchDoc),
@@ -713,7 +713,7 @@ func TestTxUpgradeData(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","mid":"ePJIiccufhcsCSZxBGUt_rw_RArEjblf","version":1,"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"gaNib3BjYWRkZHBhdGhiL3ZldmFsdWUCNeW97w"}},"sigs":["zfl447E-aNXCXjzf9d31gdzr5F5jA1eOX2PN668ieBENojR4dLiMGnZNx8KYDs-hhQu96qtX8bIg90f3AF3_JwEhWqX4"],"exSigs":["Hru-bi1UK7t7Mci9nKLs0vTv7-m2c3WYy0rcbzXTcNEwCXplMZGeQ4XVfssiTq6QH2ykq9h-Fm-hNNUlDKtStAFEBRnD"],"id":"h-wQf-Ck4OvCdRdGFU04ZHuQEt3fD45IpXITXT2DAXzRXVE0"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeUpgradeData","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":{"id":"AQIDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACs148t","mid":"ePJIiccufhcsCSZxBGUt_rw_RArEjblf","version":1,"to":"0x44171C37Ff5D7B7bb8Dcad5C81f16284A229E641","amount":1000000,"data":"gaMBAQOBYXYEAjNd524"}},"sigs":["H2n-YT2ljHNbiFnxg7a2fYflsoQLmCevdsHIK3xoKb5uaIuSz8j56U9bTFsdZ0gEBFQHSp8K1Xzcc0dG63qjswDdfQFZ"],"exSigs":["vUO6MB8nRj2Q8C1gmCd8e9iPAdvV3ELrXLazh3AUmYZHchW6VDgEKP2uFZQgvupkY5eBD8Mu8_IaqdSLbDNghwC123UV"],"id":"c4nNUoDuiLlxEXoMN1T_zIjyVJAQWpqYqH-s42a3MAM81S3S"}`, string(jsondata))
 
 	assert.NoError(cs.VerifyState())
 }
@@ -788,7 +788,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 
 		modelID := ids.ModelID{1, 2, 3}
 		patchDoc := cborpatch.Patch{
-			{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("ldc2.to.")},
+			{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("ldc2.to.")},
 		}
 		input = &ld.TxUpdater{ID: &di.ID, ModelID: &modelID, Version: 1,
 			Data:   encoding.MustMarshalCBOR(patchDoc),
@@ -888,7 +888,7 @@ func TestTxUpgradeNameServiceData(t *testing.T) {
 		assert.Equal(name.Bytes(), []byte(di.Payload))
 
 		patchDoc := cborpatch.Patch{
-			{Op: "replace", Path: "/n", Value: encoding.MustMarshalCBOR("ldc2.to.")},
+			{Op: cborpatch.OpReplace, Path: cborpatch.PathMustFrom("n"), Value: encoding.MustMarshalCBOR("ldc2.to.")},
 		}
 		input = &ld.TxUpdater{ID: &di.ID, ModelID: &mi.ID, Version: 1,
 			Data:   encoding.MustMarshalCBOR(patchDoc),

@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	cborpatch "github.com/ldclabs/cbor-patch"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/signer"
@@ -130,9 +131,11 @@ func TestTxTest(t *testing.T) {
 	input = ld.TxTester{
 		ObjectType: ld.AddressObject,
 		ObjectID:   sender.String(),
-		Tests: ld.TestOps{
-			{Path: "/b", Value: encoding.MustMarshalCBOR(new(big.Int).SetUint64(unit.LDC))},
-		},
+		Tests: cborpatch.Patch{{
+			Op:    cborpatch.OpTest,
+			Path:  cborpatch.PathMustFrom("b"),
+			Value: encoding.MustMarshalCBOR(new(big.Int).SetUint64(unit.LDC)),
+		}},
 	}
 	assert.NoError(input.SyntacticVerify())
 	ltx = &ld.Transaction{Tx: ld.TxData{
@@ -152,7 +155,7 @@ func TestTxTest(t *testing.T) {
 
 	cs.CommitAccounts()
 	assert.ErrorContains(itx.Apply(ctx, cs),
-		"insufficient NativeLDC balance, expected 894300, got 0")
+		"insufficient NativeLDC balance, expected 911900, got 0")
 	cs.CheckoutAccounts()
 
 	senderAcc := cs.MustAccount(sender)
@@ -169,5 +172,5 @@ func TestTxTest(t *testing.T) {
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
 	// fmt.Println(string(jsondata))
-	assert.Equal(`{"tx":{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"objectType":"Address","objectID":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","tests":[{"path":"/b","value":"wkQ7msoAEtHq1g"}]}},"sigs":["XigOrlGbvrRgUUfQaJoyRsP5hWt1MJO3oxoQTHJ9e7Ikhm9od505BbdA1XUT-iejZIDbMSWZL7PpT6Xqk-fuvAHllKNp"],"id":"8N34No8u-JnJ4hkgzl_UIJ4UVgcc32OASKfnCxhw9EzQC_Kt"}`, string(jsondata))
+	assert.Equal(`{"tx":{"type":"TypeTest","chainID":2357,"nonce":0,"gasTip":100,"gasFeeCap":1000,"from":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","data":{"objectType":"Address","objectID":"0x8db97c7cECe249C2b98bdc0226cc4C2A57bF52fc","tests":[{"Op":6,"From":null,"Path":["ab"],"Value":"wkQ7msoA"}]}},"sigs":["knIg9rVI5tp4iHLYS5PkIxdfyIRv-dOvSbtDdphKIGoKkitYNLbuqdirPKODVQ4r2x9hfsS0ee_W2kDdk0I4vgAitab1"],"id":"Kcv1qOSxiTkTV3Hw41OpdBLBDv9A5qbRQbwqJImkoSyA6bpQ"}`, string(jsondata))
 }
