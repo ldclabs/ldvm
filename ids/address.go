@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
@@ -56,8 +57,8 @@ func (id Address) GoString() string {
 	return id.String()
 }
 
-func (id Address) AsKey() string {
-	return string(id[:])
+func (id Address) AsKey() cbor.ByteString {
+	return cbor.ByteString(id[:])
 }
 
 func (id Address) MarshalText() ([]byte, error) {

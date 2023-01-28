@@ -1,8 +1,8 @@
 name: CI Cover
 on:
   push:
-    branches:
-      - 'main'
+    tags:
+      - '*'
 jobs:
   # Test on various OS with default Go version.
   tests:

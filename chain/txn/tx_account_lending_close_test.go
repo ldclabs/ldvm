@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/signer"
@@ -135,7 +136,7 @@ func TestTxCloseLending(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.Nonce())
 	require.NotNil(t, senderAcc.LD().Lending)
 	assert.Equal(token, senderAcc.LD().Lending.Token)
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
+	assert.Equal(make(map[cbor.ByteString]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	ltx = &ld.Transaction{Tx: ld.TxData{
 		Type:      ld.TypeCloseLending,

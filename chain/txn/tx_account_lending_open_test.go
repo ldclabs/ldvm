@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/signer"
@@ -152,7 +153,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(uint64(1), senderAcc.LD().Lending.OverdueInterest)
 	assert.Equal(unit.LDC, senderAcc.LD().Lending.MinAmount.Uint64())
 	assert.Equal(unit.LDC, senderAcc.LD().Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
+	assert.Equal(make(map[cbor.ByteString]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	jsondata, err := itx.MarshalJSON()
 	require.NoError(t, err)
@@ -257,7 +258,7 @@ func TestTxOpenLending(t *testing.T) {
 	assert.Equal(uint64(10), senderAcc.LD().Lending.OverdueInterest)
 	assert.Equal(unit.LDC, senderAcc.LD().Lending.MinAmount.Uint64())
 	assert.Equal(unit.LDC*10, senderAcc.LD().Lending.MaxAmount.Uint64())
-	assert.Equal(make(map[string]*ld.LendingEntry), senderAcc.Ledger().Lending)
+	assert.Equal(make(map[cbor.ByteString]*ld.LendingEntry), senderAcc.Ledger().Lending)
 
 	assert.NoError(cs.VerifyState())
 }

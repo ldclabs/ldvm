@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/signer"
 
@@ -24,56 +25,56 @@ func TestAccountLedger(t *testing.T) {
 	assert.NoError(al.SyntacticVerify())
 
 	al = &AccountLedger{
-		Lending: map[string]*LendingEntry{
+		Lending: map[cbor.ByteString]*LendingEntry{
 			ids.GenesisAccount.AsKey(): nil,
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
-		Lending: map[string]*LendingEntry{
+		Lending: map[cbor.ByteString]*LendingEntry{
 			ids.GenesisAccount.AsKey(): {Amount: nil},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
-		Lending: map[string]*LendingEntry{
+		Lending: map[cbor.ByteString]*LendingEntry{
 			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
-		Lending: map[string]*LendingEntry{
+		Lending: map[cbor.ByteString]*LendingEntry{
 			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on LendingEntry")
 
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): nil,
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {Amount: nil},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(-1)},
 		},
 	}
 	assert.ErrorContains(al.SyntacticVerify(), "invalid amount on StakeEntry")
 
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {Amount: big.NewInt(0)},
 		},
 	}
@@ -81,7 +82,7 @@ func TestAccountLedger(t *testing.T) {
 
 	key := signer.Key(ids.LDCAccount[:])
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {
 				Amount: big.NewInt(1), Approver: &key},
 		},
@@ -90,7 +91,7 @@ func TestAccountLedger(t *testing.T) {
 
 	key = signer.Key(ids.GenesisAccount[:])
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {
 				Amount: big.NewInt(0), Approver: &key},
 		},
@@ -98,14 +99,14 @@ func TestAccountLedger(t *testing.T) {
 	assert.NoError(al.SyntacticVerify())
 
 	al = &AccountLedger{
-		Stake: map[string]*StakeEntry{
+		Stake: map[cbor.ByteString]*StakeEntry{
 			ids.GenesisAccount.AsKey(): {
 				LockTime: 999,
 				Amount:   new(big.Int).SetUint64(100),
 				Approver: &key,
 			},
 		},
-		Lending: map[string]*LendingEntry{
+		Lending: map[cbor.ByteString]*LendingEntry{
 			ids.GenesisAccount.AsKey(): {
 				Amount:   new(big.Int).SetUint64(100),
 				UpdateAt: 888,

@@ -6,14 +6,15 @@ package ld
 import (
 	"math/big"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type AccountLedger struct {
-	Lending map[string]*LendingEntry `cbor:"l"`
-	Stake   map[string]*StakeEntry   `cbor:"s"`
+	Lending map[cbor.ByteString]*LendingEntry `cbor:"l"`
+	Stake   map[cbor.ByteString]*StakeEntry   `cbor:"s"`
 
 	// external assignment fields
 	raw []byte `cbor:"-"`
@@ -29,7 +30,7 @@ func (a *AccountLedger) SyntacticVerify() error {
 	}
 
 	if a.Lending == nil {
-		a.Lending = make(map[string]*LendingEntry)
+		a.Lending = make(map[cbor.ByteString]*LendingEntry)
 	}
 
 	for _, entry := range a.Lending {
@@ -39,7 +40,7 @@ func (a *AccountLedger) SyntacticVerify() error {
 	}
 
 	if a.Stake == nil {
-		a.Stake = make(map[string]*StakeEntry)
+		a.Stake = make(map[cbor.ByteString]*StakeEntry)
 	}
 
 	for _, entry := range a.Stake {
