@@ -13,10 +13,7 @@ import (
 
 var EncOpts = cbor.EncOptions{
 	Sort:          cbor.SortBytewiseLexical,
-	Time:          cbor.TimeRFC3339Nano,
-	ShortestFloat: cbor.ShortestFloat16,
-	NaNConvert:    cbor.NaNConvert7e00,
-	InfConvert:    cbor.InfConvertFloat16,
+	Time:          cbor.TimeRFC3339,
 	IndefLength:   cbor.IndefLengthForbidden,
 	BigIntConvert: cbor.BigIntConvertNone,
 }
@@ -26,7 +23,6 @@ var DecOpts = cbor.DecOptions{
 	IndefLength:      cbor.IndefLengthForbidden,
 	MaxArrayElements: 100_000,
 	MaxMapPairs:      1_000_000,
-	UTF8:             cbor.UTF8DecodeInvalid,
 }
 var DecMode, _ = DecOpts.DecMode()
 
@@ -65,4 +61,21 @@ func UnmarshalCBORWithLen(data []byte, expectedLen int) ([]byte, error) {
 
 func ValidCBOR(data []byte) error {
 	return DecMode.Valid(data)
+}
+
+var diagOptions = &cbor.DiagOptions{
+	ByteStringEncoding:     "base16",
+	ByteStringEmbeddedCBOR: true,
+}
+
+func DiagCBOR(data []byte) ([]byte, error) {
+	return cbor.Diag(data, diagOptions)
+}
+
+func MustDiagString(data []byte) string {
+	data, err := DiagCBOR(data)
+	if err != nil {
+		panic(err)
+	}
+	return string(data)
 }

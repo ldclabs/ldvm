@@ -114,4 +114,4 @@ require (
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
 
-replace github.com/fxamacker/cbor/v2 v2.5.0-beta => github.com/ldclabs/cbor/v2 v2.5.0-stg3
+replace github.com/fxamacker/cbor/v2 v2.5.0-beta => github.com/ldclabs/cbor/v2 v2.5.0-stg4

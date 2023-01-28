@@ -14,7 +14,6 @@ import (
 	"github.com/ldclabs/ldvm/unit"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestTxTester(t *testing.T) {
@@ -63,10 +62,9 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.SyntacticVerify())
 	assert.False(tx.maybeTestData())
 
-	data, err := cbor.Diag(tx.Bytes(), nil)
-	require.NoError(t, err)
-	// fmt.Println(string(data))
-	assert.Equal(`{"ot": 0, "ts": [{1: 6, 3: ["t"], 4: 0}, {1: 6, 3: ["n"], 4: 1}, {1: 6, 3: ["b"], 4: 1000000000}, {1: 6, 3: ["th"], 4: 1}], "oid": "0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff"}`, string(data))
+	diag := encoding.MustDiagString(tx.Bytes())
+	// fmt.Println(diag)
+	assert.Equal(`{"ot": 0, "ts": [{1: 6, 3: ["t"], 4: 0}, {1: 6, 3: ["n"], 4: 1}, {1: 6, 3: ["b"], 4: 1000000000}, {1: 6, 3: ["th"], 4: 1}], "oid": "0xFFfFFFfFfffFFfFFffFFFfFfFffFFFfffFfFFFff"}`, diag)
 
 	acc := &Account{
 		Nonce:      0,
@@ -112,10 +110,9 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.SyntacticVerify())
 	assert.False(tx.maybeTestData())
 
-	data, err = cbor.Diag(tx.Bytes(), nil)
-	require.NoError(t, err)
-	// fmt.Println(string(data))
-	assert.Equal(`{"ot": 2, "ts": [{1: 6, 3: ["n"], 4: "NameService"}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: null}], "oid": "AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah"}`, string(data))
+	diag = encoding.MustDiagString(tx.Bytes())
+	// fmt.Println(diag)
+	assert.Equal(`{"ot": 2, "ts": [{1: 6, 3: ["n"], 4: "NameService"}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: null}], "oid": "AAAAAAAAAAAAAAAAAAAAAAAAAAGIYKah"}`, diag)
 
 	sch := `
 	type ID20 bytes
@@ -177,10 +174,9 @@ func TestTxTester(t *testing.T) {
 	assert.NoError(tx.SyntacticVerify())
 	assert.True(tx.maybeTestData())
 
-	data, err = cbor.Diag(tx.Bytes(), nil)
-	require.NoError(t, err)
-	// fmt.Println(string(data))
-	assert.Equal(`{"ot": 3, "ts": [{1: 6, 3: ["v"], 4: 1}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: h'44171c37ff5d7b7bb8dcad5c81f16284a229e641'}, {1: 6, 3: ["pl", "name"], 4: "John"}, {1: 6, 3: ["pl", "age"], 4: 42}], "oid": "AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"}`, string(data))
+	diag = encoding.MustDiagString(tx.Bytes())
+	// fmt.Println(diag)
+	assert.Equal(`{"ot": 3, "ts": [{1: 6, 3: ["v"], 4: 1}, {1: 6, 3: ["th"], 4: 1}, {1: 6, 3: ["kp", 0], 4: h'8db97c7cece249c2b98bdc0226cc4c2a57bf52fc'}, {1: 6, 3: ["ap"], 4: h'44171c37ff5d7b7bb8dcad5c81f16284a229e641'}, {1: 6, 3: ["pl", "name"], 4: "John"}, {1: 6, 3: ["pl", "age"], 4: 42}], "oid": "AQIDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoWLSv"}`, diag)
 
 	type person struct {
 		Name string `cbor:"name" json:"name"`
