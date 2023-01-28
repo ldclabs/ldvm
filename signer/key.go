@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
@@ -112,8 +113,8 @@ func (k Key) Ptr() *Key {
 	return &k
 }
 
-func (k Key) AsKey() string {
-	return string(k)
+func (k Key) AsKey() cbor.ByteString {
+	return cbor.ByteString(k)
 }
 
 func (k Key) String() string {
@@ -285,7 +286,7 @@ func (ks Keys) FindKeyOrAddr(addr ids.Address) Key {
 }
 
 func (ks Keys) Valid() error {
-	dset := make(map[string]struct{}, len(ks))
+	dset := make(map[cbor.ByteString]struct{}, len(ks))
 	for _, k := range ks {
 		keyStr := k.AsKey()
 		if _, ok := dset[keyStr]; ok {
@@ -324,7 +325,7 @@ func (ks Keys) Verify(digestHash []byte, sigs Sigs, threshold uint16) bool {
 	remaining := make([]Key, ksLen)
 	copy(remaining, ks)
 
-	dset := make(map[string]struct{}, len(sigs))
+	dset := make(map[cbor.ByteString]struct{}, len(sigs))
 
 	for _, sig := range sigs {
 		sigStr := sig.AsKey()

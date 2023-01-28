@@ -6,17 +6,18 @@ package ld
 import (
 	"encoding/json"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/util/encoding"
 	"github.com/ldclabs/ldvm/util/erring"
 )
 
 type State struct {
-	Parent   ids.ID32            `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
-	Accounts map[string]ids.ID32 `cbor:"a" json:"accounts"`
-	Ledgers  map[string]ids.ID32 `cbor:"l" json:"ledgers"`
-	Datas    map[string]ids.ID32 `cbor:"d" json:"datas"`
-	Models   map[string]ids.ID32 `cbor:"m" json:"models"`
+	Parent   ids.ID32                     `cbor:"p" json:"parent"` // The genesis State's parent ID is ids.Empty.
+	Accounts map[cbor.ByteString]ids.ID32 `cbor:"a" json:"accounts"`
+	Ledgers  map[cbor.ByteString]ids.ID32 `cbor:"l" json:"ledgers"`
+	Datas    map[cbor.ByteString]ids.ID32 `cbor:"d" json:"datas"`
+	Models   map[cbor.ByteString]ids.ID32 `cbor:"m" json:"models"`
 
 	// external assignment fields
 	ID  ids.ID32 `cbor:"-" json:"id"`
@@ -26,10 +27,10 @@ type State struct {
 func NewState(parent ids.ID32) *State {
 	return &State{
 		Parent:   parent,
-		Accounts: make(map[string]ids.ID32),
-		Ledgers:  make(map[string]ids.ID32),
-		Datas:    make(map[string]ids.ID32),
-		Models:   make(map[string]ids.ID32),
+		Accounts: make(map[cbor.ByteString]ids.ID32),
+		Ledgers:  make(map[cbor.ByteString]ids.ID32),
+		Datas:    make(map[cbor.ByteString]ids.ID32),
+		Models:   make(map[cbor.ByteString]ids.ID32),
 	}
 }
 
@@ -64,65 +65,65 @@ func (s *State) SyntacticVerify() error {
 }
 
 type jsonState struct {
-	Parent   ids.ID32            `json:"parent"`
-	Accounts map[string]ids.ID32 `json:"accounts"`
-	Ledgers  map[string]ids.ID32 `json:"ledgers"`
-	Datas    map[string]ids.ID32 `json:"datas"`
-	Models   map[string]ids.ID32 `json:"models"`
-	ID       ids.ID32            `json:"id"`
+	Parent   ids.ID32                     `json:"parent"`
+	Accounts map[cbor.ByteString]ids.ID32 `json:"accounts"`
+	Ledgers  map[cbor.ByteString]ids.ID32 `json:"ledgers"`
+	Datas    map[cbor.ByteString]ids.ID32 `json:"datas"`
+	Models   map[cbor.ByteString]ids.ID32 `json:"models"`
+	ID       ids.ID32                     `json:"id"`
 }
 
 func (s *State) MarshalJSON() ([]byte, error) {
 	js := &jsonState{
 		Parent:   s.Parent,
-		Accounts: make(map[string]ids.ID32, len(s.Accounts)),
-		Ledgers:  make(map[string]ids.ID32, len(s.Ledgers)),
-		Datas:    make(map[string]ids.ID32, len(s.Datas)),
-		Models:   make(map[string]ids.ID32, len(s.Models)),
+		Accounts: make(map[cbor.ByteString]ids.ID32, len(s.Accounts)),
+		Ledgers:  make(map[cbor.ByteString]ids.ID32, len(s.Ledgers)),
+		Datas:    make(map[cbor.ByteString]ids.ID32, len(s.Datas)),
+		Models:   make(map[cbor.ByteString]ids.ID32, len(s.Models)),
 		ID:       s.ID,
 	}
 
 	for k := range s.Accounts {
-		js.Accounts[encoding.CheckSumHex([]byte(k))] = s.Accounts[k]
+		js.Accounts[k] = s.Accounts[k]
 	}
 
 	for k := range s.Ledgers {
-		js.Ledgers[encoding.CheckSumHex([]byte(k))] = s.Ledgers[k]
+		js.Ledgers[k] = s.Ledgers[k]
 	}
 
 	for k := range s.Datas {
-		js.Datas[encoding.EncodeToString([]byte(k))] = s.Datas[k]
+		js.Datas[k] = s.Datas[k]
 	}
 
 	for k := range s.Models {
-		js.Models[encoding.EncodeToString([]byte(k))] = s.Models[k]
+		js.Models[k] = s.Models[k]
 	}
 	return json.Marshal(js)
 }
 
 func (s *State) UpdateAccount(id ids.Address, data []byte) {
-	s.Accounts[string(id[:])] = ids.ID32FromData(data)
+	s.Accounts[cbor.ByteString(id[:])] = ids.ID32FromData(data)
 }
 
 func (s *State) UpdateLedger(id ids.Address, data []byte) {
-	s.Ledgers[string(id[:])] = ids.ID32FromData(data)
+	s.Ledgers[cbor.ByteString(id[:])] = ids.ID32FromData(data)
 }
 
 func (s *State) UpdateData(id ids.DataID, data []byte) {
-	s.Datas[string(id[:])] = ids.ID32FromData(data)
+	s.Datas[cbor.ByteString(id[:])] = ids.ID32FromData(data)
 }
 
 func (s *State) UpdateModel(id ids.ModelID, data []byte) {
-	s.Models[string(id[:])] = ids.ID32FromData(data)
+	s.Models[cbor.ByteString(id[:])] = ids.ID32FromData(data)
 }
 
 func (s *State) Clone() *State {
 	ns := &State{
 		Parent:   s.Parent,
-		Accounts: make(map[string]ids.ID32, len(s.Accounts)),
-		Ledgers:  make(map[string]ids.ID32, len(s.Ledgers)),
-		Datas:    make(map[string]ids.ID32, len(s.Datas)),
-		Models:   make(map[string]ids.ID32, len(s.Models)),
+		Accounts: make(map[cbor.ByteString]ids.ID32, len(s.Accounts)),
+		Ledgers:  make(map[cbor.ByteString]ids.ID32, len(s.Ledgers)),
+		Datas:    make(map[cbor.ByteString]ids.ID32, len(s.Datas)),
+		Models:   make(map[cbor.ByteString]ids.ID32, len(s.Models)),
 	}
 
 	for k := range s.Accounts {

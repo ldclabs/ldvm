@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/util/encoding"
 )
 
@@ -78,12 +79,12 @@ func (id TokenSymbol) GoString() string {
 	return Address(id).GoString()
 }
 
-func (id TokenSymbol) AsKey() string {
+func (id TokenSymbol) AsKey() cbor.ByteString {
 	if id == NativeToken {
 		return ""
 	}
 	if str := id.String(); str != "" {
-		return str
+		return cbor.ByteString(str)
 	}
 	return Address(id).AsKey()
 }

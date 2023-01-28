@@ -73,7 +73,7 @@ func TestTxTester(t *testing.T) {
 		Balance:    big.NewInt(0),
 		Threshold:  0,
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.NoError(acc.SyntacticVerify())
@@ -85,7 +85,7 @@ func TestTxTester(t *testing.T) {
 		Balance:    new(big.Int).SetUint64(unit.LDC),
 		Threshold:  1,
 		Keepers:    signer.Keys{signer.Signer1.Key()},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.NoError(acc.SyntacticVerify())

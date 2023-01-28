@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,20 +24,20 @@ func TestState(t *testing.T) {
 	assert.ErrorContains(s.SyntacticVerify(), "nil accounts")
 
 	s = &State{
-		Accounts: make(map[string]ids.ID32),
+		Accounts: make(map[cbor.ByteString]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil ledgers")
 
 	s = &State{
-		Accounts: make(map[string]ids.ID32),
-		Ledgers:  make(map[string]ids.ID32),
+		Accounts: make(map[cbor.ByteString]ids.ID32),
+		Ledgers:  make(map[cbor.ByteString]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil datas")
 
 	s = &State{
-		Accounts: make(map[string]ids.ID32),
-		Ledgers:  make(map[string]ids.ID32),
-		Datas:    make(map[string]ids.ID32),
+		Accounts: make(map[cbor.ByteString]ids.ID32),
+		Ledgers:  make(map[cbor.ByteString]ids.ID32),
+		Datas:    make(map[cbor.ByteString]ids.ID32),
 	}
 	assert.ErrorContains(s.SyntacticVerify(), "nil models")
 
@@ -61,7 +62,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s2.ID)
 	assert.Equal(cbordata, cbordata2)
 
-	s.Accounts[string(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
+	s.Accounts[cbor.ByteString(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
 	assert.NoError(s.SyntacticVerify())
 	assert.NotEqual(s.ID, s2.ID)
 	assert.NotEqual(s.Bytes(), s2.Bytes())
@@ -71,7 +72,7 @@ func TestState(t *testing.T) {
 	assert.Equal(s.ID, s3.ID)
 	assert.Equal(s.Bytes(), s3.Bytes())
 
-	s3.Ledgers[string(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
+	s3.Ledgers[cbor.ByteString(ids.GenesisAccount[:])] = ids.ID32{1, 2, 3}
 	assert.NoError(s3.SyntacticVerify())
 	assert.NotEqual(s.ID, s3.ID)
 	assert.NotEqual(s.Bytes(), s3.Bytes())

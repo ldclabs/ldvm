@@ -10,6 +10,7 @@ import (
 
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fxamacker/cbor/v2"
 
 	"github.com/ldclabs/ldvm/util/encoding"
 )
@@ -47,12 +48,12 @@ func (s Sig) Ptr() *Sig {
 	return &s
 }
 
-func (s Sig) AsKey() string {
+func (s Sig) AsKey() cbor.ByteString {
 	switch len(s) {
 	case 65:
-		return string(s[:64])
+		return cbor.ByteString(s[:64])
 	default:
-		return string(s)
+		return cbor.ByteString(s)
 	}
 }
 
@@ -202,7 +203,7 @@ func (s Sig) FindKey(digestHash []byte, keys ...Key) int {
 }
 
 func (ss Sigs) Valid() error {
-	dset := make(map[string]struct{}, len(ss))
+	dset := make(map[cbor.ByteString]struct{}, len(ss))
 	for _, s := range ss {
 		sigStr := s.AsKey()
 		if _, ok := dset[sigStr]; ok {

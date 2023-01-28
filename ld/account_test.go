@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/stretchr/testify/assert"
@@ -140,7 +141,7 @@ func TestAccount(t *testing.T) {
 	acc = &Account{
 		Balance: big.NewInt(0),
 		Keepers: signer.Keys{},
-		Tokens:  make(map[string]*big.Int),
+		Tokens:  make(map[cbor.ByteString]*big.Int),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid nonceTable")
 
@@ -148,7 +149,7 @@ func TestAccount(t *testing.T) {
 		Type:       3,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid type")
@@ -157,7 +158,7 @@ func TestAccount(t *testing.T) {
 		Type:           NativeAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        signer.Keys{},
-		Tokens:         make(map[string]*big.Int),
+		Tokens:         make(map[cbor.ByteString]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
@@ -167,7 +168,7 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Approver:   signer.Key{},
 	}
@@ -177,7 +178,7 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Approver:   signer.Key(ids.EmptyID20[:]),
 	}
@@ -187,7 +188,7 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Approver:   signer.Key(ids.EmptyID32[:]),
 	}
@@ -197,7 +198,7 @@ func TestAccount(t *testing.T) {
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
 		Keepers:     signer.Keys{},
-		Tokens:      make(map[string]*big.Int),
+		Tokens:      make(map[cbor.ByteString]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TxType(255)},
 	}
@@ -207,7 +208,7 @@ func TestAccount(t *testing.T) {
 		Type:        NativeAccount,
 		Balance:     big.NewInt(0),
 		Keepers:     signer.Keys{},
-		Tokens:      make(map[string]*big.Int),
+		Tokens:      make(map[cbor.ByteString]*big.Int),
 		NonceTable:  make(map[uint64][]uint64),
 		ApproveList: TxTypes{TypeTransfer, TypeTransfer},
 	}
@@ -217,7 +218,7 @@ func TestAccount(t *testing.T) {
 		Type:       NativeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
@@ -227,7 +228,7 @@ func TestAccount(t *testing.T) {
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
@@ -237,7 +238,7 @@ func TestAccount(t *testing.T) {
 		Type:       TokenAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid maxTotalSupply")
@@ -246,7 +247,7 @@ func TestAccount(t *testing.T) {
 		Type:           TokenAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        signer.Keys{},
-		Tokens:         make(map[string]*big.Int),
+		Tokens:         make(map[cbor.ByteString]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(-1),
 	}
@@ -256,7 +257,7 @@ func TestAccount(t *testing.T) {
 		Type:           StakeAccount,
 		Balance:        big.NewInt(0),
 		Keepers:        signer.Keys{},
-		Tokens:         make(map[string]*big.Int),
+		Tokens:         make(map[cbor.ByteString]*big.Int),
 		NonceTable:     make(map[uint64][]uint64),
 		MaxTotalSupply: big.NewInt(0),
 	}
@@ -266,7 +267,7 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake:      &StakeConfig{},
 	}
@@ -276,7 +277,7 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 	assert.ErrorContains(acc.SyntacticVerify(), "invalid stake on StakeAccount")
@@ -285,7 +286,7 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{
 			WithdrawFee: 1,
@@ -305,7 +306,7 @@ func TestAccount(t *testing.T) {
 		Type:       StakeAccount,
 		Balance:    big.NewInt(0),
 		Keepers:    signer.Keys{},
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 		Stake: &StakeConfig{
 			WithdrawFee: 1,

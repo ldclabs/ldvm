@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/signer"
@@ -31,7 +32,7 @@ func NewAccount(id ids.Address) *Account {
 		ID:         id,
 		Balance:    big.NewInt(0),
 		Keepers:    make(signer.Keys, 0),
-		Tokens:     make(map[string]*big.Int),
+		Tokens:     make(map[cbor.ByteString]*big.Int),
 		NonceTable: make(map[uint64][]uint64),
 	}
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/signer"
 	"github.com/ldclabs/ldvm/util/encoding"
@@ -52,11 +53,11 @@ type Account struct {
 	Threshold uint16 `cbor:"th" json:"threshold"`
 	// keepers who can use this account, no more than 64
 	// the account id must be one of them.
-	Keepers     signer.Keys         `cbor:"kp" json:"keepers"`
-	Tokens      map[string]*big.Int `cbor:"tk" json:"tokens"`
-	NonceTable  map[uint64][]uint64 `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
-	Approver    signer.Key          `cbor:"ap,omitempty" json:"approver,omitempty"`
-	ApproveList TxTypes             `cbor:"apl,omitempty" json:"approveList,omitempty"`
+	Keepers     signer.Keys                  `cbor:"kp" json:"keepers"`
+	Tokens      map[cbor.ByteString]*big.Int `cbor:"tk" json:"tokens"`
+	NonceTable  map[uint64][]uint64          `cbor:"nt" json:"nonceTable"` // map[expire][]nonce
+	Approver    signer.Key                   `cbor:"ap,omitempty" json:"approver,omitempty"`
+	ApproveList TxTypes                      `cbor:"apl,omitempty" json:"approveList,omitempty"`
 	// MaxTotalSupply only used with TokenAccount
 	MaxTotalSupply *big.Int       `cbor:"mts,omitempty" json:"maxTotalSupply,omitempty"`
 	Stake          *StakeConfig   `cbor:"st,omitempty" json:"stake,omitempty"`

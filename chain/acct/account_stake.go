@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/ldclabs/ldvm/ids"
 	"github.com/ldclabs/ldvm/ld"
 	"github.com/ldclabs/ldvm/signer"
@@ -169,7 +170,7 @@ func (a *Account) DestroyStake(recipient *Account) error {
 	a.ld.Approver = nil
 	a.ld.ApproveList = nil
 	a.ld.Stake = nil
-	a.ledger.Stake = make(map[string]*ld.StakeEntry)
+	a.ledger.Stake = make(map[cbor.ByteString]*ld.StakeEntry)
 	return nil
 }
 
