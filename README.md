@@ -1,9 +1,11 @@
-Linked Data Virtual Machine (LDVM) - WIP
+# Linked Data Virtual Machine (LDVM) - WIP
 
 [![CI](https://github.com/ldclabs/ldvm/actions/workflows/ci.yml/badge.svg)](https://github.com/ldclabs/ldvm/actions/workflows/ci.yml)
 [![Codecov](https://codecov.io/gh/ldclabs/ldvm/branch/main/graph/badge.svg)](https://codecov.io/gh/ldclabs/ldvm)
 [![CodeQL](https://github.com/ldclabs/ldvm/actions/workflows/codeql.yml/badge.svg)](https://github.com/ldclabs/ldvm/actions/workflows/codeql.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/ldclabs/ldvm.svg)](https://pkg.go.dev/github.com/ldclabs/ldvm)
+
+**This project has been deprecated and replaced by NS-Protocol: [https://github.com/ldclabs/ns-rs](https://github.com/ldclabs/ns-rs)**
 
 Linked Data Store runing on Avalanche Subnets.
 
